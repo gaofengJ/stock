@@ -19,9 +19,11 @@
     "lint-staged": "13"
   },
   "lint-staged": {
-    "apps/{front,back}/**/*.{js,jsx,ts,tsx}": [
-      "pnpm run format",
-      "pnpm run lint"
+    "apps/front/**/*.{js,jsx,ts,tsx}": [
+      "cd apps/front && pnpm run lint"
+    ],
+    "apps/back/**/*.{js,jsx,ts,tsx}": [
+      "cd apps/front && pnpm run lint"
     ]
   }
 }
