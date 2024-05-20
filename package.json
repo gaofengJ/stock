@@ -4,9 +4,24 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "prepare": "husky install",
+    "commit": "git-cz"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "commitizen": "^4.3.0",
+    "commitlint": "^19.3.0",
+    "commitlint-config-cz": "^0.13.3",
+    "cz-customizable": "^7.0.0",
+    "husky": "8",
+    "lint-staged": "13"
+  },
+  "lint-staged": {
+    "apps/{front,back}/**/*.{js,jsx,ts,tsx}": [
+      "pnpm run format",
+      "pnpm run lint"
+    ]
+  }
 }
