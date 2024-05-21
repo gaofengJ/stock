@@ -70,7 +70,7 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # next.js
 .next
-/out/
+out
 
 # misc
 *.pem

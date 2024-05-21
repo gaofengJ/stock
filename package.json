@@ -4,6 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev:front": "cd apps/front && pnpm run dev",
+    "build:front": "cd apps/front && pnpm run build",
+    "dev:back": "cd apps/back && pnpm run start:dev",
+    "build:back": "cd apps/back && pnpm run build",
     "prepare": "husky install",
     "commit": "git-cz"
   },
