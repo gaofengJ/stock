@@ -1,21 +1,11 @@
 # 使用包含 pnpm 的 Node.js 镜像
-FROM node:18-slim AS builder
-
-# 设置工作目录
-WORKDIR /usr/src/app
-
-COPY ../../pnpm-lock.yaml ./
-COPY ../../pnpm-workspace.yaml ./
-
 FROM node:18-slim
 
 # 设置工作目录
 WORKDIR /usr/src/app
 
-# 复制 package.json、pnpm-lock.yaml、pnpm-workspace.yaml 文件到工作目录
+# 复制 package.json 文件到工作目录
 COPY package.json ./
-COPY --from=builder /app/pnpm-lock.yaml ./
-COPY --from=builder /app/pnpm-workspace.yaml ./
 
 # 安装项目依赖
 RUN pnpm install
