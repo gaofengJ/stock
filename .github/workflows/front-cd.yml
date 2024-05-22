@@ -43,7 +43,7 @@ jobs:
       - name: build Docker Image
         run: |
           docker login --username=${{ secrets.DOCKER_USERNAME }} registry.cn-hangzhou.aliyuncs.com --password=${{ secrets.DOCKER_PASSWORD }}
-          docker build -t stock-front:latest ./apps/stock/front
+          docker build -t stock-front:latest ../apps/stock/front
           docker tag stock-front registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-front:latest
           docker push registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-front:latest
 
