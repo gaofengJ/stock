@@ -6,8 +6,8 @@ WORKDIR /usr/src/app
 
 # 复制 package.json、pnpm-lock.yaml、pnpm-workspace.yaml 文件到工作目录
 COPY package.json ./
-COPY pnpm-lock.yaml ./
-COPY pnpm-workspace.yaml ./
+COPY ../../pnpm-lock.yaml ./
+COPY ../../pnpm-workspace.yaml ./
 
 # 安装项目依赖
 RUN pnpm install
