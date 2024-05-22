@@ -1,11 +1,13 @@
 # actions 名称
-name: Docker Stock
+name: Docker Stock Front
 # 执行时机
 on:
   #监听push操作
   push:
     branches:
       - master
+    paths:
+    - 'apps/front/**'
   # 监听拉取请求操作
   pull_request:
     types:
@@ -31,12 +33,11 @@ jobs:
 
       # 安装依赖
       - name: install
-        run: pnpm install
+        run: pnpm install --F front
 
       # stock-front 打包
       - name: build
         run: pnpm run build:front
-        if: github.event_name == 'push' && contains(github.event.compare, 'apps/front')
 
       # 登录阿里云镜像容器服务，打包镜像，推送镜像
       - name: build Docker Image
@@ -45,7 +46,6 @@ jobs:
           docker build -t stock-front:latest ./apps/stock-front
           docker tag stock-front registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-front:latest
           docker push registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-front:latest
-        if: github.event_name == 'push' && contains(github.event.compare, 'apps/front')
 
       # 使用 appleboy/ssh-action@master 登录服务器执行拉取镜像脚本，服务器ip、用户名、密码配置方式同容器镜像服务配置方式一样
       - name: ssh actions
@@ -55,4 +55,3 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
           script: cd /home && sh stock-front-deploy.sh ${{ secrets.DOCKER_USERNAME }} ${{ secrets.DOCKER_PASSWORD }}
-        if: github.event_name == 'push' && contains(github.event.compare, 'apps/front')
