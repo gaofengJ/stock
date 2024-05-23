@@ -1,10 +1,8 @@
 # 使用包含 pnpm 的 Node.js 镜像
-FROM node:20-slim
+FROM node:20-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-
-# 安装并启用 pnpm
-RUN corepack enable && corepack prepare pnpm@8.5 --activate
+RUN corepack enable
 
 # 设置工作目录
 WORKDIR /usr/src/app
@@ -12,14 +10,15 @@ WORKDIR /usr/src/app
 # 复制 package.json 文件到工作目录
 COPY package.json ./
 
+FROM base AS build
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+RUN pnpm run build
+
 # 安装项目依赖
 RUN pnpm install
 
 # 复制项目的所有文件到工作目录
 COPY . .
-
-# 构建 NestJS 应用
-RUN pnpm run build
 
 # 暴露应用的端口
 EXPOSE 3000
