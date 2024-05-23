@@ -2,7 +2,9 @@
 FROM node:20-slim
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+
+# 安装并启用 pnpm
+RUN corepack enable && corepack prepare pnpm@8.5 --activate
 
 # 设置工作目录
 WORKDIR /usr/src/app
