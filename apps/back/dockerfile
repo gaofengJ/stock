@@ -1,8 +1,4 @@
-# 使用包含 pnpm 的 Node.js 镜像
-FROM node:20-slim AS base
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+FROM node:18-alpine
 
 # 设置工作目录
 WORKDIR /usr/src/app
@@ -10,9 +6,7 @@ WORKDIR /usr/src/app
 # 复制 package.json 文件到工作目录
 COPY package.json ./
 
-FROM base AS build
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
-RUN pnpm run build
+RUN npm install -g pnpm
 
 # 安装项目依赖
 RUN pnpm install
