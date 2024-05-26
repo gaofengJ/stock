@@ -23,7 +23,7 @@ RUN pnpm run build
 FROM nginx
 
 # 将本地文件复制到镜像中
-COPY --from=builder ./out /usr/share/nginx/html/
+COPY --from=builder out /usr/share/nginx/html/
 
 # 用于将本地的 ./front.nginx.conf 文件复制到 Nginx 容器中的 /etc/nginx/conf.d/front.nginx.conf 文件
 COPY apps/front/front.nginx.conf /etc/nginx/conf.d/front.nginx.conf
