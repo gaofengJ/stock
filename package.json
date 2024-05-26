@@ -10,7 +10,7 @@
     "build:back": "cd apps/back && pnpm run build",
     "start:back:dev": "cd apps/back && pnpm run start:dev",
     "start:back:debug": "cd apps/back && pnpm run start:debug",
-    "start:back:prod": "cd apps/back && pnpm run start:back",
+    "start:back:prod": "cd apps/back && pnpm run start:prod",
     "prepare": "husky install",
     "commit": "git-cz"
   },

@@ -1,14 +1,22 @@
 FROM node:18-alpine
 
+# 安装 pnpm
+RUN npm install -g pnpm
+
 # 设置工作目录
 WORKDIR /usr/src/app
 
-
-# 复制 所有文件到工作目录
+# 复制 monorepo 的所有文件到工作目录
 COPY . .
+
+# 安装 back 项目的依赖项
+RUN pnpm install --F back
+
+# 构建 back 项目
+RUN pnpm run build:back
 
 # 暴露应用的端口
 EXPOSE 3000
 
 # 启动应用
-CMD ["node", "dist/main"]
+CMD ["pnpm", "run", "start:back:prod"]
