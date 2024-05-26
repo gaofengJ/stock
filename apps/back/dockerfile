@@ -4,11 +4,8 @@ FROM node:18-alpine
 WORKDIR /usr/src/app
 
 
-# 复制 dist 目录到工作目录
-COPY dist ./dist
-
-# 复制 node_modules 目录到工作目录
-COPY node_modules ./node_modules
+# 复制 所有文件到工作目录
+COPY . .
 
 # 暴露应用的端口
 EXPOSE 3000
