@@ -25,6 +25,20 @@ jobs:
       - name: checkout # 步骤名称
         uses: actions/checkout@master # 使用action库  actions/checkout拉取源码
 
+      # 指定 pnpm 版本
+      - name: set node version
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      # 安装依赖
+      - name: install
+        run: pnpm install --f back
+
+      # 打包
+      - name: build
+        run: pnpm run build:bck
+
       # 登录阿里云镜像容器服务，打包镜像，推送镜像
       - name: build Docker Image
         run: |

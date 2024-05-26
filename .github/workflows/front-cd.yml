@@ -25,11 +25,25 @@ jobs:
       - name: checkout # 步骤名称
         uses: actions/checkout@master # 使用action库  actions/checkout拉取源码
 
+      # 指定 pnpm 版本
+      - name: set node version
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      # 安装依赖
+      - name: install
+        run: pnpm install --f front
+
+      # 打包
+      - name: build
+        run: pnpm run build:front
+
       # 登录阿里云镜像容器服务，打包镜像，推送镜像
       - name: build Docker Image
         run: |
           docker login --username=${{ secrets.DOCKER_USERNAME }} registry.cn-hangzhou.aliyuncs.com --password=${{ secrets.DOCKER_PASSWORD }}
-          docker build -f apps/front/dockerfile -t stock-front:latest .
+          docker build -t stock-front:latest apps/front
           docker tag stock-front registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-front:latest
           docker push registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-front:latest
 

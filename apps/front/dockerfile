@@ -1,32 +1,8 @@
-# 使用 Node.js 官方镜像作为构建阶段的基础镜像
-FROM node:18 AS builder
-
-# 复制 apps/front/package.json
-COPY apps/front/package.json ./
-
-# 复制 根目录下的 pnpm-lock.yaml 和 pnpm-workspace.yaml
-COPY pnpm-lock.yaml pnpm-workspace.yaml ./
-
-# 安装 pnpm
-RUN npm install -g pnpm
-
-# 使用 pnpm 安装依赖
-RUN pnpm install
-
-# 复制应用程序的源代码到工作目录
-COPY apps/front/ .
-
-# 构建应用程序
-RUN pnpm run build
-
 # 使用官方提供的 Nginx 镜像作为基础镜像，当前的镜像将基于 Nginx 镜像构建
 FROM nginx
-
 # 将本地文件复制到镜像中
-COPY --from=builder out /usr/share/nginx/html/
-
-# 用于将本地的 apps/front/front.nginx.conf 文件复制到 Nginx 容器中的 /etc/nginx/conf.d/front.nginx.conf 文件
-COPY apps/front/front.nginx.conf /etc/nginx/conf.d/front.nginx.conf
-
+COPY ./out /usr/share/nginx/html/
+# 用于将本地的 ./front.nginx.conf 文件复制到 Nginx 容器中的 /etc/nginx/conf.d/front.nginx.conf 文件
+COPY ./front.nginx.conf /etc/nginx/conf.d/front.nginx.conf
 # 指定容器监听在 80 端口上，即对外提供 HTTP 服务
 EXPOSE 80
