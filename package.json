@@ -27,10 +27,10 @@
   },
   "lint-staged": {
     "apps/front/**/*.{js,jsx,ts,tsx}": [
-      "cd apps/front && pnpm run lint"
+      "pnpm -C apps/front run lint"
     ],
     "apps/back/**/*.{js,jsx,ts,tsx}": [
-      "cd apps/front && pnpm run lint"
+      "pnpm -C apps/back run lint"
     ]
   }
 }

@@ -9,6 +9,7 @@ module.exports = {
     },
   },
   plugins: ['@typescript-eslint', 'react', 'react-hooks'],
+  ignorePatterns: ['.eslint.js', '.next', 'node_modules'],
   rules: { // 在这里可以添加或覆盖规则
     'react/react-in-jsx-scope': 'off',
     'react/jsx-filename-extension': ['error', { extensions: ['.jsx', '.tsx'] }], // 控制哪些文件扩展名可以包含 JSX 语法
