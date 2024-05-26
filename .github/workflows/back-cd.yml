@@ -33,11 +33,11 @@ jobs:
 
       # 安装依赖
       - name: install
-        run: pnpm install --f back
+        run: pnpm install --F back
 
       # 打包
       - name: build
-        run: pnpm run build:bck
+        run: pnpm run build:back
 
       # 登录阿里云镜像容器服务，打包镜像，推送镜像
       - name: build Docker Image
