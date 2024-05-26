@@ -5,10 +5,13 @@ WORKDIR /usr/src/app
 
 
 # 复制 dist 目录到工作目录
-COPY dist ./
+COPY dist ./dist
+
+# 复制 node_modules 目录到工作目录
+COPY node_modules ./node_modules
 
 # 暴露应用的端口
 EXPOSE 3000
 
 # 启动应用
-CMD ["node", "main"]
+CMD ["node", "dist/main"]
