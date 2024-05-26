@@ -33,7 +33,7 @@ jobs:
 
       # 安装依赖
       - name: install
-        run: pnpm install --f front
+        run: pnpm install --F front
 
       # 打包
       - name: build
