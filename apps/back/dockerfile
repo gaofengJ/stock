@@ -11,4 +11,4 @@ COPY dist ./
 EXPOSE 3000
 
 # 启动应用
-CMD ["node", "dist/main"]
+CMD ["node", "main"]
