@@ -19,9 +19,15 @@ module.exports = {
   ignorePatterns: ['.eslintrc.js', 'dist', 'node_modules'],
   settings: {
     'import/resolver': {
+      alias: {
+        map: [
+          ['@', './src'],
+        ],
+        extensions: ['.ts', '.js'],
+      },
       node: {
-        extensions: ['.js', '.jsx', '.ts', '.tsx'] // 如果是 Typescript 项目，添加 '.ts', '.tsx'
-      }
+        extensions: ['.js', '.jsx', '.ts', '.tsx'], // 如果是 Typescript 项目，添加 '.ts', '.tsx'
+      },
     }
   },
   rules: {
@@ -30,7 +36,10 @@ module.exports = {
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-explicit-any': 'off',
     'import/extensions': 'off',
+    'import/no-unresolved': 'off',
     'import/prefer-default-export': 'off',
-    'class-methods-use-this': 'off'
+    'class-methods-use-this': 'off',
+    "no-shadow": "off",
+    "@typescript-eslint/no-shadow": "warn"
   },
 };
