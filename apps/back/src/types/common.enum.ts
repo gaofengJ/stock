@@ -68,7 +68,11 @@ export enum EGlobalRedisConfig {}
 /**
  * 全局配置-Swagger配置
  */
-export enum EGlobalSwaggerConfig {}
+export enum EGlobalSwaggerConfig {
+  SWAGGER_ENABLE = 'SWAGGER_ENABLE',
+  SWAGGER_PATH = 'SWAGGER_PATH',
+  SWAGGER_VERSION = 'SWAGGER_VERSION',
+}
 
 /**
  * 不同日志级别的枚举
