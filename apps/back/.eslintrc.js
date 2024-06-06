@@ -41,5 +41,7 @@ module.exports = {
     'class-methods-use-this': 'off',
     "no-shadow": "off",
     "@typescript-eslint/no-shadow": "warn",
+    "no-useless-constructor": "off",
+    "no-empty-function": "off",
   },
 };

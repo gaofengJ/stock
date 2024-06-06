@@ -54,23 +54,41 @@ export enum EGlobalAppConfig {
  * 全局配置-数据库配置
  */
 export enum EGlobalDatabaseConfig {}
+
 /**
  * 全局配置-日志配置
  */
 export enum EGlobalLoggerConfig {
+  /**
+   * 日志级别
+   */
   LOGGER_LEVEL = 'LOGGER_LEVEL',
+  /**
+   * 最大日志文件数配置
+   */
   LOGGER_MAX_FILES = 'LOGGER_MAX_FILES',
 }
+
 /**
  * 全局配置-Redis配置
  */
 export enum EGlobalRedisConfig {}
+
 /**
  * 全局配置-Swagger配置
  */
 export enum EGlobalSwaggerConfig {
+  /**
+   * 是否开启
+   */
   SWAGGER_ENABLE = 'SWAGGER_ENABLE',
+  /**
+   * 访问路径
+   */
   SWAGGER_PATH = 'SWAGGER_PATH',
+  /**
+   * 版本号设置
+   */
   SWAGGER_VERSION = 'SWAGGER_VERSION',
 }
 

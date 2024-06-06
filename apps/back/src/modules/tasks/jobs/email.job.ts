@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { LoggerService } from '@/shared/logger/logger.service';
-
 import { Mission } from '../mission.decorator';
 
 /**
@@ -10,7 +9,6 @@ import { Mission } from '../mission.decorator';
 @Injectable()
 @Mission()
 export class EmailJob {
-  // eslint-disable-next-line no-useless-constructor, no-empty-function
   constructor(private readonly logger: LoggerService) {}
 
   async send(config: any): Promise<void> {

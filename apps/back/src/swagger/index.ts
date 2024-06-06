@@ -1,4 +1,4 @@
-import { INestApplication, Logger } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { IAppConfig, ISwaggerConfig } from '@/configs';
@@ -42,7 +42,4 @@ export const initSwagger = async (
       persistAuthorization: true, // 持久化认证信息
     },
   });
-
-  const logger = new Logger('SwaggerModule');
-  logger.log(`The documentation has been successfully started`);
 };
