@@ -8,13 +8,13 @@ import {
 } from '@nestjs/common';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
 
-import { fastifyApp } from '@/adapters/fastify';
+import { fastifyApp } from '@/adapters/fastify.adapters';
 import { AppModule } from '@/app.module';
 import { EGlobalConfig } from '@/types/common.enum';
 import { LoggerService } from '@/shared/logger/logger.service';
 import { IAppConfig } from '@/configs';
 import { initSwagger } from '@/swagger';
-import { isDev } from '@/utils/env';
+import { isDev } from '@/utils';
 
 /**
  * 初始化应用

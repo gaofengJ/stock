@@ -8,7 +8,7 @@ import type { Logger as WinstonLogger } from 'winston';
 import { config, createLogger, format, transports } from 'winston';
 import 'winston-daily-rotate-file';
 
-import { ILoggerConfig } from '@/configs/logger';
+import { ILoggerConfig } from '@/configs/logger.configs';
 import { EGlobalConfig, ELogLevel } from '@/types/common.enum';
 
 @Injectable()

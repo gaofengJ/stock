@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { IAppConfig, ISwaggerConfig } from '@/configs';
 import { EGlobalConfig } from '@/types/common.enum';
-import { API_SECURITY_AUTH } from '@/constants/swagger';
+import { API_SECURITY_AUTH } from '@/constants';
 
 export const initSwagger = async (
   app: INestApplication,

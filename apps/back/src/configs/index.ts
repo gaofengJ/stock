@@ -1,10 +1,10 @@
-import { AppConfig } from './app';
-import { LoggerConfig } from './logger';
-import { SwaggerConfig } from './swagger';
+import { AppConfig } from './app.configs';
+import { LoggerConfig } from './logger.configs';
+import { SwaggerConfig } from './swagger.configs';
 
-export * from './app';
-export * from './logger';
-export * from './swagger';
+export * from './app.configs';
+export * from './logger.configs';
+export * from './swagger.configs';
 
 export default {
   AppConfig,

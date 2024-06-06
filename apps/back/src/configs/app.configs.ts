@@ -1,6 +1,6 @@
 import { ConfigType, registerAs } from '@nestjs/config';
 import { EGlobalAppConfig, EGlobalConfig } from '@/types/common.enum';
-import { getEnvConfigNumber, getEnvConfigString } from '@/utils/env';
+import { getEnvConfigNumber, getEnvConfigString } from '@/utils';
 
 export const AppConfig = registerAs(EGlobalConfig.APP_CONFIG, () => ({
   name: getEnvConfigString(EGlobalAppConfig.APP_NAME),

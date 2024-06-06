@@ -1,5 +1,5 @@
 import { ConfigType, registerAs } from '@nestjs/config';
-import { getEnvConfigBoolean, getEnvConfigString } from '@/utils/env';
+import { getEnvConfigBoolean, getEnvConfigString } from '@/utils';
 import { EGlobalConfig, EGlobalSwaggerConfig } from '../types/common.enum';
 
 export const SwaggerConfig = registerAs(EGlobalConfig.SWAGGER_CONFIG, () => ({
