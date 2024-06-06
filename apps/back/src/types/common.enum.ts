@@ -53,7 +53,39 @@ export enum EGlobalAppConfig {
 /**
  * 全局配置-数据库配置
  */
-export enum EGlobalDatabaseConfig {}
+export enum EGlobalDatabaseConfig {
+  /**
+   * 数据库主机地址
+   * 数据库服务器的主机名或 IP 地址
+   */
+  DB_HOST = 'DB_HOST',
+  /**
+   * 数据库端口
+   */
+  DB_PORT = 'DB_PORT',
+  /**
+   * 数据库名称
+   */
+  DB_DATABASE = 'DB_DATABASE',
+  /**
+   * 数据库用户名
+   */
+  DB_USERNAME = 'DB_USERNAME',
+  /**
+   * 数据库密码
+   */
+  DB_PASSWORD = 'DB_PASSWORD',
+  /**
+   * 是否同步数据库
+   * 决定 TypeORM 是否在每次应用启动时自动同步数据库架构
+   */
+  DB_SYNCHRONIZE = 'DB_SYNCHRONIZE',
+  /**
+   * 数据库日志记录
+   * 定义数据库操作的日志记录选项，可以是布尔值或详细的日志级别配置
+   */
+  DB_LOGGING = 'DB_LOGGING',
+}
 
 /**
  * 全局配置-日志配置
