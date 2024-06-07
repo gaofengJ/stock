@@ -1,14 +1,12 @@
 import { ConfigType, registerAs } from '@nestjs/config';
-import { DataSourceOptions } from 'typeorm';
+import { DataSource, DataSourceOptions } from 'typeorm';
+import * as dotenv from 'dotenv';
 import { EGlobalConfig } from '@/types/common.enum';
 import {
   getEnvConfigBoolean,
   getEnvConfigNumber,
   getEnvConfigString,
 } from '@/utils';
-
-// eslint-disable-next-line import/order
-import dotenv from 'dotenv';
 
 dotenv.config({ path: `.env.${process.env.NODE_ENV}` });
 
@@ -36,3 +34,7 @@ export const DatabaseConfig = registerAs(
 );
 
 export type IDatabaseConfig = ConfigType<typeof DatabaseConfig>;
+
+const dataSource = new DataSource(dataSourceOptions);
+
+export default dataSource;
