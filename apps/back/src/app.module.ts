@@ -7,6 +7,7 @@ import { SharedModule } from '@/shared/shared.module';
 import { TasksModule } from '@/modules/tasks/tasks.module';
 import { BasicModule } from '@/modules/basic/basic.module';
 import { LimitModule } from '@/modules/limit/limit.module';
+import { DatabaseModule } from '@/shared/database/database.module';
 
 @Module({
   imports: [
@@ -26,7 +27,10 @@ import { LimitModule } from '@/modules/limit/limit.module';
       }),
     }),
     TasksModule.forRoot(),
+
     SharedModule,
+    DatabaseModule,
+
     BasicModule,
     LimitModule,
   ],

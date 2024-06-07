@@ -37,13 +37,12 @@ const providers = [EntityExistConstraint, UniqueConstraint];
               infer: true,
             },
           ) as IDatabaseConfig),
-          autoLoadEntities: true,
-          logging: loggerOptions,
-          logger: new TypeORMLogger(loggerOptions),
+          autoLoadEntities: true, // 自动加载所有定义的实体，无需在配置中手动指定每个实体
+          logging: loggerOptions, // 控制日志记录的详细程度
+          logger: new TypeORMLogger(loggerOptions), // 日志记录器
         };
       },
-      // dataSource receives the configured DataSourceOptions
-      // and returns a Promise<DataSource>.
+      // 初始化数据源
       dataSourceFactory: async (options: DataSourceOptions) => {
         const dataSource = await new DataSource(options).initialize();
         return dataSource;
