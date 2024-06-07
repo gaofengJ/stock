@@ -6,7 +6,7 @@ import {
   ValidatorConstraintInterface,
   registerDecorator,
 } from 'class-validator';
-import { isNil, merge } from 'lodash-es';
+import { isNil, merge } from 'lodash';
 import { ClsService } from 'nestjs-cls';
 import { DataSource, Not, ObjectType } from 'typeorm';
 
