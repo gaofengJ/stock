@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Column, Entity } from 'typeorm';
 import { CommonEntity } from '@/entity/common.entity';
 
-@Entity('stock-basic')
+@Entity('t_stock_basic')
 export class StockBasicEntity extends CommonEntity {
   @Column()
   @ApiProperty({ description: 'stock-basic' })
