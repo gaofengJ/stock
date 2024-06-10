@@ -5,7 +5,7 @@ import { ThrottlerModule, seconds } from '@nestjs/throttler';
 import config from '@/configs';
 import { SharedModule } from '@/shared/shared.module';
 import { TasksModule } from '@/modules/tasks/tasks.module';
-import { BasicModule } from '@/modules/basic/basic.module';
+import { StockBasicModule } from '@/modules/stock-basic/stock-basic.module';
 import { LimitModule } from '@/modules/limit/limit.module';
 import { DatabaseModule } from '@/shared/database/database.module';
 
@@ -31,7 +31,7 @@ import { DatabaseModule } from '@/shared/database/database.module';
     SharedModule,
     DatabaseModule,
 
-    BasicModule,
+    StockBasicModule,
     LimitModule,
   ],
   providers: [],

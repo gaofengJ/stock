@@ -43,5 +43,6 @@ module.exports = {
     "@typescript-eslint/no-shadow": "warn",
     "no-useless-constructor": "off",
     "no-empty-function": "off",
+    "max-classes-per-file": "off"
   },
 };

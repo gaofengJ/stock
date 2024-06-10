@@ -1,7 +1,7 @@
 import { EType } from '@/types/common.enum';
 
 /**
- * 获取值的类型
+ * @description 获取值的类型
  * @param value 要获取类型的值
  * @returns 值的类型字符串
  */

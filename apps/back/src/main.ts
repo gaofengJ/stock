@@ -17,7 +17,7 @@ import { initSwagger } from '@/swagger';
 import { isDev } from '@/utils';
 
 /**
- * 初始化应用
+ * @description 初始化应用
  */
 const bootstrap = async () => {
   const app = await NestFactory.create<NestFastifyApplication>(
