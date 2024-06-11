@@ -10,8 +10,8 @@ import { createPaginationObject } from './create-pagination';
 import { IPaginationOptions, PaginationTypeEnum } from './interface';
 import { Pagination } from './pagination';
 
-const DEFAULT_LIMIT = 10;
-const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_NUM = 1;
+const DEFAULT_PAGE_SIZE = 10;
 
 function resolveOptions(
   options: IPaginationOptions,
@@ -19,8 +19,8 @@ function resolveOptions(
   const { pageNum, pageSize, paginationType } = options;
 
   return [
-    pageNum || DEFAULT_PAGE,
-    pageSize || DEFAULT_LIMIT,
+    pageNum || DEFAULT_PAGE_NUM,
+    pageSize || DEFAULT_PAGE_SIZE,
     paginationType || PaginationTypeEnum.TAKE_AND_SKIP,
   ];
 }
@@ -130,6 +130,7 @@ export async function paginate<T extends ObjectLiteral>(
   options: IPaginationOptions,
   searchOptions?: FindOptionsWhere<T> | FindManyOptions<T>,
 ): Promise<Pagination<T>>;
+
 export async function paginate<T extends ObjectLiteral>(
   queryBuilder: SelectQueryBuilder<T>,
   options: IPaginationOptions,

@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 
 import { paginate } from '@/helper/paginate/index';
 import { Pagination } from '@/helper/paginate/pagination';
@@ -22,8 +22,16 @@ export class StockBasicService {
   async list({
     pageNum,
     pageSize,
+    symbol,
+    name,
   }: StockBasicQueryDto): Promise<Pagination<StockBasicEntity>> {
-    return paginate(this.stockBasicRepository, { pageNum, pageSize });
+    const queryBuilder = this.stockBasicRepository
+      .createQueryBuilder('t_stock_basic')
+      .where({
+        ...(symbol && { code: Like(`%${symbol}%`) }),
+        ...(name && { name: Like(`%${name}%`) }),
+      });
+    return paginate(queryBuilder, { pageNum, pageSize });
   }
 
   async detail(id: number): Promise<StockBasicEntity> {
@@ -43,7 +51,6 @@ export class StockBasicService {
 
   async delete(id: number) {
     const item = await this.detail(id);
-
     await this.stockBasicRepository.remove(item);
   }
 }

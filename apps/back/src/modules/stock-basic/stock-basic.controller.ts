@@ -37,14 +37,14 @@ import { StockBasicService } from './stock-basic.service';
 //   DELETE: 'delete',
 // } as const);
 
-@ApiTags('Business - TtockBasic模块')
+@ApiTags('源数据 - StockBasic模块')
 // @UseGuards(ResourceGuard)
-@Controller('stockBasics')
+@Controller('stock-basic')
 export class StockBasicController {
   constructor(private readonly stockBasicService: StockBasicService) {}
 
-  @Get()
-  @ApiOperation({ summary: '获取TtockBasic列表' })
+  @Get('/list')
+  @ApiOperation({ summary: '获取StockBasic列表' })
   @ApiResult({ type: [StockBasicEntity] })
   // @Perm(permissions.LIST)
   async list(
@@ -54,7 +54,7 @@ export class StockBasicController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: '获取TtockBasic详情' })
+  @ApiOperation({ summary: '获取StockBasic详情' })
   @ApiResult({ type: StockBasicEntity })
   // @Perm(permissions.READ)
   async info(@IdParam() id: number): Promise<StockBasicEntity> {
@@ -62,14 +62,14 @@ export class StockBasicController {
   }
 
   @Post()
-  @ApiOperation({ summary: '创建TtockBasic' })
+  @ApiOperation({ summary: '创建StockBasic' })
   // @Perm(permissions.CREATE)
   async create(@Body() dto: StockBasicDto): Promise<void> {
     await this.stockBasicService.create(dto);
   }
 
   @Put(':id')
-  @ApiOperation({ summary: '更新TtockBasic' })
+  @ApiOperation({ summary: '更新StockBasic' })
   // @Perm(permissions.UPDATE)
   // @Resource(StockBasicEntity)
   async update(
@@ -80,7 +80,7 @@ export class StockBasicController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: '删除TtockBasic' })
+  @ApiOperation({ summary: '删除StockBasic' })
   // @Perm(permissions.DELETE)
   // @Resource(StockBasicEntity)
   async delete(@IdParam() id: number): Promise<void> {
