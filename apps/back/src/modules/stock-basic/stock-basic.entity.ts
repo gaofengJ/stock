@@ -3,7 +3,10 @@ import { Column, Entity } from 'typeorm';
 import { CommonEntity } from '@/entity/common.entity';
 
 // 使用 @Entity 装饰器将这个类标记为一个实体，并指定数据库表名为 't_stock_basic'
-@Entity('t_stock_basic')
+@Entity({
+  name: 't_stock_basic',
+  comment: '股票基本信息',
+})
 // 定义一个名为 StockBasicEntity 的类，并继承 CommonEntity
 export class StockBasicEntity extends CommonEntity {
   @Column({
