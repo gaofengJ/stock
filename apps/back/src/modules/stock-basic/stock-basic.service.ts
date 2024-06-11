@@ -37,7 +37,6 @@ export class StockBasicService {
   async detail(id: number): Promise<StockBasicEntity> {
     const item = await this.stockBasicRepository.findOneBy({ id });
     if (!item) throw new NotFoundException('未找到该记录');
-
     return item;
   }
 

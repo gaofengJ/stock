@@ -37,7 +37,7 @@ export class PagerDto {
   @Transform(({ value: val }) => (val ? Number.parseInt(val, 10) : 1), {
     toClassOnly: true,
   })
-  pageNum?: number;
+  pageNum: number;
 
   @ApiProperty({ minimum: 1, maximum: 50, default: 10 })
   @Min(1)
@@ -48,7 +48,7 @@ export class PagerDto {
   @Transform(({ value: val }) => (val ? Number.parseInt(val, 10) : 10), {
     toClassOnly: true,
   })
-  pageSize?: number;
+  pageSize: number;
 
   @ApiProperty()
   @IsString()
