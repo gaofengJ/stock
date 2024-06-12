@@ -94,11 +94,11 @@ export class StockBasicDto extends PartialType(StockBasicEntity) {
 export class StockBasicQueryDto extends PagerDto {
   @ApiProperty({ description: '股票代码' })
   @IsString()
-  symbol: string;
+  symbol?: string;
 
   @ApiProperty({ description: '股票名称' })
   @IsString()
-  name: string;
+  name?: string;
 }
 
 export class StockBasicUpdateDto extends PartialType(StockBasicDto) {}
