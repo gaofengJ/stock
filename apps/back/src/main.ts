@@ -1,3 +1,5 @@
+import * as path from 'path';
+
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -38,6 +40,7 @@ const bootstrap = async () => {
 
   app.enableCors({ origin: '*', credentials: true }); // 启用跨域资源共享 (CORS)，允许所有来源和携带凭证
   app.setGlobalPrefix(globalPrefix); // 设置全局前缀
+  app.useStaticAssets({ root: path.join(__dirname, '..', 'public') });
 
   if (!isDev) {
     app.enableShutdownHooks(); // 在生产环境中启用应用程序的关机钩子，以确保在应用关闭时能正确地执行清理任务
