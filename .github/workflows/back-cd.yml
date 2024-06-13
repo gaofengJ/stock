@@ -27,7 +27,6 @@ jobs:
 
       - name: Replace environment variables in .env.production
         run: |
-          echo "Replacing DB_HOST with ${secrets.DB_HOST} aaa ${{secrets.DB_HOST}}"
           cat apps/back/.env.production
           sed -i "s/DB_HOST=.*/DB_HOST=${{ secrets.DB_HOST }}/" apps/back/.env.production
           sed -i "s/DB_PORT=.*/DB_PORT=${{ secrets.DB_PORT }}/" apps/back/.env.production
