@@ -25,6 +25,14 @@ jobs:
       - name: checkout # 步骤名称
         uses: actions/checkout@master # 使用action库  actions/checkout拉取源码
 
+      - name: Replace environment variables in .env.production
+        run: |
+          sed -i "s/DB_HOST=.*/DB_HOST=${{ secrets.DB_HOST }}/" apps/back/.env.production
+          sed -i "s/DB_PORT=.*/DB_PORT=${{ secrets.DB_PORT }}/" apps/back/.env.production
+          sed -i "s/DB_DATABASE=.*/DB_DATABASE=${{ secrets.DB_DATABASE }}/" apps/back/.env.production
+          sed -i "s/DB_USERNAME=.*/DB_USERNAME=${{ secrets.DB_USERNAME }}/" apps/back/.env.production
+          sed -i "s/DB_PASSWORD=.*/DB_PASSWORD=${{ secrets.DB_PASSWORD }}/" apps/back/.env.production
+
       # 登录阿里云镜像容器服务，打包镜像，推送镜像
       - name: build Docker Image
         run: |
