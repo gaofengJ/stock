@@ -9,6 +9,10 @@ WORKDIR /usr/src/app
 # 复制 monorepo 的所有文件到工作目录
 COPY . .
 
+# 复制 env 文件
+COPY ./apps/back/.env ./apps/back/.env
+COPY ./apps/back/.env.production ./apps/back/.env.production
+
 # 安装 back 项目的依赖项
 RUN pnpm install --F back
 
