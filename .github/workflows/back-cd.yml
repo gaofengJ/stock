@@ -28,11 +28,11 @@ jobs:
       - name: Replace environment variables in .env.production
         run: |
           cat apps/back/.env.production
-          sed -i "s/DB_HOST=.*/DB_HOST=${{ secrets.DB_HOST }}/" apps/back/.env.production
-          sed -i "s/DB_PORT=.*/DB_PORT=${{ secrets.DB_PORT }}/" apps/back/.env.production
-          sed -i "s/DB_DATABASE=.*/DB_DATABASE=${{ secrets.DB_DATABASE }}/" apps/back/.env.production
-          sed -i "s/DB_USERNAME=.*/DB_USERNAME=${{ secrets.DB_USERNAME }}/" apps/back/.env.production
-          sed -i "s/DB_PASSWORD=.*/DB_PASSWORD=${{ secrets.DB_PASSWORD }}/" apps/back/.env.production
+          sed -i "s|__PROD_DB_HOST__|${{ secrets.DB_HOST }}|g" apps/back/.env.production
+          sed -i "s|__DB_PORT__|${{ secrets.DB_PORT }}|g" apps/back/.env.production
+          sed -i "s|__DB_DATABASE__|${{secrets.DB_DATABASE }}|g" apps/back/.env.production
+          sed -i "s|__DB_USERNAME__|${{secrets.DB_USERNAME }}|g" apps/back/.env.production
+          sed -i "s|__DB_PASSWORD__|${{secrets.DB_PASSWORD }}|g" apps/back/.env.production
           cat apps/back/.env.production
       # 登录阿里云镜像容器服务，打包镜像，推送镜像
       - name: build Docker Image
