@@ -6,7 +6,7 @@ import { EGlobalConfig } from '@/types/common.enum';
 import { API_SECURITY_AUTH } from '@/constants';
 import { CommonEntity } from '@/entity/common.entity';
 import { Pagination } from '@/helper/paginate/pagination';
-import { Res } from '@/models/response.model';
+import { ResModel } from '@/models/response.model';
 
 export const initSwagger = async (
   app: INestApplication,
@@ -38,7 +38,7 @@ export const initSwagger = async (
 
   const document = SwaggerModule.createDocument(app, documentBuilder.build(), {
     ignoreGlobalPrefix: false, // Swagger 文档将包含应用程序的全局前缀
-    extraModels: [CommonEntity, Res, Pagination],
+    extraModels: [CommonEntity, ResModel, Pagination],
   });
 
   SwaggerModule.setup(path, app, document, {

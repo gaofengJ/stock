@@ -39,10 +39,16 @@ module.exports = {
     'import/no-unresolved': 'off',
     'import/prefer-default-export': 'off',
     'class-methods-use-this': 'off',
-    "no-shadow": "off",
-    "@typescript-eslint/no-shadow": "warn",
-    "no-useless-constructor": "off",
-    "no-empty-function": "off",
-    "max-classes-per-file": "off"
+    'no-shadow': 'off',
+    '@typescript-eslint/no-shadow': 'warn',
+    'no-useless-constructor': 'off',
+    'no-empty-function': 'off',
+    'max-classes-per-file': 'off',
+    'no-console': [
+      'error',
+      {
+        allow: ['warn', 'error']
+      }
+    ]
   },
 };

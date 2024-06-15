@@ -1,13 +1,18 @@
-import { Module } from '@nestjs/common';
+import { ClassSerializerInterceptor, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule, seconds } from '@nestjs/throttler';
+import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
+import { ClsModule } from 'nestjs-cls';
 
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import config from '@/configs';
 import { SharedModule } from '@/shared/shared.module';
 import { TasksModule } from '@/modules/tasks/tasks.module';
 import { StockBasicModule } from '@/modules/stock-basic/stock-basic.module';
 import { LimitModule } from '@/modules/limit/limit.module';
 import { DatabaseModule } from '@/shared/database/database.module';
+import { AllExceptionsFilter } from '@/filters/exceptions.filter';
+import { TransformInterceptor } from '@/interceptors/transform.interceptor';
+import { TimeoutInterceptor } from '@/interceptors/timeout.interceptor';
 
 @Module({
   imports: [
@@ -26,6 +31,22 @@ import { DatabaseModule } from '@/shared/database/database.module';
         throttlers: [{ ttl: seconds(10), limit: 7 }],
       }),
     }),
+    // 启用 CLS 上下文
+    ClsModule.forRoot({
+      global: true,
+      interceptor: {
+        // 拦截器
+        mount: true, // 启用拦截器，将其挂载到请求处理链中
+        setup: (cls, context) => {
+          // 配置一个自定义的 setup 函数，该函数将在每个请求的上下文中运行
+          const req = context.switchToHttp().getRequest<any>();
+          if (req.params?.id && req.body) {
+            // 供自定义参数验证器(UniqueConstraint)使用
+            cls.set('operateId', Number.parseInt(req.params.id, 10));
+          }
+        },
+      },
+    }),
     TasksModule.forRoot(),
 
     SharedModule,
@@ -34,6 +55,20 @@ import { DatabaseModule } from '@/shared/database/database.module';
     StockBasicModule,
     LimitModule,
   ],
-  providers: [],
+  providers: [
+    { provide: APP_FILTER, useClass: AllExceptionsFilter }, // 自定义异常过滤器，用于捕获和处理应用程序中所有未被捕获的异常，统一异常处理逻辑
+
+    { provide: APP_INTERCEPTOR, useClass: ClassSerializerInterceptor }, // 自动序列化类实例，确保返回的响应对象符合预期的格式
+    { provide: APP_INTERCEPTOR, useClass: TransformInterceptor }, // 自定义拦截器，用于在请求和响应过程中进行数据转换
+    {
+      provide: APP_INTERCEPTOR,
+      useFactory: () => new TimeoutInterceptor(15 * 1000), // 自定义拦截器，用于设置请求的超时时间。这里通过 useFactory 动态生成一个超时时间为 15 秒的拦截器
+    },
+    // { provide: APP_INTERCEPTOR, useClass: IdempotenceInterceptor }, // 自定义拦截器，用于确保请求的幂等性，防止重复处理相同的请求
+
+    // { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // { provide: APP_GUARD, useClass: RbacGuard },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}

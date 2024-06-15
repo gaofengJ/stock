@@ -1,7 +1,7 @@
 import { HttpStatus, Type, applyDecorators } from '@nestjs/common';
 import { ApiExtraModels, ApiResponse, getSchemaPath } from '@nestjs/swagger';
 
-import { Res } from '@/models/response.model';
+import { ResModel } from '@/models/response.model';
 
 const baseTypeNames = ['String', 'Number', 'Boolean']; // 基础类型
 
@@ -81,7 +81,7 @@ export function ApiResult<TModel extends Type<any>>({
       status,
       schema: {
         allOf: [
-          { $ref: getSchemaPath(Res) },
+          { $ref: getSchemaPath(ResModel) },
           {
             properties: {
               data: prop,

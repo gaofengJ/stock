@@ -8,11 +8,10 @@ import { EGlobalConfig, EGlobalDatabaseConfig } from '@/types/common.enum';
 import { getEnvConfigString } from '@/utils';
 
 import { EntityExistConstraint } from './constraints/entity-exist.constraint';
-// import { UniqueConstraint } from './constraints/unique.constraint';
+import { UniqueConstraint } from './constraints/unique.constraint';
 import { TypeORMLogger } from './typeorm-logger';
 
-// const providers = [EntityExistConstraint, UniqueConstraint];
-const providers = [EntityExistConstraint];
+const providers = [EntityExistConstraint, UniqueConstraint];
 
 @Module({
   imports: [
