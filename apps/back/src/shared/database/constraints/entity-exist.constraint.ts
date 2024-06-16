@@ -7,6 +7,7 @@ import {
   registerDecorator,
 } from 'class-validator';
 import { DataSource, ObjectType, Repository } from 'typeorm';
+import { DataSourceService } from '../database.service';
 
 /**
  * 查询某个字段的值是否在数据表中存在
@@ -28,15 +29,15 @@ export class EntityExistConstraint implements ValidatorConstraintInterface {
     if (!value) return true;
     // 默认对比字段是id
     let field = 'id';
+    const dataSource = DataSourceService.getDataSource();
     // 通过传入的 entity 获取其 repository
     if ('entity' in args.constraints[0]) {
       // 传入的是对象 可以指定对比字段
       field = args.constraints[0].field ?? 'id';
-
-      repo = this.dataSource.getRepository(args.constraints[0].entity);
+      repo = dataSource.getRepository(args.constraints[0].entity);
     } else {
       // 传入的是实体类
-      repo = this.dataSource.getRepository(args.constraints[0]);
+      repo = dataSource.getRepository(args.constraints[0]);
     }
     // 通过查询记录是否存在进行验证
     const item = await repo.findOne({ where: { [field]: value } });

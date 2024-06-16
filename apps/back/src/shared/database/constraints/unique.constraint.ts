@@ -7,9 +7,9 @@ import {
   registerDecorator,
 } from 'class-validator';
 import { isNil, merge } from 'lodash';
-import { DataSource, Not, ObjectType } from 'typeorm';
-import { InjectDataSource } from '@nestjs/typeorm';
+import { Not, ObjectType } from 'typeorm';
 import { REQUEST_ENTITY_ID } from '@/constants';
+import { DataSourceService } from '../database.service';
 
 // 定义验证条件接口
 interface Condition {
@@ -24,10 +24,7 @@ interface Condition {
 @ValidatorConstraint({ name: 'entityItemUnique', async: true })
 @Injectable()
 export class UniqueConstraint implements ValidatorConstraintInterface {
-  constructor(
-    @InjectDataSource()
-    private dataSource: DataSource, // 数据源
-  ) {}
+  constructor() {}
 
   /**
    * 验证逻辑
@@ -53,8 +50,8 @@ export class UniqueConstraint implements ValidatorConstraintInterface {
 
     // 查询是否存在数据,如果已经存在则验证失败
     try {
-      console.info(111, this.dataSource, this);
-      const repo = this.dataSource.getRepository(condition.entity);
+      const dataSource = DataSourceService.getDataSource();
+      const repo = dataSource.getRepository(condition.entity);
 
       // 如果未指定自定义错误消息，则尝试从字段的注释中生成错误消息
       if (!condition.message) {
