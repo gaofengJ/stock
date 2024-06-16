@@ -28,7 +28,7 @@ export class StockBasicService {
     const queryBuilder = this.stockBasicRepository
       .createQueryBuilder('t_stock_basic')
       .where({
-        ...(symbol && { code: Like(`%${symbol}%`) }),
+        ...(symbol && { symbol: Like(`%${symbol}%`) }),
         ...(name && { name: Like(`%${name}%`) }),
       });
     return paginate(queryBuilder, { pageNum, pageSize });

@@ -7,8 +7,9 @@ import {
   registerDecorator,
 } from 'class-validator';
 import { isNil, merge } from 'lodash';
-import { ClsService } from 'nestjs-cls';
 import { DataSource, Not, ObjectType } from 'typeorm';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { REQUEST_ENTITY_ID } from '@/constants';
 
 // 定义验证条件接口
 interface Condition {
@@ -24,8 +25,8 @@ interface Condition {
 @Injectable()
 export class UniqueConstraint implements ValidatorConstraintInterface {
   constructor(
+    @InjectDataSource()
     private dataSource: DataSource, // 数据源
-    private readonly cls: ClsService, // CLS服务
   ) {}
 
   /**
@@ -52,6 +53,7 @@ export class UniqueConstraint implements ValidatorConstraintInterface {
 
     // 查询是否存在数据,如果已经存在则验证失败
     try {
+      console.info(111, this.dataSource, this);
       const repo = this.dataSource.getRepository(condition.entity);
 
       // 如果未指定自定义错误消息，则尝试从字段的注释中生成错误消息
@@ -67,10 +69,8 @@ export class UniqueConstraint implements ValidatorConstraintInterface {
       }
 
       let andWhere = {}; // 初始化 where 条件
-      const operateId = this.cls.get('operateId'); // // 获取操作 ID
-      // 如果存在操作 ID，则排除当前对象的 ID
-      if (Number.isInteger(operateId)) {
-        andWhere = { id: Not(operateId) }; // // 构建排除条件
+      if ((args.object as any)[REQUEST_ENTITY_ID]) {
+        andWhere = { id: Not((args.object as any)[REQUEST_ENTITY_ID]) };
       }
 
       // 查询数据库是否存在指定条件的记录

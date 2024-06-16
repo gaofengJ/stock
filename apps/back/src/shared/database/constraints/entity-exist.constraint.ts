@@ -32,6 +32,7 @@ export class EntityExistConstraint implements ValidatorConstraintInterface {
     if ('entity' in args.constraints[0]) {
       // 传入的是对象 可以指定对比字段
       field = args.constraints[0].field ?? 'id';
+
       repo = this.dataSource.getRepository(args.constraints[0].entity);
     } else {
       // 传入的是实体类

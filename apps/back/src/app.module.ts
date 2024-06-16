@@ -1,7 +1,6 @@
 import { ClassSerializerInterceptor, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
-import { ClsModule } from 'nestjs-cls';
 
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import config from '@/configs';
@@ -30,22 +29,6 @@ import { TimeoutInterceptor } from '@/interceptors/timeout.interceptor';
         errorMessage: '当前操作过于频繁，请稍后再试！',
         throttlers: [{ ttl: seconds(10), limit: 7 }],
       }),
-    }),
-    // 启用 CLS 上下文
-    ClsModule.forRoot({
-      global: true,
-      interceptor: {
-        // 拦截器
-        mount: true, // 启用拦截器，将其挂载到请求处理链中
-        setup: (cls, context) => {
-          // 配置一个自定义的 setup 函数，该函数将在每个请求的上下文中运行
-          const req = context.switchToHttp().getRequest<any>();
-          if (req.params?.id && req.body) {
-            // 供自定义参数验证器(UniqueConstraint)使用
-            cls.set('operateId', Number.parseInt(req.params.id, 10));
-          }
-        },
-      },
     }),
     TasksModule.forRoot(),
 

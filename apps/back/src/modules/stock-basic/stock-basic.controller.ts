@@ -45,7 +45,7 @@ export class StockBasicController {
 
   @Get('/list')
   @ApiOperation({ summary: '获取StockBasic列表' })
-  @ApiResult({ type: [StockBasicEntity] })
+  @ApiResult({ type: [StockBasicEntity], isPage: true })
   // @Perm(permissions.LIST)
   async list(
     @Query() dto: StockBasicQueryDto,
@@ -64,7 +64,7 @@ export class StockBasicController {
   @Post()
   @ApiOperation({ summary: '创建StockBasic' })
   // @Perm(permissions.CREATE)
-  async create(@Body() dto: StockBasicDto): Promise<void> {
+  async create(@Body() dto: StockBasicDto) {
     await this.stockBasicService.create(dto);
   }
 
