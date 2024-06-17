@@ -1,8 +1,9 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { IsOptional, IsString, IsDate } from 'class-validator';
+import { IsOptional, IsString, IsDate, IsEnum } from 'class-validator';
 import { IsUnique } from '@/shared/database/constraints/unique.constraint';
 import { PagerDto } from '@/dto/pager.dto';
 import { StockBasicEntity } from './stock-basic.entity';
+import { EIsHs, EListStatus, EMarket } from './stock-basic.enum';
 
 export class StockBasicDto extends PartialType(StockBasicEntity) {
   @ApiProperty({ description: '股票代码（包含交易所）' })
@@ -48,7 +49,7 @@ export class StockBasicDto extends PartialType(StockBasicEntity) {
   cnspell: string;
 
   @ApiProperty({ description: '市场类型（主板/中小板/创业板/科创板/北交所）' })
-  @IsString()
+  @IsEnum(EMarket)
   market: string;
 
   @ApiProperty({ description: '交易所代码' })
@@ -62,7 +63,7 @@ export class StockBasicDto extends PartialType(StockBasicEntity) {
   currType: string;
 
   @ApiProperty({ description: '上市状态（L上市 D退市 P暂停上市）' })
-  @IsString()
+  @IsEnum(EListStatus)
   @IsOptional()
   listStatus: string;
 
@@ -76,7 +77,7 @@ export class StockBasicDto extends PartialType(StockBasicEntity) {
   delistDate: string;
 
   @ApiProperty({ description: '是否沪深港通标的，N否 H沪股通 S深股通' })
-  @IsString()
+  @IsEnum(EIsHs)
   @IsOptional()
   isHs: string;
 

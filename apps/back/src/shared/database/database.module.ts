@@ -12,13 +12,11 @@ import { EntityExistConstraint } from './constraints/entity-exist.constraint';
 import { UniqueConstraint } from './constraints/unique.constraint';
 import { TypeORMLogger } from './typeorm-logger';
 import { ClsServiceStatic } from './cls.service';
-import { IsEnumConstraint } from './constraints/is-enum.constraint';
 
 const providers = [
   DataSourceService,
   ClsServiceStatic,
   EntityExistConstraint,
-  IsEnumConstraint,
   UniqueConstraint,
 ];
 
