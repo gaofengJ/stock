@@ -72,10 +72,7 @@ export class StockBasicController {
   @ApiOperation({ summary: '更新StockBasic' })
   // @Perm(permissions.UPDATE)
   // @Resource(StockBasicEntity)
-  async update(
-    @IdParam() id: number,
-    @Body() dto: StockBasicUpdateDto,
-  ): Promise<void> {
+  async update(@IdParam() id: number, @Body() dto: StockBasicUpdateDto) {
     await this.stockBasicService.update(id, dto);
   }
 

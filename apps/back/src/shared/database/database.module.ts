@@ -11,8 +11,14 @@ import { DataSourceService } from './database.service';
 import { EntityExistConstraint } from './constraints/entity-exist.constraint';
 import { UniqueConstraint } from './constraints/unique.constraint';
 import { TypeORMLogger } from './typeorm-logger';
+import { ClsServiceStatic } from './cls.service';
 
-const providers = [DataSourceService, EntityExistConstraint, UniqueConstraint];
+const providers = [
+  DataSourceService,
+  ClsServiceStatic,
+  EntityExistConstraint,
+  UniqueConstraint,
+];
 
 @Module({
   imports: [

@@ -3,6 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
 
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ClsModule } from 'nestjs-cls';
+import { FastifyRequest } from 'fastify';
 import config from '@/configs';
 import { SharedModule } from '@/shared/shared.module';
 import { TasksModule } from '@/modules/tasks/tasks.module';
@@ -29,6 +31,22 @@ import { TimeoutInterceptor } from '@/interceptors/timeout.interceptor';
         errorMessage: '当前操作过于频繁，请稍后再试！',
         throttlers: [{ ttl: seconds(10), limit: 7 }],
       }),
+    }),
+    // 启用 CLS 上下文
+    ClsModule.forRoot({
+      global: true,
+      interceptor: {
+        mount: true,
+        setup: (cls, context) => {
+          const req = context
+            .switchToHttp()
+            .getRequest<FastifyRequest<{ Params: { id?: string } }>>();
+          if (req.params?.id && req.body) {
+            // 供自定义参数验证器(UniqueConstraint)使用
+            cls.set('operateId', Number.parseInt(req.params.id, 10));
+          }
+        },
+      },
     }),
     TasksModule.forRoot(),
 

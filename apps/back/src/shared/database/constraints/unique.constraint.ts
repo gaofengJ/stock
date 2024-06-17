@@ -8,8 +8,8 @@ import {
 } from 'class-validator';
 import { isNil, merge } from 'lodash';
 import { Not, ObjectType } from 'typeorm';
-import { REQUEST_ENTITY_ID } from '@/constants';
 import { DataSourceService } from '../database.service';
+import { ClsServiceStatic } from '../cls.service';
 
 // 定义验证条件接口
 interface Condition {
@@ -64,10 +64,13 @@ export class UniqueConstraint implements ValidatorConstraintInterface {
           args.constraints[0].message = `已存在相同的${targetColumn.comment}`;
         }
       }
-
+      const cls = ClsServiceStatic.getClsService();
       let andWhere = {}; // 初始化 where 条件
-      if ((args.object as any)[REQUEST_ENTITY_ID]) {
-        andWhere = { id: Not((args.object as any)[REQUEST_ENTITY_ID]) };
+      const operateId = cls.get('operateId');
+
+      // 如果是编辑操作，则排除自身
+      if (Number.isInteger(operateId)) {
+        andWhere = { id: Not(operateId) };
       }
 
       // 查询数据库是否存在指定条件的记录

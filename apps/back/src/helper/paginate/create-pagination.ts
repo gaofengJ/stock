@@ -16,11 +16,11 @@ export function createPaginationObject<T>({
     totalItems !== undefined ? Math.ceil(totalItems / limit) : undefined;
 
   const meta: IPaginationMeta = {
-    totalItems,
-    itemCount: items.length,
-    itemsPerPage: limit,
-    totalPages,
-    currentPage,
+    totalItems, // 数据库中符合条件的总记录数
+    itemCount: items.length, // 当前页返回的记录数
+    itemsPerPage: limit, // 每页显示的记录数
+    totalPages, // 总的分页数
+    currentPage, // 当前请求的页码
   };
 
   return new Pagination<T>(items, meta);
