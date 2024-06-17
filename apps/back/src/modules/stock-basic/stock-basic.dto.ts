@@ -1,5 +1,5 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, IsDate } from 'class-validator';
 import { IsUnique } from '@/shared/database/constraints/unique.constraint';
 import { PagerDto } from '@/dto/pager.dto';
 import { StockBasicEntity } from './stock-basic.entity';
@@ -67,11 +67,11 @@ export class StockBasicDto extends PartialType(StockBasicEntity) {
   listStatus: string;
 
   @ApiProperty({ description: '上市日期' })
-  @IsString()
+  @IsDate()
   listDate: string;
 
   @ApiProperty({ description: '退市日期' })
-  @IsString()
+  @IsDate()
   @IsOptional()
   delistDate: string;
 
