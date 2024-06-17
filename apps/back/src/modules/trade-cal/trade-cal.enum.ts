@@ -5,9 +5,9 @@ export enum EIsOpen {
   /**
    * 否
    */
-  NOT_OPEN = '0',
+  NOT_OPEN = 0,
   /**
    * 是
    */
-  OPENED = '1',
+  OPENED = 1,
 }
