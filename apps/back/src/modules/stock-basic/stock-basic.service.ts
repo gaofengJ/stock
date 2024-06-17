@@ -44,6 +44,10 @@ export class StockBasicService {
     await this.stockBasicRepository.save(dto);
   }
 
+  async bulkCreate(dto: StockBasicDto[]) {
+    await this.stockBasicRepository.save(dto);
+  }
+
   async update(id: number, dto: StockBasicUpdateDto) {
     await this.stockBasicRepository.update(id, dto);
   }
@@ -51,5 +55,9 @@ export class StockBasicService {
   async delete(id: number) {
     const item = await this.detail(id);
     await this.stockBasicRepository.remove(item);
+  }
+
+  async clear() {
+    await this.stockBasicRepository.clear();
   }
 }

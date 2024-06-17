@@ -61,11 +61,17 @@ export class StockBasicController {
     return this.stockBasicService.detail(id);
   }
 
-  @Post()
+  @Post('/create')
   @ApiOperation({ summary: '创建StockBasic' })
   // @Perm(permissions.CREATE)
   async create(@Body() dto: StockBasicDto) {
     await this.stockBasicService.create(dto);
+  }
+
+  @Post('/bulk-create')
+  @ApiOperation({ summary: '批量创建StockBasic' })
+  async bulkCreate(@Body() dto: StockBasicDto[]) {
+    await this.stockBasicService.bulkCreate(dto);
   }
 
   @Put(':id')
@@ -80,7 +86,13 @@ export class StockBasicController {
   @ApiOperation({ summary: '删除StockBasic' })
   // @Perm(permissions.DELETE)
   // @Resource(StockBasicEntity)
-  async delete(@IdParam() id: number): Promise<void> {
+  async delete(@IdParam() id: number) {
     await this.stockBasicService.delete(id);
+  }
+
+  @Delete('/clear')
+  @ApiOperation({ summary: '清空StockBasic' })
+  async clear() {
+    await this.stockBasicService.clear();
   }
 }
