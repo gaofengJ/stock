@@ -22,13 +22,13 @@ export class StockBasicService {
   async list({
     pageNum,
     pageSize,
-    symbol,
+    tsCode,
     name,
   }: StockBasicQueryDto): Promise<Pagination<StockBasicEntity>> {
     const queryBuilder = this.stockBasicRepository
       .createQueryBuilder('t_stock_basic')
       .where({
-        ...(symbol && { symbol: Like(`%${symbol}%`) }),
+        ...(tsCode && { tsCode: Like(`%${tsCode}%`) }),
         ...(name && { name: Like(`%${name}%`) }),
       });
     return paginate(queryBuilder, { pageNum, pageSize });

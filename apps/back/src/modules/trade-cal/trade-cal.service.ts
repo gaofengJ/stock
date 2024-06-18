@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Like, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 
 import { paginate } from '@/helper/paginate/index';
 import { Pagination } from '@/helper/paginate/pagination';
@@ -28,8 +28,8 @@ export class TradeCalService {
     const queryBuilder = this.TradeCalRepository.createQueryBuilder(
       't_trade_cal',
     ).where({
-      ...(calDate && { calDate: Like(`%${calDate}%`) }),
-      ...(isOpen && { isOpen: Like(`%${isOpen}%`) }),
+      ...(calDate && { calDate }),
+      ...(isOpen && { isOpen }),
     });
     return paginate(queryBuilder, { pageNum, pageSize });
   }
