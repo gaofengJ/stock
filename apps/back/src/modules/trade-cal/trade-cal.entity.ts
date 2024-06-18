@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Column, Entity } from 'typeorm';
 import { CommonEntity } from '@/entity/common.entity';
 
-// 使用 @Entity 装饰器将这个类标记为一个实体，并指定数据库表名为 't_trade_cal'
+// 使用 @Entity 装饰器将这个类标记为一个实体，并指定数据库表名为 't_basic_trade_cal'
 @Entity({
   name: 't_basic_trade_cal',
   comment: '交易日期表',
