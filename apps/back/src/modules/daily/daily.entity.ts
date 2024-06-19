@@ -4,7 +4,10 @@ import { CommonEntity } from '@/entity/common.entity';
 import { StockBasicEntity } from '../stock-basic/stock-basic.entity';
 
 // 使用 @Entity 装饰器将这个类标记为一个实体，并指定数据库表名为 't_basic_daily'
-@Entity('t_daily')
+@Entity({
+  name: 't_basic_daily',
+  comment: '每日交易数据表',
+})
 export class DailyEntity extends CommonEntity {
   @Column({
     name: 'ts_code',
@@ -311,7 +314,18 @@ export class DailyEntity extends CommonEntity {
   @ApiProperty({ description: '流通市值（万元）' })
   circMv: string;
 
-  @ManyToOne(() => StockBasicEntity, (stockBasic) => stockBasic.tsCode)
-  @JoinColumn({ name: 'ts_code' })
-  stockBasic: StockBasicEntity;
+  /**
+   * @ManyToOne 表示这是一个多对一的关系，即多个 DailyEntity 对象对应于一个 StockBasicEntity 对象
+   * () => StockBasicEntity 表示关系的目标实体是 StockBasicEntity
+   * (stockBasic) => stockBasic.dailys 指定了在 StockBasicEntity 中，与当前 DailyEntity 关联的属性。
+   * 这里假设 StockBasicEntity 中有一个名为 dailys 的属性，用来反向映射到 DailyEntity 对象
+   * @JoinColumn 用来指定在数据库表中用来连接两个实体的外键列的名字和其他选项
+   * { name: 'stock_basic_id' } 指定了在 DailyEntity 表中用来存储对应 StockBasicEntity 主键的外键列名为 stock_basic_id
+   * stockBasic 是在 DailyEntity 中用来表示与之关联的 StockBasicEntity 对象的属性。
+   *
+   * 这里是个示例，实际项目中并未用到
+   */
+  @ManyToOne(() => StockBasicEntity, (stockBasic) => stockBasic.dailys)
+  @JoinColumn({ name: 'stock_basic_id' })
+  stockBasic!: StockBasicEntity;
 }

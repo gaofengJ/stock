@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Column, Entity } from 'typeorm';
+import { Column, Entity, OneToMany, Relation } from 'typeorm';
 import { CommonEntity } from '@/entity/common.entity';
+import { DailyEntity } from '../daily/daily.entity';
 
 // 使用 @Entity 装饰器将这个类标记为一个实体，并指定数据库表名为 't_stock_basic'
 @Entity({
@@ -176,4 +177,16 @@ export class StockBasicEntity extends CommonEntity {
   })
   @ApiProperty({ description: '实控人企业性质' })
   actEntType: string;
+
+  /**
+   * @OneToMany 表示这是一个一对多的关系，即一个 StockBasicEntity 对象对应多个 DailyEntity 对象
+   * () => DailyEntity 指定了关系的目标实体是 DailyEntity
+   * (daily) => daily.stockBasic 指定了在 DailyEntity 中用来表示与之关联的 StockBasicEntity 对象的属性。
+   * 假设 DailyEntity 中有一个名为 stockBasic 的属性，用来反向映射到 StockBasicEntity 对象
+   *
+   * dailys 是在 StockBasicEntity 中用来表示与之关联的多个 DailyEntity 对象的属性。
+   * Relation<DailyEntity[]> 表示这是一个关系属性，类型为 DailyEntity[]，即 dailys 中存储了多个 DailyEntity 对象的数组
+   */
+  @OneToMany(() => DailyEntity, (daily) => daily.stockBasic)
+  dailys: Relation<DailyEntity[]>;
 }
