@@ -1,5 +1,5 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { IsDateString, IsNumber, IsString } from 'class-validator';
+import { IsDateString, IsString } from 'class-validator';
 import { IsUnique } from '@/shared/database/constraints/unique.constraint';
 import { PagerDto } from '@/dto/pager.dto';
 import { DailyEntity } from './daily.entity';
@@ -18,92 +18,88 @@ export class DailyDto extends PartialType(DailyEntity) {
   tradeDate: string;
 
   @ApiProperty({ description: '涨停价' })
-  upLimit: number;
+  upLimit: string;
 
   @ApiProperty({ description: '跌停价' })
-  downLimit: number;
+  downLimit: string;
 
   @ApiProperty({ description: '开盘价' })
-  open: number;
+  open: string;
 
   @ApiProperty({ description: '最高价' })
-  high: number;
+  high: string;
 
   @ApiProperty({ description: '最低价' })
-  low: number;
+  low: string;
 
   @ApiProperty({ description: '收盘价' })
-  close: number;
+  close: string;
 
   @ApiProperty({ description: '昨收价' })
-  preClose: number;
+  preClose: string;
 
   @ApiProperty({ description: '涨跌额' })
-  change: number;
+  change: string;
 
   @ApiProperty({ description: '涨跌幅' })
-  pctChg: number;
+  pctChg: string;
 
   @ApiProperty({ description: '成交量（手）' })
-  vol: number;
+  vol: string;
 
-  @ApiProperty({ description: '成交额（千元）' })
-  amount: number;
+  @ApiProperty({ description: '成交额（万元）' })
+  amount: string;
 
   @ApiProperty({ description: '换手率' })
-  turnoverRate?: number;
+  turnoverRate?: string;
 
   @ApiProperty({ description: '换手率（自由流通股）' })
-  turnoverRateF?: number;
+  turnoverRateF?: string;
 
   @ApiProperty({ description: '量比' })
-  volumeRatio?: number;
+  volumeRatio?: string;
 
   @ApiProperty({ description: '市盈率（总市值/总利润）' })
-  pe?: number;
+  pe?: string;
 
   @ApiProperty({ description: '市盈率（TTM）' })
-  peTtm?: number;
+  peTtm?: string;
 
   @ApiProperty({ description: '市净率（总市值/净资产）' })
-  pb?: number;
+  pb?: string;
 
   @ApiProperty({ description: '市销率' })
-  ps?: number;
+  ps?: string;
 
   @ApiProperty({ description: '市销率（TTM）' })
-  psTtm?: number;
+  psTtm?: string;
 
   @ApiProperty({ description: '股息率（%）' })
-  dvRatio?: number;
+  dvRatio?: string;
 
   @ApiProperty({ description: '股息率（TTM）（%）' })
-  dvTtm?: number;
+  dvTtm?: string;
 
-  @ApiProperty({ description: '总股本' })
-  totalShare?: number;
+  @ApiProperty({ description: '总股本（万股）' })
+  totalShare?: string;
 
-  @ApiProperty({ description: '流通股本' })
-  floatShare?: number;
+  @ApiProperty({ description: '流通股本（万股）' })
+  floatShare?: string;
 
-  @ApiProperty({ description: '自由流通股本' })
-  freeShare?: number;
+  @ApiProperty({ description: '自由流通股本（万股）' })
+  freeShare?: string;
 
-  @ApiProperty({ description: '总市值' })
-  totalMv?: number;
+  @ApiProperty({ description: '总市值（万元）' })
+  totalMv?: string;
 
-  @ApiProperty({ description: '流通市值' })
-  circMv?: number;
+  @ApiProperty({ description: '流通市值（万元）' })
+  circMv?: string;
 }
 
 export class DailyQueryDto extends PagerDto {
-  @ApiProperty({ description: '日期' })
+  @ApiProperty({ description: '股票代码（包含交易所）' })
   @IsString()
-  calDate?: string;
-
-  @ApiProperty({ description: '是否为交易日期' })
-  @IsNumber()
-  isOpen?: number;
+  tsCode?: string;
 }
 
 export class DailyUpdateDto extends PartialType(DailyDto) {}

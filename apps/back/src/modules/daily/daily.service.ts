@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 
 import { paginate } from '@/helper/paginate/index';
 import { Pagination } from '@/helper/paginate/pagination';
@@ -18,14 +18,12 @@ export class DailyService {
   async list({
     pageNum,
     pageSize,
-    calDate,
-    isOpen,
+    tsCode,
   }: DailyQueryDto): Promise<Pagination<DailyEntity>> {
     const queryBuilder = this.DailyRepository.createQueryBuilder(
       't_trade_cal',
     ).where({
-      ...(calDate && { calDate }),
-      ...(isOpen && { isOpen }),
+      ...(tsCode && { tsCode: Like(`%${tsCode}%`) }),
     });
     return paginate(queryBuilder, { pageNum, pageSize });
   }
