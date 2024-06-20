@@ -10,40 +10,40 @@ import { CommonEntity } from '@/entity/common.entity';
 // 定义一个名为 SentiEntity 的类，并继承 CommonEntity
 export class SentiEntity extends CommonEntity {
   @Column({
-    name: 'cal_date',
+    name: 'trade_date',
     type: 'date',
     nullable: false,
-    comment: '日期',
+    comment: '交易日期',
   })
-  @ApiProperty({ description: '日期' })
-  calDate: string;
+  @ApiProperty({ description: '交易日期' })
+  tradeDate: string;
 
   @Column({
     name: 'a',
     type: 'int',
     nullable: false,
-    comment: '2020年7月7日涨停，非一字涨停，非ST',
+    comment: '当日涨停，非一字涨停，非ST',
   })
-  @ApiProperty({ description: '2020年7月7日涨停，非一字涨停，非ST' })
+  @ApiProperty({ description: '当日涨停，非一字涨停，非ST' })
   a: number;
 
   @Column({
     name: 'b',
     type: 'int',
     nullable: false,
-    comment: '2020年7月6日涨停，非一字涨停，非ST',
+    comment: '前一日涨停，非一字涨停，非ST',
   })
-  @ApiProperty({ description: '2020年7月6日涨停，非一字涨停，非ST' })
+  @ApiProperty({ description: '前一日涨停，非一字涨停，非ST' })
   b: number;
 
   @Column({
     name: 'c',
     type: 'int',
     nullable: false,
-    comment: '2020年7月6日涨停，非一字涨停，非ST，2020年7月7日高开',
+    comment: '前一日涨停，非一字涨停，非ST，当日高开',
   })
   @ApiProperty({
-    description: '2020年7月6日涨停，非一字涨停，非ST，2020年7月7日高开',
+    description: '前一日涨停，非一字涨停，非ST，当日高开',
   })
   c: number;
 
@@ -51,10 +51,10 @@ export class SentiEntity extends CommonEntity {
     name: 'd',
     type: 'int',
     nullable: false,
-    comment: '2020年7月6日涨停，非一字涨停，非ST，2020年7月7日上涨',
+    comment: '前一日涨停，非一字涨停，非ST，当日上涨',
   })
   @ApiProperty({
-    description: '2020年7月6日涨停，非一字涨停，非ST，2020年7月7日上涨',
+    description: '前一日涨停，非一字涨停，非ST，当日上涨',
   })
   d: number;
 
@@ -62,9 +62,9 @@ export class SentiEntity extends CommonEntity {
     name: 'e',
     type: 'int',
     nullable: false,
-    comment: '2020年7月7日曾涨停，非ST',
+    comment: '当日曾涨停，非ST',
   })
-  @ApiProperty({ description: '2020年7月7日曾涨停，非ST' })
+  @ApiProperty({ description: '当日曾涨停，非ST' })
   e: number;
 
   @Column({

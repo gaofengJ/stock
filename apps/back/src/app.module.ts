@@ -17,6 +17,8 @@ import { DatabaseModule } from '@/shared/database/database.module';
 import { AllExceptionsFilter } from '@/filters/exceptions.filter';
 import { TransformInterceptor } from '@/interceptors/transform.interceptor';
 import { TimeoutInterceptor } from '@/interceptors/timeout.interceptor';
+import { DailyModule } from './modules/daily/daily.module';
+import { SentiModule } from './modules/senti/senti.module';
 
 @Module({
   imports: [
@@ -56,9 +58,15 @@ import { TimeoutInterceptor } from '@/interceptors/timeout.interceptor';
     SharedModule,
     DatabaseModule,
 
+    /**
+     * 源数据模块
+     */
     StockBasicModule,
     TradeCalModule,
+    DailyModule,
     LimitModule,
+
+    SentiModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter }, // 自定义异常过滤器，用于捕获和处理应用程序中所有未被捕获的异常，统一异常处理逻辑

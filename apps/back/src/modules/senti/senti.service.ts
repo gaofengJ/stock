@@ -18,12 +18,12 @@ export class SentiService {
   async list({
     pageNum,
     pageSize,
-    calDate,
+    tradeDate,
   }: SentiQueryDto): Promise<Pagination<SentiEntity>> {
     const queryBuilder = this.SentiRepository.createQueryBuilder(
-      't_trade_cal',
+      't_senti',
     ).where({
-      ...(calDate && { calDate }),
+      ...(tradeDate && { tradeDate }),
     });
     return paginate(queryBuilder, { pageNum, pageSize });
   }
