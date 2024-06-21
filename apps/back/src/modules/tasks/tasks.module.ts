@@ -1,9 +1,9 @@
 import { DynamicModule, ExistingProvider, Module } from '@nestjs/common';
 
-import { EmailJob } from './jobs/email.job';
+import { DailySourceJob } from './jobs/daily-source.job';
 
 // 定时任务提供者数组
-const providers = [EmailJob];
+const providers = [DailySourceJob];
 
 /**
  * 创建别名提供者
