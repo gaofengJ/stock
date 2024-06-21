@@ -33,7 +33,7 @@ import { SentiService } from './senti.service';
 //   DELETE: 'delete',
 // } as const);
 
-@ApiTags('源数据 - Senti模块')
+@ApiTags('二次处理数据 - Senti模块')
 // @UseGuards(ResourceGuard)
 @Controller('senti')
 export class SentiController {

@@ -2,9 +2,9 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Column, Entity } from 'typeorm';
 import { CommonEntity } from '@/entity/common.entity';
 
-// 使用 @Entity 装饰器将这个类标记为一个实体，并指定数据库表名为 t_basic_limit
+// 使用 @Entity 装饰器将这个类标记为一个实体，并指定数据库表名为 t_source_limit
 @Entity({
-  name: 't_basic_limit',
+  name: 't_source_limit',
   comment: '每日涨跌停个股统计表',
 })
 

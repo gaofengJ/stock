@@ -20,14 +20,10 @@ import { Pagination } from '@/helper/paginate/pagination';
 // import { Resource } from '@/modules/auth/decorators/resource.decorator';
 
 // import { ResourceGuard } from '~/modules/auth/guards/resource.guard';
-import { StockBasicEntity } from './stock-basic.entity';
+import { StockEntity } from './stock.entity';
 
-import {
-  StockBasicDto,
-  StockBasicQueryDto,
-  StockBasicUpdateDto,
-} from './stock-basic.dto';
-import { StockBasicService } from './stock-basic.service';
+import { StockDto, StockQueryDto, StockUpdateDto } from './stock.dto';
+import { StockService } from './stock.service';
 
 // export const permissions = definePermission('stockBasic', {
 //   LIST: 'list',
@@ -37,61 +33,59 @@ import { StockBasicService } from './stock-basic.service';
 //   DELETE: 'delete',
 // } as const);
 
-@ApiTags('源数据 - StockBasic模块')
+@ApiTags('源数据 - Stock模块')
 // @UseGuards(ResourceGuard)
-@Controller('stock-basic')
-export class StockBasicController {
-  constructor(private readonly stockBasicService: StockBasicService) {}
+@Controller('stock')
+export class StockController {
+  constructor(private readonly stockBasicService: StockService) {}
 
   @Get('/list')
-  @ApiOperation({ summary: '获取StockBasic列表' })
-  @ApiResult({ type: [StockBasicEntity], isPage: true })
+  @ApiOperation({ summary: '获取Stock列表' })
+  @ApiResult({ type: [StockEntity], isPage: true })
   // @Perm(permissions.LIST)
-  async list(
-    @Query() dto: StockBasicQueryDto,
-  ): Promise<Pagination<StockBasicEntity>> {
+  async list(@Query() dto: StockQueryDto): Promise<Pagination<StockEntity>> {
     return this.stockBasicService.list(dto);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: '获取StockBasic详情' })
-  @ApiResult({ type: StockBasicEntity })
+  @ApiOperation({ summary: '获取Stock详情' })
+  @ApiResult({ type: StockEntity })
   // @Perm(permissions.READ)
-  async info(@IdParam() id: number): Promise<StockBasicEntity> {
+  async info(@IdParam() id: number): Promise<StockEntity> {
     return this.stockBasicService.detail(id);
   }
 
   @Post('/create')
-  @ApiOperation({ summary: '创建StockBasic' })
+  @ApiOperation({ summary: '创建Stock' })
   // @Perm(permissions.CREATE)
-  async create(@Body() dto: StockBasicDto) {
+  async create(@Body() dto: StockDto) {
     await this.stockBasicService.create(dto);
   }
 
   @Post('/bulk-create')
-  @ApiOperation({ summary: '批量创建StockBasic' })
-  async bulkCreate(@Body() dto: StockBasicDto[]) {
+  @ApiOperation({ summary: '批量创建Stock' })
+  async bulkCreate(@Body() dto: StockDto[]) {
     await this.stockBasicService.bulkCreate(dto);
   }
 
   @Put(':id')
-  @ApiOperation({ summary: '更新StockBasic' })
+  @ApiOperation({ summary: '更新Stock' })
   // @Perm(permissions.UPDATE)
-  // @Resource(StockBasicEntity)
-  async update(@IdParam() id: number, @Body() dto: StockBasicUpdateDto) {
+  // @Resource(StockEntity)
+  async update(@IdParam() id: number, @Body() dto: StockUpdateDto) {
     await this.stockBasicService.update(id, dto);
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: '删除StockBasic' })
+  @ApiOperation({ summary: '删除Stock' })
   // @Perm(permissions.DELETE)
-  // @Resource(StockBasicEntity)
+  // @Resource(StockEntity)
   async delete(@IdParam() id: number) {
     await this.stockBasicService.delete(id);
   }
 
   @Delete('/clear')
-  @ApiOperation({ summary: '清空StockBasic' })
+  @ApiOperation({ summary: '清空Stock' })
   async clear() {
     await this.stockBasicService.clear();
   }

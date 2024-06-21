@@ -9,16 +9,15 @@ import config from '@/configs';
 
 import { SharedModule } from '@/shared/shared.module';
 import { TasksModule } from '@/modules/tasks/tasks.module';
-import { StockBasicModule } from '@/modules/stock-basic/stock-basic.module';
-import { TradeCalModule } from '@/modules/trade-cal/trade-cal.module';
-import { LimitModule } from '@/modules/limit/limit.module';
+
 import { DatabaseModule } from '@/shared/database/database.module';
 
 import { AllExceptionsFilter } from '@/filters/exceptions.filter';
 import { TransformInterceptor } from '@/interceptors/transform.interceptor';
 import { TimeoutInterceptor } from '@/interceptors/timeout.interceptor';
-import { DailyModule } from './modules/daily/daily.module';
-import { SentiModule } from './modules/senti/senti.module';
+
+import { SourceModule } from '@/modules/source/source.module';
+import { ProcessedModule } from './modules/processed/processed.module';
 
 @Module({
   imports: [
@@ -61,12 +60,11 @@ import { SentiModule } from './modules/senti/senti.module';
     /**
      * 源数据模块
      */
-    StockBasicModule,
-    TradeCalModule,
-    DailyModule,
-    LimitModule,
-
-    SentiModule,
+    SourceModule,
+    /**
+     * 二次处理数据模块
+     */
+    ProcessedModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter }, // 自定义异常过滤器，用于捕获和处理应用程序中所有未被捕获的异常，统一异常处理逻辑

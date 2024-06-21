@@ -2,10 +2,10 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Column, Entity } from 'typeorm';
 import { CommonEntity } from '@/entity/common.entity';
 
-// 使用 @Entity 装饰器将这个类标记为一个实体，并指定数据库表名为 't_senti'
+// 使用 @Entity 装饰器将这个类标记为一个实体，并指定数据库表名为 't_processed_senti'
 @Entity({
-  name: 't_senti',
-  comment: '短线情绪表',
+  name: 't_processed_senti',
+  comment: '赚钱效应表',
 })
 // 定义一个名为 SentiEntity 的类，并继承 CommonEntity
 export class SentiEntity extends CommonEntity {

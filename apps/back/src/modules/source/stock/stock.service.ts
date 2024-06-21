@@ -4,19 +4,15 @@ import { Like, Repository } from 'typeorm';
 
 import { paginate } from '@/helper/paginate/index';
 import { Pagination } from '@/helper/paginate/pagination';
-import { StockBasicEntity } from './stock-basic.entity';
+import { StockEntity } from './stock.entity';
 
-import {
-  StockBasicDto,
-  StockBasicQueryDto,
-  StockBasicUpdateDto,
-} from './stock-basic.dto';
+import { StockDto, StockQueryDto, StockUpdateDto } from './stock.dto';
 
 @Injectable()
-export class StockBasicService {
+export class StockService {
   constructor(
-    @InjectRepository(StockBasicEntity)
-    private stockBasicRepository: Repository<StockBasicEntity>,
+    @InjectRepository(StockEntity)
+    private stockBasicRepository: Repository<StockEntity>,
   ) {}
 
   async list({
@@ -24,9 +20,9 @@ export class StockBasicService {
     pageSize,
     tsCode,
     name,
-  }: StockBasicQueryDto): Promise<Pagination<StockBasicEntity>> {
+  }: StockQueryDto): Promise<Pagination<StockEntity>> {
     const queryBuilder = this.stockBasicRepository
-      .createQueryBuilder('t_stock_basic')
+      .createQueryBuilder('t_source_stock')
       .where({
         ...(tsCode && { tsCode: Like(`%${tsCode}%`) }),
         ...(name && { name: Like(`%${name}%`) }),
@@ -34,21 +30,21 @@ export class StockBasicService {
     return paginate(queryBuilder, { pageNum, pageSize });
   }
 
-  async detail(id: number): Promise<StockBasicEntity> {
+  async detail(id: number): Promise<StockEntity> {
     const item = await this.stockBasicRepository.findOneBy({ id });
     if (!item) throw new NotFoundException('未找到该记录');
     return item;
   }
 
-  async create(dto: StockBasicDto) {
+  async create(dto: StockDto) {
     await this.stockBasicRepository.save(dto);
   }
 
-  async bulkCreate(dto: StockBasicDto[]) {
+  async bulkCreate(dto: StockDto[]) {
     await this.stockBasicRepository.save(dto);
   }
 
-  async update(id: number, dto: StockBasicUpdateDto) {
+  async update(id: number, dto: StockUpdateDto) {
     await this.stockBasicRepository.update(id, dto);
   }
 

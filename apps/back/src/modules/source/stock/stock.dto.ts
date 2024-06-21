@@ -2,13 +2,13 @@ import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { IsOptional, IsString, IsDateString, IsEnum } from 'class-validator';
 import { IsUnique } from '@/shared/database/constraints/unique.constraint';
 import { PagerDto } from '@/dto/pager.dto';
-import { StockBasicEntity } from './stock-basic.entity';
-import { EIsHs, EListStatus, EMarket } from './stock-basic.enum';
+import { StockEntity } from './stock.entity';
+import { EIsHs, EListStatus, EMarket } from './stock.enum';
 
-export class StockBasicDto extends PartialType(StockBasicEntity) {
+export class StockDto extends PartialType(StockEntity) {
   @ApiProperty({ description: '股票代码（包含交易所）' })
   @IsUnique({
-    entity: StockBasicEntity,
+    entity: StockEntity,
     message: '已存在相同名称的股票代码（包含交易所）',
   })
   @IsString()
@@ -16,7 +16,7 @@ export class StockBasicDto extends PartialType(StockBasicEntity) {
 
   @ApiProperty({ description: '股票代码' })
   @IsUnique({
-    entity: StockBasicEntity,
+    entity: StockEntity,
     message: '已存在相同名称的股票代码',
   })
   @IsString()
@@ -92,7 +92,7 @@ export class StockBasicDto extends PartialType(StockBasicEntity) {
   actEntType: string;
 }
 
-export class StockBasicQueryDto extends PagerDto {
+export class StockQueryDto extends PagerDto {
   @ApiProperty({ description: '股票代码（包含交易所）' })
   @IsString()
   tsCode?: string;
@@ -102,4 +102,4 @@ export class StockBasicQueryDto extends PagerDto {
   name?: string;
 }
 
-export class StockBasicUpdateDto extends PartialType(StockBasicDto) {}
+export class StockUpdateDto extends PartialType(StockDto) {}
