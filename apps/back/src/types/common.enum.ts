@@ -88,6 +88,16 @@ export enum EGlobalDatabaseConfig {
 }
 
 /**
+ * 全局配置-tushare配置
+ */
+export enum EGlobalTushareConfig {
+  /**
+   * tushare token
+   */
+  TUSHARE_CONF_TOKEN = 'TUSHARE_CONF_TOKEN',
+}
+
+/**
  * 全局配置-日志配置
  */
 export enum EGlobalLoggerConfig {
