@@ -9,7 +9,7 @@ import {
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { QueryFailedError } from 'typeorm';
 
-import { ServerException } from '@/exceptions/server.exception';
+import { BusinessException } from '@/exceptions/business.exception';
 import { CustomErrorEnum } from '@/types/common.enum';
 import { isDev } from '@/utils';
 
@@ -45,7 +45,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     if (
       status === HttpStatus.INTERNAL_SERVER_ERROR &&
-      !(exception instanceof ServerException)
+      !(exception instanceof BusinessException)
     ) {
       // 如果是内部服务器错误且不是自定义的服务器异常
       Logger.error(exception, undefined, 'Catch');
@@ -58,7 +58,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     const apiErrorCode =
-      exception instanceof ServerException ? exception.getErrorCode() : status; // 确定 API 错误代码
+      exception instanceof BusinessException
+        ? exception.getErrorCode()
+        : status; // 确定 API 错误代码
 
     // 返回基础响应结果
     const resBody: IBaseRes = {
