@@ -1,4 +1,4 @@
-import lodash from 'lodash';
+import lodash, { keyBy, merge } from 'lodash';
 import { EType } from '@/types/common.enum';
 
 /**
@@ -21,4 +21,33 @@ export const mixinFieldAndItems = (fields: string[], items: any[]): any[] => {
   if (!fields.length || !items.length) return [];
   if (!Array.isArray(items[0]) || !items[0].length) return [];
   return items.map((item) => lodash.zipObject(fields, item));
+};
+
+/**
+ * 合并 daily 相关的三类数据
+ */
+export const mixinDailyParams = (
+  dailyParams: any[],
+  limitParams: any[],
+  basicParams: any[],
+) => {
+  if (!dailyParams.length || !limitParams.length || !basicParams.length) {
+    return [];
+  }
+  const dailyObj = keyBy(
+    dailyParams,
+    (item) => `${item.tradeDate}${item.tsCode}`,
+  );
+  const limitObj = keyBy(
+    limitParams,
+    (item) => `${item.tradeDate}${item.tsCode}`,
+  );
+  const basicObj = keyBy(
+    basicParams,
+    (item) => `${item.tradeDate}${item.tsCode}`,
+  );
+  const mergedObj = merge(dailyObj, limitObj, basicObj);
+  return Object.values(mergedObj).filter(
+    (item) => item.upLimit && item.downLimit,
+  );
 };

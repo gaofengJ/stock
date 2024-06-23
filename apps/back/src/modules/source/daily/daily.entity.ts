@@ -20,6 +20,16 @@ export class DailyEntity extends CommonEntity {
   tsCode: string;
 
   @Column({
+    name: 'name',
+    type: 'varchar',
+    length: 16,
+    nullable: false,
+    comment: '股票名称',
+  })
+  @ApiProperty({ description: '股票名称' })
+  name: string;
+
+  @Column({
     name: 'trade_date',
     type: 'date',
     nullable: false,

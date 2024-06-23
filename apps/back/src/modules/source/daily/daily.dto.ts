@@ -13,6 +13,10 @@ export class DailyDto extends PartialType(DailyEntity) {
   @IsString()
   tsCode: string;
 
+  @ApiProperty({ description: '股票名称' })
+  @IsString()
+  name: string;
+
   @ApiProperty({ description: '交易日期' })
   @IsDateString()
   tradeDate: string;
@@ -137,6 +141,10 @@ export class DailyQueryDto extends PagerDto {
   @ApiProperty({ description: '股票代码（包含交易所）' })
   @IsString()
   tsCode?: string;
+
+  @ApiProperty({ description: '交易日期' })
+  @IsDateString()
+  tradeDate?: string;
 }
 
 export class DailyUpdateDto extends PartialType(DailyDto) {}

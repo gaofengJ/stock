@@ -4,6 +4,10 @@ import type { AxiosRequestConfig } from 'axios';
 import { getEnvConfigString } from '@/utils';
 import { EGlobalTushareConfig } from '@/types/common.enum';
 
+export type ITushareData = {
+  fields: string[];
+  items: any[];
+};
 @Injectable()
 export class TushareService {
   constructor(private readonly httpService: HttpService) {}
@@ -39,11 +43,10 @@ export class TushareService {
    * @param exchange 交易所
    * @returns Promise<IBaseRes>
    */
-  getStockBasic(exchange: string): Promise<IBaseRes> {
+  getStockBasic(): Promise<IBaseRes<ITushareData>> {
     return this.request({
       data: {
         api_name: 'stock_basic',
-        params: { exchange },
         fields: [
           'ts_code',
           'symbol',
@@ -70,7 +73,7 @@ export class TushareService {
    * @param year 年份
    * @returns Promise<IBaseRes>
    */
-  getTradeCal(year: string): Promise<IBaseRes> {
+  getTradeCal(year: string): Promise<IBaseRes<ITushareData>> {
     return this.request({
       data: {
         api_name: 'trade_cal',
@@ -88,7 +91,7 @@ export class TushareService {
    * @param date 日期
    * @returns Promise<IBaseRes>
    */
-  getDaily(date: string): Promise<IBaseRes> {
+  getDaily(date: string): Promise<IBaseRes<ITushareData>> {
     return this.request({
       data: {
         api_name: 'daily',
@@ -102,7 +105,7 @@ export class TushareService {
    * @param date 日期
    * @returns Promise<IBaseRes>
    */
-  getDailyLimit(date: string): Promise<IBaseRes> {
+  getDailyLimit(date: string): Promise<IBaseRes<ITushareData>> {
     return this.request({
       data: {
         api_name: 'stk_limit',
@@ -116,7 +119,7 @@ export class TushareService {
    * @param date 日期
    * @returns Promise<IBaseRes>
    */
-  getDailyBasic(date: string): Promise<IBaseRes> {
+  getDailyBasic(date: string): Promise<IBaseRes<ITushareData>> {
     return this.request({
       data: {
         api_name: 'daily_basic',
@@ -130,7 +133,7 @@ export class TushareService {
    * @param date 日期
    * @returns Promise<IBaseRes>
    */
-  getLimitList(date: string): Promise<IBaseRes> {
+  getLimitList(date: string): Promise<IBaseRes<ITushareData>> {
     return this.request({
       data: {
         api_name: 'limit_list_d',

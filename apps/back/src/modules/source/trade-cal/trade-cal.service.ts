@@ -77,4 +77,18 @@ export class TradeCalService {
     });
     return !!(tradeCal?.isOpen || 0);
   }
+
+  /**
+   * 查询上一个交易日
+   * @param date
+   */
+  async getPreDate(date: CommonDto['date']) {
+    const tradeCal = await this.TradeCalRepository.findOne({
+      where: {
+        ...(date && { calDate: date }),
+      },
+      select: ['preTradeDate'],
+    });
+    return tradeCal?.preTradeDate;
+  }
 }

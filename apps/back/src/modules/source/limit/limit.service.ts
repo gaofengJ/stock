@@ -20,12 +20,16 @@ export class LimitService {
     pageSize,
     tsCode,
     name,
+    tradeDate,
+    limit,
   }: LimitQueryDto): Promise<Pagination<LimitEntity>> {
     const queryBuilder = this.LimitRepository.createQueryBuilder(
       't_trade_cal',
     ).where({
       ...(tsCode && { tsCode: Like(`%${tsCode}%`) }),
       ...(name && { name: Like(`%${name}%`) }),
+      ...(tradeDate && { tradeDate }),
+      ...(limit && { limit }),
     });
     return paginate(queryBuilder, { pageNum, pageSize });
   }

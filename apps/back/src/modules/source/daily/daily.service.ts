@@ -19,11 +19,13 @@ export class DailyService {
     pageNum,
     pageSize,
     tsCode,
+    tradeDate,
   }: DailyQueryDto): Promise<Pagination<DailyEntity>> {
     const queryBuilder = this.DailyRepository.createQueryBuilder(
       't_trade_cal',
     ).where({
       ...(tsCode && { tsCode: Like(`%${tsCode}%`) }),
+      ...(tradeDate && { tradeDate }),
     });
     return paginate(queryBuilder, { pageNum, pageSize });
   }
