@@ -28,7 +28,7 @@ export class TradeCalService {
     isOpen,
   }: TradeCalQueryDto): Promise<Pagination<TradeCalEntity>> {
     const queryBuilder = this.TradeCalRepository.createQueryBuilder(
-      't_trade_cal',
+      't_source_trade_cal',
     ).where({
       ...(calDate && { calDate }),
       ...(isOpen && { isOpen }),

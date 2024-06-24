@@ -112,6 +112,14 @@ export class LimitQueryDto extends PagerDto {
   @ApiProperty({ description: 'D跌停，U涨停，Z炸板' })
   @IsEnum(ELimit)
   limit?: string;
+
+  @ApiProperty({ description: '开始时间' })
+  @IsDateString()
+  startDate?: string;
+
+  @ApiProperty({ description: '结束时间' })
+  @IsDateString()
+  endDate?: string;
 }
 
 export class LimitUpdateDto extends PartialType(LimitDto) {}

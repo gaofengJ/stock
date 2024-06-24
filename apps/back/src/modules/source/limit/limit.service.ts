@@ -1,11 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Like, Repository } from 'typeorm';
+import { Between, Like, Repository } from 'typeorm';
 
 import { paginate } from '@/helper/paginate/index';
 import { Pagination } from '@/helper/paginate/pagination';
-import { LimitEntity } from './limit.entity';
+import { Order } from '@/dto/pager.dto';
 
+import { LimitEntity } from './limit.entity';
 import { LimitDto, LimitQueryDto, LimitUpdateDto } from './limit.dto';
 
 @Injectable()
@@ -18,19 +19,22 @@ export class LimitService {
   async list({
     pageNum,
     pageSize,
+    field = 'tradeDate',
+    order = Order.ASC,
     tsCode,
     name,
-    tradeDate,
-    limit,
+    startDate,
+    endDate,
   }: LimitQueryDto): Promise<Pagination<LimitEntity>> {
     const queryBuilder = this.LimitRepository.createQueryBuilder(
-      't_trade_cal',
-    ).where({
-      ...(tsCode && { tsCode: Like(`%${tsCode}%`) }),
-      ...(name && { name: Like(`%${name}%`) }),
-      ...(tradeDate && { tradeDate }),
-      ...(limit && { limit }),
-    });
+      't_source_limit',
+    )
+      .where({
+        ...(tsCode && { tsCode: Like(`%${tsCode}%`) }),
+        ...(name && { name: Like(`%${name}%`) }),
+        ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
+      })
+      .orderBy(field, order);
     return paginate(queryBuilder, { pageNum, pageSize });
   }
 
