@@ -58,6 +58,14 @@ export class SentiQueryDto extends PagerDto {
   @ApiProperty({ description: '交易日期' })
   @IsString()
   tradeDate?: string;
+
+  @ApiProperty({ description: '开始时间' })
+  @IsDateString()
+  startDate?: string;
+
+  @ApiProperty({ description: '结束时间' })
+  @IsDateString()
+  endDate?: string;
 }
 
 export class SentiUpdateDto extends PartialType(SentiDto) {}

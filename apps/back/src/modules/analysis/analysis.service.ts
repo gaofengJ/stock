@@ -3,14 +3,20 @@ import { CommonDto } from '@/dto/common.dto';
 import { TradeCalService } from '@/modules/source/trade-cal/trade-cal.service';
 import { BusinessException } from '@/exceptions/business.exception';
 import { EError } from '@/constants';
-import { DailyService } from '../source/daily/daily.service';
-import { LimitService } from '../source/limit/limit.service';
-import { ELimit } from '../source/limit/limit.enum';
+import { DailyService } from '@/modules/source/daily/daily.service';
+import { LimitService } from '@/modules/source/limit/limit.service';
+import { ELimit } from '@/modules/source/limit/limit.enum';
+import { SentiService } from '@/modules/processed/senti/senti.service';
 
-type ILimitResItem = {
+type ILimitsResItem = {
   tradeDate: string;
   up: number;
   down: number;
+};
+
+type INumsResItem = {
+  tradeDate: string;
+  sum: number;
 };
 
 @Injectable()
@@ -21,6 +27,7 @@ export class AnalysisService {
     private tradeCalService: TradeCalService,
     private dailyService: DailyService,
     private limitService: LimitService,
+    private sentiService: SentiService,
   ) {}
 
   private getRangeIndex(pctChg: number): number {
@@ -114,14 +121,63 @@ export class AnalysisService {
         });
       }
     }
-    const ret: ILimitResItem[] = [];
+    const ret: ILimitsResItem[] = [];
     // eslint-disable-next-line no-restricted-syntax
     for (const [key, value] of map.entries()) {
       ret.push({
         tradeDate: key,
         ...value,
-      } as ILimitResItem);
+      } as ILimitsResItem);
     }
     return ret;
+  }
+
+  /**
+   * 上涨家数
+   */
+  async nums(dto: Pick<CommonDto, 'startDate' | 'endDate'>) {
+    const { startDate, endDate } = dto;
+    const { items: dailyItems } = await this.dailyService.list({
+      pageNum: 1,
+      pageSize: 10000,
+      startDate,
+      endDate,
+    });
+
+    const map = new Map<string, number>();
+    for (let i = 0; i < dailyItems.length; i += 1) {
+      const dailyItem = dailyItems[i];
+      if (map.has(dailyItem.tradeDate)) {
+        if (+dailyItem.pctChg > 0) {
+          map.set(dailyItem.tradeDate, (map.get(dailyItem.tradeDate) || 0) + 1);
+        }
+      } else {
+        map.set(dailyItem.tradeDate, 1);
+      }
+    }
+    const ret: INumsResItem[] = [];
+    // eslint-disable-next-line no-restricted-syntax
+    for (const [key, value] of map.entries()) {
+      ret.push({
+        tradeDate: key,
+        sum: value,
+      } as INumsResItem);
+    }
+    return ret;
+  }
+
+  /**
+   * 短线情绪
+   */
+  async senti(dto: Pick<CommonDto, 'startDate' | 'endDate'>) {
+    const { startDate, endDate } = dto;
+    const { items: sentiItems } = await this.sentiService.list({
+      pageNum: 1,
+      pageSize: 10000,
+      startDate,
+      endDate,
+    });
+
+    return sentiItems;
   }
 }

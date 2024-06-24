@@ -34,4 +34,30 @@ export class AnalysisController {
     });
     return ret;
   }
+
+  @Get('/nums')
+  @ApiOperation({ summary: '查询上涨家数' })
+  async nums(@Query() dto: CommonDto) {
+    const { startDate, endDate } = dto;
+    const formatedStartDate = dayjs(startDate).format('YYYY-MM-DD');
+    const formatedEndDate = dayjs(endDate).format('YYYY-MM-DD');
+    const ret = await this.analysisService.nums({
+      startDate: formatedStartDate,
+      endDate: formatedEndDate,
+    });
+    return ret;
+  }
+
+  @Get('/senti')
+  @ApiOperation({ summary: '查询短线情绪' })
+  async senti(dto: Pick<CommonDto, 'startDate' | 'endDate'>) {
+    const { startDate, endDate } = dto;
+    const formatedStartDate = dayjs(startDate).format('YYYY-MM-DD');
+    const formatedEndDate = dayjs(endDate).format('YYYY-MM-DD');
+    const ret = await this.analysisService.senti({
+      startDate: formatedStartDate,
+      endDate: formatedEndDate,
+    });
+    return ret;
+  }
 }

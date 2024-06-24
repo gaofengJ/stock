@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 
 import { paginate } from '@/helper/paginate/index';
 import { Pagination } from '@/helper/paginate/pagination';
@@ -19,11 +19,14 @@ export class SentiService {
     pageNum,
     pageSize,
     tradeDate,
+    startDate,
+    endDate,
   }: SentiQueryDto): Promise<Pagination<SentiEntity>> {
     const queryBuilder = this.SentiRepository.createQueryBuilder(
       't_senti',
     ).where({
       ...(tradeDate && { tradeDate }),
+      ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
     });
     return paginate(queryBuilder, { pageNum, pageSize });
   }

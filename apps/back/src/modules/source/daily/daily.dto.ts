@@ -145,6 +145,14 @@ export class DailyQueryDto extends PagerDto {
   @ApiProperty({ description: '交易日期' })
   @IsDateString()
   tradeDate?: string;
+
+  @ApiProperty({ description: '开始时间' })
+  @IsDateString()
+  startDate?: string;
+
+  @ApiProperty({ description: '结束时间' })
+  @IsDateString()
+  endDate?: string;
 }
 
 export class DailyUpdateDto extends PartialType(DailyDto) {}
