@@ -2,6 +2,8 @@ import { DynamicModule, ExistingProvider, Module } from '@nestjs/common';
 
 import { DailySourceJob } from './jobs/daily-source.job';
 
+import { DailyTaskModule } from '../daily-task/daily-task.module';
+
 // 定时任务提供者数组
 const providers = [DailySourceJob];
 
@@ -36,6 +38,7 @@ export class TasksModule {
     return {
       global: true, // 设置模块为全局模块
       module: TasksModule, // 设置模块为当前类
+      imports: [DailyTaskModule],
       providers: [...providers, ...aliasProviders], // 注册提供者，包括定时任务提供者和别名提供者
       exports: aliasProviders, // 导出别名提供者，使得其他模块可以使用这些提供者的别名来获取对应的服务
     };

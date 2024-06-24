@@ -6,12 +6,14 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 
 import { isDev } from '@/utils';
 import { LoggerModule } from './logger/logger.module';
+import { TushareModule } from './tushare/tushare.module';
 
 @Global()
 @Module({
   imports: [
     LoggerModule.forRoot(), // logger
     HttpModule, // http
+    TushareModule.forRoot(),
     ScheduleModule.forRoot(), // schedule
     // rate limit
     // ThrottlerModule.forRoot([
@@ -33,5 +35,6 @@ import { LoggerModule } from './logger/logger.module';
     // HelperModule, // helper
   ],
   // exports: [HttpModule, MailerModule, RedisModule, HelperModule],
+  exports: [HttpModule],
 })
 export class SharedModule {}
