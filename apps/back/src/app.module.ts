@@ -20,6 +20,7 @@ import { SourceModule } from '@/modules/source/source.module';
 import { ProcessedModule } from '@/modules/processed/processed.module';
 import { DailyTaskModule } from '@/modules/daily-task/daily-task.module';
 import { AnalysisModule } from '@/modules/analysis/analysis.module';
+import { BasicModule } from './modules/basic/analysis.module';
 // import { AnalysisModule } from './modules/analysis/analysis.module';
 
 @Module({
@@ -72,6 +73,10 @@ import { AnalysisModule } from '@/modules/analysis/analysis.module';
      * 每日任务模块
      */
     DailyTaskModule,
+    /**
+     * 基础数据模块
+     */
+    BasicModule,
     /**
      * 数据分析模块
      */
