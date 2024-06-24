@@ -21,7 +21,7 @@ export class DailyService {
     tsCode,
   }: DailyQueryDto): Promise<Pagination<DailyEntity>> {
     const queryBuilder = this.DailyRepository.createQueryBuilder(
-      't_trade_cal',
+      't_source_daily',
     ).where({
       ...(tsCode && { tsCode: Like(`%${tsCode}%`) }),
     });

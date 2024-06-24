@@ -9,4 +9,14 @@ export class CommonDto {
   @IsDateString()
   @IsOptional()
   date?: string;
+
+  @ApiProperty({ description: '开始日期' })
+  @IsDateString()
+  @IsOptional()
+  startDate?: string;
+
+  @ApiProperty({ description: '结束日期' })
+  @IsDateString()
+  @IsOptional()
+  endDate?: string;
 }

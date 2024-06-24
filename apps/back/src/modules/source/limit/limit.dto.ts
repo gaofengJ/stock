@@ -104,6 +104,14 @@ export class LimitQueryDto extends PagerDto {
   @ApiProperty({ description: '股票名称' })
   @IsString()
   name?: string;
+
+  @ApiProperty({ description: '开始时间' })
+  @IsDateString()
+  startDate?: string;
+
+  @ApiProperty({ description: '结束时间' })
+  @IsDateString()
+  endDate?: string;
 }
 
 export class LimitUpdateDto extends PartialType(LimitDto) {}
