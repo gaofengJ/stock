@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { DynamicModule, Module } from '@nestjs/common';
 
 import { RouterModule } from '@nestjs/core';
 
@@ -9,18 +9,23 @@ import { TradeCalModule } from './trade-cal/trade-cal.module';
 
 const modules = [DailyModule, LimitModule, StockModule, TradeCalModule];
 
-@Module({
-  imports: [
-    ...modules,
-    RouterModule.register([
-      {
-        path: 'source',
-        // eslint-disable-next-line no-use-before-define
-        module: SourceModule,
-        children: [...modules],
-      },
-    ]),
-  ],
-  exports: [...modules],
-})
-export class SourceModule {}
+@Module({})
+export class SourceModule {
+  static forRoot(): DynamicModule {
+    return {
+      global: true,
+      imports: [
+        ...modules,
+        RouterModule.register([
+          {
+            path: 'source',
+            module: SourceModule,
+            children: [...modules],
+          },
+        ]),
+      ],
+      module: SourceModule,
+      exports: [...modules],
+    };
+  }
+}

@@ -19,6 +19,7 @@ import { TimeoutInterceptor } from '@/interceptors/timeout.interceptor';
 import { SourceModule } from '@/modules/source/source.module';
 import { ProcessedModule } from '@/modules/processed/processed.module';
 import { DailyTaskModule } from '@/modules/daily-task/daily-task.module';
+import { AnalysisModule } from '@/modules/analysis/analysis.module';
 // import { AnalysisModule } from './modules/analysis/analysis.module';
 
 @Module({
@@ -62,11 +63,11 @@ import { DailyTaskModule } from '@/modules/daily-task/daily-task.module';
     /**
      * 源数据模块
      */
-    SourceModule,
+    SourceModule.forRoot(),
     /**
      * 二次处理数据模块
      */
-    ProcessedModule,
+    ProcessedModule.forRoot(),
     /**
      * 每日任务模块
      */
@@ -74,7 +75,7 @@ import { DailyTaskModule } from '@/modules/daily-task/daily-task.module';
     /**
      * 数据分析模块
      */
-    // AnalysisModule,
+    AnalysisModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter }, // 自定义异常过滤器，用于捕获和处理应用程序中所有未被捕获的异常，统一异常处理逻辑
