@@ -8,6 +8,7 @@ const inter = Inter({ subsets: ['latin'] }); // 仅加载 Inter 字体的拉丁�
 export const metadata: Metadata = {
   title: 'Stock',
   description: '木风同学的投资小站',
+  icons: '/favicon.ico',
 };
 
 export default function RootLayout({
