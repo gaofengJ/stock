@@ -5,7 +5,7 @@ import Layout from '@/components/Layout';
 
 function AnalysisPage() {
   return (
-    <Layout headerTabActive="a" asideTabActive="b">
+    <Layout headerMenuActive="a" asideMenuActive="b">
       <div>
         Analysis
       </div>

@@ -1,15 +1,32 @@
 import { MenuProps } from 'antd';
 import Link from 'next/link';
 import React from 'react';
+import { EAvatarDropdownKey, EHeaderMenuKey, EHeaderMenuPath } from './enum';
 
 /**
  * 顶部菜单配置
  */
 export const menuConfig = [
-  { key: 'home', label: '首页', path: '/home' },
-  { key: 'market', label: '市场行情', path: '/market' },
-  { key: 'data', label: '数据分析', path: '/analysis' },
-  { key: 'review', label: '每日复盘', path: '/review' },
+  {
+    key: EHeaderMenuKey.analysis,
+    label: '数据分析',
+    path: EHeaderMenuPath.analysis,
+  },
+  {
+    key: EHeaderMenuKey.trends,
+    label: '市场行情',
+    path: EHeaderMenuPath.trends,
+  },
+  {
+    key: EHeaderMenuKey.news,
+    label: '实时资讯',
+    path: EHeaderMenuPath.news,
+  },
+  {
+    key: EHeaderMenuKey.review,
+    label: '每日复盘',
+    path: EHeaderMenuPath.review,
+  },
 ];
 
 /**
@@ -23,13 +40,13 @@ export const headerMenuItems: MenuProps['items'] = menuConfig.map((item) => ({
 /**
  * 头像下拉选项
  */
-export const dropdownItems: MenuProps['items'] = [
+export const avatarDropdownItems: MenuProps['items'] = [
   {
-    key: 'PERSONAL_CENTER',
+    key: EAvatarDropdownKey.PERSONAL_CENTER,
     label: <span>个人中心</span>,
   },
   {
-    key: 'SWITCH_ACCOUNT',
+    key: EAvatarDropdownKey.SWITCH_ACCOUNT,
     label: <span>切换账户</span>,
   },
 ];
