@@ -30,6 +30,7 @@ module.exports = {
     'import/extensions': 'off',
     'import/prefer-default-export': 0,
     'no-shadow': 'off',
+    'react/function-component-definition': 'off',
   },
   // extends: 'next/core-web-vitals',
 };

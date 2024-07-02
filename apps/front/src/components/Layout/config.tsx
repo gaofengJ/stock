@@ -8,7 +8,7 @@ import React from 'react';
 export const menuConfig = [
   { key: 'home', label: '首页', path: '/home' },
   { key: 'market', label: '市场行情', path: '/market' },
-  { key: 'data', label: '数据分析', path: '/data' },
+  { key: 'data', label: '数据分析', path: '/analysis' },
   { key: 'review', label: '每日复盘', path: '/review' },
 ];
 
