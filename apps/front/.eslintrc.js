@@ -27,16 +27,9 @@ module.exports = {
     'react/react-in-jsx-scope': 'off',
     'react/jsx-filename-extension': ['error', { extensions: ['.jsx', '.tsx'] }], // 控制哪些文件扩展名可以包含 JSX 语法
     'import/no-unresolved': 'off',
-    'import/extensions': [
-      'error',
-      'ignorePackages',
-      {
-        js: 'never',
-        jsx: 'never',
-        ts: 'never',
-        tsx: 'never',
-      },
-    ],
+    'import/extensions': 'off',
+    'import/prefer-default-export': 0,
+    'no-shadow': 'off',
   },
   // extends: 'next/core-web-vitals',
 };

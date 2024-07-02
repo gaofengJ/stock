@@ -1,5 +1,85 @@
-export default function Home() {
+'use client';
+
+import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import {
+  Avatar,
+  ConfigProvider, Dropdown, Layout, Menu,
+  theme,
+} from 'antd';
+import ImgFengye from '@/assets/imgs/fengye.png';
+import { getThemeBg } from '@/utils';
+import './globals.css';
+import {
+  headerMenuItems, dropdownItems,
+} from './config';
+
+const { Header, Sider, Content } = Layout;
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const pathname = usePathname();
+  const [, firstLevelPath, secondLevelPath] = pathname.split('/');
+  const mainMenuKey = `/${firstLevelPath}/${secondLevelPath}`;
+  const [selectedHeaderTab, setSelectedHeaderTab] = useState(firstLevelPath);
+
+  // const curRouteItem = routeItems.find(
+  //   (routeItem: IrouteItem) => routeItem.key === basePath,
+  // );
+
+  useEffect(() => {
+    setSelectedHeaderTab(firstLevelPath);
+  }, [firstLevelPath]);
+
   return (
-    <div>home</div>
+    <ConfigProvider theme={{
+      token: {
+        colorPrimary: 'red',
+      },
+      algorithm: theme.defaultAlgorithm,
+    }}
+    >
+      <Layout className="h-[100vh]">
+        <Header className="flex items-center" style={getThemeBg()}>
+          <img src={ImgFengye.src} alt="fengye" className="h-32 w-32" />
+          <span className="p-[0_80px_0_8px] text-20 font-medium">
+            木风同学
+          </span>
+          <Menu
+            mode="horizontal"
+            defaultSelectedKeys={[selectedHeaderTab]}
+            items={headerMenuItems}
+          />
+          <span className="grow" />
+          <Dropdown
+            menu={{ items: dropdownItems }}
+            placement="bottomLeft"
+            arrow
+          >
+            <Avatar className="text-white">Admin</Avatar>
+          </Dropdown>
+        </Header>
+        <Layout>
+          <Sider width={256} collapsible>
+            <Menu
+              mode="inline"
+              defaultSelectedKeys={[selectedHeaderTab]}
+              defaultOpenKeys={[mainMenuKey]}
+              className="h-full"
+              style={{ borderRight: '1px solid #e3e5e7' }}
+              items={headerMenuItems}
+            />
+          </Sider>
+          <Layout className="overflow-y-auto p-[0_24px_24px_24px]">
+            <Content>
+              <section className="m-0 p-24 min-h-full">{children}</section>
+            </Content>
+          </Layout>
+        </Layout>
+      </Layout>
+    </ConfigProvider>
   );
 }

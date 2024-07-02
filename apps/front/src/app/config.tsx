@@ -13,7 +13,7 @@ export const menuConfig = [
 ];
 
 /**
- * 顶部菜单
+ * 顶部菜单 Items
  */
 export const headerMenuItems: MenuProps['items'] = menuConfig.map((item) => ({
   key: item.key,
@@ -25,11 +25,11 @@ export const headerMenuItems: MenuProps['items'] = menuConfig.map((item) => ({
  */
 export const dropdownItems: MenuProps['items'] = [
   {
-    key: '1',
+    key: 'PERSONAL_CENTER',
     label: <span>个人中心</span>,
   },
   {
-    key: '2',
+    key: 'SWITCH_ACCOUNT',
     label: <span>切换账户</span>,
   },
 ];
