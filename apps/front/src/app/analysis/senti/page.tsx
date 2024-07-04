@@ -5,7 +5,7 @@ import { analysisSiderMenuItems } from '@/components/Layout/config';
 import { EAnalysisAsideMenuKey, EHeaderMenuKey } from '@/components/Layout/enum';
 // import styles from './index.module.less';
 
-function SentiPage() {
+function AnalysisSentiPage() {
   return (
     <Layout
       asideMenuItems={analysisSiderMenuItems}
@@ -17,4 +17,4 @@ function SentiPage() {
   );
 }
 
-export default SentiPage;
+export default AnalysisSentiPage;

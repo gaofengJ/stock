@@ -5,16 +5,17 @@ import { analysisSiderMenuItems } from '@/components/Layout/config';
 import { EAnalysisAsideMenuKey, EHeaderMenuKey } from '@/components/Layout/enum';
 // import styles from './index.module.less';
 
-function AnalysisLimitsPage() {
+function AnalysisBasicStockPage() {
   return (
     <Layout
       asideMenuItems={analysisSiderMenuItems}
       headerMenuActive={EHeaderMenuKey.analysis}
-      asideMenuActive={EAnalysisAsideMenuKey.analysisLimits}
+      asideMenuActive={EAnalysisAsideMenuKey.analysisBasicStock}
+      asideMenuOpen={EAnalysisAsideMenuKey.analysisBasic}
     >
-      <div>Analysis Limits</div>
+      <div>Analysis Basic Stock</div>
     </Layout>
   );
 }
 
-export default AnalysisLimitsPage;
+export default AnalysisBasicStockPage;

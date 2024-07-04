@@ -1,5 +1,4 @@
 import { MenuProps, theme, ThemeConfig } from 'antd';
-import Link from 'next/link';
 import React from 'react';
 
 import { EThemeColors } from '@/types/common.enum';
@@ -19,7 +18,7 @@ export const themeConfig: ThemeConfig = {
       headerBg: EThemeColors.colorWhite,
       headerPadding: '0 16px',
       triggerBg: EThemeColors.colorWhite,
-      triggerColor: EThemeColors.colorTeal,
+      triggerColor: EThemeColors.colorRed,
     },
   },
   algorithm: theme.defaultAlgorithm,
@@ -31,19 +30,19 @@ export const themeConfig: ThemeConfig = {
 export const headerMenuItems: MenuProps['items'] = [
   {
     key: EHeaderMenuKey.analysis,
-    label: <Link href={EHeaderMenuKey.analysis}>数据分析</Link>,
+    label: '数据分析',
   },
   {
     key: EHeaderMenuKey.trends,
-    label: <Link href={EHeaderMenuKey.trends}>市场行情</Link>,
+    label: '市场行情',
   },
   {
     key: EHeaderMenuKey.news,
-    label: <Link href={EHeaderMenuKey.news}>实时资讯</Link>,
+    label: '实时资讯',
   },
   {
     key: EHeaderMenuKey.review,
-    label: <Link href={EHeaderMenuKey.review}>每日复盘</Link>,
+    label: '每日复盘',
   },
 ];
 
@@ -67,35 +66,27 @@ export const avatarDropdownItems: MenuProps['items'] = [
 export const analysisSiderMenuItems: MenuProps['items'] = [
   {
     key: EAnalysisAsideMenuKey.analysisSenti,
-    label: <Link href={EAnalysisAsideMenuKey.analysisSenti}>情绪指标</Link>,
+    label: '情绪指标',
   },
   {
     key: EAnalysisAsideMenuKey.analysisChains,
-    label: <Link href={EAnalysisAsideMenuKey.analysisChains}>连板统计</Link>,
+    label: '连板统计',
   },
   {
     key: EAnalysisAsideMenuKey.analysisLimits,
-    label: <Link href={EAnalysisAsideMenuKey.analysisLimits}>涨停板复盘</Link>,
+    label: '涨停板复盘',
   },
   {
     key: EAnalysisAsideMenuKey.analysisBasic,
-    label: <Link href={EAnalysisAsideMenuKey.analysisBasic}>基础信息</Link>,
+    label: '基础信息',
     children: [
       {
         key: EAnalysisAsideMenuKey.analysisBasicStock,
-        label: (
-          <Link href={EAnalysisAsideMenuKey.analysisBasicStock}>
-            个股基本信息
-          </Link>
-        ),
+        label: '个股基本信息',
       },
       {
         key: EAnalysisAsideMenuKey.analysisBasicDaily,
-        label: (
-          <Link href={EAnalysisAsideMenuKey.analysisBasicDaily}>
-            每日交易数据
-          </Link>
-        ),
+        label: '每日交易数据',
       },
     ],
   },

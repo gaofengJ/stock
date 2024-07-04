@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 import './globals.css';
-import { EAnalysisAsideMenuKey } from '@/components/Layout/enum';
+import { EHeaderMenuKey } from '@/components/Layout/enum';
 
 export default () => {
   const router = useRouter();
@@ -12,7 +12,7 @@ export default () => {
   useEffect(() => {
     const isLoggedIn = true; // 是否已登录
     if (isLoggedIn) {
-      router.push(EAnalysisAsideMenuKey.analysisSenti);
+      router.push(EHeaderMenuKey.analysis);
     } else {
       router.push('/login');
     }

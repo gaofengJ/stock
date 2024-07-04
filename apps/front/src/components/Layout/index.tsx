@@ -15,24 +15,25 @@ import { useRouter } from 'next/navigation';
 import ImgFengye from '@/assets/imgs/fengye.png';
 
 import { avatarDropdownItems, headerMenuItems, themeConfig } from './config';
-import { EHeaderMenuKey } from './enum';
 
 const { Header, Sider, Content } = Layout;
 
 interface ILayoutProps {
   children: React.ReactNode;
   showAsideMenu?: boolean;
-  asideMenuItems: MenuProps['items'];
+  asideMenuItems?: MenuProps['items'];
   headerMenuActive: string;
-  asideMenuActive: string;
+  asideMenuActive?: string;
+  asideMenuOpen?: string;
 }
 
 const CommonLayout: React.FC<ILayoutProps> = ({
   children,
   showAsideMenu = true,
-  asideMenuItems,
-  headerMenuActive = EHeaderMenuKey.analysis,
-  asideMenuActive,
+  asideMenuItems = [],
+  headerMenuActive,
+  asideMenuActive = '',
+  asideMenuOpen = '',
 }) => {
   const router = useRouter();
 
@@ -82,7 +83,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
               <Menu
                 mode="inline"
                 defaultSelectedKeys={[asideMenuActive]}
-                defaultOpenKeys={[asideMenuActive]}
+                defaultOpenKeys={[asideMenuOpen]}
                 items={asideMenuItems}
                 className="h-full"
                 style={{ borderInlineEnd: 'none' }}
