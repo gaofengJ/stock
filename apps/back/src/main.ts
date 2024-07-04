@@ -69,7 +69,10 @@ const bootstrap = async () => {
     }),
   );
 
-  initSwagger(app, configService); // 初始化 Swagger
+  // 开发环境中初始化 Swagger
+  if (isDev) {
+    initSwagger(app, configService); // 初始化 Swagger
+  }
 
   await app.listen(port, '0.0.0.0', async () => {
     app.useLogger(app.get(LoggerService)); // 设置应用程序的日志记录器为 LoggerService 实例

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CommonDto } from '@/dto/common.dto';
 import { TradeCalService } from '@/modules/source/trade-cal/trade-cal.service';
-import { BusinessException } from '@/exceptions/business.exception';
+import { BizException } from '@/exceptions/biz.exception';
 import { EError } from '@/constants';
 import { DailyService } from '@/modules/source/daily/daily.service';
 import { LimitService } from '@/modules/source/limit/limit.service';
@@ -74,7 +74,7 @@ export class AnalysisService {
     const isOpen = await this.tradeCalService.isOpen(date);
     if (!isOpen) {
       this.logger.log(`${date}非交易日，请重新选择交易日期`);
-      throw new BusinessException(EError.NON_TRADING_DAY);
+      throw new BizException(EError.NON_TRADING_DAY);
     }
 
     const { items: dailyItems } = await this.dailyService.list({

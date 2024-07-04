@@ -3,9 +3,9 @@ import { CustomErrorEnum } from '@/types/common.enum';
 import { RESPONSE_SUCCESS_CODE } from '@/constants';
 
 /**
- * 自定义异常类 BusinessException
+ * 自定义异常类 BizException
  */
-export class BusinessException extends HttpException {
+export class BizException extends HttpException {
   private errorCode: number; // 错误码
 
   constructor(error: CustomErrorEnum | string) {
