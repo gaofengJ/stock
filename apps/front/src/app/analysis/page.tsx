@@ -1,16 +1,18 @@
 'use client';
 
-import Layout from '@/components/Layout';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { EAnalysisAsideMenuKey } from '@/components/Layout/enum';
 // import styles from './index.module.less';
 
 function AnalysisPage() {
-  return (
-    <Layout headerMenuActive="a" asideMenuActive="b">
-      <div>
-        Analysis
-      </div>
-    </Layout>
-  );
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace(EAnalysisAsideMenuKey.analysisSenti);
+  }, [router]);
+
+  return null;
 }
 
 export default AnalysisPage;
