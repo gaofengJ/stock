@@ -2,7 +2,13 @@
 
 import React from 'react';
 import {
-  Layout, ConfigProvider, Menu, Dropdown, Avatar,
+  Layout,
+  ConfigProvider,
+  Menu,
+  Dropdown,
+  Avatar,
+  message,
+  MenuProps,
 } from 'antd';
 
 import ImgFengye from '@/assets/imgs/fengye.png';
@@ -13,12 +19,14 @@ const { Header, Sider, Content } = Layout;
 
 interface ILayoutProps {
   children: React.ReactNode;
+  asideMenuItems: MenuProps['items'];
   headerMenuActive: string;
   asideMenuActive: string;
 }
 
 const CommonLayout: React.FC<ILayoutProps> = ({
   children,
+  asideMenuItems,
   headerMenuActive = EHeaderMenuKey.analysis,
   asideMenuActive,
 }) => (
@@ -34,11 +42,16 @@ const CommonLayout: React.FC<ILayoutProps> = ({
         />
         <span className="grow" />
         <Dropdown
-          menu={{ items: avatarDropdownItems }}
+          menu={{
+            items: avatarDropdownItems,
+            onClick: ({ key }) => {
+              message.success(`${key}敬请期待`);
+            },
+          }}
           placement="bottomLeft"
           arrow
         >
-          <Avatar className="text-white">Admin</Avatar>
+          <Avatar className="text-white cursor-pointer">User</Avatar>
         </Dropdown>
       </Header>
       <Layout>
@@ -47,12 +60,12 @@ const CommonLayout: React.FC<ILayoutProps> = ({
             mode="inline"
             defaultSelectedKeys={[asideMenuActive]}
             defaultOpenKeys={[asideMenuActive]}
+            items={asideMenuItems}
             className="h-full"
-            style={{ borderRight: '1px solid #e3e5e7' }}
-            items={headerMenuItems}
+            style={{ borderInlineEnd: 'none' }}
           />
         </Sider>
-        <Layout className="overflow-y-auto p-[0_24px_24px_24px]">
+        <Layout className="overflow-y-auto p-16">
           <Content>{children}</Content>
         </Layout>
       </Layout>

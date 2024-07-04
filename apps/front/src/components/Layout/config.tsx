@@ -18,6 +18,8 @@ export const themeConfig: ThemeConfig = {
     Layout: {
       headerBg: EThemeColors.colorWhite,
       headerPadding: '0 16px',
+      triggerBg: EThemeColors.colorWhite,
+      triggerColor: EThemeColors.colorTeal,
     },
   },
   algorithm: theme.defaultAlgorithm,
