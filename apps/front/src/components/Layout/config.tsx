@@ -1,41 +1,49 @@
-import { MenuProps } from 'antd';
+import { MenuProps, theme, ThemeConfig } from 'antd';
 import Link from 'next/link';
 import React from 'react';
-import { EAvatarDropdownKey, EHeaderMenuKey, EHeaderMenuPath } from './enum';
 
-/**
- * 顶部菜单配置
- */
-export const menuConfig = [
-  {
-    key: EHeaderMenuKey.analysis,
-    label: '数据分析',
-    path: EHeaderMenuPath.analysis,
+import { EThemeColors } from '@/types/common.enum';
+
+import {
+  EAnalysisAsideMenuKey,
+  EAvatarDropdownKey,
+  EHeaderMenuKey,
+} from './enum';
+
+export const themeConfig: ThemeConfig = {
+  token: {
+    colorPrimary: EThemeColors.colorRed,
   },
-  {
-    key: EHeaderMenuKey.trends,
-    label: '市场行情',
-    path: EHeaderMenuPath.trends,
+  components: {
+    Layout: {
+      headerBg: EThemeColors.colorWhite,
+      headerPadding: '0 16px',
+    },
   },
-  {
-    key: EHeaderMenuKey.news,
-    label: '实时资讯',
-    path: EHeaderMenuPath.news,
-  },
-  {
-    key: EHeaderMenuKey.review,
-    label: '每日复盘',
-    path: EHeaderMenuPath.review,
-  },
-];
+  algorithm: theme.defaultAlgorithm,
+};
 
 /**
  * 顶部菜单 Items
  */
-export const headerMenuItems: MenuProps['items'] = menuConfig.map((item) => ({
-  key: item.key,
-  label: <Link href={item.path}>{item.label}</Link>,
-}));
+export const headerMenuItems: MenuProps['items'] = [
+  {
+    key: EHeaderMenuKey.analysis,
+    label: <Link href={EHeaderMenuKey.analysis}>数据分析</Link>,
+  },
+  {
+    key: EHeaderMenuKey.trends,
+    label: <Link href={EHeaderMenuKey.trends}>市场行情</Link>,
+  },
+  {
+    key: EHeaderMenuKey.news,
+    label: <Link href={EHeaderMenuKey.news}>实时资讯</Link>,
+  },
+  {
+    key: EHeaderMenuKey.review,
+    label: <Link href={EHeaderMenuKey.review}>每日复盘</Link>,
+  },
+];
 
 /**
  * 头像下拉选项
@@ -51,46 +59,41 @@ export const avatarDropdownItems: MenuProps['items'] = [
   },
 ];
 
-export interface IrouteItem {
-  key: string;
-  showAside: boolean;
-  siderMenuItems?: {
-    key: string;
-    // icon: string;
-    label: unknown;
-    children?: unknown;
-  }[];
-}
-
-// 路由对应信息
+/**
+ * 数据分析 侧边栏 items
+ */
 export const analysisSiderMenuItems: MenuProps['items'] = [
   {
-    key: '/data/quota',
-    // icon: React.createElement(LineChartOutlined),
-    label: <Link href="/data/quota">情绪指标</Link>,
+    key: EAnalysisAsideMenuKey.analysisSenti,
+    label: <Link href={EAnalysisAsideMenuKey.analysisSenti}>情绪指标</Link>,
   },
   {
-    key: '/data/limit',
-    // icon: React.createElement(RiseOutlined),
-    label: <Link href="/data/limit">连板统计</Link>,
+    key: EAnalysisAsideMenuKey.analysisChains,
+    label: <Link href={EAnalysisAsideMenuKey.analysisChains}>连板统计</Link>,
   },
   {
-    key: '/data/limit-review',
-    // icon: React.createElement(BarsOutlined),
-    label: <Link href="/data/limit-review">涨停板复盘</Link>,
+    key: EAnalysisAsideMenuKey.analysisLimits,
+    label: <Link href={EAnalysisAsideMenuKey.analysisLimits}>涨停板复盘</Link>,
   },
   {
-    key: '/data/basic',
-    // icon: React.createElement(TableOutlined),
-    label: <Link href="/data/basic">基础信息</Link>,
+    key: EAnalysisAsideMenuKey.analysisBasic,
+    label: <Link href={EAnalysisAsideMenuKey.analysisBasic}>基础信息</Link>,
     children: [
       {
-        key: '/data/basic/stock',
-        label: <Link href="/data/basic/stock">个股基本信息</Link>,
+        key: EAnalysisAsideMenuKey.analysisBasicStock,
+        label: (
+          <Link href={EAnalysisAsideMenuKey.analysisBasicStock}>
+            个股基本信息
+          </Link>
+        ),
       },
       {
-        key: '/data/basic/daily',
-        label: <Link href="/data/basic/daily">每日交易数据</Link>,
+        key: EAnalysisAsideMenuKey.analysisBasicDaily,
+        label: (
+          <Link href={EAnalysisAsideMenuKey.analysisBasicDaily}>
+            每日交易数据
+          </Link>
+        ),
       },
     ],
   },

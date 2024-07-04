@@ -1,11 +1,14 @@
 import type { Config } from 'tailwindcss';
+import { EThemeColors } from './src/types/common.enum';
 
 interface Spacing {
   [key: string]: string;
 }
 
 const colorsConfig = {
-  'primary-default': 'rgba(63, 193, 201, 1)',
+  'primary-default': EThemeColors.colorRed,
+  'bg-base': EThemeColors.colorGrey,
+  'bg-white': EThemeColors.colorWhite,
 };
 
 const config: Config = {
@@ -29,11 +32,6 @@ const config: Config = {
         ...theme('spacing'),
       }),
       colors: colorsConfig,
-      backgroundImage: {
-        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'gradient-conic':
-          'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
-      },
     },
     corePlugins: {
       preflight: false, // 是 Tailwind CSS 的一个核心插件，它包含一组基础样式重置和全局样式
