@@ -182,5 +182,5 @@ export enum EType {
 }
 
 export enum CustomErrorEnum {
-  SERVER_ERROR = '500:服务繁忙，请稍后再试',
+  SERVER_ERROR = '-500:服务繁忙，请稍后再试',
 }

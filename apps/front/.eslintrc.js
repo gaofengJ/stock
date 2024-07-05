@@ -32,6 +32,8 @@ module.exports = {
     'no-shadow': 'off',
     'react/function-component-definition': 'off',
     'react/require-default-props': 'off',
+    '@typescript-eslint/no-explicit-any': 'off',
+    'no-param-reassign': 'off',
   },
   // extends: 'next/core-web-vitals',
 };
