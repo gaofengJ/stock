@@ -36,7 +36,7 @@ export class BaseAxios {
   /**
    * 消息弹出回调
    */
-  errorMessage: ((msg: string) => void);
+  errorMessage?: ((msg: string) => void);
 
   constructor(config: CreateAxiosDefaults) {
     this.service = axios.create(config);
@@ -47,7 +47,9 @@ export class BaseAxios {
     // 初始化业务错误码集合
     this.bizErrorCodeArr = config.bizErrorCodeArr as number[];
     // 初始化消息弹出回调
-    this.errorMessage = config.errorMessage ?? (() => {});
+    if (config.errorMessage) {
+      this.errorMessage = config.errorMessage;
+    }
 
     // 注册拦截器
     interceptors(this, this.service);
