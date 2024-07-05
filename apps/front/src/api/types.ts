@@ -41,7 +41,7 @@ declare module 'axios' {
     /**
      * 错误提示方法
      */
-    errorMessage?: (message: string, error: any) => void;
+    errorMessage?: (msg: string) => void;
   }
 
   interface InternalAxiosRequestConfig<D = any> extends RequestConfig<D> {

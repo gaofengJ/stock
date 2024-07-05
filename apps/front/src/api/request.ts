@@ -36,7 +36,7 @@ export class BaseAxios {
   /**
    * 消息弹出回调
    */
-  errorMessage: ((msg: string, error: any) => void) | undefined;
+  errorMessage: ((msg: string) => void);
 
   constructor(config: CreateAxiosDefaults) {
     this.service = axios.create(config);
@@ -68,6 +68,10 @@ export class BaseAxios {
    * @param msg - 错误信息
    */
   showErrorMessage(msg: string) {
+    if (this.errorMessage) {
+      this.errorMessage(msg);
+      return;
+    }
     message.error(msg);
   }
 
