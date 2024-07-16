@@ -44,7 +44,8 @@ export class DailyService {
   }
 
   async bulkCreate(dto: DailyDto[]) {
-    await this.DailyRepository.save(dto);
+    const list = await this.DailyRepository.save(dto);
+    return list.length;
   }
 
   async update(id: number, dto: DailyUpdateDto) {

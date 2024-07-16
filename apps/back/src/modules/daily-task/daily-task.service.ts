@@ -172,9 +172,27 @@ export class DailyTaskService {
 
       const stockDataObj = keyBy(stockData, (item) => item.tsCode);
 
+      // 如果某个字段为null，将其置为 ’‘，避免 tushare 异常数据导致的报错
       params = params.map((i) => ({
         ...i,
-        name: stockDataObj[i.tsCode].name,
+        tsCode: i.tsCode || '',
+        name: stockDataObj[i.tsCode]?.name || '',
+        tradeDate: i.tradeDate ? dayjs(i.tradeDate).format('YYYY-MM-DD') : '',
+        turnoverRate: i.turnoverRate || (0 as any),
+        turnoverRateF: i.turnoverRateF || (0 as any),
+        volumeRatio: i.volumeRatio || (0 as any),
+        pe: i.pe || (0 as any),
+        peTtm: i.peTtm || (0 as any),
+        pb: i.pb || (0 as any),
+        ps: i.ps || (0 as any),
+        psTtm: i.psTtm || (0 as any),
+        dvRatio: i.dvRatio || (0 as any),
+        dvTtm: i.dvTtm || (0 as any),
+        totalShare: i.totalShare || (0 as any),
+        floatShare: i.floatShare || (0 as any),
+        freeShare: i.freeShare || (0 as any),
+        totalMv: i.totalMv || (0 as any),
+        circMv: i.circMv || (0 as any),
       }));
 
       const count = await this.dailyService.bulkCreate(params);
