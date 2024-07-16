@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Column, Entity, OneToMany, Relation } from 'typeorm';
+import { Column, Entity } from 'typeorm';
 import { CommonEntity } from '@/entity/common.entity';
-import { DailyEntity } from '../daily/daily.entity';
 
 // 使用 @Entity 装饰器将这个类标记为一个实体，并指定数据库表名为 't_source_stock'
 @Entity({
@@ -68,7 +67,7 @@ export class StockEntity extends CommonEntity {
     comment: '股票全称',
   })
   @ApiProperty({ description: '股票全称' })
-  fullname: string;
+  fullname?: string;
 
   @Column({
     name: 'enname',
@@ -78,7 +77,7 @@ export class StockEntity extends CommonEntity {
     comment: '英文全称',
   })
   @ApiProperty({ description: '英文全称' })
-  enname: string;
+  enname?: string;
 
   @Column({
     name: 'cnspell',
@@ -108,7 +107,7 @@ export class StockEntity extends CommonEntity {
     comment: '交易所代码',
   })
   @ApiProperty({ description: '交易所代码' })
-  exchange: string;
+  exchange?: string;
 
   @Column({
     name: 'curr_type',
@@ -118,7 +117,7 @@ export class StockEntity extends CommonEntity {
     comment: '交易货币',
   })
   @ApiProperty({ description: '交易货币' })
-  currType: string;
+  currType?: string;
 
   @Column({
     name: 'list_status',
@@ -128,7 +127,7 @@ export class StockEntity extends CommonEntity {
     comment: '上市状态（L上市 D退市 P暂停上市）',
   })
   @ApiProperty({ description: '上市状态（L上市 D退市 P暂停上市）' })
-  listStatus: string;
+  listStatus?: string;
 
   @Column({
     name: 'list_date',
@@ -146,7 +145,7 @@ export class StockEntity extends CommonEntity {
     comment: '退市日期',
   })
   @ApiProperty({ description: '退市日期' })
-  delistDate: string;
+  delistDate?: string;
 
   @Column({
     name: 'is_hs',
@@ -156,7 +155,7 @@ export class StockEntity extends CommonEntity {
     comment: '是否沪深港通标的，N否 H沪股通 S深股通',
   })
   @ApiProperty({ description: '是否沪深港通标的，N否 H沪股通 S深股通' })
-  isHs: string;
+  isHs?: string;
 
   @Column({
     name: 'act_name',
@@ -166,7 +165,7 @@ export class StockEntity extends CommonEntity {
     comment: '实控人名称',
   })
   @ApiProperty({ description: '实控人名称' })
-  actName: string;
+  actName?: string;
 
   @Column({
     name: 'act_ent_type',
@@ -176,7 +175,7 @@ export class StockEntity extends CommonEntity {
     comment: '实控人企业性质',
   })
   @ApiProperty({ description: '实控人企业性质' })
-  actEntType: string;
+  actEntType?: string;
 
   /**
    * @OneToMany 表示这是一个一对多的关系，即一个 StockEntity 对象对应多个 DailyEntity 对象
@@ -187,6 +186,6 @@ export class StockEntity extends CommonEntity {
    * dailys 是在 StockEntity 中用来表示与之关联的多个 DailyEntity 对象的属性。
    * Relation<DailyEntity[]> 表示这是一个关系属性，类型为 DailyEntity[]，即 dailys 中存储了多个 DailyEntity 对象的数组
    */
-  @OneToMany(() => DailyEntity, (daily) => daily.stockBasic)
-  dailys: Relation<DailyEntity[]>;
+  // @OneToMany(() => DailyEntity, (daily) => daily.stockBasic)
+  // dailys: Relation<DailyEntity[]>;
 }

@@ -64,6 +64,7 @@ export class DailyTaskService {
   async importTradeCal() {
     try {
       await this.tradeCalService.clear(); // 清空交易日历表
+      this.logger.log(`清空交易日历表`);
       const curYear = dayjs().year(); // 获取当前年份
 
       const { code, data } = await this.tushareService.getTradeCal(
@@ -96,7 +97,24 @@ export class DailyTaskService {
       if (code) return;
       const { fields, items } = data!;
       const formatedFields = fields.map((i) => camelCase(i)); // 将下划线转为驼峰
-      const params: StockDto[] = mixinFieldAndItems(formatedFields, items);
+      let params: StockDto[] = mixinFieldAndItems(formatedFields, items);
+      // 如果某个字段为null，将其置为 ’‘，避免 tushare 异常数据导致的报错
+      params = params.map((i) => {
+        return {
+          ...i,
+          tsCode: i.tsCode || '',
+          symbol: i.symbol || '',
+          name: i.name || '',
+          area: i.area || '',
+          industry: i.industry || '',
+          cnspell: i.cnspell || '',
+          market: i.market || '',
+          listDate: i.listDate ? dayjs(i.listDate).format('YYYY-MM-DD') : '',
+          delistDate: i.delistDate
+            ? dayjs(i.delistDate).format('YYYY-MM-DD')
+            : (null as any),
+        };
+      });
       const count = await this.stockService.bulkCreate(params);
       this.logger.log(`导入股票基本信息：成功导入${count}条数据`);
     } catch (error) {

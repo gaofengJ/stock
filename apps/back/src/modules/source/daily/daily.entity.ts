@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
+import { Column, Entity } from 'typeorm';
 import { CommonEntity } from '@/entity/common.entity';
-import { StockEntity } from '../stock/stock.entity';
 
 // 使用 @Entity 装饰器将这个类标记为一个实体，并指定数据库表名为 't_source_daily'
 @Entity({
@@ -335,7 +334,7 @@ export class DailyEntity extends CommonEntity {
    *
    * 这里是个示例，实际项目中并未用到
    */
-  @ManyToOne(() => StockEntity, (stockBasic) => stockBasic.dailys)
-  @JoinColumn({ name: 'stock_basic_id' })
-  stockBasic!: StockEntity;
+  // @ManyToOne(() => StockEntity, (stockBasic) => stockBasic.dailys)
+  // @JoinColumn({ name: 'stock_basic_id' })
+  // stockBasic!: StockEntity;
 }

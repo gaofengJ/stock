@@ -41,7 +41,8 @@ export class StockService {
   }
 
   async bulkCreate(dto: StockDto[]) {
-    await this.stockBasicRepository.save(dto);
+    const list = await this.stockBasicRepository.save(dto);
+    return list.length;
   }
 
   async update(id: number, dto: StockUpdateDto) {
