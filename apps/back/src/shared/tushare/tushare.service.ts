@@ -79,7 +79,7 @@ export class TushareService {
         api_name: 'trade_cal',
         params: {
           exchange: 'SSE',
-          start_date: `${year}0101`,
+          start_date: `20200101`, // 开始时间默认2020-01-01
           end_date: `${year}1231`,
         },
       },

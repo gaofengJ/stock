@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { Cron } from '@nestjs/schedule';
-import dayjs from 'dayjs';
+import * as dayjs from 'dayjs';
 import { LoggerService } from '@/shared/logger/logger.service';
 import { DailyTaskService } from '@/modules/daily-task/daily-task.service';
 

@@ -1,15 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
-import dayjs from 'dayjs';
+import * as dayjs from 'dayjs';
 import { camelCase, keyBy } from 'lodash';
 import { CommonDto } from '@/dto/common.dto';
 import { TradeCalService } from '@/modules/source/trade-cal/trade-cal.service';
 import { BizException } from '@/exceptions/biz.exception';
 import { EError } from '@/constants';
-import {
-  getLastFridayOfYear,
-  mixinDailyParams,
-  mixinFieldAndItems,
-} from '@/utils';
+import { mixinDailyParams, mixinFieldAndItems } from '@/utils';
 import { TushareService } from '@/shared/tushare/tushare.service';
 import { TradeCalDto } from '@/modules/source/trade-cal/trade-cal.dto';
 import { StockService } from '@/modules/source/stock/stock.service';
@@ -34,29 +30,41 @@ export class DailyTaskService {
     private sentiService: SentiService,
   ) {}
 
+  /**
+   * 导入当日数据
+   * @param date 日期
+   */
   async import(date: CommonDto['date']) {
+    await this.importTradeCal();
+    await this.importStockBasic(date);
     const isOpen = await this.tradeCalService.isOpen(date);
     if (!isOpen) {
       this.logger.log(`${date}非交易日，请重新选择交易日期`);
       throw new BizException(EError.NON_TRADING_DAY);
     }
-    await this.importTradeCal(date);
-    await this.importStockBasic(date);
     await this.importDaily(date);
     await this.importLimitList(date);
     await this.importDailyMarketMood(date);
   }
 
   /**
-   * @description 每年的最后一个交易日（最后一个周五）导入下一年的交易日历
+   * 批量导入数据
+   */
+  async bulkImport(
+    startDate: CommonDto['startDate'],
+    endDate: CommonDto['endDate'],
+  ) {
+    console.info(startDate, endDate);
+  }
+
+  /**
    * @param date 日期
    * @returns
    */
-  async importTradeCal(date: CommonDto['date']) {
+  async importTradeCal() {
     try {
+      await this.tradeCalService.clear(); // 清空交易日历表
       const curYear = dayjs().year(); // 获取当前年份
-      const lastFridayOfYear = getLastFridayOfYear(curYear); // 获取每年最后一个周五
-      if (date !== lastFridayOfYear) return;
 
       const { code, data } = await this.tushareService.getTradeCal(
         `${curYear + 1}`,
@@ -67,9 +75,9 @@ export class DailyTaskService {
       const { items } = data!;
       const params: TradeCalDto[] = mixinFieldAndItems(fields, items);
       const count = await this.tradeCalService.bulkCreate(params);
-      this.logger.log(`导入交易日历：成功导入${curYear}年${count}条数据`);
+      this.logger.log(`更新交易日历：共计${count}条数据`);
     } catch (error) {
-      this.logger.error(`导入交易日历失败：${error.message}`);
+      this.logger.error(`更新交易日历失败：${error.message}`);
       throw new BizException(EError.IMPORT_TRADE_CAL_FAILED);
     }
   }

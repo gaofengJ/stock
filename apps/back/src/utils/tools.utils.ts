@@ -1,4 +1,4 @@
-import lodash, { keyBy, merge } from 'lodash';
+import { zipObject, keyBy, merge } from 'lodash';
 import { EType } from '@/types/common.enum';
 
 /**
@@ -20,7 +20,7 @@ export const getType = (value: unknown): string => {
 export const mixinFieldAndItems = (fields: string[], items: any[]): any[] => {
   if (!fields.length || !items.length) return [];
   if (!Array.isArray(items[0]) || !items[0].length) return [];
-  return items.map((item) => lodash.zipObject(fields, item));
+  return items.map((item) => zipObject(fields, item));
 };
 
 /**

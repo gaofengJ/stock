@@ -1,7 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
-import dayjs from 'dayjs';
+import * as dayjs from 'dayjs';
 
 import { BasicService } from './basic.service';
 import { DailyQueryDto } from '../source/daily/daily.dto';
