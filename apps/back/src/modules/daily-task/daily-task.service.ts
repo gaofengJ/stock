@@ -43,8 +43,8 @@ export class DailyTaskService {
       throw new BizException(EError.NON_TRADING_DAY);
     }
     await this.importDaily(date);
-    await this.importLimitList(date);
-    await this.importDailyMarketMood(date);
+    await this.importLimit(date);
+    await this.importMarketMood(date);
   }
 
   /**
@@ -76,7 +76,7 @@ export class DailyTaskService {
       const { items } = data!;
       const params: TradeCalDto[] = mixinFieldAndItems(fields, items);
       const count = await this.tradeCalService.bulkCreate(params);
-      this.logger.log(`更新交易日历：共计${count}条数据`);
+      this.logger.log(`导入交易日历：共计${count}条数据`);
     } catch (error) {
       this.logger.error(`更新交易日历失败：${error.message}`);
       throw new BizException(EError.IMPORT_TRADE_CAL_FAILED);
@@ -206,7 +206,7 @@ export class DailyTaskService {
       }));
 
       const count = await this.dailyService.bulkCreate(params);
-      this.logger.log(`导入每日交易数据：成功导入${count}条数据`);
+      this.logger.log(`导入每日交易数据：成功导入${date}共计${count}条数据`);
     } catch (error) {
       this.logger.error(`导入每日交易数据失败：${error.message}`);
       throw new BizException(EError.IMPORT_DAILY_FAILED);
@@ -217,7 +217,7 @@ export class DailyTaskService {
    * 每日涨跌停统计
    * @param date 日期
    */
-  async importLimitList(date: CommonDto['date']) {
+  async importLimit(date: CommonDto['date']) {
     try {
       const formatedDate = dayjs(date).format('YYYYMMDD');
       const { code, data } = await this.tushareService.getLimitList(
@@ -228,7 +228,7 @@ export class DailyTaskService {
       const formatedFields = fields.map((i) => camelCase(i)); // 将下划线转为驼峰
       const params: LimitDto[] = mixinFieldAndItems(formatedFields, items);
       const count = await this.limitService.bulkCreate(params);
-      this.logger.log(`导入涨跌停数据：成功导入${count}条数据`);
+      this.logger.log(`导入涨跌停数据：成功导入${date}共计${count}条数据`);
     } catch (error) {
       this.logger.error(`导入涨跌停数据失败：${error.message}`);
       throw new BizException(EError.IMPORT_LIMIT_FAILED);
@@ -239,8 +239,9 @@ export class DailyTaskService {
    * 每日短线情绪指标
    * @param date 日期
    */
-  async importDailyMarketMood(date: CommonDto['date']) {
-    const preTradeDate = await this.tradeCalService.getPreDate(date); // 查询上一个交易日
+  async importMarketMood(date: CommonDto['date']) {
+    // 查询上一个交易日
+    const preTradeDate = await this.tradeCalService.getPreDate(date);
     // 短线情绪指标，以2022年01月05日为例
     const senti = {
       a: 0, // 2022年01月05日涨停，非一字涨停，非ST
@@ -253,36 +254,56 @@ export class DailyTaskService {
       sentiC: 0, // 打板成功率 sentiC = d / b
       sentiD: 0, // 打板被砸率 sentiD = e / (a + e)
     };
-
+    // 获取当日涨停数据
     const { items: curLimitData } = await this.limitService.list({
       pageNum: 1,
       pageSize: 10000,
       tradeDate: date,
       limit: ELimit.U,
-    }); // 获取当日涨停数据
+    });
+    // 查询上一日涨停数据
     const { items: preLimitData } = await this.limitService.list({
       pageNum: 1,
       pageSize: 10000,
       tradeDate: preTradeDate,
       limit: ELimit.U,
-    }); // 查询上一日涨停数据
+    });
+    // 获取当日炸板数据
     const { items: curLimitDataZ } = await this.limitService.list({
       pageNum: 1,
       pageSize: 10000,
       tradeDate: date,
       limit: ELimit.Z,
-    }); // 获取当日炸板数据
+    });
+    // 查询当日数据
     const { items: curDailyData } = await this.dailyService.list({
       pageNum: 1,
       pageSize: 10000,
       tradeDate: date,
-    }); // 查询当日数据
+    });
+    // 查询上一日数据
     const { items: preDailyData } = await this.dailyService.list({
       pageNum: 1,
       pageSize: 10000,
       tradeDate: preTradeDate,
-    }); // 查询上一日数据
+    });
 
+    if (!preLimitData.length || !preDailyData.length) {
+      await this.sentiService.create({
+        tradeDate: date!,
+        a: senti.a,
+        b: senti.b,
+        c: senti.c,
+        d: senti.d,
+        e: senti.e,
+        sentiA: `${senti.sentiA}`,
+        sentiB: `${senti.sentiB}`,
+        sentiC: `${senti.sentiC}`,
+        sentiD: `${senti.sentiD}`,
+      });
+      this.logger.log(`导入每日短线情绪指标：${date}成功导入默认值`);
+      return;
+    }
     // 空间换时间，减少时间复杂度
     const curLimitDataObj = keyBy(curLimitData, (item) => item.tsCode);
     const preLimitDataObj = keyBy(preLimitData, (item) => item.tsCode);
@@ -329,6 +350,7 @@ export class DailyTaskService {
       sentiC: `${senti.sentiC}`,
       sentiD: `${senti.sentiD}`,
     });
+    this.logger.log(`导入每日短线情绪指标：${date}成功导入`);
   }
 
   /**
@@ -336,6 +358,13 @@ export class DailyTaskService {
    * @param date 日期
    */
   async delete(date: CommonDto['date']) {
-    console.info('date', date);
+    const isOpen = await this.tradeCalService.isOpen(date);
+    if (!isOpen) {
+      this.logger.log(`${date}非交易日，请重新选择交易日期`);
+      throw new BizException(EError.NON_TRADING_DAY);
+    }
+    await this.dailyService.deleteByDate(date!);
+    await this.limitService.deleteByDate(date!);
+    await this.sentiService.deleteByDate(date!);
   }
 }

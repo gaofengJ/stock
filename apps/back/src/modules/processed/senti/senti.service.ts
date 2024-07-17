@@ -54,6 +54,12 @@ export class SentiService {
     await this.SentiRepository.remove(item);
   }
 
+  async deleteByDate(date: SentiDto['tradeDate']) {
+    await this.SentiRepository.delete({
+      tradeDate: date,
+    });
+  }
+
   async clear() {
     await this.SentiRepository.clear();
   }

@@ -57,6 +57,12 @@ export class DailyService {
     await this.DailyRepository.remove(item);
   }
 
+  async deleteByDate(date: DailyDto['tradeDate']) {
+    await this.DailyRepository.delete({
+      tradeDate: date,
+    });
+  }
+
   async clear() {
     await this.DailyRepository.clear();
   }

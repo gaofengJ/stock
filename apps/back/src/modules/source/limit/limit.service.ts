@@ -19,7 +19,7 @@ export class LimitService {
   async list({
     pageNum,
     pageSize,
-    field = 'tradeDate',
+    field = 'ts_code',
     order = Order.ASC,
     tsCode,
     name,
@@ -60,6 +60,12 @@ export class LimitService {
   async delete(id: number) {
     const item = await this.detail(id);
     await this.LimitRepository.remove(item);
+  }
+
+  async deleteByDate(date: LimitDto['tradeDate']) {
+    await this.LimitRepository.delete({
+      tradeDate: date,
+    });
   }
 
   async clear() {
