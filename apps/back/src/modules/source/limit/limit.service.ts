@@ -49,7 +49,8 @@ export class LimitService {
   }
 
   async bulkCreate(dto: LimitDto[]) {
-    await this.LimitRepository.save(dto);
+    const list = await this.LimitRepository.save(dto);
+    return list.length;
   }
 
   async update(id: number, dto: LimitUpdateDto) {

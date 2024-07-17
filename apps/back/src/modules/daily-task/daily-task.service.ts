@@ -193,12 +193,22 @@ export class DailyTaskService {
         freeShare: i.freeShare || (0 as any),
         totalMv: i.totalMv || (0 as any),
         circMv: i.circMv || (0 as any),
+        // 以下字段可能为空，给一个默认值
+        open: i.open || (0 as any),
+        high: i.high || (0 as any),
+        low: i.low || (0 as any),
+        close: i.close || (0 as any),
+        preClose: i.preClose || (0 as any),
+        change: i.change || (0 as any),
+        pctChg: i.pctChg || (0 as any),
+        vol: i.vol || (0 as any),
+        amount: i.amount || (0 as any),
       }));
 
       const count = await this.dailyService.bulkCreate(params);
-      this.logger.log(`导入每日数据：成功导入${count}条数据`);
+      this.logger.log(`导入每日交易数据：成功导入${count}条数据`);
     } catch (error) {
-      this.logger.error(`导入每日数据失败：${error.message}`);
+      this.logger.error(`导入每日交易数据失败：${error.message}`);
       throw new BizException(EError.IMPORT_DAILY_FAILED);
     }
   }
