@@ -23,6 +23,8 @@ export class LimitService {
     order = Order.ASC,
     tsCode,
     name,
+    limit,
+    tradeDate,
     startDate,
     endDate,
   }: LimitQueryDto): Promise<Pagination<LimitEntity>> {
@@ -32,6 +34,8 @@ export class LimitService {
       .where({
         ...(tsCode && { tsCode: Like(`%${tsCode}%`) }),
         ...(name && { name: Like(`%${name}%`) }),
+        ...(limit && { limit }),
+        ...(tradeDate && { tradeDate }),
         ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
       })
       .orderBy(field, order);
@@ -63,9 +67,10 @@ export class LimitService {
   }
 
   async deleteByDate(date: LimitDto['tradeDate']) {
-    await this.LimitRepository.delete({
+    const { affected } = await this.LimitRepository.delete({
       tradeDate: date,
     });
+    return affected || 0;
   }
 
   async clear() {

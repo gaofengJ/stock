@@ -323,13 +323,13 @@ export class DailyTaskService {
     senti.c = preDailyLimitData.filter((i) => {
       const tempCurDailyData = curDailyData.find((j) => i.tsCode === j.tsCode);
       if (!tempCurDailyData) return false;
-      return tempCurDailyData.open > tempCurDailyData.preClose;
+      return +tempCurDailyData.open > +tempCurDailyData.preClose;
     })?.length;
 
-    senti.c = preDailyLimitData.filter((i) => {
+    senti.d = preDailyLimitData.filter((i) => {
       const tempCurDailyData = curDailyData.find((j) => i.tsCode === j.tsCode);
       if (!tempCurDailyData) return false;
-      return tempCurDailyData.close > tempCurDailyData.preClose;
+      return +tempCurDailyData.close > +tempCurDailyData.preClose;
     })?.length;
 
     senti.e = curLimitDataZ.filter((i) => !/ST|N|C/.test(i.name))?.length;
@@ -363,8 +363,13 @@ export class DailyTaskService {
       this.logger.log(`${date}非交易日，请重新选择交易日期`);
       throw new BizException(EError.NON_TRADING_DAY);
     }
-    await this.dailyService.deleteByDate(date!);
-    await this.limitService.deleteByDate(date!);
-    await this.sentiService.deleteByDate(date!);
+    const countDaily = await this.dailyService.deleteByDate(date!);
+    this.logger.log(`删除每日交易数据：成功删除${date}共计${countDaily}条数据`);
+    const countLimit = await this.limitService.deleteByDate(date!);
+    this.logger.log(`删除涨跌停数据：成功删除${date}共计${countLimit}条数据`);
+    const countSenti = await this.sentiService.deleteByDate(date!);
+    this.logger.log(
+      `删除每日短线情绪指标：成功删除${date}共计${countSenti}条数据`,
+    );
   }
 }
