@@ -45,4 +45,8 @@ export enum EError {
    * 数据相关-导入涨跌停数据失败
    */
   IMPORT_LIMIT_FAILED = -2005,
+  /**
+   * 数据相关-非开发环境禁止清空所有
+   */
+  CLEAR_NOT_ALLOWED = -2006,
 }

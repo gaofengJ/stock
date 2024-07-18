@@ -36,7 +36,7 @@ export class DailyTaskService {
    */
   async import(date: CommonDateDto['date']) {
     await this.importTradeCal();
-    await this.importStockBasic(date);
+    await this.importStockBasic();
     const isOpen = await this.tradeCalService.isOpen(date);
     if (!isOpen) {
       this.logger.log(`${date}非交易日，请重新选择交易日期`);
@@ -94,10 +94,8 @@ export class DailyTaskService {
    * 每周一导入股票基本信息（导入新增股票）
    * @param date 日期
    */
-  async importStockBasic(date: CommonDateDto['date']) {
+  async importStockBasic() {
     try {
-      const day = dayjs(date).day(); // 获取周几
-      if (day !== 1) return;
       await this.stockService.clear();
       this.logger.log(`清空股票基本信息表`);
       const { code, data } = await this.tushareService.getStockBasic();
@@ -378,5 +376,18 @@ export class DailyTaskService {
     this.logger.log(
       `删除每日短线情绪指标：成功删除${date}共计${countSenti}条数据`,
     );
+  }
+
+  async clear() {
+    await this.tradeCalService.clear();
+    this.logger.log('清空交易日历：成功');
+    await this.stockService.clear();
+    this.logger.log('清空股票基本信息：成功');
+    await this.dailyService.clear();
+    this.logger.log('清空每日交易数据：成功');
+    await this.limitService.clear();
+    this.logger.log('清空涨跌停数据：成功');
+    await this.sentiService.clear();
+    this.logger.log('清空每日短线情绪指标：成功');
   }
 }
