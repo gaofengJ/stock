@@ -3,7 +3,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import * as dayjs from 'dayjs';
 
-import { CommonDto } from '@/dto/common.dto';
+import { CommonDateDto, CommonDateRangeDto } from '@/dto/common.dto';
 
 import { AnalysisService } from './analysis.service';
 
@@ -14,8 +14,7 @@ export class AnalysisController {
 
   @Get('/statistics')
   @ApiOperation({ summary: '涨跌分布统计' })
-  async statistics(@Query() dto: CommonDto) {
-    const { date } = dto;
+  async statistics(@Query('date') date: CommonDateDto['date']) {
     const formatedDate = dayjs(date).format('YYYY-MM-DD');
     const ret = await this.analysisService.statistics(formatedDate);
     return ret;
@@ -23,7 +22,7 @@ export class AnalysisController {
 
   @Get('/limits')
   @ApiOperation({ summary: '涨跌停统计' })
-  async limits(@Query() dto: CommonDto) {
+  async limits(@Query() dto: CommonDateRangeDto) {
     const { startDate, endDate } = dto;
     const formatedStartDate = dayjs(startDate).format('YYYY-MM-DD');
     const formatedEndDate = dayjs(endDate).format('YYYY-MM-DD');
@@ -37,7 +36,7 @@ export class AnalysisController {
 
   @Get('/nums')
   @ApiOperation({ summary: '查询上涨家数' })
-  async nums(@Query() dto: CommonDto) {
+  async nums(@Query() dto: CommonDateRangeDto) {
     const { startDate, endDate } = dto;
     const formatedStartDate = dayjs(startDate).format('YYYY-MM-DD');
     const formatedEndDate = dayjs(endDate).format('YYYY-MM-DD');
@@ -50,7 +49,7 @@ export class AnalysisController {
 
   @Get('/senti')
   @ApiOperation({ summary: '查询短线情绪' })
-  async senti(dto: Pick<CommonDto, 'startDate' | 'endDate'>) {
+  async senti(dto: CommonDateRangeDto) {
     const { startDate, endDate } = dto;
     const formatedStartDate = dayjs(startDate).format('YYYY-MM-DD');
     const formatedEndDate = dayjs(endDate).format('YYYY-MM-DD');

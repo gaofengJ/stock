@@ -3,7 +3,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import * as dayjs from 'dayjs';
 
-import { CommonDto } from '@/dto/common.dto';
+import { CommonDateDto, CommonDateRangeDto } from '@/dto/common.dto';
 
 import { DailyTaskService } from './daily-task.service';
 
@@ -14,7 +14,7 @@ export class DailyTaskController {
 
   @Post('/import')
   @ApiOperation({ summary: '导入当日数据' })
-  async import(@Query('date') date: CommonDto['date']) {
+  async import(@Query('date') date: CommonDateDto['date']) {
     const formatedDate = dayjs(date).format('YYYY-MM-DD');
     this.dailyTaskService.import(formatedDate);
   }
@@ -22,8 +22,8 @@ export class DailyTaskController {
   @Post('/bulk-import')
   @ApiOperation({ summary: '批量导入数据' })
   async bulkImport(
-    @Query('startDate') startDate: CommonDto['startDate'],
-    @Query('endDate') endDate: CommonDto['endDate'],
+    @Query('startDate') startDate: CommonDateRangeDto['startDate'],
+    @Query('endDate') endDate: CommonDateRangeDto['endDate'],
   ) {
     const formatedStartDate = dayjs(startDate).format('YYYY-MM-DD');
     const formatedEndDate = dayjs(endDate).format('YYYY-MM-DD');
@@ -33,8 +33,7 @@ export class DailyTaskController {
 
   @Delete('/delete')
   @ApiOperation({ summary: '删除当日数据' })
-  async delete(@Query() dto: CommonDto) {
-    const { date } = dto;
+  async delete(@Query('date') date: CommonDateDto['date']) {
     const formatedDate = dayjs(date).format('YYYY-MM-DD');
     this.dailyTaskService.delete(formatedDate);
   }

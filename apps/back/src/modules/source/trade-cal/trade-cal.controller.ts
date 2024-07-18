@@ -14,7 +14,7 @@ import { ApiResult } from '@/decorators/api-result.decorator';
 import { IdParam } from '@/decorators/id-param.decorator';
 
 import { Pagination } from '@/helper/paginate/pagination';
-import { CommonDto } from '@/dto/common.dto';
+import { CommonDateDto } from '@/dto/common.dto';
 
 import { TradeCalEntity } from './trade-cal.entity';
 
@@ -80,7 +80,7 @@ export class TradeCalController {
   @Get('/is-open')
   @ApiOperation({ summary: '查询当前日期是否为交易日' })
   @ApiResult({ type: Boolean })
-  async isOpen(@Query() dto: CommonDto): Promise<boolean> {
+  async isOpen(@Query() dto: CommonDateDto): Promise<boolean> {
     const { date } = dto;
     const formatedDate = dayjs(date).format('YYYY-MM-DD');
     return this.tradeCalService.isOpen(formatedDate);

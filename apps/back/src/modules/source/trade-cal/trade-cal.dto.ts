@@ -28,7 +28,15 @@ export class TradeCalQueryDto extends PagerDto {
   @IsString()
   calDate?: string;
 
-  @ApiProperty({ description: '是否为交易日期' })
+  @ApiProperty({ description: '开始日期' })
+  @IsString()
+  startDate?: string;
+
+  @ApiProperty({ description: '结束日期' })
+  @IsString()
+  endDate?: string;
+
+  @ApiProperty({ description: '是否为交易日期 0: 否 1: 是' })
   @IsNumber()
   isOpen?: number;
 }

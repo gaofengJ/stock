@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 
 import { paginate } from '@/helper/paginate/index';
 import { Pagination } from '@/helper/paginate/pagination';
-import { CommonDto } from '@/dto/common.dto';
+import { CommonDateDto } from '@/dto/common.dto';
 
 import { TradeCalEntity } from './trade-cal.entity';
 
@@ -25,12 +25,15 @@ export class TradeCalService {
     pageNum,
     pageSize,
     calDate,
+    startDate,
+    endDate,
     isOpen,
   }: TradeCalQueryDto): Promise<Pagination<TradeCalEntity>> {
     const queryBuilder = this.TradeCalRepository.createQueryBuilder(
       't_source_trade_cal',
     ).where({
       ...(calDate && { calDate }),
+      ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
       ...(isOpen && { isOpen }),
     });
     return paginate(queryBuilder, { pageNum, pageSize });
@@ -68,7 +71,7 @@ export class TradeCalService {
    * 查询当前日期是否为交易日
    * @param date
    */
-  async isOpen(date: CommonDto['date']) {
+  async isOpen(date: CommonDateDto['date']) {
     const tradeCal = await this.TradeCalRepository.findOne({
       where: {
         ...(date && { calDate: date }),
@@ -82,7 +85,7 @@ export class TradeCalService {
    * 查询上一个交易日
    * @param date
    */
-  async getPreDate(date: CommonDto['date']) {
+  async getPreDate(date: CommonDateDto['date']) {
     const tradeCal = await this.TradeCalRepository.findOne({
       where: {
         ...(date && { calDate: date }),

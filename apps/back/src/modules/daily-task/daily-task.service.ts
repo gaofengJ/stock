@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as dayjs from 'dayjs';
 import { camelCase, keyBy } from 'lodash';
-import { CommonDto } from '@/dto/common.dto';
+import { CommonDateDto, CommonDateRangeDto } from '@/dto/common.dto';
 import { TradeCalService } from '@/modules/source/trade-cal/trade-cal.service';
 import { BizException } from '@/exceptions/biz.exception';
 import { EError } from '@/constants';
@@ -34,7 +34,7 @@ export class DailyTaskService {
    * 导入当日数据
    * @param date 日期
    */
-  async import(date: CommonDto['date']) {
+  async import(date: CommonDateDto['date']) {
     await this.importTradeCal();
     await this.importStockBasic(date);
     const isOpen = await this.tradeCalService.isOpen(date);
@@ -51,10 +51,17 @@ export class DailyTaskService {
    * 批量导入数据
    */
   async bulkImport(
-    startDate: CommonDto['startDate'],
-    endDate: CommonDto['endDate'],
+    startDate: CommonDateRangeDto['startDate'],
+    endDate: CommonDateRangeDto['endDate'],
   ) {
-    console.info(startDate, endDate);
+    const dateList = await this.tradeCalService.list({
+      pageNum: 1,
+      pageSize: 10000,
+      startDate,
+      endDate,
+      isOpen: 1,
+    });
+    console.info('dateList', dateList);
   }
 
   /**
@@ -87,7 +94,7 @@ export class DailyTaskService {
    * 每周一导入股票基本信息（导入新增股票）
    * @param date 日期
    */
-  async importStockBasic(date: CommonDto['date']) {
+  async importStockBasic(date: CommonDateDto['date']) {
     try {
       const day = dayjs(date).day(); // 获取周几
       if (day !== 1) return;
@@ -127,7 +134,7 @@ export class DailyTaskService {
    * 每日数据统计
    * @param date 日期
    */
-  async importDaily(date: CommonDto['date']) {
+  async importDaily(date: CommonDateDto['date']) {
     try {
       const formatedDate = dayjs(date).format('YYYYMMDD');
       const { code: dailyCode, data: dailyData } =
@@ -217,7 +224,7 @@ export class DailyTaskService {
    * 每日涨跌停统计
    * @param date 日期
    */
-  async importLimit(date: CommonDto['date']) {
+  async importLimit(date: CommonDateDto['date']) {
     try {
       const formatedDate = dayjs(date).format('YYYYMMDD');
       const { code, data } = await this.tushareService.getLimitList(
@@ -239,7 +246,7 @@ export class DailyTaskService {
    * 每日短线情绪指标
    * @param date 日期
    */
-  async importMarketMood(date: CommonDto['date']) {
+  async importMarketMood(date: CommonDateDto['date']) {
     // 查询上一个交易日
     const preTradeDate = await this.tradeCalService.getPreDate(date);
     // 短线情绪指标，以2022年01月05日为例
@@ -357,7 +364,7 @@ export class DailyTaskService {
    * 手动删除当日数据
    * @param date 日期
    */
-  async delete(date: CommonDto['date']) {
+  async delete(date: CommonDateDto['date']) {
     const isOpen = await this.tradeCalService.isOpen(date);
     if (!isOpen) {
       this.logger.log(`${date}非交易日，请重新选择交易日期`);

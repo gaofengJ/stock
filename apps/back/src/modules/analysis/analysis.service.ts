@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { CommonDto } from '@/dto/common.dto';
+import { CommonDateDto, CommonDateRangeDto } from '@/dto/common.dto';
 import { TradeCalService } from '@/modules/source/trade-cal/trade-cal.service';
 import { BizException } from '@/exceptions/biz.exception';
 import { EError } from '@/constants';
@@ -70,7 +70,7 @@ export class AnalysisService {
    * 涨跌分布统计
    * @param date
    */
-  async statistics(date: CommonDto['date']) {
+  async statistics(date: CommonDateDto['date']) {
     const isOpen = await this.tradeCalService.isOpen(date);
     if (!isOpen) {
       this.logger.log(`${date}非交易日，请重新选择交易日期`);
@@ -96,7 +96,7 @@ export class AnalysisService {
   /**
    * 涨跌停统计
    */
-  async limits(dto: Pick<CommonDto, 'startDate' | 'endDate'>) {
+  async limits(dto: CommonDateRangeDto) {
     const { startDate, endDate } = dto;
     const { items: limitItems } = await this.limitService.list({
       pageNum: 1,
@@ -135,7 +135,7 @@ export class AnalysisService {
   /**
    * 上涨家数
    */
-  async nums(dto: Pick<CommonDto, 'startDate' | 'endDate'>) {
+  async nums(dto: CommonDateRangeDto) {
     const { startDate, endDate } = dto;
     const { items: dailyItems } = await this.dailyService.list({
       pageNum: 1,
@@ -169,7 +169,7 @@ export class AnalysisService {
   /**
    * 短线情绪
    */
-  async senti(dto: Pick<CommonDto, 'startDate' | 'endDate'>) {
+  async senti(dto: CommonDateRangeDto) {
     const { startDate, endDate } = dto;
     const { items: sentiItems } = await this.sentiService.list({
       pageNum: 1,
