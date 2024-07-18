@@ -33,7 +33,7 @@ export class TradeCalService {
       't_source_trade_cal',
     ).where({
       ...(calDate && { calDate }),
-      ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
+      ...(startDate && endDate && { calDate: Between(startDate, endDate) }),
       ...(isOpen && { isOpen }),
     });
     return paginate(queryBuilder, { pageNum, pageSize });

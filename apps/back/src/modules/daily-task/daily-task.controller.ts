@@ -9,7 +9,6 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import * as dayjs from 'dayjs';
 
-import { Timeout } from '@nestjs/schedule';
 import { CommonDateDto, CommonDateRangeDto } from '@/dto/common.dto';
 
 import { isDev } from '@/utils';
@@ -24,7 +23,7 @@ export class DailyTaskController {
   constructor(private readonly dailyTaskService: DailyTaskService) {}
 
   @Post('/import')
-  @UseInterceptors(new TimeoutInterceptor(60000))
+  @UseInterceptors(new TimeoutInterceptor(1000 * 60))
   @ApiOperation({ summary: '导入当日数据' })
   async import(@Body('date') date: CommonDateDto['date']) {
     const formatedDate = dayjs(date).format('YYYY-MM-DD');
@@ -32,13 +31,12 @@ export class DailyTaskController {
   }
 
   @Post('/bulk-import')
-  @Timeout(1200000)
+  @UseInterceptors(new TimeoutInterceptor(1000 * 60 * 60 * 24))
   @ApiOperation({ summary: '批量导入数据' })
   async bulkImport(@Body() dto: CommonDateRangeDto) {
     const { startDate, endDate } = dto;
     const formatedStartDate = dayjs(startDate).format('YYYY-MM-DD');
     const formatedEndDate = dayjs(endDate).format('YYYY-MM-DD');
-
     await this.dailyTaskService.bulkImport(formatedStartDate, formatedEndDate);
   }
 

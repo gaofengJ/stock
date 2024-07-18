@@ -27,6 +27,7 @@ export class TushareService {
           }),
       ],
       transformResponse: [(res) => JSON.parse(res)],
+      timeout: 1000 * 50, // 防止请求超时导致后续导入报错
       ...config,
     });
     const { data } = response;

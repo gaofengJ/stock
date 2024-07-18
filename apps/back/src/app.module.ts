@@ -89,7 +89,7 @@ import { BasicModule } from './modules/basic/basic.module';
     { provide: APP_INTERCEPTOR, useClass: TransformInterceptor }, // 自定义拦截器，用于在请求和响应过程中进行数据转换
     {
       provide: APP_INTERCEPTOR,
-      useFactory: () => new TimeoutInterceptor(15 * 1000), // 自定义拦截器，用于设置请求的超时时间。这里通过 useFactory 动态生成一个超时时间为 15 秒的拦截器
+      useFactory: () => new TimeoutInterceptor(1000 * 60 * 60), // 自定义拦截器，用于设置请求的超时时间。这里通过 useFactory 动态生成一个超时时间为 15 秒的拦截器
     },
     // { provide: APP_INTERCEPTOR, useClass: IdempotenceInterceptor }, // 自定义拦截器，用于确保请求的幂等性，防止重复处理相同的请求
 

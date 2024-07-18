@@ -54,14 +54,27 @@ export class DailyTaskService {
     startDate: CommonDateRangeDto['startDate'],
     endDate: CommonDateRangeDto['endDate'],
   ) {
-    const dateList = await this.tradeCalService.list({
+    await this.importTradeCal();
+    await this.importStockBasic();
+    const { items } = await this.tradeCalService.list({
       pageNum: 1,
       pageSize: 10000,
       startDate,
       endDate,
       isOpen: 1,
     });
-    console.info('dateList', dateList);
+    const dateList = items
+      .map((i) => i.calDate)
+      .sort((a, b) => dayjs(a).valueOf() - dayjs(b).valueOf());
+    for (let i = 0; i < dateList.length; i += 1) {
+      const curDate = dateList[i];
+      // eslint-disable-next-line no-await-in-loop
+      await this.importDaily(curDate);
+      // eslint-disable-next-line no-await-in-loop
+      await this.importLimit(curDate);
+      // eslint-disable-next-line no-await-in-loop
+      await this.importMarketMood(curDate);
+    }
   }
 
   /**
