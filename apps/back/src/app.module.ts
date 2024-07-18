@@ -20,7 +20,7 @@ import { SourceModule } from '@/modules/source/source.module';
 import { ProcessedModule } from '@/modules/processed/processed.module';
 import { DailyTaskModule } from '@/modules/daily-task/daily-task.module';
 import { AnalysisModule } from '@/modules/analysis/analysis.module';
-import { BasicModule } from './modules/basic/analysis.module';
+import { BasicModule } from './modules/basic/basic.module';
 // import { AnalysisModule } from './modules/analysis/analysis.module';
 
 @Module({
