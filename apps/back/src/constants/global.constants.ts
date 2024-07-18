@@ -46,7 +46,7 @@ export enum EError {
    */
   IMPORT_LIMIT_FAILED = -2005,
   /**
-   * 数据相关-非开发环境禁止清空所有
+   * 数据相关-非开发环境禁止批量删除
    */
   CLEAR_NOT_ALLOWED = -2006,
 }

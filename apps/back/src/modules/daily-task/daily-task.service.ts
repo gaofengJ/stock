@@ -391,6 +391,43 @@ export class DailyTaskService {
     );
   }
 
+  /**
+   * 批量导入数据
+   */
+  async bulkDelete(
+    startDate: CommonDateRangeDto['startDate'],
+    endDate: CommonDateRangeDto['endDate'],
+  ) {
+    const { items } = await this.tradeCalService.list({
+      pageNum: 1,
+      pageSize: 10000,
+      startDate,
+      endDate,
+      isOpen: 1,
+    });
+    const dateList = items
+      .map((i) => i.calDate)
+      .sort((a, b) => dayjs(a).valueOf() - dayjs(b).valueOf());
+    for (let i = 0; i < dateList.length; i += 1) {
+      const curDate = dateList[i];
+      // eslint-disable-next-line no-await-in-loop
+      const countDaily = await this.dailyService.deleteByDate(curDate!);
+      this.logger.log(
+        `删除每日交易数据：成功删除${curDate}共计${countDaily}条数据`,
+      );
+      // eslint-disable-next-line no-await-in-loop
+      const countLimit = await this.limitService.deleteByDate(curDate!);
+      this.logger.log(
+        `删除涨跌停数据：成功删除${curDate}共计${countLimit}条数据`,
+      );
+      // eslint-disable-next-line no-await-in-loop
+      const countSenti = await this.sentiService.deleteByDate(curDate!);
+      this.logger.log(
+        `删除每日短线情绪指标：成功删除${curDate}共计${countSenti}条数据`,
+      );
+    }
+  }
+
   async clear() {
     await this.tradeCalService.clear();
     this.logger.log('清空交易日历：成功');
