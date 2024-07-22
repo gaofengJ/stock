@@ -26,6 +26,7 @@ export class DailyTaskController {
 
   @Post('/bulk-import')
   @ApiOperation({ summary: '批量导入数据' })
+  @NoTimeoutInterceptor()
   async bulkImport(@Body() dto: CommonDateRangeDto) {
     const { startDate, endDate } = dto;
     const formatedStartDate = dayjs(startDate).format('YYYY-MM-DD');

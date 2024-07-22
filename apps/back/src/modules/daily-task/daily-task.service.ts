@@ -61,19 +61,24 @@ export class DailyTaskService {
       pageSize: 10000,
       startDate,
       endDate,
-      isOpen: 1,
     });
-    const dateList = items
-      .map((i) => i.calDate)
-      .sort((a, b) => dayjs(a).valueOf() - dayjs(b).valueOf());
-    for (let i = 0; i < dateList.length; i += 1) {
-      const curDate = dateList[i];
+    const list = items.sort(
+      (a, b) => dayjs(a.calDate).valueOf() - dayjs(b.calDate).valueOf(),
+    );
+    for (let i = 0; i < list.length; i += 1) {
+      const item = list[i];
+      if (!item.isOpen) {
+        this.logger.log(`${item.calDate}非交易日`);
+        // eslint-disable-next-line no-continue
+        continue;
+      }
       // eslint-disable-next-line no-await-in-loop
-      await this.importDaily(curDate);
+      await this.importDaily(item.calDate);
       // eslint-disable-next-line no-await-in-loop
-      await this.importLimit(curDate);
+      await this.importLimit(item.calDate);
       // eslint-disable-next-line no-await-in-loop
-      await this.importMarketMood(curDate);
+      await this.importMarketMood(item.calDate);
+      this.logger.log(`${item.calDate}导入成功`);
     }
   }
 
