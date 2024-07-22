@@ -1,4 +1,10 @@
-import { Body, Controller, Delete, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Post,
+  UseInterceptors,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import * as dayjs from 'dayjs';
@@ -8,6 +14,7 @@ import { CommonDateDto, CommonDateRangeDto } from '@/dto/common.dto';
 import { isDev } from '@/utils';
 import { BizException } from '@/exceptions/biz.exception';
 import { EError } from '@/constants';
+import { TimeoutInterceptor } from '@/interceptors/timeout.interceptor';
 import { DailyTaskService } from './daily-task.service';
 
 @ApiTags('源数据 - 每日导入模块')
@@ -17,6 +24,7 @@ export class DailyTaskController {
 
   @Post('/import')
   @ApiOperation({ summary: '导入当日数据' })
+  @UseInterceptors(new TimeoutInterceptor(1000 * 10))
   async import(@Body('date') date: CommonDateDto['date']) {
     const formatedDate = dayjs(date).format('YYYY-MM-DD');
     await this.dailyTaskService.import(formatedDate);
