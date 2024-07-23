@@ -181,6 +181,40 @@ export enum EType {
   date = 'date',
 }
 
-export enum CustomErrorEnum {
+/**
+ * 自定义异常错误码
+ */
+export enum ECustomError {
+  /**
+   * 默认异常
+   */
   SERVER_ERROR = '-500:服务繁忙，请稍后再试',
+  /**
+   * 用户模块-用户不存在
+   */
+  USER_NOT_FOUND = '-1001;用户不存在',
+  /**
+   * 数据相关-非交易日期
+   */
+  NON_TRADING_DAY = '-2001;非交易日期',
+  /**
+   * 数据相关-导入交易日历失败
+   */
+  IMPORT_TRADE_CAL_FAILED = '-2002;导入交易日历失败',
+  /**
+   * 数据相关-导入股票基本信息失败
+   */
+  IMPORT_STOCK_FAILED = '-2003;导入股票基本信息失败',
+  /**
+   * 数据相关-导入每日数据失败
+   */
+  IMPORT_DAILY_FAILED = '-2004;导入每日数据失败',
+  /**
+   * 数据相关-导入涨跌停数据失败
+   */
+  IMPORT_LIMIT_FAILED = '-2005;导入涨跌停数据失败',
+  /**
+   * 数据相关-非开发环境禁止批量删除
+   */
+  CLEAR_NOT_ALLOWED = '-2006;非开发环境禁止批量删除',
 }

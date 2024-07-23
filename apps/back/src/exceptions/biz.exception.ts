@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
-import { CustomErrorEnum, EType } from '@/types/common.enum';
+import { ECustomError, EType } from '@/types/common.enum';
 import { RESPONSE_SUCCESS_CODE } from '@/constants';
 import { getType } from '@/utils';
 
@@ -9,9 +9,9 @@ import { getType } from '@/utils';
 export class BizException extends HttpException {
   private errorCode: number; // 错误码
 
-  constructor(error: CustomErrorEnum | number) {
+  constructor(error: ECustomError | number) {
     if (getType(error) === EType.number) {
-      // 如果不是 `CustomErrorEnum` 类型，则构造 HTTP 异常，使用成功响应码
+      // 如果不是 `ECustomError` 类型，则构造 HTTP 异常，使用成功响应码
       super(
         HttpException.createBody({
           code: RESPONSE_SUCCESS_CODE,
@@ -23,8 +23,8 @@ export class BizException extends HttpException {
       return;
     }
 
-    // 如果是 `CustomErrorEnum` 类型，则将错误字符串分割为错误码和错误消息
-    const [code, message] = (error as CustomErrorEnum).split(':');
+    // 如果是 `ECustomError` 类型，则将错误字符串分割为错误码和错误消息
+    const [code, message] = (error as ECustomError).split(':');
     super(
       HttpException.createBody({
         code,

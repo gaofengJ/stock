@@ -4,7 +4,7 @@ import { camelCase, keyBy } from 'lodash';
 import { CommonDateDto, CommonDateRangeDto } from '@/dto/common.dto';
 import { TradeCalService } from '@/modules/source/trade-cal/trade-cal.service';
 import { BizException } from '@/exceptions/biz.exception';
-import { EError } from '@/constants';
+import { ECustomError } from '@/types/common.enum';
 import { mixinDailyParams, mixinFieldAndItems } from '@/utils';
 import { TushareService } from '@/shared/tushare/tushare.service';
 import { TradeCalDto } from '@/modules/source/trade-cal/trade-cal.dto';
@@ -40,7 +40,7 @@ export class DailyTaskService {
     const isOpen = await this.tradeCalService.isOpen(date);
     if (!isOpen) {
       this.logger.log(`${date}非交易日，请重新选择交易日期`);
-      throw new BizException(EError.NON_TRADING_DAY);
+      throw new BizException(ECustomError.NON_TRADING_DAY);
     }
     await this.importDaily(date);
     await this.importLimit(date);
@@ -104,7 +104,7 @@ export class DailyTaskService {
       this.logger.log(`导入交易日历：共计${count}条数据`);
     } catch (error) {
       this.logger.error(`更新交易日历失败：${error.message}`);
-      throw new BizException(EError.IMPORT_TRADE_CAL_FAILED);
+      throw new BizException(ECustomError.IMPORT_TRADE_CAL_FAILED);
     }
   }
 
@@ -142,7 +142,7 @@ export class DailyTaskService {
       this.logger.log(`导入股票基本信息：成功导入${count}条数据`);
     } catch (error) {
       this.logger.error(`导入股票基本信息失败：${error.message}`);
-      throw new BizException(EError.IMPORT_STOCK_FAILED);
+      throw new BizException(ECustomError.IMPORT_STOCK_FAILED);
     }
   }
 
@@ -232,7 +232,7 @@ export class DailyTaskService {
       this.logger.log(`导入每日交易数据：成功导入${date}共计${count}条数据`);
     } catch (error) {
       this.logger.error(`导入每日交易数据失败：${error.message}`);
-      throw new BizException(EError.IMPORT_DAILY_FAILED);
+      throw new BizException(ECustomError.IMPORT_DAILY_FAILED);
     }
   }
 
@@ -254,7 +254,7 @@ export class DailyTaskService {
       this.logger.log(`导入涨跌停数据：成功导入${date}共计${count}条数据`);
     } catch (error) {
       this.logger.error(`导入涨跌停数据失败：${error.message}`);
-      throw new BizException(EError.IMPORT_LIMIT_FAILED);
+      throw new BizException(ECustomError.IMPORT_LIMIT_FAILED);
     }
   }
 
@@ -384,7 +384,7 @@ export class DailyTaskService {
     const isOpen = await this.tradeCalService.isOpen(date);
     if (!isOpen) {
       this.logger.log(`${date}非交易日，请重新选择交易日期`);
-      throw new BizException(EError.NON_TRADING_DAY);
+      throw new BizException(ECustomError.NON_TRADING_DAY);
     }
     const countDaily = await this.dailyService.deleteByDate(date!);
     this.logger.log(`删除每日交易数据：成功删除${date}共计${countDaily}条数据`);

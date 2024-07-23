@@ -10,7 +10,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { QueryFailedError } from 'typeorm';
 
 import { BizException } from '@/exceptions/biz.exception';
-import { CustomErrorEnum } from '@/types/common.enum';
+import { ECustomError } from '@/types/common.enum';
 import { isDev } from '@/utils';
 
 /**
@@ -50,7 +50,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       // 如果是内部服务器错误且不是自定义的服务器异常
       Logger.error(exception, undefined, 'Catch');
       // 生产环境下隐藏错误信息
-      if (!isDev) message = CustomErrorEnum.SERVER_ERROR?.split(':')[1]; // 在生产环境下隐藏错误信息
+      if (!isDev) message = ECustomError.SERVER_ERROR?.split(':')[1]; // 在生产环境下隐藏错误信息
     } else {
       this.logger.warn(
         `错误信息：(${status}) ${message} Path: ${decodeURI(url)}`,
