@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { LoggerService } from './logger.service';
+import { LoggerController } from './logger.controller';
 
 @Module({})
 export class LoggerModule {
@@ -8,6 +9,7 @@ export class LoggerModule {
     return {
       global: true,
       module: LoggerModule,
+      controllers: [LoggerController],
       providers: [LoggerService],
       exports: [LoggerService],
     };
