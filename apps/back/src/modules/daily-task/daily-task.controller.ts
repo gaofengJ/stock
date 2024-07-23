@@ -56,7 +56,7 @@ export class DailyTaskController {
   @Delete('/clear')
   @ApiOperation({ summary: '清空所有数据' })
   async clear() {
-    if (isDev) {
+    if (!isDev) {
       throw new BizException(ECustomError.CLEAR_NOT_ALLOWED);
     }
     await this.dailyTaskService.clear();
