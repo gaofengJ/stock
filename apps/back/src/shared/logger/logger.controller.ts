@@ -5,6 +5,7 @@ import * as dayjs from 'dayjs';
 import { ApiResult } from '@/decorators/api-result.decorator';
 import { LoggerService } from './logger.service';
 import { loggerQueryDto } from './logger.dto';
+import { LoggerResEntity } from './logger.entity';
 
 @ApiTags('日志模块')
 // @UseGuards(ResourceGuard)
@@ -14,16 +15,19 @@ export class LoggerController {
 
   @Get('/list')
   @ApiOperation({ summary: '获取日志列表' })
-  @ApiResult({ type: [String], isPage: false })
+  @ApiResult({ type: LoggerResEntity, isPage: false })
   // @Perm(permissions.LIST)
-  async list(@Query() dto: loggerQueryDto): Promise<string[]> {
+  async list(@Query() dto: loggerQueryDto) {
     const { startDate, endDate, loggerType } = dto;
     const formatedStartDate = dayjs(startDate).format('YYYY-MM-DD');
     const formatedEndDate = dayjs(endDate).format('YYYY-MM-DD');
-    return this.loggerService.list({
+    const list = this.loggerService.list({
       startDate: formatedStartDate,
       endDate: formatedEndDate,
       loggerType,
     });
+    return {
+      list,
+    };
   }
 }
