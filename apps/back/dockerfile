@@ -6,9 +6,6 @@ RUN npm install -g pnpm
 # 设置工作目录
 WORKDIR /usr/src/app
 
-# 添加 host.docker.internal 到 /etc/hosts
-RUN echo "172.17.0.1 host.docker.internal" >> /etc/hosts
-
 # 复制 monorepo 的所有文件到工作目录
 COPY . .
 
