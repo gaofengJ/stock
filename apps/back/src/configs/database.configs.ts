@@ -22,6 +22,9 @@ const dataSourceOptions: DataSourceOptions = {
   database: getEnvConfigString('DB_DATABASE'),
   charset: 'utf8mb4_general_ci',
   synchronize: getEnvConfigBoolean('DB_SYNCHRONIZE', false),
+  extra: {
+    connectionLimit: 20, // 设置连接池的最大连接数
+  },
   // 解决通过 pnpm migration:run 初始化数据时，遇到的 SET FOREIGN_KEY_CHECKS = 0; 等语句报错问题, 仅在执行数据迁移操作时设为 true
   multipleStatements: currentScript === 'typeorm', // 是否允许在单个查询中执行多个 SQL 语句
   entities: ['dist/modules/**/*.entity{.ts,.js}'], // 指定实体类的位置，TypeORM 将在这些路径中查找实体类
