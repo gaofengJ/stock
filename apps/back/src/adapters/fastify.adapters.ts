@@ -8,8 +8,8 @@ import { FastifyAdapter } from '@nestjs/platform-fastify';
  */
 export const fastifyApp: FastifyAdapter = new FastifyAdapter({
   trustProxy: true, // 启用信任代理，使 Fastify 能够正确处理代理头部
-  connectionTimeout: 1000 * 60 * 60, // 设置连接超时时间，表示在等待客户端连接时的超时时间，防止导入数据时超时
   logger: false, // 禁用 Fastify 默认的日志记录器
+  requestTimeout: 1000 * 60 * 60, // 设置接口超时时间，表示在等待客户端请求的超时时间，防止导入数据时超时
 });
 
 // 注册 FastifyMultipart 插件，并设置文件上传的限制
