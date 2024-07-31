@@ -1,6 +1,8 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as dayjs from 'dayjs';
+import * as utc from 'dayjs/plugin/utc';
+import * as timezone from 'dayjs/plugin/timezone';
 import {
   ConsoleLogger,
   ConsoleLoggerOptions,
@@ -14,6 +16,10 @@ import 'winston-daily-rotate-file';
 import { ILoggerConfig } from '@/configs/logger.configs';
 import { EGlobalConfig, ELogLevel } from '@/types/common.enum';
 import { loggerQueryDto } from './logger.dto';
+
+// 扩展 dayjs 插件
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 @Injectable()
 export class LoggerService extends ConsoleLogger {
@@ -55,6 +61,10 @@ export class LoggerService extends ConsoleLogger {
     return maxFiles;
   }
 
+  protected timezoned() {
+    return dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm:ss');
+  }
+
   /**
    * 初始化 winston 日志记录器
    */
@@ -63,7 +73,7 @@ export class LoggerService extends ConsoleLogger {
       levels: config.npm.levels, // 指定不同日志级别的优先级
       format: format.combine(
         format.errors({ stack: true }), // 记录错误信息和堆栈
-        format.timestamp(), // 添加时间戳
+        format.timestamp({ format: this.timezoned }), // 添加时间戳
         format.json(), // 将日志消息格式化为 JSON 格式
       ),
       // 日志传输机制的配置项，用于指定日志的输出目的地
@@ -73,7 +83,10 @@ export class LoggerService extends ConsoleLogger {
           filename: 'logs/stock-back.%DATE%.log',
           datePattern: 'YYYY-MM-DD',
           maxFiles: this.maxFiles,
-          format: format.combine(format.timestamp(), format.json()),
+          format: format.combine(
+            format.timestamp({ format: this.timezoned }),
+            format.json(),
+          ),
           auditFile: 'logs/.audit/stock-back.json',
         }),
         new transports.DailyRotateFile({
@@ -81,7 +94,10 @@ export class LoggerService extends ConsoleLogger {
           filename: 'logs/stock-back-error.%DATE%.log',
           datePattern: 'YYYY-MM-DD',
           maxFiles: this.maxFiles,
-          format: format.combine(format.timestamp(), format.json()),
+          format: format.combine(
+            format.timestamp({ format: this.timezoned }),
+            format.json(),
+          ),
           auditFile: 'logs/.audit/stock-back-error.json',
         }),
       ],

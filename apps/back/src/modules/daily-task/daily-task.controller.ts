@@ -4,10 +4,10 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import * as dayjs from 'dayjs';
 
 import { CommonDateDto, CommonDateRangeDto } from '@/dto/common.dto';
-// import { ECustomError } from '@/types/common.enum';
+import { ECustomError } from '@/types/common.enum';
 
-// import { isDev } from '@/utils';
-// import { BizException } from '@/exceptions/biz.exception';
+import { isDev } from '@/utils';
+import { BizException } from '@/exceptions/biz.exception';
 import { NoTimeoutInterceptor } from '@/decorators/no-timeout.decorator';
 import { DailyTaskService } from './daily-task.service';
 
@@ -44,9 +44,9 @@ export class DailyTaskController {
   @Delete('/bulk-delete')
   @ApiOperation({ summary: '批量删除数据' })
   async bulkDelete(@Body() dto: CommonDateRangeDto) {
-    // if (!isDev) {
-    //   throw new BizException(ECustomError.CLEAR_NOT_ALLOWED);
-    // }
+    if (!isDev) {
+      throw new BizException(ECustomError.CLEAR_NOT_ALLOWED);
+    }
     const { startDate, endDate } = dto;
     const formatedStartDate = dayjs(startDate).format('YYYY-MM-DD');
     const formatedEndDate = dayjs(endDate).format('YYYY-MM-DD');
@@ -56,9 +56,9 @@ export class DailyTaskController {
   @Delete('/clear')
   @ApiOperation({ summary: '清空所有数据' })
   async clear() {
-    // if (!isDev) {
-    //   throw new BizException(ECustomError.CLEAR_NOT_ALLOWED);
-    // }
+    if (!isDev) {
+      throw new BizException(ECustomError.CLEAR_NOT_ALLOWED);
+    }
     await this.dailyTaskService.clear();
   }
 }
