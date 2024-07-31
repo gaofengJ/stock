@@ -18,14 +18,16 @@ export class DailySourceJob {
     private dailyTaskService: DailyTaskService,
   ) {}
 
-  @Cron('0 0 19 * * 1-5')
+  @Cron('0 0 19 * * 1-5', {
+    timeZone: 'Asia/Shanghai', // 指定时区为东八区
+  })
   async handleCorn() {
     const date = dayjs().format('YYYY-MM-DD');
     this.logger.log(
       `定时任务-源数据导入开始，日期：${date}`,
       DailySourceJob.name,
     );
-    this.dailyTaskService.import(date);
+    await this.dailyTaskService.import(date);
     this.logger.log(
       `定时任务-源数据导入结束，日期：${date}`,
       DailySourceJob.name,
