@@ -5,10 +5,10 @@ import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ClsModule } from 'nestjs-cls';
 import { FastifyRequest } from 'fastify';
+import { ScheduleModule } from '@nestjs/schedule';
 import config from '@/configs';
 
 import { SharedModule } from '@/shared/shared.module';
-import { TasksModule } from '@/modules/tasks/tasks.module';
 
 import { DatabaseModule } from '@/shared/database/database.module';
 
@@ -20,8 +20,8 @@ import { SourceModule } from '@/modules/source/source.module';
 import { ProcessedModule } from '@/modules/processed/processed.module';
 import { DailyTaskModule } from '@/modules/daily-task/daily-task.module';
 import { AnalysisModule } from '@/modules/analysis/analysis.module';
-import { BasicModule } from './modules/basic/basic.module';
-// import { AnalysisModule } from './modules/analysis/analysis.module';
+import { BasicModule } from '@/modules/basic/basic.module';
+import { DailySourceTask } from '@/tasks/daily-source.tasks';
 
 @Module({
   imports: [
@@ -59,7 +59,7 @@ import { BasicModule } from './modules/basic/basic.module';
     SharedModule,
     DatabaseModule,
 
-    TasksModule.forRoot(),
+    ScheduleModule.forRoot(),
 
     /**
      * 源数据模块
@@ -96,6 +96,7 @@ import { BasicModule } from './modules/basic/basic.module';
     // { provide: APP_GUARD, useClass: JwtAuthGuard },
     // { provide: APP_GUARD, useClass: RbacGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    DailySourceTask, // 定时任务
   ],
 })
 export class AppModule {}
