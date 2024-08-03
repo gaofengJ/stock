@@ -1,8 +1,11 @@
 /* eslint-disable class-methods-use-this */
-import axios, { AxiosInstance, CreateAxiosDefaults, InternalAxiosRequestConfig } from 'axios';
+import axios, {
+  AxiosInstance, AxiosResponse, CreateAxiosDefaults,
+} from 'axios';
 import { message } from 'antd';
 import { defaultConfig, errorConfig } from './config';
 import interceptors from './interceptors';
+import { RequestConfig } from './types';
 
 /**
  * BaseAxios 类，用于创建和管理 Axios 实例
@@ -56,6 +59,92 @@ export class BaseAxios {
   }
 
   /**
+   * 封装 get 请求
+   * @param url - 请求 URL
+   * @param config - 请求配置
+   * @returns 请求的响应数据
+   */
+  async get<T>(url: string, params: any, config?: RequestConfig):
+    Promise<AxiosResponse<T>> {
+    try {
+      const requestConfig: RequestConfig = { ...config, params };
+      return await this.service.get<T>(url, requestConfig);
+    } catch (error) {
+      this.handleError(error, config);
+      throw error;
+    }
+  }
+
+  /**
+   * 封装 post 请求
+   * @param url - 请求 URL
+   * @param data - 请求数据
+   * @param config - 请求配置
+   * @returns 请求的响应数据
+   */
+  async post<T>(url: string, data?: any, config?: RequestConfig):
+    Promise<AxiosResponse<T>> {
+    try {
+      return await this.service.post<T>(url, data, config);
+    } catch (error) {
+      this.handleError(error, config);
+      throw error;
+    }
+  }
+
+  /**
+   * 封装 put 请求
+   * @param url - 请求 URL
+   * @param data - 请求数据
+   * @param config - 请求配置
+   * @returns 请求的响应数据
+   */
+  async put<T>(url: string, data?: any, config?: RequestConfig):
+    Promise<AxiosResponse<T>> {
+    try {
+      return await this.service.put<T>(url, data, config);
+    } catch (error) {
+      this.handleError(error, config);
+      throw error;
+    }
+  }
+
+  /**
+   * 封装 delete 请求
+   * @param url - 请求 URL
+   * @param config - 请求配置
+   * @returns 请求的响应数据
+   */
+  async delete<T>(url: string, data: any, config?: RequestConfig): Promise<AxiosResponse<T>> {
+    try {
+      const requestConfig: RequestConfig = { ...config, data };
+      return await this.service.delete<T>(url, requestConfig);
+    } catch (error) {
+      this.handleError(error, config);
+      throw error;
+    }
+  }
+
+  /**
+   * 处理错误
+   * @param error - 错误对象
+   * @param config - 请求配置
+   */
+  private handleError(error: any, config?: RequestConfig) {
+    // 错误处理逻辑
+    if (error.response) {
+      const { status, data } = error.response;
+      if (this.isBizError(status)) {
+        this.showBizError(data.message, config);
+      } else {
+        this.showErrorMessage(data.message || this.defaultErrorMessage);
+      }
+    } else {
+      this.showErrorMessage(error.message || this.defaultErrorMessage);
+    }
+  }
+
+  /**
    * 获取请求的唯一标识符
    * @param method - 请求方法
    * @param url - 请求 URL
@@ -91,7 +180,7 @@ export class BaseAxios {
    * @param msg - 错误信息
    * @param config - 请求配置
    */
-  showBizError(msg: string, config: InternalAxiosRequestConfig) {
+  showBizError(msg: string, config?: RequestConfig) {
     if (!config?.autoShowError) return;
     this.showErrorMessage(msg || this.defaultErrorMessage as string);
   }
@@ -101,7 +190,7 @@ export class BaseAxios {
    * @param msg - 错误信息
    * @param config - 请求配置
    */
-  handleUnLogin(msg: string, config: InternalAxiosRequestConfig) {
+  handleUnLogin(msg: string, config: RequestConfig) {
     console.log(config);
     this.showErrorMessage(msg);
   }
