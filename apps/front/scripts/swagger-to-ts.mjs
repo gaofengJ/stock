@@ -1,4 +1,4 @@
-import run from 'mufeng-swagger-to-ts';
+import { run } from 'mufeng-swagger-to-ts';
 
 run({
   docUrl: 'http://127.0.0.1:3000/api-docs-json',
