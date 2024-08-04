@@ -5,7 +5,7 @@
 
 import axios from './request';
 import type { RequestConfig } from './types';
-import type { NSGetBasicDaily, NSGetBasicStock } from './services.types.ts';
+import type { NSGetBasicDaily, NSGetBasicStock } from './services.types';
 /**
  * 接口名称：每日交易数据
  *

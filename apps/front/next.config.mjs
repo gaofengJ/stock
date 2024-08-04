@@ -2,7 +2,8 @@
 
 const nextConfig = {
   output: 'export', // 静态导出
-  async rewrites() {
+  trailingSlash: true,
+  async rewrites() { // 仅在本地生效
     return [
       {
         source: '/api/:path*',
