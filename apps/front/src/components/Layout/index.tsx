@@ -10,6 +10,7 @@ import {
   message,
   MenuProps,
 } from 'antd';
+import zhCN from 'antd/es/locale/zh_CN';
 import { useRouter } from 'next/navigation';
 
 import ImgFengye from '@/assets/imgs/fengye.png';
@@ -52,7 +53,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
   };
 
   return (
-    <ConfigProvider theme={themeConfig}>
+    <ConfigProvider locale={zhCN} theme={themeConfig}>
       <Layout className="h-[100vh]">
         <Header className="flex items-center">
           <img src={ImgFengye.src} alt="fengye" className="h-32 w-32" />

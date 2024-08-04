@@ -55,9 +55,16 @@ function AnalysisBasicStockPage() {
       const { data: { items, meta: { itemCount } } } = await getBasicStock(
         searchParams as NSGetBasicStock.IParams,
       );
-      setStockData((state) => ({ ...state, items, itemCount }));
+      setStockData((state) => ({
+        ...state,
+        items: items.map((i) => ({ // 为 items 的每一项添加 key
+          ...i,
+          key: i.tsCode,
+        })),
+        itemCount,
+      }));
     } catch (e) {
-      console.info(e);
+      console.info('e', e);
     } finally {
       setLoading(false);
     }
@@ -74,20 +81,23 @@ function AnalysisBasicStockPage() {
       asideMenuActive={EAnalysisAsideMenuKey.analysisBasicStock}
       asideMenuOpen={EAnalysisAsideMenuKey.analysisBasic}
     >
-      <Table
-        dataSource={stockData.items}
-        columns={stockColumns}
-        scroll={{ x: 4000, y: 'calc(100vh - 360px)' }}
-        loading={loading}
-        pagination={{
-          pageSize: searchParams.pageSize,
-          total: stockData.itemCount,
-          showSizeChanger: true,
-          pageSizeOptions: [10, 20, 50, 100],
-          onChange,
-          onShowSizeChange,
-        }}
-      />
+      <div className="p-16 bg-bg-white">
+        <Table
+          dataSource={stockData.items}
+          columns={stockColumns}
+          scroll={{ x: 2000, y: 'calc(100vh - 248px)' }}
+          loading={loading}
+          pagination={{
+            pageSize: searchParams.pageSize,
+            total: stockData.itemCount,
+            showSizeChanger: true,
+            pageSizeOptions: [10, 20, 50, 100],
+            onChange,
+            onShowSizeChange,
+          }}
+        />
+      </div>
+
     </Layout>
   );
 }

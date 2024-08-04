@@ -97,7 +97,7 @@ const registerResponseInterceptor = (ctx: BaseAxios, axios: Axios) => {
         ctx.showBizError(message, config);
         return Promise.reject(code);
       }
-      return response.data;
+      return response;
     },
     async (error: AxiosError) => {
       const { message, config } = error;

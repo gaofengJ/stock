@@ -1,7 +1,6 @@
 import {
   CallHandler,
   ExecutionContext,
-  HttpStatus,
   Injectable,
   NestInterceptor,
 } from '@nestjs/common';
@@ -14,6 +13,7 @@ import { map } from 'rxjs/operators';
 import { ResModel } from '@/models/response.model';
 
 import { BYPASS_KEY } from '@/decorators/bypass.decorator';
+import { RESPONSE_SUCCESS_CODE } from '@/constants';
 
 /**
  * 统一处理接口请求与响应结果，如果不需要则添加 @Bypass 装饰器
@@ -46,7 +46,7 @@ export class TransformInterceptor implements NestInterceptor {
         //   return data;
         // }
 
-        return new ResModel(HttpStatus.OK, data ?? null);
+        return new ResModel(RESPONSE_SUCCESS_CODE, data ?? null);
       }),
     );
   }
