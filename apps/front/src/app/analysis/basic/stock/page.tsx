@@ -52,10 +52,10 @@ function AnalysisBasicStockPage() {
   const getStocks = async () => {
     try {
       setLoading(true);
-      const { meta: { itemCount }, items } = await getBasicStock(
+      const { data: { items, meta: { itemCount } } } = await getBasicStock(
         searchParams as NSGetBasicStock.IParams,
       );
-      setStockData((state) => ({ ...state, itemCount, items }));
+      setStockData((state) => ({ ...state, items, itemCount }));
     } catch (e) {
       console.info(e);
     } finally {

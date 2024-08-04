@@ -5,7 +5,7 @@ import axios, {
 import { message } from 'antd';
 import { defaultConfig, errorConfig } from './config';
 import interceptors from './interceptors';
-import { RequestConfig } from './types';
+import { IResData, RequestConfig } from './types';
 
 /**
  * BaseAxios 类，用于创建和管理 Axios 实例
@@ -64,16 +64,10 @@ export class BaseAxios {
    * @param config - 请求配置
    * @returns 请求的响应数据
    */
-  async get<T>(url: string, params: any, config?: RequestConfig):
-    Promise<T> {
-    try {
-      const requestConfig: RequestConfig = { ...config, params };
-      const res = await this.service.get<T>(url, requestConfig);
-      return res.data;
-    } catch (error) {
-      this.handleError(error, config);
-      throw error;
-    }
+  async get<T>(url: string, config?: RequestConfig):
+    Promise<IResData<T>> {
+    const res = await this.service.get<IResData<T>>(url, config);
+    return res.data;
   }
 
   /**
@@ -84,14 +78,9 @@ export class BaseAxios {
    * @returns 请求的响应数据
    */
   async post<T>(url: string, data?: any, config?: RequestConfig):
-    Promise<T> {
-    try {
-      const res = await this.service.post<T>(url, data, config);
-      return res.data;
-    } catch (error) {
-      this.handleError(error, config);
-      throw error;
-    }
+    Promise<IResData<T>> {
+    const res = await this.service.post<IResData<T>>(url, data, config);
+    return res.data;
   }
 
   /**
@@ -102,14 +91,9 @@ export class BaseAxios {
    * @returns 请求的响应数据
    */
   async put<T>(url: string, data?: any, config?: RequestConfig):
-    Promise<T> {
-    try {
-      const res = await this.service.put<T>(url, data, config);
-      return res.data;
-    } catch (error) {
-      this.handleError(error, config);
-      throw error;
-    }
+    Promise<IResData<T>> {
+    const res = await this.service.put<IResData<T>>(url, data, config);
+    return res.data;
   }
 
   /**
@@ -118,15 +102,10 @@ export class BaseAxios {
    * @param config - 请求配置
    * @returns 请求的响应数据
    */
-  async delete<T>(url: string, data: any, config?: RequestConfig): Promise<T> {
-    try {
-      const requestConfig: RequestConfig = { ...config, data };
-      const res = await this.service.delete<T>(url, requestConfig);
-      return res.data;
-    } catch (error) {
-      this.handleError(error, config);
-      throw error;
-    }
+  async delete<T>(url: string, config?: RequestConfig):
+    Promise<IResData<T>> {
+    const res = await this.service.delete<IResData<T>>(url, config);
+    return res.data;
   }
 
   /**

@@ -57,7 +57,7 @@ const registerResponseInterceptor = (ctx: BaseAxios, axios: Axios) => {
 
           // 处理未登录错误
           if (code === EBizError.UN_LOGIN) {
-            ctx.handleUnLogin(message, config);
+            ctx.handleUnLogin(message);
             // eslint-disable-next-line prefer-promise-reject-errors
             return Promise.reject({ code, config });
           }
@@ -81,7 +81,7 @@ const registerResponseInterceptor = (ctx: BaseAxios, axios: Axios) => {
 
       // 处理未登录错误
       if (code === EBizError.UN_LOGIN) {
-        ctx.handleUnLogin(message, config);
+        ctx.handleUnLogin(message);
         // eslint-disable-next-line prefer-promise-reject-errors
         return Promise.reject({ code, config });
       }
