@@ -32,7 +32,7 @@ jobs:
           version: 8
 
       # 清空 npm 代理设置
-      -name: clear npm proxy settings
+      - name: clear npm proxy settings
         run: |
           npm config delete proxy
           npm config delete https-proxy
