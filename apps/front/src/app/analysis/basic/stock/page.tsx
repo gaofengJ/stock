@@ -7,18 +7,18 @@ import { analysisSiderMenuItems } from '@/components/Layout/config';
 import { EAnalysisAsideMenuKey, EHeaderMenuKey } from '@/components/Layout/enum';
 
 import { getBasicStock } from '@/api/services';
-import { NSGetBasicDaily, NSGetBasicStock } from '@/api/services.types';
+import { NSGetBasicStock } from '@/api/services.types';
 
 import { stockColumns } from './columns';
 
 function AnalysisBasicStockPage() {
   // searchParams 的初始值
-  const initialSearchParams: Partial<NSGetBasicDaily.IParams> = {
+  const initialSearchParams: Partial<NSGetBasicStock.IParams> = {
     pageNum: 1,
     pageSize: 20,
   };
   const [searchParams, setSearchParams] = useState<
-    Partial<NSGetBasicDaily.IParams>>(initialSearchParams);
+    Partial<NSGetBasicStock.IParams>>(initialSearchParams);
 
   const [loading, setLoading] = useState(false);
 

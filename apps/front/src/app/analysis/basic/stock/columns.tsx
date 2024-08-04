@@ -1,5 +1,8 @@
 import type { ColumnsType } from 'antd/es/table/interface';
 
+/**
+ * 设置默认值
+ */
 const handleEmptyField = (val: any) => (val || '-');
 
 export const stockColumns: ColumnsType = [
