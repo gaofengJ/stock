@@ -13,12 +13,12 @@ import type { NSGetBasicDaily, NSGetBasicStock } from './services.types.ts';
  * @description 接口分组：基础数据
  */
 export const getBasicDaily = (params: NSGetBasicDaily.IParams, config: RequestConfig = {}) =>
-  axios.get<void>('/basic/daily', { params }, config);
+  axios.get<NSGetBasicDaily.IRes>('/basic/daily', { params }, config);
 /**
- * 接口名称：每日交易数据
+ * 接口名称：股票基础信息
  *
  * @description 接口路径：/basic/stock
  * @description 接口分组：基础数据
  */
 export const getBasicStock = (params: NSGetBasicStock.IParams, config: RequestConfig = {}) =>
-  axios.get<void>('/basic/stock', { params }, config);
+  axios.get<NSGetBasicStock.IRes>('/basic/stock', { params }, config);

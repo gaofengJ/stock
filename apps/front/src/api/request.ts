@@ -1,6 +1,6 @@
 /* eslint-disable class-methods-use-this */
 import axios, {
-  AxiosInstance, AxiosResponse, CreateAxiosDefaults,
+  AxiosInstance, CreateAxiosDefaults,
 } from 'axios';
 import { message } from 'antd';
 import { defaultConfig, errorConfig } from './config';
@@ -48,7 +48,7 @@ export class BaseAxios {
     // 初始化错误信息映射表
     this.errorMessageMap = config.errorMessageMap;
     // 初始化业务错误码集合
-    this.bizErrorCodeArr = config.bizErrorCodeArr as number[];
+    this.bizErrorCodeArr = config.bizErrorCodeArr || [];
     // 初始化消息弹出回调
     if (config.errorMessage) {
       this.errorMessage = config.errorMessage;
@@ -65,10 +65,11 @@ export class BaseAxios {
    * @returns 请求的响应数据
    */
   async get<T>(url: string, params: any, config?: RequestConfig):
-    Promise<AxiosResponse<T>> {
+    Promise<T> {
     try {
       const requestConfig: RequestConfig = { ...config, params };
-      return await this.service.get<T>(url, requestConfig);
+      const res = await this.service.get<T>(url, requestConfig);
+      return res.data;
     } catch (error) {
       this.handleError(error, config);
       throw error;
@@ -83,9 +84,10 @@ export class BaseAxios {
    * @returns 请求的响应数据
    */
   async post<T>(url: string, data?: any, config?: RequestConfig):
-    Promise<AxiosResponse<T>> {
+    Promise<T> {
     try {
-      return await this.service.post<T>(url, data, config);
+      const res = await this.service.post<T>(url, data, config);
+      return res.data;
     } catch (error) {
       this.handleError(error, config);
       throw error;
@@ -100,9 +102,10 @@ export class BaseAxios {
    * @returns 请求的响应数据
    */
   async put<T>(url: string, data?: any, config?: RequestConfig):
-    Promise<AxiosResponse<T>> {
+    Promise<T> {
     try {
-      return await this.service.put<T>(url, data, config);
+      const res = await this.service.put<T>(url, data, config);
+      return res.data;
     } catch (error) {
       this.handleError(error, config);
       throw error;
@@ -115,10 +118,11 @@ export class BaseAxios {
    * @param config - 请求配置
    * @returns 请求的响应数据
    */
-  async delete<T>(url: string, data: any, config?: RequestConfig): Promise<AxiosResponse<T>> {
+  async delete<T>(url: string, data: any, config?: RequestConfig): Promise<T> {
     try {
       const requestConfig: RequestConfig = { ...config, data };
-      return await this.service.delete<T>(url, requestConfig);
+      const res = await this.service.delete<T>(url, requestConfig);
+      return res.data;
     } catch (error) {
       this.handleError(error, config);
       throw error;
@@ -190,8 +194,7 @@ export class BaseAxios {
    * @param msg - 错误信息
    * @param config - 请求配置
    */
-  handleUnLogin(msg: string, config: RequestConfig) {
-    console.log(config);
+  handleUnLogin(msg: string) {
     this.showErrorMessage(msg);
   }
 }
