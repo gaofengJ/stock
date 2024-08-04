@@ -64,7 +64,7 @@ function AnalysisBasicStockPage() {
         itemCount,
       }));
     } catch (e) {
-      console.info('e', e);
+      console.error('e', e);
     } finally {
       setLoading(false);
     }
