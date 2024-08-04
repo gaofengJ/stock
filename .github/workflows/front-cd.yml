@@ -31,6 +31,12 @@ jobs:
         with:
           version: 8
 
+      # 清空 npm 代理设置
+      -name: clear npm proxy settings
+        run: |
+          npm config delete proxy
+          npm config delete https-proxy
+
       # 安装依赖
       - name: install
         run: pnpm install --F front
