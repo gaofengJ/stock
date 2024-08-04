@@ -1,6 +1,6 @@
 import type { ColumnsType } from 'antd/es/table/interface';
 
-export const stockColumns: ColumnsType<any> = [
+export const stockColumns: ColumnsType = [
   {
     title: '股票代码',
     dataIndex: 'symbol',
