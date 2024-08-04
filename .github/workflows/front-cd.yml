@@ -34,8 +34,10 @@ jobs:
       # 清空 npm 代理设置
       - name: clear npm proxy settings
         run: |
-          npm config delete proxy
-          npm config delete https-proxy
+          pnpm config delete proxy
+          pnpm config delete https-proxy
+          echo $HTTP_PROXY
+          echo $HTTPS_PROXY
 
       # 安装依赖
       - name: install

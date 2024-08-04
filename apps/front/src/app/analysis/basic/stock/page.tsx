@@ -25,10 +25,10 @@ function AnalysisBasicStockPage() {
   // stockData 的初始值
   const initialStockData: {
     items: NSGetBasicStock.IRes['items'];
-    itemCount: number;
+    totalItems: number;
   } = {
     items: [],
-    itemCount: 0,
+    totalItems: 0,
   };
   const [stockData, setStockData] = useState(initialStockData);
 
@@ -52,7 +52,7 @@ function AnalysisBasicStockPage() {
   const getStocks = async () => {
     try {
       setLoading(true);
-      const { data: { items, meta: { itemCount } } } = await getBasicStock(
+      const { data: { items, meta: { totalItems } } } = await getBasicStock(
         searchParams as NSGetBasicStock.IParams,
       );
       setStockData((state) => ({
@@ -61,7 +61,7 @@ function AnalysisBasicStockPage() {
           ...i,
           key: i.tsCode,
         })),
-        itemCount,
+        totalItems,
       }));
     } catch (e) {
       console.error('e', e);
@@ -89,7 +89,7 @@ function AnalysisBasicStockPage() {
           loading={loading}
           pagination={{
             pageSize: searchParams.pageSize,
-            total: stockData.itemCount,
+            total: stockData.totalItems,
             showSizeChanger: true,
             pageSizeOptions: [10, 20, 50, 100],
             onChange,
