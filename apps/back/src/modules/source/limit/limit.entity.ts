@@ -9,7 +9,6 @@ import { CommonEntity } from '@/entity/common.entity';
 })
 @Index('index_ts_code', ['tsCode'])
 @Index('index_trade_date', ['tradeDate'])
-// 定义一个名为 LimitEntity 的类，并继承 CommonEntity
 export class LimitEntity extends CommonEntity {
   @Column({
     name: 'ts_code',

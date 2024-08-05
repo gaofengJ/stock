@@ -8,7 +8,6 @@ import { CommonEntity } from '@/entity/common.entity';
   comment: '赚钱效应表',
 })
 @Index('index_trade_date', ['tradeDate'])
-// 定义一个名为 SentiEntity 的类，并继承 CommonEntity
 export class SentiEntity extends CommonEntity {
   @Column({
     name: 'trade_date',
