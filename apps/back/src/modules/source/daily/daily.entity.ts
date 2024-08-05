@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Column, Entity } from 'typeorm';
+import { Column, Entity, Index } from 'typeorm';
 import { CommonEntity } from '@/entity/common.entity';
 
 // 使用 @Entity 装饰器将这个类标记为一个实体，并指定数据库表名为 't_source_daily'
@@ -7,6 +7,8 @@ import { CommonEntity } from '@/entity/common.entity';
   name: 't_source_daily',
   comment: '每日交易数据表',
 })
+@Index('index_ts_code', ['tsCode'])
+@Index('index_trade_date', ['tradeDate'])
 export class DailyEntity extends CommonEntity {
   @Column({
     name: 'ts_code',

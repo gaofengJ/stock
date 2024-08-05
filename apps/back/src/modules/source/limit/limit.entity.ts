@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Column, Entity } from 'typeorm';
+import { Column, Entity, Index } from 'typeorm';
 import { CommonEntity } from '@/entity/common.entity';
 
 // 使用 @Entity 装饰器将这个类标记为一个实体，并指定数据库表名为 t_source_limit
@@ -7,7 +7,8 @@ import { CommonEntity } from '@/entity/common.entity';
   name: 't_source_limit',
   comment: '每日涨跌停个股统计表',
 })
-
+@Index('index_ts_code', ['tsCode'])
+@Index('index_trade_date', ['tradeDate'])
 // 定义一个名为 LimitEntity 的类，并继承 CommonEntity
 export class LimitEntity extends CommonEntity {
   @Column({
