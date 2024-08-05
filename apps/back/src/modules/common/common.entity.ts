@@ -1,7 +1,7 @@
 /**
- * 表示可选项列表中的单个选项
+ * 单个选项
  */
-export interface IOption {
+export class Option {
   /**
    * 选项的显示标签
    */
@@ -11,4 +11,11 @@ export interface IOption {
    * 选项的值
    */
   value: string | number;
+}
+
+/**
+ * 所有选项
+ */
+export class AllOption {
+  key: Option[];
 }

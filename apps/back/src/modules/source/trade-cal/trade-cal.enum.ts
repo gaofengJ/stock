@@ -1,5 +1,5 @@
 /**
- * 市场类型
+ * 是否为交易日期
  */
 export enum EIsOpen {
   /**

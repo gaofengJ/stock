@@ -21,6 +21,7 @@ import { ProcessedModule } from '@/modules/processed/processed.module';
 import { DailyTaskModule } from '@/modules/daily-task/daily-task.module';
 import { AnalysisModule } from '@/modules/analysis/analysis.module';
 import { BasicModule } from '@/modules/basic/basic.module';
+import { CommonModule } from '@/modules/common/common.module';
 import { DailySourceTask } from '@/tasks/daily-source.tasks';
 
 @Module({
@@ -73,6 +74,10 @@ import { DailySourceTask } from '@/tasks/daily-source.tasks';
      * 每日任务模块
      */
     DailyTaskModule,
+    /**
+     * 公共模块
+     */
+    CommonModule,
     /**
      * 基础数据模块
      */

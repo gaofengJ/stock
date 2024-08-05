@@ -15,7 +15,7 @@ import { StockEntity } from '../source/stock/stock.entity';
 export class BasicController {
   constructor(private readonly basicService: BasicService) {}
 
-  @Get('/daily')
+  @Get('/daily-list')
   @ApiOperation({ summary: '每日交易数据' })
   @ApiResult({ type: [DailyEntity], isPage: true })
   async daily(@Query() dto: DailyQueryDto) {
@@ -29,7 +29,7 @@ export class BasicController {
     return ret;
   }
 
-  @Get('/stock')
+  @Get('/stock-list')
   @ApiOperation({ summary: '股票基础信息' })
   @ApiResult({ type: [StockEntity], isPage: true })
   async stock(@Query() dto: StockQueryDto) {
