@@ -34,6 +34,7 @@ module.exports = {
     'react/require-default-props': 'off',
     '@typescript-eslint/no-explicit-any': 'off',
     'no-param-reassign': 'off',
+    'max-len': 'off',
   },
   // extends: 'next/core-web-vitals',
 };

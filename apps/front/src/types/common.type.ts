@@ -1,12 +1,12 @@
 import { FormItemProps } from 'antd';
-import { ReactNode } from 'react';
+import { ReactElement, ReactNode } from 'react';
 
 /**
  * 定义组件属性
  */
 export interface IComponentAttrs {
   style?: React.CSSProperties;
-  readonly?: boolean;
+  placeholder?: string;
   options?: [];
 }
 
@@ -14,8 +14,7 @@ export interface IComponentAttrs {
  * 扩展 Ant Design 的 FormItemProps 类型
  */
 export interface IFormItemProps extends FormItemProps {
-  component?: ReactNode;
-  title?: string;
+  component?: ReactElement;
   name: string;
   readonly?: boolean;
   attrs?: IComponentAttrs & {

@@ -4,7 +4,10 @@ import { PaginationProps, Table } from 'antd';
 import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import { analysisSiderMenuItems } from '@/components/Layout/config';
-import { EAnalysisAsideMenuKey, EHeaderMenuKey } from '@/components/Layout/enum';
+import {
+  EAnalysisAsideMenuKey,
+  EHeaderMenuKey,
+} from '@/components/Layout/enum';
 
 import { getBasicStockList } from '@/api/services';
 import { NSGetBasicStockList } from '@/api/services.types';
@@ -20,8 +23,7 @@ function AnalysisBasicStockPage() {
     pageNum: 1,
     pageSize: 20,
   };
-  const [searchParams, setSearchParams] = useState<
-    Partial<NSGetBasicStockList.IParams>>(initialSearchParams);
+  const [searchParams, setSearchParams] = useState<Partial<NSGetBasicStockList.IParams>>(initialSearchParams);
 
   const [loading, setLoading] = useState(false);
 
@@ -55,12 +57,16 @@ function AnalysisBasicStockPage() {
   const getStocks = async () => {
     try {
       setLoading(true);
-      const { data: { items, meta: { totalItems } } } = await getBasicStockList(
-        searchParams as NSGetBasicStockList.IParams,
-      );
+      const {
+        data: {
+          items,
+          meta: { totalItems },
+        },
+      } = await getBasicStockList(searchParams as NSGetBasicStockList.IParams);
       setStockData((state) => ({
         ...state,
-        items: items.map((i) => ({ // 为 items 的每一项添加 key
+        items: items.map((i) => ({
+          // 为 items 的每一项添加 key
           ...i,
           key: i.tsCode,
         })),
@@ -86,7 +92,11 @@ function AnalysisBasicStockPage() {
     >
       <div className="p-16 bg-bg-white">
         <div className="mb-16">
-          <CSearchForm configs={stockFilterConfigs} />
+          <CSearchForm
+            configs={stockFilterConfigs}
+            searchParams={searchParams}
+            setSearchParams={setSearchParams}
+          />
         </div>
         <Table
           dataSource={stockData.items}
@@ -103,7 +113,6 @@ function AnalysisBasicStockPage() {
           }}
         />
       </div>
-
     </Layout>
   );
 }

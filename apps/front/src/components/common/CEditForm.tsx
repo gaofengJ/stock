@@ -1,42 +1,76 @@
-import { FC } from 'react';
+import React, { FC, useEffect } from 'react';
 import { Form } from 'antd';
 import { IFormItemProps } from '@/types/common.type';
 
 interface IProps {
-  config: IFormItemProps;
-  editable: boolean;
+  configs: IFormItemProps[];
+  editable?: boolean;
+  searchParams: { [key: string]: any };
+  setSearchParams: (params: { [key: string]: any }) => void;
 }
 
-const CEditForm: FC<IProps> = ({
-  config,
-  editable,
+const CSearchForm: FC<IProps> = ({
+  configs,
+  editable = true,
+  searchParams,
+  setSearchParams,
 }) => {
-  const renderContent = (config: IFormItemProps, editable?: boolean) => {
-    if (editable) {
-      if (config?.readonly) { // 只读态
-        return (
-          <span className="text-symbol-black text-13 font-normal">
-            {config.render?.(config) ?? '-'}
-          </span>
-        );
-      }
-      return config.component;
-    }
-    // 查看态
+  const [form] = Form.useForm();
+
+  useEffect(() => {
+    form.setFieldsValue(searchParams);
+  }, [searchParams, form]);
+
+  const handleValuesChange = (changedValues: any, allValues: any) => {
+    console.log(changedValues, allValues);
+    setSearchParams(allValues);
+  };
+
+  /**
+   * 渲染 Label
+   */
+  const renderLabell = (config: IFormItemProps, editable?: boolean) => {
+    console.log('editable', editable);
     return (
-      <span>{config.render?.(config) ?? '-'}</span>
+      <span>{config.label}</span>
     );
   };
+  /**
+   * 渲染 Content
+   */
+  const renderContent = (config: IFormItemProps, editable?: boolean) => {
+    if (editable) {
+      if (config?.readonly) {
+        // 只读态
+        return <span>{config.render?.(config) ?? '-'}</span>;
+      }
+      return config.component
+        ? React.cloneElement(config.component, config.attrs)
+        : null;
+    }
+    // 查看态
+    return <span>{config.render?.(config) ?? '-'}</span>;
+  };
   return (
-    <Form.Item
-      name={config.name}
-      label={config.label}
-      noStyle={config.noStyle}
-      rules={config.rules}
+    <Form
+      form={form}
+      initialValues={searchParams}
+      onValuesChange={handleValuesChange}
+      variant="filled"
     >
-      {renderContent(config, editable)}
-    </Form.Item>
+      {configs.map((config) => (
+        <Form.Item
+          key={config.name}
+          name={config.name}
+          label={renderLabell(config, editable)}
+          rules={config.rules}
+          colon={false}
+        >
+          {renderContent(config, editable)}
+        </Form.Item>
+      ))}
+    </Form>
   );
 };
 
-export default CEditForm;
+export default CSearchForm;
