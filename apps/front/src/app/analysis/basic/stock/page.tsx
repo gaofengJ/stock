@@ -5,16 +5,16 @@ import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import { analysisSiderMenuItems } from '@/components/Layout/config';
 import { EAnalysisAsideMenuKey, EHeaderMenuKey } from '@/components/Layout/enum';
-import { useOptionsState } from '@/store/useOptionsStore';
 
 import { getBasicStockList } from '@/api/services';
 import { NSGetBasicStockList } from '@/api/services.types';
 
+import CSearchForm from '@/components/common/CSearchForm';
+
+import { stockFilterConfigs } from './form-configs';
 import { stockColumns } from './columns';
 
 function AnalysisBasicStockPage() {
-  const { allOptions } = useOptionsState();
-  console.log('allOptions', allOptions);
   // searchParams 的初始值
   const initialSearchParams: Partial<NSGetBasicStockList.IParams> = {
     pageNum: 1,
@@ -85,6 +85,9 @@ function AnalysisBasicStockPage() {
       asideMenuOpen={EAnalysisAsideMenuKey.analysisBasic}
     >
       <div className="p-16 bg-bg-white">
+        <div className="mb-16">
+          <CSearchForm configs={stockFilterConfigs} />
+        </div>
         <Table
           dataSource={stockData.items}
           columns={stockColumns}
