@@ -5,26 +5,29 @@ import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import { analysisSiderMenuItems } from '@/components/Layout/config';
 import { EAnalysisAsideMenuKey, EHeaderMenuKey } from '@/components/Layout/enum';
+import { useOptionsState } from '@/store/useOptionsStore';
 
-import { getBasicStock } from '@/api/services';
-import { NSGetBasicStock } from '@/api/services.types';
+import { getBasicStockList } from '@/api/services';
+import { NSGetBasicStockList } from '@/api/services.types';
 
 import { stockColumns } from './columns';
 
 function AnalysisBasicStockPage() {
+  const { allOptions } = useOptionsState();
+  console.log('allOptions', allOptions);
   // searchParams 的初始值
-  const initialSearchParams: Partial<NSGetBasicStock.IParams> = {
+  const initialSearchParams: Partial<NSGetBasicStockList.IParams> = {
     pageNum: 1,
     pageSize: 20,
   };
   const [searchParams, setSearchParams] = useState<
-    Partial<NSGetBasicStock.IParams>>(initialSearchParams);
+    Partial<NSGetBasicStockList.IParams>>(initialSearchParams);
 
   const [loading, setLoading] = useState(false);
 
   // stockData 的初始值
   const initialStockData: {
-    items: NSGetBasicStock.IRes['items'];
+    items: NSGetBasicStockList.IRes['items'];
     totalItems: number;
   } = {
     items: [],
@@ -52,8 +55,8 @@ function AnalysisBasicStockPage() {
   const getStocks = async () => {
     try {
       setLoading(true);
-      const { data: { items, meta: { totalItems } } } = await getBasicStock(
-        searchParams as NSGetBasicStock.IParams,
+      const { data: { items, meta: { totalItems } } } = await getBasicStockList(
+        searchParams as NSGetBasicStockList.IParams,
       );
       setStockData((state) => ({
         ...state,

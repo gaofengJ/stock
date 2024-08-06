@@ -5,10 +5,10 @@
 /**
  * 类型名称：每日交易数据
  *
- * @description 接口路径：/basic/daily
+ * @description 接口路径：/basic/daily-list
  * @description 接口分组：基础数据
  */
-export namespace NSGetBasicDaily {
+export namespace NSGetBasicDailyList {
   export interface IParams {
     /**
      * pageNum
@@ -177,10 +177,10 @@ export namespace NSGetBasicDaily {
 /**
  * 类型名称：股票基础信息
  *
- * @description 接口路径：/basic/stock
+ * @description 接口路径：/basic/stock-list
  * @description 接口分组：基础数据
  */
-export namespace NSGetBasicStock {
+export namespace NSGetBasicStockList {
   export interface IParams {
     /**
      * pageNum
@@ -287,6 +287,17 @@ export namespace NSGetBasicStock {
       currentPage: number;
       [k: string]: any;
     };
+    [k: string]: any;
+  }
+}
+/**
+ * 类型名称：所有选项
+ *
+ * @description 接口路径：/common/all-options
+ * @description 接口分组：公共数据
+ */
+export namespace NSGetCommonAllOptions {
+  export interface IRes {
     [k: string]: any;
   }
 }

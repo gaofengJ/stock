@@ -5,20 +5,36 @@
 
 import axios from './request';
 import type { RequestConfig } from './types';
-import type { NSGetBasicDaily, NSGetBasicStock } from './services.types';
+import type {
+  NSGetBasicDailyList,
+  NSGetBasicStockList,
+  NSGetCommonAllOptions,
+} from './services.types.ts';
 /**
  * 接口名称：每日交易数据
  *
- * @description 接口路径：/basic/daily
+ * @description 接口路径：/basic/daily-list
  * @description 接口分组：基础数据
  */
-export const getBasicDaily = (params: NSGetBasicDaily.IParams, config: RequestConfig = {}) =>
-  axios.get<NSGetBasicDaily.IRes>('/basic/daily-list', { params, ...config });
+export const getBasicDailyList = (
+  params: NSGetBasicDailyList.IParams,
+  config: RequestConfig = {},
+) => axios.get<NSGetBasicDailyList.IRes>('/basic/daily-list', { params, ...config });
 /**
  * 接口名称：股票基础信息
  *
- * @description 接口路径：/basic/stock
+ * @description 接口路径：/basic/stock-list
  * @description 接口分组：基础数据
  */
-export const getBasicStock = (params: NSGetBasicStock.IParams, config: RequestConfig = {}) =>
-  axios.get<NSGetBasicStock.IRes>('/basic/stock-list', { params, ...config });
+export const getBasicStockList = (
+  params: NSGetBasicStockList.IParams,
+  config: RequestConfig = {},
+) => axios.get<NSGetBasicStockList.IRes>('/basic/stock-list', { params, ...config });
+/**
+ * 接口名称：所有选项
+ *
+ * @description 接口路径：/common/all-options
+ * @description 接口分组：公共数据
+ */
+export const getCommonAllOptions = (config: RequestConfig = {}) =>
+  axios.get<NSGetCommonAllOptions.IRes>('/common/all-options');

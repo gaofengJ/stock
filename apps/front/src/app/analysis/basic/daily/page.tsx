@@ -7,26 +7,26 @@ import Layout from '@/components/Layout';
 import { analysisSiderMenuItems } from '@/components/Layout/config';
 import { EAnalysisAsideMenuKey, EHeaderMenuKey } from '@/components/Layout/enum';
 
-import { getBasicDaily } from '@/api/services';
-import { NSGetBasicDaily } from '@/api/services.types';
+import { getBasicDailyList } from '@/api/services';
+import { NSGetBasicDailyList } from '@/api/services.types';
 
 import { dailyColumns } from './columns';
 
 function AnalysisBasicDailyPage() {
   // searchParams 的初始值
-  const initialSearchParams: Partial<NSGetBasicDaily.IParams> = {
+  const initialSearchParams: Partial<NSGetBasicDailyList.IParams> = {
     pageNum: 1,
     pageSize: 20,
     tradeDate: dayjs('2024-07-01').format('YYYY-MM-DD'),
   };
   const [searchParams, setSearchParams] = useState<
-    Partial<NSGetBasicDaily.IParams>>(initialSearchParams);
+    Partial<NSGetBasicDailyList.IParams>>(initialSearchParams);
 
   const [loading, setLoading] = useState(false);
 
   // dailyData 的初始值
   const initialDailyData: {
-    items: NSGetBasicDaily.IRes['items'];
+    items: NSGetBasicDailyList.IRes['items'];
     totalItems: number;
   } = {
     items: [],
@@ -54,8 +54,8 @@ function AnalysisBasicDailyPage() {
   const getDailys = async () => {
     try {
       setLoading(true);
-      const { data: { items, meta: { totalItems } } } = await getBasicDaily(
-        searchParams as NSGetBasicDaily.IParams,
+      const { data: { items, meta: { totalItems } } } = await getBasicDailyList(
+        searchParams as NSGetBasicDailyList.IParams,
       );
       setDailyData((state) => ({
         ...state,
