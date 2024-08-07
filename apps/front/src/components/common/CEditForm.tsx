@@ -29,12 +29,9 @@ const CSearchForm: FC<IProps> = ({
   /**
    * 渲染 Label
    */
-  const renderLabell = (config: IFormItemProps, editable?: boolean) => {
-    console.log('editable', editable);
-    return (
-      <span>{config.label}</span>
-    );
-  };
+  const renderLabell = (config: IFormItemProps) => (
+    <span>{config.label}</span>
+  );
   /**
    * 渲染 Content
    */
@@ -56,13 +53,12 @@ const CSearchForm: FC<IProps> = ({
       form={form}
       initialValues={searchParams}
       onValuesChange={handleValuesChange}
-      variant="filled"
     >
       {configs.map((config) => (
         <Form.Item
           key={config.name}
           name={config.name}
-          label={renderLabell(config, editable)}
+          label={renderLabell(config)}
           rules={config.rules}
           colon={false}
         >

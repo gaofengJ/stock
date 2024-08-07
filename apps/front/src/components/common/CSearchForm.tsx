@@ -30,20 +30,19 @@ const CSearchForm: FC<IProps> = ({
    * 渲染 Label
    */
   const renderLabell = (config: IFormItemProps, editable?: boolean) => {
-    console.log('editable', editable);
-    return (
-      <span>{config.label}</span>
-    );
+    if (!editable) { // 不可编辑态
+      return (<span>{config.label}</span>);
+    }
+    if (!searchParams[config.name]) { // 筛选值为空
+      return null;
+    }
+    return (<span>{config.label}</span>);
   };
   /**
    * 渲染 Content
    */
   const renderContent = (config: IFormItemProps, editable?: boolean) => {
     if (editable) {
-      if (config?.readonly) {
-        // 只读态
-        return <span>{config.render?.(config) ?? '-'}</span>;
-      }
       return config.component
         ? React.cloneElement(config.component, config.attrs)
         : null;
