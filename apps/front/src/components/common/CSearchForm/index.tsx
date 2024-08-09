@@ -1,6 +1,7 @@
 import React, { FC, useEffect } from 'react';
 import { Form } from 'antd';
 import { IFormItemProps } from '@/types/common.type';
+import './index.module.less';
 
 interface IProps {
   configs: IFormItemProps[];

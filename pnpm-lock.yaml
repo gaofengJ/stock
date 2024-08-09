@@ -5248,7 +5248,7 @@ packages:
     dependencies:
       '@babel/code-frame': 7.24.2
       chalk: 4.1.2
-      chokidar: 3.5.3
+      chokidar: 3.6.0
       cosmiconfig: 7.1.0
       deepmerge: 4.3.1
       fs-extra: 10.1.0
