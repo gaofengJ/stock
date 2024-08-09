@@ -2,6 +2,7 @@
 
 import { PaginationProps, Table } from 'antd';
 import { useEffect, useState } from 'react';
+import { debounce } from 'lodash-es';
 import Layout from '@/components/Layout';
 import { analysisSiderMenuItems } from '@/components/Layout/config';
 import {
@@ -22,6 +23,7 @@ function AnalysisBasicStockPage() {
   const initialSearchParams: Partial<NSGetBasicStockList.IParams> = {
     pageNum: 1,
     pageSize: 20,
+    tsCode: '222',
   };
   const [searchParams, setSearchParams] = useState<Partial<NSGetBasicStockList.IParams>>(initialSearchParams);
 
@@ -80,7 +82,13 @@ function AnalysisBasicStockPage() {
   };
 
   useEffect(() => {
-    getStocks();
+    const debounceGetStocks = debounce(getStocks, 300);
+    debounceGetStocks();
+
+    // 清理函数以防止在组件卸载时继续调用
+    return () => {
+      debounceGetStocks.cancel();
+    };
   }, [searchParams]);
 
   return (
@@ -101,7 +109,7 @@ function AnalysisBasicStockPage() {
         <Table
           dataSource={stockData.items}
           columns={stockColumns}
-          scroll={{ x: 2000, y: 'calc(100vh - 248px)' }}
+          scroll={{ x: 2000, y: 'calc(100vh - 296px)' }}
           loading={loading}
           pagination={{
             pageSize: searchParams.pageSize,

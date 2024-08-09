@@ -1,5 +1,5 @@
 import { FormItemProps } from 'antd';
-import { ReactElement, ReactNode } from 'react';
+import { CSSProperties, ReactElement, ReactNode } from 'react';
 
 /**
  * 定义组件属性
@@ -18,7 +18,7 @@ export interface IFormItemProps extends FormItemProps {
   name: string;
   readonly?: boolean;
   attrs?: IComponentAttrs & {
-    [key: string]: string | number | boolean;
+    [key: string]: string | number | boolean | CSSProperties;
   };
   render?: (record: IFormItemProps) => ReactNode;
 }

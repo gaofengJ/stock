@@ -6,8 +6,6 @@ import { useEffect } from 'react';
 import { useOptionsState } from '@/store/useOptionsStore';
 import { EHeaderMenuKey } from '@/components/Layout/enum';
 
-import './globals.css';
-
 export default () => {
   const router = useRouter();
   const { getAllOptions } = useOptionsState();

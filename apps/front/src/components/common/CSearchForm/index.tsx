@@ -4,14 +4,12 @@ import { IFormItemProps } from '@/types/common.type';
 
 interface IProps {
   configs: IFormItemProps[];
-  editable?: boolean;
   searchParams: { [key: string]: any };
   setSearchParams: (params: { [key: string]: any }) => void;
 }
 
 const CSearchForm: FC<IProps> = ({
   configs,
-  editable = true,
   searchParams,
   setSearchParams,
 }) => {
@@ -21,35 +19,29 @@ const CSearchForm: FC<IProps> = ({
     form.setFieldsValue(searchParams);
   }, [searchParams, form]);
 
-  const handleValuesChange = (changedValues: any, allValues: any) => {
-    console.log(changedValues, allValues);
+  const handleValuesChange = (
+    _: unknown,
+    allValues: { [key: string]: any },
+  ) => {
     setSearchParams(allValues);
   };
 
   /**
    * 渲染 Label
    */
-  const renderLabell = (config: IFormItemProps, editable?: boolean) => {
-    if (!editable) { // 不可编辑态
-      return (<span>{config.label}</span>);
-    }
-    if (!searchParams[config.name]) { // 筛选值为空
+  const renderLabell = (config: IFormItemProps) => {
+    if (!searchParams[config.name]) {
+      // 筛选值为空
       return null;
     }
-    return (<span>{config.label}</span>);
+    return <span className="c-search-form-label">{config.label}</span>;
   };
   /**
    * 渲染 Content
    */
-  const renderContent = (config: IFormItemProps, editable?: boolean) => {
-    if (editable) {
-      return config.component
-        ? React.cloneElement(config.component, config.attrs)
-        : null;
-    }
-    // 查看态
-    return <span>{config.render?.(config) ?? '-'}</span>;
-  };
+  const renderContent = (config: IFormItemProps) => (config.component
+    ? React.cloneElement(config.component, config.attrs)
+    : null);
   return (
     <Form
       form={form}
@@ -57,16 +49,17 @@ const CSearchForm: FC<IProps> = ({
       onValuesChange={handleValuesChange}
       variant="filled"
       layout="inline"
+      rootClassName="c-search-form"
     >
       {configs.map((config) => (
         <Form.Item
           key={config.name}
           name={config.name}
-          label={renderLabell(config, editable)}
+          label={renderLabell(config)}
           rules={config.rules}
           colon={false}
         >
-          {renderContent(config, editable)}
+          {renderContent(config)}
         </Form.Item>
       ))}
     </Form>
