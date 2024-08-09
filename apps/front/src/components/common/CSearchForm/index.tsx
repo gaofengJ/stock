@@ -1,7 +1,8 @@
 import React, { FC, useEffect } from 'react';
 import { Form } from 'antd';
 import { IFormItemProps } from '@/types/common.type';
-import './index.module.less';
+
+import './index.sass';
 
 interface IProps {
   configs: IFormItemProps[];
@@ -40,9 +41,23 @@ const CSearchForm: FC<IProps> = ({
   /**
    * 渲染 Content
    */
-  const renderContent = (config: IFormItemProps) => (config.component
-    ? React.cloneElement(config.component, config.attrs)
-    : null);
+  const renderContent = (config: IFormItemProps) => {
+    // 搜索内容存在时，将左侧 border-radius 设置为 0
+    if (searchParams[config.name]) {
+      config.attrs!.style = {
+        ...(config.attrs?.style || {}),
+        borderRadius: '0 6px 6px 0',
+      };
+    } else {
+      config.attrs!.style = {
+        ...(config.attrs?.style || {}),
+        borderRadius: '6px',
+      };
+    }
+    return (config.component
+      ? React.cloneElement(config.component, config.attrs)
+      : null);
+  };
   return (
     <Form
       form={form}
