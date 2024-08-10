@@ -95,9 +95,9 @@ export class StockEntity extends CommonEntity {
     type: 'varchar',
     length: 16,
     nullable: false,
-    comment: '市场类型（主板/中小板/创业板/科创板/北交所）',
+    comment: '市场类型（主板/创业板/科创板/北交所）',
   })
-  @ApiProperty({ description: '市场类型（主板/中小板/创业板/科创板/北交所）' })
+  @ApiProperty({ description: '市场类型（主板/创业板/科创板/北交所）' })
   market: string;
 
   @Column({

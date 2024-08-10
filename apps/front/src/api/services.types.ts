@@ -242,7 +242,7 @@ export namespace NSGetBasicStockList {
        */
       cnspell: string;
       /**
-       * 市场类型（主板/中小板/创业板/科创板/北交所）
+       * 市场类型（主板/创业板/科创板/北交所）
        */
       market: string;
       /**

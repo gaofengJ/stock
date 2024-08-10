@@ -31,13 +31,7 @@ export class BasicService {
    * 股票基本信息表
    */
   async stock(dto: StockQueryDto) {
-    const { pageNum, pageSize, tsCode, name } = dto;
-    const ret = await this.stockService.list({
-      pageNum,
-      pageSize,
-      tsCode,
-      name,
-    });
+    const ret = await this.stockService.list(dto);
     return ret;
   }
 }

@@ -20,12 +20,18 @@ export class StockService {
     pageSize,
     tsCode,
     name,
+    market,
+    listStatus,
+    isHs,
   }: StockQueryDto): Promise<Pagination<StockEntity>> {
     const queryBuilder = this.stockBasicRepository
       .createQueryBuilder('t_source_stock')
       .where({
         ...(tsCode && { tsCode: Like(`%${tsCode}%`) }),
         ...(name && { name: Like(`%${name}%`) }),
+        ...(market && { market }),
+        ...(listStatus && { listStatus }),
+        ...(isHs && { isHs }),
       });
     return paginate(queryBuilder, { pageNum, pageSize });
   }

@@ -48,7 +48,7 @@ export class StockDto extends PartialType(StockEntity) {
   @IsString()
   cnspell: string;
 
-  @ApiProperty({ description: '市场类型（主板/中小板/创业板/科创板/北交所）' })
+  @ApiProperty({ description: '市场类型（主板/创业板/科创板/北交所）' })
   @IsEnum(EMarket)
   market: string;
 
@@ -102,6 +102,21 @@ export class StockQueryDto extends PagerDto {
   @IsString()
   @IsOptional()
   name?: string;
+
+  @ApiProperty({ description: '市场类型' })
+  @IsEnum(EMarket)
+  @IsOptional()
+  market?: string;
+
+  @ApiProperty({ description: '上市状态' })
+  @IsEnum(EListStatus)
+  @IsOptional()
+  listStatus?: string;
+
+  @ApiProperty({ description: '是否沪深港通标的' })
+  @IsEnum(EIsHs)
+  @IsOptional()
+  isHs?: string;
 }
 
 export class StockUpdateDto extends PartialType(StockDto) {}

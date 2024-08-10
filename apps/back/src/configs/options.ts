@@ -28,10 +28,6 @@ export const allOptions: {
       value: '主板',
     },
     {
-      label: '中小板',
-      value: '中小板',
-    },
-    {
       label: '创业板',
       value: '创业板',
     },

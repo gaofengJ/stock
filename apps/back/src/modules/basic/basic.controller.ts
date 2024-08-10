@@ -33,13 +33,7 @@ export class BasicController {
   @ApiOperation({ summary: '股票基础信息' })
   @ApiResult({ type: [StockEntity], isPage: true })
   async stock(@Query() dto: StockQueryDto) {
-    const { pageNum, pageSize, tsCode, name } = dto;
-    const ret = await this.basicService.stock({
-      pageNum,
-      pageSize,
-      tsCode,
-      name,
-    });
+    const ret = await this.basicService.stock(dto);
     return ret;
   }
 }

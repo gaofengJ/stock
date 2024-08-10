@@ -15,10 +15,11 @@ import { NSGetBasicStockList } from '@/api/services.types';
 
 import CSearchForm from '@/components/common/CSearchForm';
 
-import { stockFilterConfigs } from './form-configs';
+import { useStockFilterConfigs } from './form-configs';
 import { useStockColumns } from './columns';
 
 function AnalysisBasicStockPage() {
+  const stockFilterConfigs = useStockFilterConfigs();
   // searchParams 的初始值
   const initialSearchParams: Partial<NSGetBasicStockList.IParams> = {
     pageNum: 1,

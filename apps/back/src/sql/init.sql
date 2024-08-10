@@ -107,7 +107,7 @@ CREATE TABLE `t_source_stock` (
   `fullname` varchar(256) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '股票全称',
   `enname` varchar(256) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '英文全称',
   `cnspell` varchar(16) COLLATE utf8mb4_general_ci NOT NULL COMMENT '拼音缩写',
-  `market` varchar(16) COLLATE utf8mb4_general_ci NOT NULL COMMENT '市场类型（主板/中小板/创业板/科创板/北交所）',
+  `market` varchar(16) COLLATE utf8mb4_general_ci NOT NULL COMMENT '市场类型（主板/创业板/科创板/北交所）',
   `exchange` varchar(16) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '交易所代码',
   `curr_type` varchar(16) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '交易货币',
   `list_status` varchar(16) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '上市状态（L上市中 D已退市 P暂停上市）',
