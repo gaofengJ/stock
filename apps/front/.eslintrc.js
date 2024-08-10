@@ -35,6 +35,12 @@ module.exports = {
     '@typescript-eslint/no-explicit-any': 'off',
     'no-param-reassign': 'off',
     'max-len': 'off',
+    'no-console': [
+      'warn',
+      {
+        allow: ['log', 'error', 'info'],
+      },
+    ],
   },
   // extends: 'next/core-web-vitals',
 };

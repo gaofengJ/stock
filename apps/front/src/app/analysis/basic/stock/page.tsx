@@ -1,7 +1,7 @@
 'use client';
 
 import { PaginationProps, Table } from 'antd';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { debounce } from 'lodash-es';
 import Layout from '@/components/Layout';
 import { analysisSiderMenuItems } from '@/components/Layout/config';
@@ -23,7 +23,6 @@ function AnalysisBasicStockPage() {
   const initialSearchParams: Partial<NSGetBasicStockList.IParams> = {
     pageNum: 1,
     pageSize: 20,
-    tsCode: '222',
   };
   const [searchParams, setSearchParams] = useState<Partial<NSGetBasicStockList.IParams>>(initialSearchParams);
 
@@ -58,7 +57,7 @@ function AnalysisBasicStockPage() {
   /**
    * 获取 list
    */
-  const getStocks = async () => {
+  const getStocks = useCallback(async () => {
     try {
       setLoading(true);
       const {
@@ -81,7 +80,7 @@ function AnalysisBasicStockPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchParams]);
 
   useEffect(() => {
     const debounceGetStocks = debounce(getStocks, 300);
@@ -91,7 +90,7 @@ function AnalysisBasicStockPage() {
     return () => {
       debounceGetStocks.cancel();
     };
-  }, [searchParams]);
+  }, [getStocks]);
 
   return (
     <Layout
