@@ -16,7 +16,7 @@ import { NSGetBasicStockList } from '@/api/services.types';
 import CSearchForm from '@/components/common/CSearchForm';
 
 import { stockFilterConfigs } from './form-configs';
-import { stockColumns } from './columns';
+import { useStockColumns } from './columns';
 
 function AnalysisBasicStockPage() {
   // searchParams 的初始值
@@ -28,6 +28,8 @@ function AnalysisBasicStockPage() {
   const [searchParams, setSearchParams] = useState<Partial<NSGetBasicStockList.IParams>>(initialSearchParams);
 
   const [loading, setLoading] = useState(false);
+
+  const stockColumns = useStockColumns();
 
   // stockData 的初始值
   const initialStockData: {

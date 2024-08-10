@@ -13,11 +13,11 @@ export enum EMarket {
  */
 export enum EListStatus {
   /**
-   * 上市
+   * 上市中
    */
   L = 'L',
   /**
-   * 退市
+   * 已退市
    */
   D = 'D',
   /**

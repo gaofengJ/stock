@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Layout,
   ConfigProvider,
@@ -14,6 +14,7 @@ import zhCN from 'antd/es/locale/zh_CN';
 import { useRouter } from 'next/navigation';
 
 import ImgFengye from '@/assets/imgs/fengye.png';
+import { useOptionsState } from '@/store/useOptionsStore';
 
 import { avatarDropdownItems, headerMenuItems, themeConfig } from './config';
 
@@ -38,6 +39,8 @@ const CommonLayout: React.FC<ILayoutProps> = ({
 }) => {
   const router = useRouter();
 
+  const { getAllOptions } = useOptionsState();
+
   /**
    * 顶部菜单选择
    */
@@ -51,6 +54,10 @@ const CommonLayout: React.FC<ILayoutProps> = ({
   const handleAsideMenuSelect = (row: { key: string }) => {
     router.push(row.key);
   };
+
+  useEffect(() => {
+    getAllOptions(); // 获取所有选项
+  }, [getAllOptions]);
 
   return (
     <ConfigProvider locale={zhCN} theme={themeConfig}>

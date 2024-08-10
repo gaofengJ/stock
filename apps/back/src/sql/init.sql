@@ -110,7 +110,7 @@ CREATE TABLE `t_source_stock` (
   `market` varchar(16) COLLATE utf8mb4_general_ci NOT NULL COMMENT '市场类型（主板/中小板/创业板/科创板/北交所）',
   `exchange` varchar(16) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '交易所代码',
   `curr_type` varchar(16) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '交易货币',
-  `list_status` varchar(16) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '上市状态（L上市 D退市 P暂停上市）',
+  `list_status` varchar(16) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '上市状态（L上市中 D已退市 P暂停上市）',
   `list_date` date NOT NULL COMMENT '上市日期',
   `delist_date` date DEFAULT NULL COMMENT '退市日期',
   `is_hs` varchar(16) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '是否沪深港通标的，N否 H沪股通 S深股通',

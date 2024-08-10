@@ -125,9 +125,9 @@ export class StockEntity extends CommonEntity {
     type: 'varchar',
     length: 16,
     nullable: true,
-    comment: '上市状态（L上市 D退市 P暂停上市）',
+    comment: '上市状态（L上市中 D已退市 P暂停上市）',
   })
-  @ApiProperty({ description: '上市状态（L上市 D退市 P暂停上市）' })
+  @ApiProperty({ description: '上市状态（L上市中 D已退市 P暂停上市）' })
   listStatus?: string;
 
   @Column({
