@@ -12,6 +12,7 @@ export const dailyColumns: ColumnsType = [
     key: 'tsCode',
     fixed: 'left',
     width: 120,
+    render: (val) => val.split('.')[0],
   },
   {
     title: '股票名称',

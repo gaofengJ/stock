@@ -19,11 +19,10 @@ export class BasicController {
   @ApiOperation({ summary: '每日交易数据' })
   @ApiResult({ type: [DailyEntity], isPage: true })
   async daily(@Query() dto: DailyQueryDto) {
-    const { pageNum, pageSize, tradeDate } = dto;
+    const { tradeDate } = dto;
     const formatedTradeDate = dayjs(tradeDate).format('YYYY-MM-DD');
     const ret = await this.basicService.daily({
-      pageNum,
-      pageSize,
+      ...dto,
       tradeDate: formatedTradeDate,
     });
     return ret;

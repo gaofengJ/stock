@@ -3,6 +3,7 @@
 import { PaginationProps, Table } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
+import { debounce } from 'lodash-es';
 import Layout from '@/components/Layout';
 import { analysisSiderMenuItems } from '@/components/Layout/config';
 import { EAnalysisAsideMenuKey, EHeaderMenuKey } from '@/components/Layout/enum';
@@ -27,6 +28,11 @@ function AnalysisBasicDailyPage() {
   const [searchParams, setSearchParams] = useState<
     Partial<NSGetBasicDailyList.IParams>>(initialSearchParams);
 
+  const [loading, setLoading] = useState(false);
+
+  /**
+   * 更新 searchParams 的值
+   */
   const handleSetSearchParams = (val: any) => {
     setSearchParams((state) => ({
       ...state,
@@ -34,8 +40,6 @@ function AnalysisBasicDailyPage() {
       tradeDate: val.tradeDate.format('YYYY-MM-DD'),
     }));
   };
-
-  const [loading, setLoading] = useState(false);
 
   // dailyData 的初始值
   const initialDailyData: {
@@ -86,7 +90,13 @@ function AnalysisBasicDailyPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    getDailys();
+    const debounceGetDailys = debounce(getDailys, 300);
+    debounceGetDailys();
+
+    // 清理函数以防止在组件卸载时继续调用
+    return () => {
+      debounceGetDailys.cancel();
+    };
   }, [getDailys]);
 
   return (

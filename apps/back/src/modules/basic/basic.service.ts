@@ -18,12 +18,7 @@ export class BasicService {
    * @param date
    */
   async daily(dto: DailyQueryDto) {
-    const { pageNum, pageSize, tradeDate } = dto;
-    const ret = await this.dailyService.list({
-      pageNum,
-      pageSize,
-      tradeDate,
-    });
+    const ret = await this.dailyService.list(dto);
     return ret;
   }
 
