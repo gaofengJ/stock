@@ -1,17 +1,21 @@
 .c-search-form
   margin-bottom: -16px !important
+  // form-item 换行时上下间距
   .ant-form-item
     margin-bottom: 16px !important
+  // form-item-label
   .ant-form-item-no-colon
     background-color: rgba(0, 0, 0, 0.04)
     border-radius: 6px 0 0 6px
     padding-left: 8px
     padding-right: 8px
+    color: var(--color-black-56) !important
     &::after
       display: none
+  // form-item-content
   .ant-form-item-control
-    .ant-select-filled
-      background-color: rgba(0, 0, 0, 0.04)
-    .ant-select-selector
-      // border-radius: 0
-      background-color: transparent !important
+    .has-value
+      border-radius: 0 6px 6px 0
+      .ant-select-selector
+        border-radius: 0 6px 6px 0
+

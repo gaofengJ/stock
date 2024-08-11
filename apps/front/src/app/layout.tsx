@@ -6,7 +6,7 @@ import './global.css';
 const inter = Inter({ subsets: ['latin'] }); // 仅加载 Inter 字体的拉丁字母子集。这有助于减少字体文件的大小，从而提高页面加载速度
 
 export const metadata: Metadata = {
-  title: 'Stock',
+  title: '木风同学的投资小站',
   description: '木风同学的投资小站',
   icons: '/favicon.ico',
 };

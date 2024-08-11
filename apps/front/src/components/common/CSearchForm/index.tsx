@@ -36,7 +36,7 @@ const CSearchForm: FC<IProps> = ({
       // 筛选值为空
       return null;
     }
-    return <span className="c-search-form-label">{config.label}</span>;
+    return <span>{config.label}</span>;
   };
   /**
    * 渲染 Content
@@ -44,14 +44,14 @@ const CSearchForm: FC<IProps> = ({
   const renderContent = (config: IFormItemProps) => {
     // 搜索内容存在时，将左侧 border-radius 设置为 0
     if (searchParams[config.name]) {
-      config.attrs!.style = {
-        ...(config.attrs?.style || {}),
-        borderRadius: '0 6px 6px 0',
+      config.attrs = {
+        ...(config.attrs || {}),
+        rootClassName: 'has-value',
       };
     } else {
-      config.attrs!.style = {
-        ...(config.attrs?.style || {}),
-        borderRadius: '6px',
+      config.attrs = {
+        ...(config.attrs || {}),
+        rootClassName: '',
       };
     }
     return (config.component
