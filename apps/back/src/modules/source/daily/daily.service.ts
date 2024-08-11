@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Like, Repository } from 'typeorm';
+import { Between, Like, Repository } from 'typeorm';
 
 import { paginate } from '@/helper/paginate/index';
 import { Pagination } from '@/helper/paginate/pagination';
@@ -19,12 +19,16 @@ export class DailyService {
     pageNum,
     pageSize,
     tradeDate,
+    startDate,
+    endDate,
     tsCode,
     name,
   }: DailyQueryDto): Promise<Pagination<DailyEntity>> {
     const queryBuilder = this.DailyRepository.createQueryBuilder(
       't_source_daily',
     ).where({
+      ...(tradeDate && { tradeDate }),
+      ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
       ...(tradeDate && { tradeDate }),
       ...(tsCode && { tsCode: Like(`%${tsCode}%`) }),
       ...(name && { name: Like(`%${name}%`) }),

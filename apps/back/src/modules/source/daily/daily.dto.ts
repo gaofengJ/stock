@@ -138,6 +138,16 @@ export class DailyDto extends PartialType(DailyEntity) {
 }
 
 export class DailyQueryDto extends PagerDto {
+  @ApiProperty({ description: '开始时间' })
+  @IsDateString()
+  @IsOptional()
+  startDate?: string;
+
+  @ApiProperty({ description: '结束时间' })
+  @IsDateString()
+  @IsOptional()
+  endDate?: string;
+
   @ApiProperty({ description: '交易日期' })
   @IsDateString()
   tradeDate?: string;
