@@ -11,9 +11,13 @@ interface IOptionsState {
   getAllOptions: () => Promise<void>;
 }
 
-const createOptionsState: StateCreator<IOptionsState, [['zustand/immer', never]]> = (set) => ({
+const createOptionsState: StateCreator<IOptionsState, [['zustand/immer', never]]> = (set, get) => ({
   allOptions: {},
   getAllOptions: async () => {
+    const { allOptions } = get();
+    // 如果 allOptions 不为空，则不请求接口
+    if (Object.keys(allOptions).length > 0) return;
+
     try {
       const { data } = await getCommonAllOptions();
       set((state) => {

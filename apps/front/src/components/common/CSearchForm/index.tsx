@@ -42,7 +42,7 @@ const CSearchForm: FC<IProps> = ({
    * 渲染 Content
    */
   const renderContent = (config: IFormItemProps) => {
-    // 搜索内容存在时，将左侧 border-radius 设置为 0
+    // 搜索内容存在时，通过添加类名 has-value 的方式将左侧 border-radius 设置为 0
     if (searchParams[config.name]) {
       config.attrs = {
         ...(config.attrs || {}),

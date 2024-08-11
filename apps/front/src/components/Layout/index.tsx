@@ -11,6 +11,8 @@ import {
   MenuProps,
 } from 'antd';
 import zhCN from 'antd/es/locale/zh_CN';
+import dayjs from 'dayjs';
+import 'dayjs/locale/zh-cn';
 import { useRouter } from 'next/navigation';
 
 import ImgFengye from '@/assets/imgs/fengye.png';
@@ -19,6 +21,8 @@ import { useOptionsState } from '@/store/useOptionsStore';
 import { avatarDropdownItems, headerMenuItems, themeConfig } from './config';
 
 const { Header, Sider, Content } = Layout;
+
+dayjs.locale('zh-cn');
 
 interface ILayoutProps {
   children: React.ReactNode;

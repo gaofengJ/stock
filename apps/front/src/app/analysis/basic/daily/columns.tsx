@@ -24,7 +24,6 @@ export const dailyColumns: ColumnsType = [
     title: '交易日期',
     dataIndex: 'tradeDate',
     key: 'tradeDate',
-    fixed: 'left',
     width: 120,
   },
   {

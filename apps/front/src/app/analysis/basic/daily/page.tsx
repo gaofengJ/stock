@@ -1,7 +1,7 @@
 'use client';
 
 import { PaginationProps, Table } from 'antd';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import Layout from '@/components/Layout';
 import { analysisSiderMenuItems } from '@/components/Layout/config';
@@ -10,17 +10,30 @@ import { EAnalysisAsideMenuKey, EHeaderMenuKey } from '@/components/Layout/enum'
 import { getBasicDailyList } from '@/api/services';
 import { NSGetBasicDailyList } from '@/api/services.types';
 
+import CSearchForm from '@/components/common/CSearchForm';
+
+import { useStockFilterConfigs } from './form-configs';
 import { dailyColumns } from './columns';
 
 function AnalysisBasicDailyPage() {
+  const stockFilterConfigs = useStockFilterConfigs();
+
   // searchParams 的初始值
   const initialSearchParams: Partial<NSGetBasicDailyList.IParams> = {
     pageNum: 1,
     pageSize: 20,
-    tradeDate: dayjs('2024-07-01').format('YYYY-MM-DD'),
+    tradeDate: dayjs().format('YYYY-MM-DD'),
   };
   const [searchParams, setSearchParams] = useState<
     Partial<NSGetBasicDailyList.IParams>>(initialSearchParams);
+
+  const handleSetSearchParams = (val: any) => {
+    setSearchParams((state) => ({
+      ...state,
+      ...val,
+      tradeDate: val.tradeDate.format('YYYY-MM-DD'),
+    }));
+  };
 
   const [loading, setLoading] = useState(false);
 
@@ -51,7 +64,7 @@ function AnalysisBasicDailyPage() {
   /**
    * 获取 list
    */
-  const getDailys = async () => {
+  const getDailys = useCallback(async () => {
     try {
       setLoading(true);
       const { data: { items, meta: { totalItems } } } = await getBasicDailyList(
@@ -70,11 +83,11 @@ function AnalysisBasicDailyPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchParams]);
 
   useEffect(() => {
     getDailys();
-  }, [searchParams]);
+  }, [getDailys]);
 
   return (
     <Layout
@@ -84,10 +97,20 @@ function AnalysisBasicDailyPage() {
       asideMenuOpen={EAnalysisAsideMenuKey.analysisBasic}
     >
       <div className="p-16 bg-bg-white">
+        <div className="mb-16">
+          <CSearchForm
+            configs={stockFilterConfigs}
+            searchParams={{
+              ...searchParams,
+              tradeDate: dayjs(searchParams.tradeDate),
+            }}
+            setSearchParams={handleSetSearchParams}
+          />
+        </div>
         <Table
           dataSource={dailyData.items}
           columns={dailyColumns}
-          scroll={{ x: 6000, y: 'calc(100vh - 248px)' }}
+          scroll={{ x: 6000, y: 'calc(100vh - 296px)' }}
           loading={loading}
           pagination={{
             pageSize: searchParams.pageSize,
