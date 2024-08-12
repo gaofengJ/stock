@@ -5,7 +5,7 @@
 /**
  * 类型名称：每日交易数据
  *
- * @description 接口路径：/basic/daily-list
+ * @description 接口路径：/basic/daily/list
  * @description 接口分组：基础数据
  */
 export namespace NSGetBasicDailyList {
@@ -27,14 +27,6 @@ export namespace NSGetBasicDailyList {
      */
     order: string;
     /**
-     * 股票代码（包含交易所）
-     */
-    tsCode: string;
-    /**
-     * 交易日期
-     */
-    tradeDate: string;
-    /**
      * 开始时间
      */
     startDate: string;
@@ -42,6 +34,18 @@ export namespace NSGetBasicDailyList {
      * 结束时间
      */
     endDate: string;
+    /**
+     * 交易日期
+     */
+    tradeDate: string;
+    /**
+     * 股票代码（包含交易所）
+     */
+    tsCode: string;
+    /**
+     * 股票名称
+     */
+    name: string;
   }
   export interface IRes {
     items: {
@@ -177,7 +181,7 @@ export namespace NSGetBasicDailyList {
 /**
  * 类型名称：股票基础信息
  *
- * @description 接口路径：/basic/stock-list
+ * @description 接口路径：/basic/stock/list
  * @description 接口分组：基础数据
  */
 export namespace NSGetBasicStockList {
@@ -206,6 +210,18 @@ export namespace NSGetBasicStockList {
      * 股票名称
      */
     name: string;
+    /**
+     * 市场类型
+     */
+    market: string;
+    /**
+     * 上市状态
+     */
+    listStatus: string;
+    /**
+     * 是否沪深港通标的
+     */
+    isHs: string;
   }
   export interface IRes {
     items: {
@@ -254,7 +270,7 @@ export namespace NSGetBasicStockList {
        */
       currType: string;
       /**
-       * 上市状态（L上市 D退市 P暂停上市）
+       * 上市状态（L上市中 D已退市 P暂停上市）
        */
       listStatus: string;
       /**

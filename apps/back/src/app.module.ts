@@ -79,13 +79,13 @@ import { DailySourceTask } from '@/tasks/daily-source.tasks';
      */
     CommonModule,
     /**
-     * 基础数据模块
-     */
-    BasicModule,
-    /**
      * 数据分析模块
      */
     AnalysisModule,
+    /**
+     * 基础数据模块
+     */
+    BasicModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter }, // 自定义异常过滤器，用于捕获和处理应用程序中所有未被捕获的异常，统一异常处理逻辑

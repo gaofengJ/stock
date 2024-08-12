@@ -13,23 +13,23 @@ import type {
 /**
  * 接口名称：每日交易数据
  *
- * @description 接口路径：/basic/daily-list
+ * @description 接口路径：/basic/daily/list
  * @description 接口分组：基础数据
  */
 export const getBasicDailyList = (
   params: NSGetBasicDailyList.IParams,
   config: RequestConfig = {},
-) => axios.get<NSGetBasicDailyList.IRes>('/basic/daily-list', { params, ...config });
+) => axios.get<NSGetBasicDailyList.IRes>('/basic/daily/list', { params, ...config });
 /**
  * 接口名称：股票基础信息
  *
- * @description 接口路径：/basic/stock-list
+ * @description 接口路径：/basic/stock/list
  * @description 接口分组：基础数据
  */
 export const getBasicStockList = (
   params: NSGetBasicStockList.IParams,
   config: RequestConfig = {},
-) => axios.get<NSGetBasicStockList.IRes>('/basic/stock-list', { params, ...config });
+) => axios.get<NSGetBasicStockList.IRes>('/basic/stock/list', { params, ...config });
 /**
  * 接口名称：所有选项
  *

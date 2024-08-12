@@ -1,13 +1,24 @@
 import { Module } from '@nestjs/common';
 
-import { BasicController } from './basic.controller';
-import { BasicService } from './basic.service';
+import { RouterModule } from '@nestjs/core';
 
-const services = [BasicService];
+import { DailyModule } from './daily/daily.module';
+import { StockModule } from './stock/stock.module';
+
+const modules = [DailyModule, StockModule];
 
 @Module({
-  controllers: [BasicController],
-  providers: [...services],
-  exports: [...services],
+  imports: [
+    ...modules,
+    RouterModule.register([
+      {
+        path: 'basic',
+        // eslint-disable-next-line no-use-before-define
+        module: BasicModule,
+        children: [...modules],
+      },
+    ]),
+  ],
+  exports: [...modules],
 })
 export class BasicModule {}
