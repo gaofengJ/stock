@@ -4,9 +4,9 @@ import { PaginationProps, Table } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { debounce } from 'lodash-es';
 import Layout from '@/components/Layout';
-import { analysisSiderMenuItems } from '@/components/Layout/config';
+import { basicSiderMenuItems } from '@/components/Layout/config';
 import {
-  EAnalysisAsideMenuKey,
+  EBasicAsideMenuKey,
   EHeaderMenuKey,
 } from '@/components/Layout/enum';
 
@@ -18,7 +18,7 @@ import CSearchForm from '@/components/common/CSearchForm';
 import { useStockFilterConfigs } from './form-configs';
 import { useStockColumns } from './columns';
 
-function AnalysisBasicStockPage() {
+function BasicStockPage() {
   const stockFilterConfigs = useStockFilterConfigs();
   // searchParams 的初始值
   const initialSearchParams: Partial<NSGetBasicStockList.IParams> = {
@@ -95,10 +95,9 @@ function AnalysisBasicStockPage() {
 
   return (
     <Layout
-      asideMenuItems={analysisSiderMenuItems}
-      headerMenuActive={EHeaderMenuKey.analysis}
-      asideMenuActive={EAnalysisAsideMenuKey.analysisBasicStock}
-      asideMenuOpen={EAnalysisAsideMenuKey.analysisBasic}
+      asideMenuItems={basicSiderMenuItems}
+      headerMenuActive={EHeaderMenuKey.basic}
+      asideMenuActive={EBasicAsideMenuKey.basicStock}
     >
       <div className="p-16 bg-bg-white">
         <div className="mb-16">
@@ -127,4 +126,4 @@ function AnalysisBasicStockPage() {
   );
 }
 
-export default AnalysisBasicStockPage;
+export default BasicStockPage;

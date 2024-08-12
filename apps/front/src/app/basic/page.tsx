@@ -2,14 +2,13 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { EAnalysisAsideMenuKey } from '@/components/Layout/enum';
-// import styles from './index.module.less';
+import { EBasicAsideMenuKey } from '@/components/Layout/enum';
 
 function AnalysisBasicPage() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace(EAnalysisAsideMenuKey.analysisBasicDaily);
+    router.replace(EBasicAsideMenuKey.basicDaily);
   }, [router]);
 
   return null;

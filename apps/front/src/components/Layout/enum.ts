@@ -11,6 +11,10 @@ export enum EHeaderMenuKey {
    */
   trends = '/trends',
   /**
+   * 基础数据
+   */
+  basic = '/basic',
+  /**
    * 实时资讯
    */
   news = '/news',
@@ -39,7 +43,7 @@ export enum EAvatarDropdownKey {
 }
 
 /**
- * analysis 侧边栏菜单 Key
+ * 数据分析 侧边栏菜单 Key
  */
 export enum EAnalysisAsideMenuKey {
   /**
@@ -54,16 +58,18 @@ export enum EAnalysisAsideMenuKey {
    * 涨停板复盘
    */
   analysisLimits = '/analysis/limits',
+}
+
+/**
+ * 基础数据 侧边栏菜单 Key
+ */
+export enum EBasicAsideMenuKey {
   /**
-   * 基础信息
+   * 基础数据-个股基础信息
    */
-  analysisBasic = '/analysis/basic',
+  basicStock = '/basic/stock',
   /**
-   * 基础信息-个股基础信息
+   * 基础数据-每日交易数据
    */
-  analysisBasicStock = '/analysis/basic/stock',
-  /**
-   * 基础信息-每日交易数据
-   */
-  analysisBasicDaily = '/analysis/basic/daily'
+  basicDaily = '/basic/daily',
 }

@@ -5,8 +5,8 @@ import { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { debounce } from 'lodash-es';
 import Layout from '@/components/Layout';
-import { analysisSiderMenuItems } from '@/components/Layout/config';
-import { EAnalysisAsideMenuKey, EHeaderMenuKey } from '@/components/Layout/enum';
+import { basicSiderMenuItems } from '@/components/Layout/config';
+import { EBasicAsideMenuKey, EHeaderMenuKey } from '@/components/Layout/enum';
 
 import { getBasicDailyList } from '@/api/services';
 import { NSGetBasicDailyList } from '@/api/services.types';
@@ -16,7 +16,7 @@ import CSearchForm from '@/components/common/CSearchForm';
 import { useStockFilterConfigs } from './form-configs';
 import { dailyColumns } from './columns';
 
-function AnalysisBasicDailyPage() {
+function BasicDailyPage() {
   const stockFilterConfigs = useStockFilterConfigs();
 
   // searchParams 的初始值
@@ -101,10 +101,9 @@ function AnalysisBasicDailyPage() {
 
   return (
     <Layout
-      asideMenuItems={analysisSiderMenuItems}
-      headerMenuActive={EHeaderMenuKey.analysis}
-      asideMenuActive={EAnalysisAsideMenuKey.analysisBasicDaily}
-      asideMenuOpen={EAnalysisAsideMenuKey.analysisBasic}
+      asideMenuItems={basicSiderMenuItems}
+      headerMenuActive={EHeaderMenuKey.basic}
+      asideMenuActive={EBasicAsideMenuKey.basicDaily}
     >
       <div className="p-16 bg-bg-white">
         <div className="mb-16">
@@ -137,4 +136,4 @@ function AnalysisBasicDailyPage() {
   );
 }
 
-export default AnalysisBasicDailyPage;
+export default BasicDailyPage;

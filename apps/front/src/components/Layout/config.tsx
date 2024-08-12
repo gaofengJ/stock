@@ -6,6 +6,7 @@ import { EThemeColors } from '@/types/common.enum';
 import {
   EAnalysisAsideMenuKey,
   EAvatarDropdownKey,
+  EBasicAsideMenuKey,
   EHeaderMenuKey,
 } from './enum';
 
@@ -35,6 +36,10 @@ export const headerMenuItems: MenuProps['items'] = [
   {
     key: EHeaderMenuKey.trends,
     label: '市场行情',
+  },
+  {
+    key: EHeaderMenuKey.basic,
+    label: '基础数据',
   },
   {
     key: EHeaderMenuKey.news,
@@ -76,18 +81,18 @@ export const analysisSiderMenuItems: MenuProps['items'] = [
     key: EAnalysisAsideMenuKey.analysisLimits,
     label: '涨停板复盘',
   },
+];
+
+/**
+ * 基础数据 侧边栏 items
+ */
+export const basicSiderMenuItems: MenuProps['items'] = [
   {
-    key: EAnalysisAsideMenuKey.analysisBasic,
-    label: '基础信息',
-    children: [
-      {
-        key: EAnalysisAsideMenuKey.analysisBasicStock,
-        label: '个股基本信息',
-      },
-      {
-        key: EAnalysisAsideMenuKey.analysisBasicDaily,
-        label: '每日交易数据',
-      },
-    ],
+    key: EBasicAsideMenuKey.basicDaily,
+    label: '每日交易数据',
+  },
+  {
+    key: EBasicAsideMenuKey.basicStock,
+    label: '个股基本信息',
   },
 ];

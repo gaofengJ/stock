@@ -19,7 +19,6 @@ import ImgFengye from '@/assets/imgs/fengye.png';
 import { useOptionsState } from '@/store/useOptionsStore';
 
 import { avatarDropdownItems, headerMenuItems, themeConfig } from './config';
-import { EAnalysisAsideMenuKey } from './enum';
 
 const { Header, Sider, Content } = Layout;
 
@@ -40,7 +39,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
   asideMenuItems = [],
   headerMenuActive,
   asideMenuActive = '',
-  asideMenuOpen = EAnalysisAsideMenuKey.analysisBasic,
+  asideMenuOpen = '',
 }) => {
   const router = useRouter();
 
