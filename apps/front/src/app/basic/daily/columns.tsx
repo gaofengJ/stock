@@ -88,7 +88,7 @@ export const dailyColumns: ColumnsType = [
     render: renderEmptyField,
   },
   {
-    title: '成交额（万元）',
+    title: '成交额（千元）',
     dataIndex: 'amount',
     key: 'amount',
     render: renderEmptyField,

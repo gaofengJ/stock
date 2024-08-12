@@ -43,7 +43,7 @@ CREATE TABLE `t_source_daily` (
   `change` decimal(16,2) NOT NULL COMMENT '涨跌额',
   `pct_chg` decimal(16,2) NOT NULL COMMENT '涨跌幅',
   `vol` decimal(16,2) NOT NULL COMMENT '成交量（手）',
-  `amount` decimal(16,2) NOT NULL COMMENT '成交额（万元）',
+  `amount` decimal(16,2) NOT NULL COMMENT '成交额（千元）',
   `turnover_rate` decimal(16,2) DEFAULT NULL COMMENT '换手率',
   `turnover_rate_f` decimal(16,2) DEFAULT NULL COMMENT '换手率（自由流通股）',
   `volume_ratio` decimal(16,2) DEFAULT NULL COMMENT '量比',

@@ -191,7 +191,7 @@ export namespace NSGetBasicDailyList {
        */
       vol: string;
       /**
-       * 成交额（万元）
+       * 成交额（千元）
        */
       amount: string;
       /**

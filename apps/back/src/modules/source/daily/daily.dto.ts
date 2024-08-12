@@ -61,7 +61,7 @@ export class DailyDto extends PartialType(DailyEntity) {
   @IsString()
   vol: string;
 
-  @ApiProperty({ description: '成交额（万元）' })
+  @ApiProperty({ description: '成交额（千元）' })
   @IsString()
   amount: string;
 

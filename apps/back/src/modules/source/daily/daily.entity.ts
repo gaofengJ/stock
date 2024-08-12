@@ -155,9 +155,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: false,
-    comment: '成交额（万元）',
+    comment: '成交额（千元）',
   })
-  @ApiProperty({ description: '成交额（万元）' })
+  @ApiProperty({ description: '成交额（千元）' })
   amount: string;
 
   @Column({

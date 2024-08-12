@@ -18,6 +18,6 @@ export class LimitsController {
   async limitUpList(@Query() dto: CommonDateDto) {
     const { date } = dto;
     const ret = await this.limitsService.limitUpList(date);
-    return ret;
+    return ret.items;
   }
 }

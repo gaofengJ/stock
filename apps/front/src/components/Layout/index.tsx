@@ -65,7 +65,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
 
   return (
     <ConfigProvider locale={zhCN} theme={themeConfig}>
-      <Layout className="h-[100vh]">
+      <Layout className="h-[100vh] min-w-[1080px]">
         <Header className="flex items-center">
           <img src={ImgFengye.src} alt="fengye" className="h-32 w-32" />
           <span className="w-216 pl-8 text-20 font-medium">木风同学</span>
@@ -86,7 +86,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
             placement="bottomLeft"
             arrow
           >
-            <Avatar className="text-white cursor-pointer">User</Avatar>
+            <Avatar className="basis-[32px] text-white cursor-pointer">User</Avatar>
           </Dropdown>
         </Header>
         <Layout>
