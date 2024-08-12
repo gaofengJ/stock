@@ -1,13 +1,24 @@
 import { Module } from '@nestjs/common';
 
-import { AnalysisController } from './analysis.controller';
-import { AnalysisService } from './analysis.service';
+import { RouterModule } from '@nestjs/core';
 
-const services = [AnalysisService];
+import { LimitsModule } from './limits/limits.module';
+import { SentiModule } from './senti/senti.module';
+
+const modules = [LimitsModule, SentiModule];
 
 @Module({
-  controllers: [AnalysisController],
-  providers: [...services],
-  exports: [...services],
+  imports: [
+    ...modules,
+    RouterModule.register([
+      {
+        path: 'analysis',
+        // eslint-disable-next-line no-use-before-define
+        module: AnalysisModule,
+        children: [...modules],
+      },
+    ]),
+  ],
+  exports: [...modules],
 })
 export class AnalysisModule {}

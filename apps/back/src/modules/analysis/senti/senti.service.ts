@@ -5,10 +5,10 @@ import { BizException } from '@/exceptions/biz.exception';
 import { DailyService } from '@/modules/source/daily/daily.service';
 import { LimitService } from '@/modules/source/limit/limit.service';
 import { ELimit } from '@/modules/source/limit/limit.enum';
-import { SentiService } from '@/modules/processed/senti/senti.service';
+import { SentiService as SourceSentiService } from '@/modules/processed/senti/senti.service';
 import { ECustomError } from '@/types/common.enum';
 
-type ILimitsResItem = {
+type ISentiResItem = {
   tradeDate: string;
   up: number;
   down: number;
@@ -20,14 +20,14 @@ type INumsResItem = {
 };
 
 @Injectable()
-export class AnalysisService {
-  private logger = new Logger(AnalysisService.name);
+export class SentiService {
+  private logger = new Logger(SentiService.name);
 
   constructor(
     private tradeCalService: TradeCalService,
     private dailyService: DailyService,
     private limitService: LimitService,
-    private sentiService: SentiService,
+    private sentiService: SourceSentiService,
   ) {}
 
   private getRangeIndex(pctChg: number): number {
@@ -70,7 +70,7 @@ export class AnalysisService {
    * 涨跌分布统计
    * @param date
    */
-  async statistics(date: CommonDateDto['date']) {
+  async distributionTatistics(date: CommonDateDto['date']) {
     const isOpen = await this.tradeCalService.isOpen(date);
     if (!isOpen) {
       this.logger.log(`${date}非交易日，请重新选择交易日期`);
@@ -96,7 +96,7 @@ export class AnalysisService {
   /**
    * 涨跌停统计
    */
-  async limits(dto: CommonDateRangeDto) {
+  async limitUpDownTatistics(dto: CommonDateRangeDto) {
     const { startDate, endDate } = dto;
     const { items: limitItems } = await this.limitService.list({
       pageNum: 1,
@@ -121,13 +121,13 @@ export class AnalysisService {
         });
       }
     }
-    const ret: ILimitsResItem[] = [];
+    const ret: ISentiResItem[] = [];
     // eslint-disable-next-line no-restricted-syntax
     for (const [key, value] of map.entries()) {
       ret.push({
         tradeDate: key,
         ...value,
-      } as ILimitsResItem);
+      } as ISentiResItem);
     }
     return ret;
   }
@@ -135,7 +135,7 @@ export class AnalysisService {
   /**
    * 上涨家数
    */
-  async nums(dto: CommonDateRangeDto) {
+  async upCount(dto: CommonDateRangeDto) {
     const { startDate, endDate } = dto;
     const { items: dailyItems } = await this.dailyService.list({
       pageNum: 1,
@@ -169,7 +169,7 @@ export class AnalysisService {
   /**
    * 短线情绪
    */
-  async senti(dto: CommonDateRangeDto) {
+  async list(dto: CommonDateRangeDto) {
     const { startDate, endDate } = dto;
     const { items: sentiItems } = await this.sentiService.list({
       pageNum: 1,

@@ -6,10 +6,25 @@
 import axios from './request';
 import type { RequestConfig } from './types';
 import type {
+  NSGetAnalysisLimitsLimitUpList,
   NSGetBasicDailyList,
   NSGetBasicStockList,
   NSGetCommonAllOptions,
 } from './services.types.ts';
+/**
+ * 接口名称：涨停板复盘
+ *
+ * @description 接口路径：/analysis/limits/limit-up-list
+ * @description 接口分组：数据分析
+ */
+export const getAnalysisLimitsLimitUpList = (
+  params: NSGetAnalysisLimitsLimitUpList.IParams,
+  config: RequestConfig = {},
+) =>
+  axios.get<NSGetAnalysisLimitsLimitUpList.IRes>('/analysis/limits/limit-up-list', {
+    params,
+    ...config,
+  });
 /**
  * 接口名称：每日交易数据
  *

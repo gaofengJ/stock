@@ -9,6 +9,10 @@ run.default({
      */
     '/api/common/all-options', // 公共数据-所有选项
     /**
+     * 数据分析
+     */
+    '/api/analysis/limits/limit-up-list', // 涨停板复盘
+    /**
      * 基础数据
      */
     '/api/basic/daily/list', // 每日交易数据
