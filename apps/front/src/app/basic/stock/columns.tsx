@@ -67,6 +67,7 @@ export const useStockColumns = (): ColumnsType => {
       title: '是否沪深港通标的',
       dataIndex: 'isHs',
       key: 'isHs',
+      ellipsis: true,
       render: (val) => {
         const options = allOptions.isHs || [];
         return options.find((i) => i.value === val)?.label;
@@ -76,12 +77,14 @@ export const useStockColumns = (): ColumnsType => {
       title: '实控人名称',
       dataIndex: 'actName',
       key: 'actName',
+      ellipsis: true,
       render: renderEmptyField,
     },
     {
       title: '实控人企业性质',
       dataIndex: 'actEntType',
       key: 'actEntType',
+      ellipsis: true,
       render: renderEmptyField,
     },
   ];
