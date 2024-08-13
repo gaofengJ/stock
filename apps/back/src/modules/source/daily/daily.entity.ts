@@ -45,9 +45,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: false,
-    comment: '涨停价',
+    comment: '涨停价(元)',
   })
-  @ApiProperty({ description: '涨停价' })
+  @ApiProperty({ description: '涨停价(元)' })
   upLimit: string;
 
   @Column({
@@ -56,9 +56,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: false,
-    comment: '跌停价',
+    comment: '跌停价(元)',
   })
-  @ApiProperty({ description: '跌停价' })
+  @ApiProperty({ description: '跌停价(元)' })
   downLimit: string;
 
   @Column({
@@ -67,9 +67,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: false,
-    comment: '开盘价',
+    comment: '开盘价(元)',
   })
-  @ApiProperty({ description: '开盘价' })
+  @ApiProperty({ description: '开盘价(元)' })
   open: string;
 
   @Column({
@@ -78,9 +78,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: false,
-    comment: '最高价',
+    comment: '最高价(元)',
   })
-  @ApiProperty({ description: '最高价' })
+  @ApiProperty({ description: '最高价(元)' })
   high: string;
 
   @Column({
@@ -89,9 +89,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: false,
-    comment: '最低价',
+    comment: '最低价(元)',
   })
-  @ApiProperty({ description: '最低价' })
+  @ApiProperty({ description: '最低价(元)' })
   low: string;
 
   @Column({
@@ -100,9 +100,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: false,
-    comment: '收盘价',
+    comment: '收盘价(元)',
   })
-  @ApiProperty({ description: '收盘价' })
+  @ApiProperty({ description: '收盘价(元)' })
   close: string;
 
   @Column({
@@ -111,9 +111,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: false,
-    comment: '昨收价',
+    comment: '昨收价(元)',
   })
-  @ApiProperty({ description: '昨收价' })
+  @ApiProperty({ description: '昨收价(元)' })
   preClose: string;
 
   @Column({
@@ -122,9 +122,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: false,
-    comment: '涨跌额',
+    comment: '涨跌额(元)',
   })
-  @ApiProperty({ description: '涨跌额' })
+  @ApiProperty({ description: '涨跌额(元)' })
   change: string;
 
   @Column({
@@ -133,9 +133,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: false,
-    comment: '涨跌幅',
+    comment: '涨跌幅(%)',
   })
-  @ApiProperty({ description: '涨跌幅' })
+  @ApiProperty({ description: '涨跌幅(%)' })
   pctChg: string;
 
   @Column({
@@ -144,9 +144,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: false,
-    comment: '成交量（手）',
+    comment: '成交量(手)',
   })
-  @ApiProperty({ description: '成交量（手）' })
+  @ApiProperty({ description: '成交量(手)' })
   vol: string;
 
   @Column({
@@ -155,9 +155,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: false,
-    comment: '成交额（千元）',
+    comment: '成交额(千元)',
   })
-  @ApiProperty({ description: '成交额（千元）' })
+  @ApiProperty({ description: '成交额(千元)' })
   amount: string;
 
   @Column({
@@ -166,9 +166,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: true,
-    comment: '换手率',
+    comment: '换手率(%)',
   })
-  @ApiProperty({ description: '换手率' })
+  @ApiProperty({ description: '换手率(%)' })
   turnoverRate?: string;
 
   @Column({
@@ -177,9 +177,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: true,
-    comment: '换手率（自由流通股）',
+    comment: '换手率(自由流通股)(%)',
   })
-  @ApiProperty({ description: '换手率（自由流通股）' })
+  @ApiProperty({ description: '换手率(自由流通股)(%)' })
   turnoverRateF?: string;
 
   @Column({
@@ -199,9 +199,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: true,
-    comment: '市盈率（总市值/总利润）',
+    comment: '市盈率(总市值/总利润)',
   })
-  @ApiProperty({ description: '市盈率（总市值/总利润）' })
+  @ApiProperty({ description: '市盈率(总市值/总利润)' })
   pe?: string;
 
   @Column({
@@ -210,9 +210,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: true,
-    comment: '市盈率（TTM）',
+    comment: '市盈率(TTM)',
   })
-  @ApiProperty({ description: '市盈率（TTM）' })
+  @ApiProperty({ description: '市盈率(TTM)' })
   peTtm?: string;
 
   @Column({
@@ -221,9 +221,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: true,
-    comment: '市净率（总市值/净资产）',
+    comment: '市净率(总市值/净资产)',
   })
-  @ApiProperty({ description: '市净率（总市值/净资产）' })
+  @ApiProperty({ description: '市净率(总市值/净资产)' })
   pb?: string;
 
   @Column({
@@ -243,9 +243,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: true,
-    comment: '市销率（TTM）',
+    comment: '市销率(TTM)',
   })
-  @ApiProperty({ description: '市销率（TTM）' })
+  @ApiProperty({ description: '市销率(TTM)' })
   psTtm?: string;
 
   @Column({
@@ -254,9 +254,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: true,
-    comment: '股息率（%）',
+    comment: '股息率(%)',
   })
-  @ApiProperty({ description: '股息率（%）' })
+  @ApiProperty({ description: '股息率(%)' })
   dvRatio?: string;
 
   @Column({
@@ -265,9 +265,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: true,
-    comment: '股息率（TTM）（%）',
+    comment: '股息率(TTM)(%)',
   })
-  @ApiProperty({ description: '股息率（TTM）（%）' })
+  @ApiProperty({ description: '股息率(TTM)(%)' })
   dvTtm?: string;
 
   @Column({
@@ -276,9 +276,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: true,
-    comment: '总股本（万股）',
+    comment: '总股本(万股)',
   })
-  @ApiProperty({ description: '总股本（万股）' })
+  @ApiProperty({ description: '总股本(万股)' })
   totalShare?: string;
 
   @Column({
@@ -287,9 +287,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: true,
-    comment: '流通股本（万股）',
+    comment: '流通股本(万股)',
   })
-  @ApiProperty({ description: '流通股本（万股）' })
+  @ApiProperty({ description: '流通股本(万股)' })
   floatShare?: string;
 
   @Column({
@@ -298,9 +298,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: true,
-    comment: '自由流通股本（万股）',
+    comment: '自由流通股本(万股)',
   })
-  @ApiProperty({ description: '自由流通股本（万股）' })
+  @ApiProperty({ description: '自由流通股本(万股)' })
   freeShare?: string;
 
   @Column({
@@ -309,9 +309,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: true,
-    comment: '总市值（万元）',
+    comment: '总市值(万元)',
   })
-  @ApiProperty({ description: '总市值（万元）' })
+  @ApiProperty({ description: '总市值(万元)' })
   totalMv?: string;
 
   @Column({
@@ -320,9 +320,9 @@ export class DailyEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: true,
-    comment: '流通市值（万元）',
+    comment: '流通市值(万元)',
   })
-  @ApiProperty({ description: '流通市值（万元）' })
+  @ApiProperty({ description: '流通市值(万元)' })
   circMv?: string;
 
   /**

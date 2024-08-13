@@ -21,56 +21,56 @@ export class DailyDto extends PartialType(DailyEntity) {
   @IsDateString()
   tradeDate: string;
 
-  @ApiProperty({ description: '涨停价' })
+  @ApiProperty({ description: '涨停价(元)' })
   @IsString()
   upLimit: string;
 
-  @ApiProperty({ description: '跌停价' })
+  @ApiProperty({ description: '跌停价(元)' })
   @IsString()
   downLimit: string;
 
-  @ApiProperty({ description: '开盘价' })
+  @ApiProperty({ description: '开盘价(元)' })
   @IsString()
   open: string;
 
-  @ApiProperty({ description: '最高价' })
+  @ApiProperty({ description: '最高价(元)' })
   @IsString()
   high: string;
 
-  @ApiProperty({ description: '最低价' })
+  @ApiProperty({ description: '最低价(元)' })
   @IsString()
   low: string;
 
-  @ApiProperty({ description: '收盘价' })
+  @ApiProperty({ description: '收盘价(元)' })
   @IsString()
   close: string;
 
-  @ApiProperty({ description: '昨收价' })
+  @ApiProperty({ description: '昨收价(元)' })
   @IsString()
   preClose: string;
 
-  @ApiProperty({ description: '涨跌额' })
+  @ApiProperty({ description: '涨跌额(元)' })
   @IsString()
   change: string;
 
-  @ApiProperty({ description: '涨跌幅' })
+  @ApiProperty({ description: '涨跌幅(%)' })
   @IsString()
   pctChg: string;
 
-  @ApiProperty({ description: '成交量（手）' })
+  @ApiProperty({ description: '成交量(手)' })
   @IsString()
   vol: string;
 
-  @ApiProperty({ description: '成交额（千元）' })
+  @ApiProperty({ description: '成交额(千元)' })
   @IsString()
   amount: string;
 
-  @ApiProperty({ description: '换手率' })
+  @ApiProperty({ description: '换手率(%)' })
   @IsOptional()
   @IsString()
   turnoverRate?: string;
 
-  @ApiProperty({ description: '换手率（自由流通股）' })
+  @ApiProperty({ description: '换手率(自由流通股)(%)' })
   @IsOptional()
   @IsString()
   turnoverRateF?: string;
@@ -80,17 +80,17 @@ export class DailyDto extends PartialType(DailyEntity) {
   @IsString()
   volumeRatio?: string;
 
-  @ApiProperty({ description: '市盈率（总市值/总利润）' })
+  @ApiProperty({ description: '市盈率(总市值/总利润)' })
   @IsOptional()
   @IsString()
   pe?: string;
 
-  @ApiProperty({ description: '市盈率（TTM）' })
+  @ApiProperty({ description: '市盈率(TTM)' })
   @IsOptional()
   @IsString()
   peTtm?: string;
 
-  @ApiProperty({ description: '市净率（总市值/净资产）' })
+  @ApiProperty({ description: '市净率(总市值/净资产)' })
   @IsOptional()
   @IsString()
   pb?: string;
@@ -100,38 +100,38 @@ export class DailyDto extends PartialType(DailyEntity) {
   @IsString()
   ps?: string;
 
-  @ApiProperty({ description: '市销率（TTM）' })
+  @ApiProperty({ description: '市销率(TTM)' })
   @IsOptional()
   @IsString()
   psTtm?: string;
 
-  @ApiProperty({ description: '股息率（%）' })
+  @ApiProperty({ description: '股息率(%)' })
   @IsOptional()
   dvRatio?: string;
 
-  @ApiProperty({ description: '股息率（TTM）（%）' })
+  @ApiProperty({ description: '股息率(TTM)(%)' })
   @IsString()
   dvTtm?: string;
 
-  @ApiProperty({ description: '总股本（万股）' })
+  @ApiProperty({ description: '总股本(万股)' })
   @IsOptional()
   totalShare?: string;
 
-  @ApiProperty({ description: '流通股本（万股）' })
+  @ApiProperty({ description: '流通股(万股)' })
   @IsString()
   floatShare?: string;
 
-  @ApiProperty({ description: '自由流通股本（万股）' })
+  @ApiProperty({ description: '自由流通股本(万股)' })
   @IsOptional()
   @IsString()
   freeShare?: string;
 
-  @ApiProperty({ description: '总市值（万元）' })
+  @ApiProperty({ description: '总市值(万元)' })
   @IsOptional()
   @IsString()
   totalMv?: string;
 
-  @ApiProperty({ description: '流通市值（万元）' })
+  @ApiProperty({ description: '流通市值(万元)' })
   @IsOptional()
   @IsString()
   circMv?: string;
