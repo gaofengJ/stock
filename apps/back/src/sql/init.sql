@@ -16,9 +16,9 @@ CREATE TABLE `t_processed_senti` (
   `d` int NOT NULL COMMENT '前一日涨停，非一字涨停，非ST，当日上涨',
   `e` int NOT NULL COMMENT '当日曾涨停，非ST',
   `senti_a` decimal(16,2) NOT NULL COMMENT '非一字涨停',
-  `senti_b` decimal(16,2) NOT NULL COMMENT '打板高开率',
-  `senti_c` decimal(16,2) NOT NULL COMMENT '打板成功率',
-  `senti_d` decimal(16,2) NOT NULL COMMENT '打板被砸率',
+  `senti_b` decimal(16,2) NOT NULL COMMENT '打板高开率(%)',
+  `senti_c` decimal(16,2) NOT NULL COMMENT '打板成功率(%)',
+  `senti_d` decimal(16,2) NOT NULL COMMENT '打板被砸率(%)',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='赚钱效应表';
 

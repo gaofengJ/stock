@@ -84,9 +84,9 @@ export class SentiEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: false,
-    comment: '打板高开率',
+    comment: '打板高开率(%)',
   })
-  @ApiProperty({ description: '打板高开率' })
+  @ApiProperty({ description: '打板高开率(%)' })
   sentiB: string;
 
   @Column({
@@ -95,9 +95,9 @@ export class SentiEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: false,
-    comment: '打板成功率',
+    comment: '打板成功率(%)',
   })
-  @ApiProperty({ description: '打板成功率' })
+  @ApiProperty({ description: '打板成功率(%)' })
   sentiC: string;
 
   @Column({
@@ -106,8 +106,8 @@ export class SentiEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: false,
-    comment: '打板被砸率',
+    comment: '打板被砸率(%)',
   })
-  @ApiProperty({ description: '打板被砸率' })
+  @ApiProperty({ description: '打板被砸率(%)' })
   sentiD: string;
 }

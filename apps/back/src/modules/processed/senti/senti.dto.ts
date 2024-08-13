@@ -41,15 +41,15 @@ export class SentiDto extends PartialType(SentiEntity) {
   @IsString()
   sentiA: string;
 
-  @ApiProperty({ description: '打板高开率' })
+  @ApiProperty({ description: '打板高开率(%)' })
   @IsString()
   sentiB: string;
 
-  @ApiProperty({ description: '打板成功率' })
+  @ApiProperty({ description: '打板成功率(%)' })
   @IsString()
   sentiC: string;
 
-  @ApiProperty({ description: '打板被砸率' })
+  @ApiProperty({ description: '打板被砸率(%)' })
   @IsString()
   sentiD: string;
 }
