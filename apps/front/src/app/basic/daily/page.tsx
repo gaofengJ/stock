@@ -119,7 +119,7 @@ function BasicDailyPage() {
         <Table
           dataSource={dailyData.items}
           columns={dailyColumns}
-          scroll={{ x: 6000, y: 'calc(100vh - 296px)' }}
+          scroll={{ x: 4000, y: 'calc(100vh - 296px)' }}
           loading={loading}
           pagination={{
             pageSize: searchParams.pageSize,

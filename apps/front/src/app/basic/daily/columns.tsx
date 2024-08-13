@@ -12,19 +12,12 @@ export const dailyColumns: ColumnsType = [
     key: 'tsCode',
     fixed: 'left',
     width: 120,
-    render: (val) => val.split('.')[0],
   },
   {
     title: '股票名称',
     dataIndex: 'name',
     key: 'name',
     fixed: 'left',
-    width: 120,
-  },
-  {
-    title: '交易日期',
-    dataIndex: 'tradeDate',
-    key: 'tradeDate',
     width: 120,
   },
   {
@@ -88,10 +81,10 @@ export const dailyColumns: ColumnsType = [
     render: renderEmptyField,
   },
   {
-    title: '成交额(千元)',
+    title: '成交额(万元)',
     dataIndex: 'amount',
     key: 'amount',
-    render: renderEmptyField,
+    render: (val) => ((val / 10).toFixed(2)),
   },
   {
     title: '换手率(%)',
@@ -103,6 +96,7 @@ export const dailyColumns: ColumnsType = [
     title: '换手率(自由流通股)(%)',
     dataIndex: 'turnoverRateF',
     key: 'turnoverRateF',
+    ellipsis: true,
     render: renderEmptyField,
   },
   {
@@ -115,6 +109,7 @@ export const dailyColumns: ColumnsType = [
     title: '市盈率(总市值/总利润)',
     dataIndex: 'pe',
     key: 'pe',
+    ellipsis: true,
     render: renderEmptyField,
   },
   {
@@ -127,6 +122,7 @@ export const dailyColumns: ColumnsType = [
     title: '市净率(总市值/净资产)',
     dataIndex: 'pb',
     key: 'pb',
+    ellipsis: true,
     render: renderEmptyField,
   },
   {
@@ -151,6 +147,7 @@ export const dailyColumns: ColumnsType = [
     title: '股息率(TTM)(%)',
     dataIndex: 'dvTtm',
     key: 'dvTtm',
+    ellipsis: true,
     render: renderEmptyField,
   },
   {
@@ -169,18 +166,19 @@ export const dailyColumns: ColumnsType = [
     title: '自由流通股本(万股)',
     dataIndex: 'freeShare',
     key: 'freeShare',
+    ellipsis: true,
     render: renderEmptyField,
   },
   {
-    title: '总市值(万元)',
+    title: '总市值(亿元)',
     dataIndex: 'totalMv',
     key: 'totalMv',
-    render: renderEmptyField,
+    render: (val) => (val / 10000).toFixed(2),
   },
   {
-    title: '流通市值(万元)',
+    title: '流通市值(亿元)',
     dataIndex: 'circMv',
     key: 'circMv',
-    render: renderEmptyField,
+    render: (val) => (val / 10000).toFixed(2),
   },
 ];
