@@ -14,7 +14,7 @@ export const useStockFilterConfigs = (): IFormItemProps[] => [
       format: 'YYYY-MM-DD',
       allowClear: false,
       style: {
-        width: 120,
+        width: 128,
       },
     },
   },
