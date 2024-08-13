@@ -17,6 +17,7 @@ import { NSGetAnalysisLimitsLimitUpList } from '@/api/services.types';
 
 import { useLimitsFilterConfigs } from './form-configs';
 import { limitsColumns } from './columns';
+import './limits.sass';
 
 function AnalysisLimitsPage() {
   const limitsFilterConfigs = useLimitsFilterConfigs();
@@ -102,8 +103,10 @@ function AnalysisLimitsPage() {
           />
         </div>
         <Table
+          rootClassName="analysis-limits-table"
           dataSource={limitsData.items}
           columns={limitsColumns}
+          bordered
           scroll={{ y: 'calc(100vh - 232px)' }}
           loading={loading}
           pagination={false}

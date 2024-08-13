@@ -19,6 +19,7 @@ export class LimitsService {
       tradeDate,
       limit: ELimit.U,
     });
+    ret.items.sort((a, b) => b.limitTimes - a.limitTimes);
     return ret;
   }
 }
