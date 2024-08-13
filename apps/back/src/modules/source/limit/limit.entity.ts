@@ -55,9 +55,9 @@ export class LimitEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: false,
-    comment: '收盘价',
+    comment: '收盘价(元)',
   })
-  @ApiProperty({ description: '收盘价' })
+  @ApiProperty({ description: '收盘价(元)' })
   close: string;
 
   @Column({
@@ -66,9 +66,9 @@ export class LimitEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: false,
-    comment: '涨跌幅',
+    comment: '涨跌幅(%)',
   })
-  @ApiProperty({ description: '涨跌幅' })
+  @ApiProperty({ description: '涨跌幅(%)' })
   pctChg: string;
 
   @Column({
@@ -77,9 +77,9 @@ export class LimitEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: true,
-    comment: '成交额（千元）',
+    comment: '成交额(元)',
   })
-  @ApiProperty({ description: '成交额（千元）' })
+  @ApiProperty({ description: '成交额(元)' })
   amount: string;
 
   @Column({
@@ -88,9 +88,9 @@ export class LimitEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: true,
-    comment: '板上成交额（千元）',
+    comment: '板上成交额(元)',
   })
-  @ApiProperty({ description: '板上成交额（千元）' })
+  @ApiProperty({ description: '板上成交额(元)' })
   limitAmount: string;
 
   @Column({
@@ -99,9 +99,9 @@ export class LimitEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: true,
-    comment: '流通市值',
+    comment: '流通市值(元)',
   })
-  @ApiProperty({ description: '流通市值' })
+  @ApiProperty({ description: '流通市值(元)' })
   floatMv: string;
 
   @Column({
@@ -110,9 +110,9 @@ export class LimitEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: true,
-    comment: '总市值',
+    comment: '总市值(元)',
   })
-  @ApiProperty({ description: '总市值' })
+  @ApiProperty({ description: '总市值(元)' })
   totalMv: string;
 
   @Column({
@@ -121,9 +121,9 @@ export class LimitEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: true,
-    comment: '换手率',
+    comment: '换手率(%)',
   })
-  @ApiProperty({ description: '换手率' })
+  @ApiProperty({ description: '换手率(%)' })
   turnoverRatio: string;
 
   @Column({
@@ -132,9 +132,9 @@ export class LimitEntity extends CommonEntity {
     precision: 16,
     scale: 2,
     nullable: true,
-    comment: '封单金额',
+    comment: '封单金额(元)',
   })
-  @ApiProperty({ description: '封单金额' })
+  @ApiProperty({ description: '封单金额(元)' })
   fdAmount: string;
 
   @Column({

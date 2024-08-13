@@ -27,40 +27,40 @@ export class LimitDto {
   @IsString()
   industry?: string;
 
-  @ApiProperty({ description: '收盘价' })
+  @ApiProperty({ description: '收盘价(元)' })
   @IsString()
   close: string;
 
-  @ApiProperty({ description: '涨跌幅' })
+  @ApiProperty({ description: '涨跌幅(%)' })
   @IsString()
   pctChg: string;
 
-  @ApiProperty({ description: '成交额（千元）' })
+  @ApiProperty({ description: '成交额(元)' })
   @IsOptional()
   @IsString()
   amount?: string;
 
-  @ApiProperty({ description: '板上成交额（千元）' })
+  @ApiProperty({ description: '板上成交额(元)' })
   @IsOptional()
   @IsString()
   limitAmount?: string;
 
-  @ApiProperty({ description: '流通市值' })
+  @ApiProperty({ description: '流通市值(元)' })
   @IsOptional()
   @IsString()
   floatMv?: string;
 
-  @ApiProperty({ description: '总市值' })
+  @ApiProperty({ description: '总市值(元)' })
   @IsOptional()
   @IsString()
   totalMv?: string;
 
-  @ApiProperty({ description: '换手率' })
+  @ApiProperty({ description: '换手率(%)' })
   @IsOptional()
   @IsString()
   turnoverRatio?: string;
 
-  @ApiProperty({ description: '封单金额' })
+  @ApiProperty({ description: '封单金额(元)' })
   @IsOptional()
   @IsString()
   fdAmount?: string;

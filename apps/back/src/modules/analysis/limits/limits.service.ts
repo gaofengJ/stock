@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { LimitService as SourceLimitService } from '@/modules/source/limit/limit.service';
 import { LimitQueryDto } from '@/modules/source/limit/limit.dto';
+import { ELimit } from '@/modules/source/limit/limit.enum';
 
 @Injectable()
 export class LimitsService {
@@ -16,6 +17,7 @@ export class LimitsService {
       pageNum: 1,
       pageSize: 10000,
       tradeDate,
+      limit: ELimit.U,
     });
     return ret;
   }
