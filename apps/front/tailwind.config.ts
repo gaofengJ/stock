@@ -6,7 +6,7 @@ interface Spacing {
 }
 
 const colorsConfig = {
-  'primary-default': EThemeColors.colorRed,
+  'primary-default': EThemeColors.colorPinkRed,
   'bg-base': EThemeColors.colorGrey,
   'bg-white': EThemeColors.colorWhite,
 };

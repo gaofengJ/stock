@@ -12,14 +12,14 @@ import {
 
 export const themeConfig: ThemeConfig = {
   token: {
-    colorPrimary: EThemeColors.colorRed,
+    colorPrimary: EThemeColors.colorPinkRed,
   },
   components: {
     Layout: {
       headerBg: EThemeColors.colorWhite,
       headerPadding: '0 16px',
       triggerBg: EThemeColors.colorWhite,
-      triggerColor: EThemeColors.colorRed,
+      triggerColor: EThemeColors.colorPinkRed,
     },
   },
   algorithm: theme.defaultAlgorithm,
