@@ -1,32 +1,49 @@
 import React, { useState, useEffect, useCallback } from 'react';
+
+import dayjs from 'dayjs';
+import { debounce } from 'lodash-es';
+import { getAnalysisChainsCountLimitUpTimes } from '@/api/services';
+import { NSGetAnalysisChainsCountLimitUpTimes } from '@/api/services.types';
+
 import CChart from '@/components/CChart';
-import { EThemeColors } from '@/types/common.enum';
 
 interface IProps {
-  date: string
+  dateRange: string[];
 }
 
-const CountLimit2 = ({ date }: IProps) => {
-  const [statisticslist, setStatisticslist] = useState<Record<string, any>[]>(
-    [],
-  );
+/**
+ * 连板数
+ */
+const LIMIT_TIMES = 2;
 
-  const getStatistics = useCallback(async () => {
+const CountLimit2 = ({
+  dateRange,
+}: IProps) => {
+  const [sourceData, setSourceData] = useState<NSGetAnalysisChainsCountLimitUpTimes.IRes>([]);
+
+  const getChainsCount = useCallback(async () => {
     try {
-      // const { list } = await ANALYSISAPI.getStatistics({
-      //   date,
-      // });
-      console.log('date', date);
-      const list: any[] = [];
-      setStatisticslist(list);
+      const [startDate, endDate] = dateRange;
+      const { data } = await getAnalysisChainsCountLimitUpTimes({
+        startDate,
+        endDate,
+        limitTimes: LIMIT_TIMES,
+      });
+      setSourceData(data);
     } catch (e) {
       console.info(e);
     }
-  }, [date]);
+  }, [dateRange]);
 
   useEffect(() => {
-    getStatistics();
-  });
+    const debounceGetChainsCount = debounce(getChainsCount, 300);
+    debounceGetChainsCount();
+
+    // 清理函数以防止在组件卸载时继续调用
+    return () => {
+      debounceGetChainsCount.cancel();
+    };
+  }, [getChainsCount]);
 
   const getOptions = () => ({
     grid: {
@@ -37,8 +54,8 @@ const CountLimit2 = ({ date }: IProps) => {
       containLabel: true, // grid 区域是否包含坐标轴的刻度标签(为true时left，right等属性决定包含坐标轴标签在内的矩形的位置)
     },
     title: {
-      text: '个股涨跌统计',
-      show: false,
+      text: `${LIMIT_TIMES}连板数量`,
+      show: true,
       top: 8,
       left: 8,
     },
@@ -49,7 +66,7 @@ const CountLimit2 = ({ date }: IProps) => {
         interval: 0,
         rotate: 45, // 倾斜度 -90 至 90 默认为0
       },
-      data: statisticslist.map((item: Record<string, any>) => item.key),
+      data: sourceData.map((item: Record<string, any>) => dayjs(item.tradeDate).format('MM-DD')),
     },
     yAxis: {
       type: 'value',
@@ -74,21 +91,10 @@ const CountLimit2 = ({ date }: IProps) => {
     },
     series: [
       {
-        type: 'bar',
+        type: 'line',
         itemStyle: {
-          normal: {
-            color(params: Record<string, any>) {
-              if (params.dataIndex > 10) {
-                return EThemeColors.colorViolet;
-              }
-              if (params.dataIndex < 10) {
-                return EThemeColors.colorOrange;
-              }
-              return EThemeColors.colorLightGreen;
-            },
-          },
         },
-        data: statisticslist.map((item: Record<string, any>) => item.value),
+        data: sourceData.map((item: Record<string, any>) => item.count),
       },
     ],
   });
