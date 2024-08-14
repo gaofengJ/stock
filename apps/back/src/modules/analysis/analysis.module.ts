@@ -2,10 +2,11 @@ import { Module } from '@nestjs/common';
 
 import { RouterModule } from '@nestjs/core';
 
+import { ChainsModule } from './chains/chains.module';
 import { LimitsModule } from './limits/limits.module';
 import { SentiModule } from './senti/senti.module';
 
-const modules = [LimitsModule, SentiModule];
+const modules = [ChainsModule, LimitsModule, SentiModule];
 
 @Module({
   imports: [

@@ -3,6 +3,7 @@ import {
   IsDateString,
   IsEnum,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
 } from 'class-validator';
@@ -109,9 +110,17 @@ export class LimitQueryDto extends PagerDto {
   @IsDateString()
   tradeDate?: string;
 
+  @ApiProperty({ description: '过滤字段' })
+  @IsOptional()
+  fields?: string[];
+
   @ApiProperty({ description: 'D跌停，U涨停，Z炸板' })
   @IsEnum(ELimit)
   limit?: string;
+
+  @ApiProperty({ description: '连板数' })
+  @IsNumber()
+  limitTimes?: number;
 
   @ApiProperty({ description: '开始时间' })
   @IsDateString()

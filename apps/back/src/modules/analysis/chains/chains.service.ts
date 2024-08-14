@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { LimitService as SourceLimitService } from '@/modules/source/limit/limit.service';
 import { ELimit } from '@/modules/source/limit/limit.enum';
-import { ChainsCountDto, ChainsUpgradeDto } from './chains.dto';
+import {
+  ChainsCountLimitUpTimesQueryDto,
+  ChainsUpgradeDto,
+} from './chains.dto';
 
 @Injectable()
 export class ChainsService {
@@ -10,17 +13,17 @@ export class ChainsService {
   constructor(private limitService: SourceLimitService) {}
 
   /**
-   * 涨跌停统计
+   * n连板数量统计
    */
-  async countLimitUps(dto: ChainsCountDto) {
-    const ret = await this.limitService.list({
+  async countLimitUpTimes(dto: ChainsCountLimitUpTimesQueryDto) {
+    const ret = await this.limitService.countTimes({
       pageNum: 1,
       pageSize: 10000,
       startDate: dto.startDate,
       endDate: dto.endDate,
       limit: ELimit.U,
+      limitTimes: dto.limitTimes,
     });
-    ret.items.sort((a, b) => b.limitTimes - a.limitTimes);
     return ret;
   }
 

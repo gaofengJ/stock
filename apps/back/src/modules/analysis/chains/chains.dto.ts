@@ -1,10 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsDateString, IsNumber } from 'class-validator';
 
-/**
- * @description 数据传输对象
- */
-export class ChainsCountDto {
+export class ChainsCountLimitUpTimesQueryDto {
   @ApiProperty({ description: '开始日期' })
   @IsDateString()
   startDate: string;
@@ -15,7 +12,7 @@ export class ChainsCountDto {
 
   @ApiProperty({ description: '连板数量' })
   @IsNumber()
-  countNum: number;
+  limitTimes: number;
 }
 
 /**

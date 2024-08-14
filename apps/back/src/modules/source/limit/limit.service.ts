@@ -2,9 +2,11 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Like, Repository } from 'typeorm';
 
+import * as dayjs from 'dayjs';
 import { paginate } from '@/helper/paginate/index';
 import { Pagination } from '@/helper/paginate/pagination';
 import { Order } from '@/dto/pager.dto';
+import { ChainsCountLimitUpTimesEntity } from '@/modules/analysis/chains/chains.entity';
 
 import { LimitEntity } from './limit.entity';
 import { LimitDto, LimitQueryDto, LimitUpdateDto } from './limit.dto';
@@ -19,27 +21,66 @@ export class LimitService {
   async list({
     pageNum,
     pageSize,
-    field = 'ts_code',
+    orderField = 'ts_code',
     order = Order.ASC,
+    fields,
     tsCode,
     name,
     limit,
+    limitTimes,
     tradeDate,
     startDate,
     endDate,
   }: LimitQueryDto): Promise<Pagination<LimitEntity>> {
-    const queryBuilder = this.LimitRepository.createQueryBuilder(
-      't_source_limit',
-    )
+    let queryBuilder =
+      this.LimitRepository.createQueryBuilder('t_source_limit');
+    if (fields?.length) {
+      queryBuilder = queryBuilder.select(
+        fields.map((i: string) => `t_source_limit.${i}`),
+      );
+    }
+    queryBuilder = queryBuilder
       .where({
         ...(tsCode && { tsCode: Like(`%${tsCode}%`) }),
         ...(name && { name: Like(`%${name}%`) }),
         ...(limit && { limit }),
+        ...(limitTimes && { limitTimes }),
         ...(tradeDate && { tradeDate }),
         ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
       })
-      .orderBy(field, order);
+      .orderBy(orderField, order);
     return paginate(queryBuilder, { pageNum, pageSize });
+  }
+
+  /**
+   * 连日 n 连板数量统计
+   */
+  async countTimes({
+    orderField = 'trade_date',
+    order = Order.ASC,
+    limit = 'U',
+    limitTimes,
+    startDate,
+    endDate,
+  }: LimitQueryDto): Promise<ChainsCountLimitUpTimesEntity[]> {
+    let ret = await this.LimitRepository.createQueryBuilder('t_source_limit')
+      .select([
+        't_source_limit.tradeDate AS tradeDate',
+        'COUNT(t_source_limit.tradeDate) as count',
+      ])
+      .where({
+        ...(limit && { limit }),
+        ...(limitTimes && { limitTimes }),
+        ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
+      })
+      .groupBy('t_source_limit.tradeDate')
+      .orderBy(orderField, order)
+      .getRawMany();
+    ret = ret.map((i) => ({
+      tradeDate: dayjs(i.tradeDate).format('YYYY-MM-DD'),
+      count: +i.count,
+    }));
+    return ret;
   }
 
   async detail(id: number): Promise<LimitEntity> {

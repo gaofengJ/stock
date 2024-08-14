@@ -53,7 +53,7 @@ export class PagerDto {
   @ApiProperty()
   @IsString()
   @IsOptional()
-  field?: string; // 定义可选的 field 属性，表示排序字段
+  orderField?: string; // 定义可选的 orderField 属性，表示排序字段
 
   @ApiProperty({ enum: Order })
   @IsEnum(Order)

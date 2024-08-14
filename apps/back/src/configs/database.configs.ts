@@ -21,6 +21,7 @@ const dataSourceOptions: DataSourceOptions = {
   password: getEnvConfigString('DB_PASSWORD'),
   database: getEnvConfigString('DB_DATABASE'),
   charset: 'utf8mb4_general_ci',
+  timezone: 'Z', // 设置为UTC时间，避免取数据时转成东八区时间导致时间错误
   synchronize: getEnvConfigBoolean('DB_SYNCHRONIZE', false),
   extra: {
     connectionLimit: 20, // 设置连接池的最大连接数
