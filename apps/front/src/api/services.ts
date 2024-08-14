@@ -6,11 +6,26 @@
 import axios from './request';
 import type { RequestConfig } from './types';
 import type {
+  NSGetAnalysisChainsCountLimitUpTimes,
   NSGetAnalysisLimitsLimitUpList,
   NSGetBasicDailyList,
   NSGetBasicStockList,
   NSGetCommonAllOptions,
 } from './services.types.ts';
+/**
+ * 接口名称：n连板数量统计
+ *
+ * @description 接口路径：/analysis/chains/count-limit-up-times
+ * @description 接口分组：数据分析
+ */
+export const getAnalysisChainsCountLimitUpTimes = (
+  params: NSGetAnalysisChainsCountLimitUpTimes.IParams,
+  config: RequestConfig = {},
+) =>
+  axios.get<NSGetAnalysisChainsCountLimitUpTimes.IRes>('/analysis/chains/count-limit-up-times', {
+    params,
+    ...config,
+  });
 /**
  * 接口名称：涨停板复盘
  *

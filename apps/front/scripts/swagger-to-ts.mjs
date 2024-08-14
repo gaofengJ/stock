@@ -11,6 +11,7 @@ run.default({
     /**
      * 数据分析
      */
+    '/api/analysis/chains/count-limit-up-times', // n 连板数量统计
     '/api/analysis/limits/limit-up-list', // 涨停板复盘
     /**
      * 基础数据
