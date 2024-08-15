@@ -11,3 +11,15 @@ export class ChainsCountLimitUpTimesEntity {
   })
   count: number;
 }
+
+export class ChainsUpgradeLimitUpRatesEntity {
+  @ApiProperty({
+    description: '交易日期',
+  })
+  tradeDate: string;
+
+  @ApiProperty({
+    description: '计数',
+  })
+  rate: number;
+}

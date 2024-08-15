@@ -11,7 +11,8 @@ import {
 } from '@/components/Layout/enum';
 import CSearchForm from '@/components/common/CSearchForm';
 import { useLimitsFilterConfigs } from './form-configs';
-import CountLimit2 from './components/CountLimit2';
+import CountLimitUp2 from './components/CountLimitUp2';
+import RateLimitUp1to2 from './components/RateLimitUp1to2';
 
 function AnalysisChainsPage() {
   // searchParams 的初始值
@@ -87,9 +88,11 @@ function AnalysisChainsPage() {
         </div>
         <Row align="middle" gutter={[16, 32]} justify="space-around">
           <Col xl={{ span: 12 }}>
-            <CountLimit2 dateRange={searchParams.dateRange} />
+            <CountLimitUp2 dateRange={searchParams.dateRange} />
           </Col>
-          <Col xl={{ span: 12 }}>{/* <UpNum /> */}</Col>
+          <Col xl={{ span: 12 }}>
+            <RateLimitUp1to2 dateRange={searchParams.dateRange} />
+          </Col>
           <Col xl={{ span: 12 }}>{/* <Sentiment /> */}</Col>
           <Col xl={{ span: 12 }}>{/* <Limits /> */}</Col>
         </Row>

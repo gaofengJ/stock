@@ -7,6 +7,7 @@ import axios from './request';
 import type { RequestConfig } from './types';
 import type {
   NSGetAnalysisChainsCountLimitUpTimes,
+  NSGetAnalysisChainsUpgradeLimitUpRates,
   NSGetAnalysisLimitsLimitUpList,
   NSGetBasicDailyList,
   NSGetBasicStockList,
@@ -26,6 +27,20 @@ export const getAnalysisChainsCountLimitUpTimes = (
     params,
     ...config,
   });
+/**
+ * 接口名称：连板晋级成功率
+ *
+ * @description 接口路径：/analysis/chains/upgrade-limit-up-rates
+ * @description 接口分组：数据分析
+ */
+export const getAnalysisChainsUpgradeLimitUpRates = (
+  params: NSGetAnalysisChainsUpgradeLimitUpRates.IParams,
+  config: RequestConfig = {},
+) =>
+  axios.get<NSGetAnalysisChainsUpgradeLimitUpRates.IRes>(
+    '/analysis/chains/upgrade-limit-up-rates',
+    { params, ...config },
+  );
 /**
  * 接口名称：涨停板复盘
  *

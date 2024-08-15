@@ -18,7 +18,7 @@ interface IProps {
  */
 const LIMIT_TIMES = 2;
 
-const CountLimit2 = ({ dateRange }: IProps) => {
+const CountLimitUp2 = ({ dateRange }: IProps) => {
   const [sourceData, setSourceData] = useState<NSGetAnalysisChainsCountLimitUpTimes.IRes>([]);
 
   /**
@@ -130,4 +130,4 @@ const CountLimit2 = ({ dateRange }: IProps) => {
   return <CChart genOptions={genOptions} />;
 };
 
-export default CountLimit2;
+export default CountLimitUp2;

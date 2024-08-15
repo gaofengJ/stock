@@ -27,7 +27,7 @@ export class ChainsUpgradeDto {
   @IsDateString()
   endDate: string;
 
-  @ApiProperty({ description: '晋级连板数量' })
+  @ApiProperty({ description: '连板晋级成功率' })
   @IsNumber()
   upgradeNum: number;
 }
