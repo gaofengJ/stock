@@ -6,9 +6,11 @@ import { getAnalysisChainsCountLimitUpTimes } from '@/api/services';
 import { NSGetAnalysisChainsCountLimitUpTimes } from '@/api/services.types';
 
 import CChart from '@/components/CChart';
+import { EThemeColors } from '@/types/common.enum';
+import { getRoundedMax } from '@/utils';
 
 interface IProps {
-  dateRange: string[];
+  dateRange: string[]; // 起止时间
 }
 
 /**
@@ -16,11 +18,12 @@ interface IProps {
  */
 const LIMIT_TIMES = 2;
 
-const CountLimit2 = ({
-  dateRange,
-}: IProps) => {
+const CountLimit2 = ({ dateRange }: IProps) => {
   const [sourceData, setSourceData] = useState<NSGetAnalysisChainsCountLimitUpTimes.IRes>([]);
 
+  /**
+   * 获取数据
+   */
   const getChainsCount = useCallback(async () => {
     try {
       const [startDate, endDate] = dateRange;
@@ -45,60 +48,86 @@ const CountLimit2 = ({
     };
   }, [getChainsCount]);
 
-  const getOptions = () => ({
+  /**
+   * 生成 echarts options
+   */
+  const genOptions = () => ({
     grid: {
-      top: '80',
-      left: '24',
-      right: '24',
+      top: '48',
       bottom: '0',
+      left: '16',
+      right: '16',
       containLabel: true, // grid 区域是否包含坐标轴的刻度标签(为true时left，right等属性决定包含坐标轴标签在内的矩形的位置)
     },
     title: {
       text: `${LIMIT_TIMES}连板数量`,
       show: true,
-      top: 8,
+      top: 0,
       left: 8,
+      textStyle: {
+        color: EThemeColors.colorPinkRed78,
+        fontWeight: 'bold',
+        fontSize: 20,
+      },
     },
     xAxis: {
       type: 'category', // 类目轴
+      boundaryGap: false, // 确保坐标轴起始位置对齐到刻度线
       axisLabel: {
         // x轴坐标样式
         interval: 0,
+        align: 'center', // 标签对齐方式
         rotate: 45, // 倾斜度 -90 至 90 默认为0
+        margin: 20, // 标签距离刻度距离
       },
-      data: sourceData.map((item: Record<string, any>) => dayjs(item.tradeDate).format('MM-DD')),
+      data: sourceData.map((item) => dayjs(item.tradeDate).format('MM-DD')),
     },
     yAxis: {
       type: 'value',
-      interval: 200,
+      min: 0,
+      max: getRoundedMax(sourceData.map((item) => item.count)),
+      interval: getRoundedMax(sourceData.map((item) => item.count)) / 5,
     },
     tooltip: {
       trigger: 'axis',
-      axisPointer: {
-        type: 'shadow',
-      },
-      padding: 8,
-      borderWidth: 0,
     },
     toolbox: {
       feature: {
         saveAsImage: {
           title: '保存为图片',
+          iconStyle: {
+            color: EThemeColors.colorTransparent,
+            borderColor: EThemeColors.colorPinkRed78,
+          },
+          emphasis: { // hover样式
+            iconStyle: {
+              color: EThemeColors.colorTransparent,
+              borderColor: EThemeColors.colorPinkRed78,
+              textFill: EThemeColors.colorPinkRed78,
+            },
+          },
         },
       },
-      top: 8,
+      top: 0,
       right: 8,
     },
     series: [
       {
         type: 'line',
         itemStyle: {
+          color: EThemeColors.colorPinkRed78,
         },
-        data: sourceData.map((item: Record<string, any>) => item.count),
+        label: {
+          show: true,
+          position: 'top',
+          formatter: '{c}',
+          color: EThemeColors.colorPinkRed78,
+        },
+        data: sourceData.map((item) => item.count),
       },
     ],
   });
-  return <CChart getOptions={getOptions} />;
+  return <CChart genOptions={genOptions} />;
 };
 
 export default CountLimit2;

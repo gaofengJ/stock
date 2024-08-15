@@ -40,4 +40,5 @@ export enum EThemeColors {
   colorBlack56 = 'rgba(37, 42, 52, 0.56)',
 
   colorWhite = 'rgba(255, 255, 255)',
+  colorTransparent = 'transparent',
 }

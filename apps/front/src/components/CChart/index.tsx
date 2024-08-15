@@ -84,7 +84,7 @@ echarts.use([
 ]);
 
 interface EchartsProps {
-  getOptions: () => EChartsOption;
+  genOptions: () => EChartsOption;
 }
 
 // 定义 CChart 组件
@@ -97,16 +97,16 @@ const CChart = (props: EchartsProps) => {
     }, 300);
   };
 
-  const { getOptions } = props;
+  const { genOptions } = props;
 
   // 返回 ECharts 图表组件
   return (
     <ReactEChartsCore
       echarts={echarts} // 传入 echarts 实例
-      option={getOptions()} // 设置图表的配置项
+      option={genOptions()} // 设置图表的配置项
       // notMerge // 可选，是否不跟之前设置的 option 进行合并，默认为 false
       lazyUpdate // 可选，在设置完 option 后是否不立即更新图表，默认为 false
-      style={{ width: '100%', height: '360px' }} // 设置图表样式
+      style={{ width: '100%', height: '320px' }} // 设置图表样式
       onChartReady={onChartReadyCallback} // 图表就绪回调
       // onEvents={EventsDict} // 可选，图表事件绑定
       opts={{ width: 'auto', height: 360 }} // 附加参数：设备像素比、渲染器、宽度、高度

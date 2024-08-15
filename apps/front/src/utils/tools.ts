@@ -45,3 +45,13 @@ export function parseJSON<T = any>(blobData: Blob): Promise<T> {
     };
   });
 }
+
+// 获取尾数为 0 或 5 的最大值
+export const getRoundedMax = (arr: number[]) => {
+  const maxVal = Math.max(...arr);
+  // 计算初始的最大值，增加 10% 以确保最大值大一点
+  const roundedMaxVal = Math.ceil(maxVal * 1.1 * 0.2) * 5;
+  // 如果最大值的尾数为 0，则返回该值
+  // 如果尾数为 5，则返回该值
+  return roundedMaxVal;
+};

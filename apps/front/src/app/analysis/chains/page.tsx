@@ -14,15 +14,48 @@ import { useLimitsFilterConfigs } from './form-configs';
 import CountLimit2 from './components/CountLimit2';
 
 function AnalysisChainsPage() {
-  const limitsFilterConfigs = useLimitsFilterConfigs();
-
   // searchParams 的初始值
   const initialSearchParams = {
-    dateRange: [dayjs().subtract(1, 'month').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')],
+    // 默认时间: [当前时间一个月, 当前时间]
+    dateRange: [
+      dayjs().subtract(1, 'month').format('YYYY-MM-DD'),
+      dayjs().format('YYYY-MM-DD'),
+    ],
   };
-  const [searchParams, setSearchParams] = useState(
-    initialSearchParams,
-  );
+  const [searchParams, setSearchParams] = useState(initialSearchParams);
+
+  /**
+   * dateRange 禁用时间
+   */
+  const disabledDate = (current: Dayjs) => {
+    const maxDiff = 90; // 最大日期差
+    if (!searchParams.dateRange.length) return false;
+    const [startDate, endDate] = searchParams.dateRange;
+    let tooEarly = false;
+    let tooLate = false;
+    if (startDate) {
+      tooEarly = current.diff(startDate, 'days') > maxDiff;
+    }
+    if (endDate) {
+      tooLate = dayjs(endDate).diff(current, 'days') > maxDiff;
+    }
+    return tooEarly || tooLate;
+  };
+
+  let limitsFilterConfigs = useLimitsFilterConfigs();
+  // 为 dateRange 添加禁用时间
+  limitsFilterConfigs = limitsFilterConfigs.map((i) => {
+    if (i.name === 'dateRange') {
+      return {
+        ...i,
+        attrs: {
+          ...i.attrs,
+          disabledDate,
+        },
+      };
+    }
+    return i;
+  });
 
   /**
    * 更新 searchParams 的值
@@ -47,7 +80,7 @@ function AnalysisChainsPage() {
             configs={limitsFilterConfigs}
             searchParams={{
               ...searchParams,
-              dateRange: searchParams.dateRange.map((i: string) => dayjs(i)),
+              dateRange: searchParams.dateRange.map((i) => dayjs(i)),
             }}
             setSearchParams={handleSetSearchParams}
           />
