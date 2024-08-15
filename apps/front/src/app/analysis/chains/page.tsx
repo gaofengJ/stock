@@ -93,8 +93,12 @@ function AnalysisChainsPage() {
           <Col xl={{ span: 12 }}>
             <RateLimitUp1to2 dateRange={searchParams.dateRange} />
           </Col>
-          <Col xl={{ span: 12 }}>{/* <Sentiment /> */}</Col>
-          <Col xl={{ span: 12 }}>{/* <Limits /> */}</Col>
+          <Col xl={{ span: 12 }}>
+            <CountLimitUp2 dateRange={searchParams.dateRange} />
+          </Col>
+          <Col xl={{ span: 12 }}>
+            <RateLimitUp1to2 dateRange={searchParams.dateRange} />
+          </Col>
         </Row>
       </div>
     </Layout>
