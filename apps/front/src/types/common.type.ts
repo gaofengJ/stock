@@ -33,7 +33,7 @@ export interface IFormItemProps extends FormItemProps {
   name: string;
   readonly?: boolean;
   attrs?: IComponentAttrs & {
-    [key: string]: string | number | boolean | CSSProperties | IOption[];
+    [key: string]: string | number | boolean | CSSProperties | IOption[] | any;
   };
   render?: (record: IFormItemProps) => ReactNode;
 }
