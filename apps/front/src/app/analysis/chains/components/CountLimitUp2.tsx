@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 
 import dayjs from 'dayjs';
 import { debounce } from 'lodash-es';
+import { Spin } from 'antd';
 import { getAnalysisChainsCountLimitUpTimes } from '@/api/services';
 import { NSGetAnalysisChainsCountLimitUpTimes } from '@/api/services.types';
 
@@ -19,6 +20,7 @@ interface IProps {
 const LIMIT_TIMES = 2;
 
 const CountLimitUp2 = ({ dateRange }: IProps) => {
+  const [loading, setLoading] = useState<boolean>(false);
   const [sourceData, setSourceData] = useState<NSGetAnalysisChainsCountLimitUpTimes.IRes>([]);
 
   /**
@@ -26,6 +28,7 @@ const CountLimitUp2 = ({ dateRange }: IProps) => {
    */
   const getChainsCount = useCallback(async () => {
     try {
+      setLoading(true);
       const [startDate, endDate] = dateRange;
       const { data } = await getAnalysisChainsCountLimitUpTimes({
         startDate,
@@ -35,6 +38,8 @@ const CountLimitUp2 = ({ dateRange }: IProps) => {
       setSourceData(data);
     } catch (e) {
       console.info(e);
+    } finally {
+      setLoading(false);
     }
   }, [dateRange]);
 
@@ -127,7 +132,7 @@ const CountLimitUp2 = ({ dateRange }: IProps) => {
       },
     ],
   });
-  return <CChart genOptions={genOptions} />;
+  return loading ? <Spin className="w-full h-320 !leading-[320px]" size="large" /> : <CChart genOptions={genOptions} />;
 };
 
 export default CountLimitUp2;

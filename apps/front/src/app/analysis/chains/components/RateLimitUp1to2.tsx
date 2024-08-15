@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 
 import dayjs from 'dayjs';
 import { debounce } from 'lodash-es';
+import { Spin } from 'antd';
 import { getAnalysisChainsUpgradeLimitUpRates } from '@/api/services';
 import { NSGetAnalysisChainsUpgradeLimitUpRates } from '@/api/services.types';
 
@@ -19,6 +20,7 @@ interface IProps {
 const UPGRADE_NUM = 2;
 
 const RateLimitUp1to2 = ({ dateRange }: IProps) => {
+  const [loading, setLoading] = useState<boolean>(false);
   const [sourceData, setSourceData] = useState<NSGetAnalysisChainsUpgradeLimitUpRates.IRes>([]);
 
   /**
@@ -26,6 +28,7 @@ const RateLimitUp1to2 = ({ dateRange }: IProps) => {
    */
   const getChainsRates = useCallback(async () => {
     try {
+      setLoading(true);
       const [startDate, endDate] = dateRange;
       const { data } = await getAnalysisChainsUpgradeLimitUpRates({
         startDate,
@@ -35,6 +38,8 @@ const RateLimitUp1to2 = ({ dateRange }: IProps) => {
       setSourceData(data);
     } catch (e) {
       console.info(e);
+    } finally {
+      setLoading(false);
     }
   }, [dateRange]);
 
@@ -127,7 +132,7 @@ const RateLimitUp1to2 = ({ dateRange }: IProps) => {
       },
     ],
   });
-  return <CChart genOptions={genOptions} />;
+  return loading ? <Spin className="w-full h-320 !leading-[320px]" size="large" /> : <CChart genOptions={genOptions} />;
 };
 
 export default RateLimitUp1to2;
