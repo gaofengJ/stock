@@ -3,8 +3,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import dayjs from 'dayjs';
 import { debounce } from 'lodash-es';
 import { Spin } from 'antd';
-import { getAnalysisChainsUpgradeLimitUpRates } from '@/api/services';
-import { NSGetAnalysisChainsUpgradeLimitUpRates } from '@/api/services.types';
+import { getAnalysisChainsCountLimitUpTimes } from '@/api/services';
+import { NSGetAnalysisChainsCountLimitUpTimes } from '@/api/services.types';
 
 import CChart from '@/components/CChart';
 import { EThemeColors } from '@/types/common.enum';
@@ -15,25 +15,25 @@ interface IProps {
 }
 
 /**
- * 晋级连板数
+ * 连板数
  */
-const UPGRADE_NUM = 3;
+const LIMIT_TIMES = 1;
 
-const RateLimitUp2to3 = ({ dateRange }: IProps) => {
+const CountLimitUp1 = ({ dateRange }: IProps) => {
   const [loading, setLoading] = useState<boolean>(false);
-  const [sourceData, setSourceData] = useState<NSGetAnalysisChainsUpgradeLimitUpRates.IRes>([]);
+  const [sourceData, setSourceData] = useState<NSGetAnalysisChainsCountLimitUpTimes.IRes>([]);
 
   /**
    * 获取数据
    */
-  const getChainsRates = useCallback(async () => {
+  const getChainsCount = useCallback(async () => {
     try {
       setLoading(true);
       const [startDate, endDate] = dateRange;
-      const { data } = await getAnalysisChainsUpgradeLimitUpRates({
+      const { data } = await getAnalysisChainsCountLimitUpTimes({
         startDate,
         endDate,
-        upgradeNum: UPGRADE_NUM,
+        limitTimes: LIMIT_TIMES,
       });
       setSourceData(data);
     } catch (e) {
@@ -44,14 +44,14 @@ const RateLimitUp2to3 = ({ dateRange }: IProps) => {
   }, [dateRange]);
 
   useEffect(() => {
-    const debounceGetChainsRates = debounce(getChainsRates, 300);
-    debounceGetChainsRates();
+    const debounceGetChainsCount = debounce(getChainsCount, 300);
+    debounceGetChainsCount();
 
     // 清理函数以防止在组件卸载时继续调用
     return () => {
-      debounceGetChainsRates.cancel();
+      debounceGetChainsCount.cancel();
     };
-  }, [getChainsRates]);
+  }, [getChainsCount]);
 
   /**
    * 生成 echarts options
@@ -65,7 +65,7 @@ const RateLimitUp2to3 = ({ dateRange }: IProps) => {
       containLabel: true, // grid 区域是否包含坐标轴的刻度标签(为true时left，right等属性决定包含坐标轴标签在内的矩形的位置)
     },
     title: {
-      text: `${UPGRADE_NUM - 1}进${UPGRADE_NUM}成功率`,
+      text: '首板数量',
       show: true,
       top: 0,
       left: 8,
@@ -90,11 +90,8 @@ const RateLimitUp2to3 = ({ dateRange }: IProps) => {
     yAxis: {
       type: 'value',
       min: 0,
-      max: getRoundedMax(sourceData.map((item) => item.rate)),
-      interval: getRoundedMax(sourceData.map((item) => item.rate)) / 5,
-      axisLabel: {
-        formatter: '{value}%',
-      },
+      max: getRoundedMax(sourceData.map((item) => item.count)),
+      interval: getRoundedMax(sourceData.map((item) => item.count)) / 5,
     },
     tooltip: {
       trigger: 'axis',
@@ -128,14 +125,14 @@ const RateLimitUp2to3 = ({ dateRange }: IProps) => {
         label: {
           show: true,
           position: 'top',
-          formatter: '{c}%',
+          formatter: '{c}',
           color: EThemeColors.colorPinkRed78,
         },
-        data: sourceData.map((item) => item.rate),
+        data: sourceData.map((item) => item.count),
       },
     ],
   });
   return loading ? <Spin className="w-full h-320 !leading-[320px]" size="large" /> : <CChart genOptions={genOptions} />;
 };
 
-export default RateLimitUp2to3;
+export default CountLimitUp1;

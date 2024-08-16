@@ -34,7 +34,7 @@ export class ChainsService {
   }
 
   /**
-   * 连板晋级成功率
+   * 连板晋级成功率 连板数大于1
    */
   async upgradeLimitUps(dto: ChainsUpgradeDto) {
     // 获取每日 upgradeNum 连板数量
@@ -79,6 +79,50 @@ export class ChainsService {
         tradeDate: dateArr[i],
         // 如果分子或者分母为 0，直接返回 0
         rate: !num || !denom ? 0 : Math.round(num / denom / 0.01),
+      });
+    }
+    return ret;
+  }
+
+  /**
+   * 连板晋级成功率 连板数等于1
+   */
+  async upgradeLimitUps1(dto: ChainsUpgradeDto) {
+    const upgradeNumZList = await this.limitService.countTimes({
+      pageNum: 1,
+      pageSize: 10000,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      limit: ELimit.Z,
+    });
+    const upgradeNumUList = await this.limitService.countTimes({
+      pageNum: 1,
+      pageSize: 10000,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      limit: ELimit.U,
+      limitTimes: dto.upgradeNum,
+    });
+    const { items } = await this.tradeCalService.list({
+      pageNum: 1,
+      pageSize: 10000,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      isOpen: EIsOpen.OPENED,
+    });
+    // 获取时间范围
+    const dateArr = items.map((i) => i.calDate);
+    const ret = [];
+    console.info(upgradeNumZList, upgradeNumUList);
+    for (let i = 1; i < dateArr.length; i += 1) {
+      const numZ =
+        upgradeNumZList.find((j) => j.tradeDate === dateArr[i])?.count || 0;
+      const numU =
+        upgradeNumUList.find((j) => j.tradeDate === dateArr[i])?.count || 0;
+      ret.push({
+        tradeDate: dateArr[i],
+        // 如果涨停数为 0，直接返回 0
+        rate: !numU ? 0 : Math.round(numU / (numU + numZ) / 0.01),
       });
     }
     return ret;

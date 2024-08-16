@@ -30,6 +30,12 @@ export class ChainsController {
   @ApiOperation({ summary: '连板晋级成功率' })
   @ApiResult({ type: [ChainsUpgradeLimitUpRatesEntity], isPage: false })
   async upgradeLimitUps(@Query() dto: ChainsUpgradeDto) {
+    // 连板数为 1 特殊处理
+    if (dto.upgradeNum === 1) {
+      const ret = await this.chainsService.upgradeLimitUps1(dto);
+      return ret;
+    }
+    // 连板数大于 1
     const ret = await this.chainsService.upgradeLimitUps(dto);
     return ret;
   }

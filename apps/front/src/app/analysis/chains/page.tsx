@@ -11,6 +11,8 @@ import {
 } from '@/components/Layout/enum';
 import CSearchForm from '@/components/common/CSearchForm';
 import { useLimitsFilterConfigs } from './form-configs';
+import CountLimitUp1 from './components/CountLimitUp1';
+import RateLimitUp0to1 from './components/RateLimitUp0to1';
 import CountLimitUp2 from './components/CountLimitUp2';
 import RateLimitUp1to2 from './components/RateLimitUp1to2';
 import CountLimitUp3 from './components/CountLimitUp3';
@@ -88,20 +90,28 @@ function AnalysisChainsPage() {
             setSearchParams={handleSetSearchParams}
           />
         </div>
-        <Row align="middle" gutter={[32, 64]} justify="space-around">
-          <Col span={12}>
-            <CountLimitUp2 dateRange={searchParams.dateRange} />
-          </Col>
-          <Col span={12}>
-            <RateLimitUp1to2 dateRange={searchParams.dateRange} />
-          </Col>
-          <Col span={12}>
-            <CountLimitUp3 dateRange={searchParams.dateRange} />
-          </Col>
-          <Col span={12}>
-            <RateLimitUp2to3 dateRange={searchParams.dateRange} />
-          </Col>
-        </Row>
+        <div className="max-h-[calc(100vh-184px)] overflow-x-hidden overflow-y-auto">
+          <Row align="middle" gutter={[32, 64]} justify="space-around">
+            <Col span={12}>
+              <CountLimitUp1 dateRange={searchParams.dateRange} />
+            </Col>
+            <Col span={12}>
+              <RateLimitUp0to1 dateRange={searchParams.dateRange} />
+            </Col>
+            <Col span={12}>
+              <CountLimitUp2 dateRange={searchParams.dateRange} />
+            </Col>
+            <Col span={12}>
+              <RateLimitUp1to2 dateRange={searchParams.dateRange} />
+            </Col>
+            <Col span={12}>
+              <CountLimitUp3 dateRange={searchParams.dateRange} />
+            </Col>
+            <Col span={12}>
+              <RateLimitUp2to3 dateRange={searchParams.dateRange} />
+            </Col>
+          </Row>
+        </div>
       </div>
     </Layout>
   );

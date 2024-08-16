@@ -62,6 +62,7 @@ export class LimitService {
     limitTimes,
     startDate,
     endDate,
+    zeroOpenTimes,
   }: LimitQueryDto): Promise<ChainsCountLimitUpTimesEntity[]> {
     let ret = await this.LimitRepository.createQueryBuilder('t_source_limit')
       .select([
@@ -72,6 +73,7 @@ export class LimitService {
         ...(limit && { limit }),
         ...(limitTimes && { limitTimes }),
         ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
+        ...(zeroOpenTimes && { openTimes: 0 }), // 打开次数为0，代表未开板
       })
       .groupBy('t_source_limit.tradeDate')
       .orderBy(orderField, order)

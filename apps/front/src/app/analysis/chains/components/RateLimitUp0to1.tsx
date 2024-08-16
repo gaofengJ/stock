@@ -17,9 +17,9 @@ interface IProps {
 /**
  * 晋级连板数
  */
-const UPGRADE_NUM = 3;
+const UPGRADE_NUM = 1;
 
-const RateLimitUp2to3 = ({ dateRange }: IProps) => {
+const RateLimitUp0to1 = ({ dateRange }: IProps) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [sourceData, setSourceData] = useState<NSGetAnalysisChainsUpgradeLimitUpRates.IRes>([]);
 
@@ -65,7 +65,7 @@ const RateLimitUp2to3 = ({ dateRange }: IProps) => {
       containLabel: true, // grid 区域是否包含坐标轴的刻度标签(为true时left，right等属性决定包含坐标轴标签在内的矩形的位置)
     },
     title: {
-      text: `${UPGRADE_NUM - 1}进${UPGRADE_NUM}成功率`,
+      text: '首板成功率',
       show: true,
       top: 0,
       left: 8,
@@ -138,4 +138,4 @@ const RateLimitUp2to3 = ({ dateRange }: IProps) => {
   return loading ? <Spin className="w-full h-320 !leading-[320px]" size="large" /> : <CChart genOptions={genOptions} />;
 };
 
-export default RateLimitUp2to3;
+export default RateLimitUp0to1;

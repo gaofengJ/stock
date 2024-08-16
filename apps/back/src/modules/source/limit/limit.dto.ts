@@ -1,5 +1,6 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsInt,
@@ -129,6 +130,10 @@ export class LimitQueryDto extends PagerDto {
   @ApiProperty({ description: '结束时间' })
   @IsDateString()
   endDate?: string;
+
+  @ApiProperty({ description: '是否打开涨停' })
+  @IsBoolean()
+  zeroOpenTimes?: boolean;
 }
 
 export class LimitUpdateDto extends PartialType(LimitDto) {}
