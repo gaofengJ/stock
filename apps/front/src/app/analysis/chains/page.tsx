@@ -13,6 +13,8 @@ import CSearchForm from '@/components/common/CSearchForm';
 import { useLimitsFilterConfigs } from './form-configs';
 import CountLimitUp2 from './components/CountLimitUp2';
 import RateLimitUp1to2 from './components/RateLimitUp1to2';
+import CountLimitUp3 from './components/CountLimitUp3';
+import RateLimitUp2to3 from './components/RateLimitUp2to3';
 
 function AnalysisChainsPage() {
   // searchParams 的初始值
@@ -94,10 +96,10 @@ function AnalysisChainsPage() {
             <RateLimitUp1to2 dateRange={searchParams.dateRange} />
           </Col>
           <Col span={12}>
-            <CountLimitUp2 dateRange={searchParams.dateRange} />
+            <CountLimitUp3 dateRange={searchParams.dateRange} />
           </Col>
           <Col span={12}>
-            <RateLimitUp1to2 dateRange={searchParams.dateRange} />
+            <RateLimitUp2to3 dateRange={searchParams.dateRange} />
           </Col>
         </Row>
       </div>

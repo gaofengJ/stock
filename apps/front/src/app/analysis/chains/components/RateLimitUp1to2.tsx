@@ -92,6 +92,9 @@ const RateLimitUp1to2 = ({ dateRange }: IProps) => {
       min: 0,
       max: getRoundedMax(sourceData.map((item) => item.rate)),
       interval: getRoundedMax(sourceData.map((item) => item.rate)) / 5,
+      axisLabel: {
+        formatter: '{value}%',
+      },
     },
     tooltip: {
       trigger: 'axis',
@@ -125,7 +128,7 @@ const RateLimitUp1to2 = ({ dateRange }: IProps) => {
         label: {
           show: true,
           position: 'top',
-          formatter: '{c}',
+          formatter: '{c}%',
           color: EThemeColors.colorPinkRed78,
         },
         data: sourceData.map((item) => item.rate),

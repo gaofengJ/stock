@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { LimitService as SourceLimitService } from '@/modules/source/limit/limit.service';
 import { TradeCalService as SourceTradeCalService } from '@/modules/source/trade-cal/trade-cal.service';
 import { ELimit } from '@/modules/source/limit/limit.enum';
+import { EIsOpen } from '@/modules/source/trade-cal/trade-cal.enum';
+
 import {
   ChainsCountLimitUpTimesQueryDto,
   ChainsUpgradeDto,
@@ -44,7 +46,16 @@ export class ChainsService {
       limit: ELimit.U,
       limitTimes: dto.upgradeNum,
     });
-    const prevStartDate = await this.tradeCalService.getPreDate(dto.startDate);
+    const { items } = await this.tradeCalService.list({
+      pageNum: 1,
+      pageSize: 10000,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      isOpen: EIsOpen.OPENED,
+    });
+    const prevStartDate = items[0].preTradeDate;
+    // 获取时间范围，并将 prevStartDate 拼到前面
+    const dateArr = [prevStartDate, ...items.map((i) => i.calDate)];
     // 获取每日 upgradeNum - 1 连板数量
     const upgradeNumMinusOneList = await this.limitService.countTimes({
       pageNum: 1,
@@ -58,12 +69,16 @@ export class ChainsService {
     upgradeNumMinusOneList.pop();
 
     const ret = [];
-    for (let i = 0; i < upgradeNumList.length; i += 1) {
+    for (let i = 1; i < dateArr.length; i += 1) {
+      const num =
+        upgradeNumList.find((j) => j.tradeDate === dateArr[i])?.count || 0;
+      const denom =
+        upgradeNumMinusOneList.find((j) => j.tradeDate === dateArr[i - 1])
+          ?.count || 0;
       ret.push({
-        tradeDate: upgradeNumList[i].tradeDate,
-        rate: Math.round(
-          upgradeNumList[i].count / upgradeNumMinusOneList[i].count / 0.01,
-        ),
+        tradeDate: dateArr[i],
+        // 如果分子或者分母为 0，直接返回 0
+        rate: !num || !denom ? 0 : Math.round(num / denom / 0.01),
       });
     }
     return ret;
