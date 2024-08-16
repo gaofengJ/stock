@@ -75,7 +75,7 @@ function AnalysisChainsPage() {
       headerMenuActive={EHeaderMenuKey.analysis}
       asideMenuActive={EAnalysisAsideMenuKey.analysisChains}
     >
-      <div className="p-16 bg-bg-white">
+      <div className="p-16 rounded-[6px] bg-bg-white">
         <div className="mb-16">
           <CSearchForm
             configs={limitsFilterConfigs}
@@ -86,17 +86,17 @@ function AnalysisChainsPage() {
             setSearchParams={handleSetSearchParams}
           />
         </div>
-        <Row align="middle" gutter={[16, 32]} justify="space-around">
-          <Col xl={{ span: 12 }}>
+        <Row align="middle" gutter={[32, 64]} justify="space-around">
+          <Col span={12}>
             <CountLimitUp2 dateRange={searchParams.dateRange} />
           </Col>
-          <Col xl={{ span: 12 }}>
+          <Col span={12}>
             <RateLimitUp1to2 dateRange={searchParams.dateRange} />
           </Col>
-          <Col xl={{ span: 12 }}>
+          <Col span={12}>
             <CountLimitUp2 dateRange={searchParams.dateRange} />
           </Col>
-          <Col xl={{ span: 12 }}>
+          <Col span={12}>
             <RateLimitUp1to2 dateRange={searchParams.dateRange} />
           </Col>
         </Row>

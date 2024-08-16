@@ -105,7 +105,7 @@ function BasicDailyPage() {
       headerMenuActive={EHeaderMenuKey.basic}
       asideMenuActive={EBasicAsideMenuKey.basicDaily}
     >
-      <div className="p-16 bg-bg-white">
+      <div className="p-16 rounded-[6px] bg-bg-white">
         <div className="mb-16">
           <CSearchForm
             configs={stockFilterConfigs}

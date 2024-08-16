@@ -59,7 +59,7 @@ const RateLimitUp1to2 = ({ dateRange }: IProps) => {
   const genOptions = () => ({
     grid: {
       top: '48',
-      bottom: '0',
+      bottom: '16',
       left: '16',
       right: '16',
       containLabel: true, // grid 区域是否包含坐标轴的刻度标签(为true时left，right等属性决定包含坐标轴标签在内的矩形的位置)
@@ -82,7 +82,7 @@ const RateLimitUp1to2 = ({ dateRange }: IProps) => {
         // x轴坐标样式
         interval: 0,
         align: 'center', // 标签对齐方式
-        rotate: 45, // 倾斜度 -90 至 90 默认为0
+        rotate: 30, // 倾斜度 -90 至 90 默认为0
         margin: 20, // 标签距离刻度距离
       },
       data: sourceData.map((item) => dayjs(item.tradeDate).format('MM-DD')),

@@ -91,7 +91,7 @@ function AnalysisLimitsPage() {
       headerMenuActive={EHeaderMenuKey.analysis}
       asideMenuActive={EAnalysisAsideMenuKey.analysisLimits}
     >
-      <div className="p-16 bg-bg-white">
+      <div className="p-16 rounded-[6px] bg-bg-white">
         <div className="mb-16">
           <CSearchForm
             configs={limitsFilterConfigs}
