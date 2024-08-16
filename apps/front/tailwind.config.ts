@@ -9,6 +9,12 @@ const colorsConfig = {
   'primary-default': EThemeColors.colorPinkRed,
   'bg-base': EThemeColors.colorGrey,
   'bg-white': EThemeColors.colorWhite,
+  'text-black': EThemeColors.colorBlack,
+  'text-black78': EThemeColors.colorBlack78,
+  'text-black56': EThemeColors.colorBlack56,
+  'text-pink-red': EThemeColors.colorPinkRed,
+  'text-pink-red78': EThemeColors.colorPinkRed78,
+  'text-pink-red56': EThemeColors.colorPinkRed56,
 };
 
 const config: Config = {

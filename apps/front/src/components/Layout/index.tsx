@@ -76,6 +76,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
             onSelect={handleHeaderMenuSelect}
           />
           <span className="grow" />
+          <span className="mr-16 text-text-pink-red78">每晚20: 00更新当日数据</span>
           <Dropdown
             menu={{
               items: avatarDropdownItems,
