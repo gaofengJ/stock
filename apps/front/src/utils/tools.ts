@@ -55,3 +55,12 @@ export const getRoundedMax = (arr: number[]) => {
   // 如果尾数为 5，则返回该值
   return roundedMaxVal;
 };
+
+// 获取尾数为 0 或 5 的最小值
+export const getRoundedMin = (arr: number[]) => {
+  const minVal = Math.min(...arr);
+  // 计算初始的最小值，减少 10% 以确保最小值小一点
+  const roundedMinVal = Math.floor(minVal * 0.9 * 0.2) * 5;
+  // 如果最小值的尾数为 0 或 5，则返回该值
+  return roundedMinVal;
+};
