@@ -6,6 +6,7 @@
 import axios from './request';
 import type { RequestConfig } from './types';
 import type {
+  NSGetAnalysisChainsCountLimitUpAboveTimes,
   NSGetAnalysisChainsCountLimitUpTimes,
   NSGetAnalysisChainsUpgradeLimitUpRates,
   NSGetAnalysisLimitsLimitUpList,
@@ -13,6 +14,20 @@ import type {
   NSGetBasicStockList,
   NSGetCommonAllOptions,
 } from './services.types.ts';
+/**
+ * 接口名称：n+连板数量统计
+ *
+ * @description 接口路径：/analysis/chains/count-limit-up-above-times
+ * @description 接口分组：数据分析
+ */
+export const getAnalysisChainsCountLimitUpAboveTimes = (
+  params: NSGetAnalysisChainsCountLimitUpAboveTimes.IParams,
+  config: RequestConfig = {},
+) =>
+  axios.get<NSGetAnalysisChainsCountLimitUpAboveTimes.IRes>(
+    '/analysis/chains/count-limit-up-above-times',
+    { params, ...config },
+  );
 /**
  * 接口名称：n连板数量统计
  *

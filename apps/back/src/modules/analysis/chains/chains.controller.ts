@@ -26,6 +26,14 @@ export class ChainsController {
     return ret;
   }
 
+  @Get('/count-limit-up-above-times')
+  @ApiOperation({ summary: 'n+连板数量统计' })
+  @ApiResult({ type: [ChainsCountLimitUpTimesEntity], isPage: false })
+  async countLimitUpAboveTimes(@Query() dto: ChainsCountLimitUpTimesQueryDto) {
+    const ret = await this.chainsService.countLimitUpAboveTimes(dto);
+    return ret;
+  }
+
   @Get('/upgrade-limit-up-rates')
   @ApiOperation({ summary: '连板晋级成功率' })
   @ApiResult({ type: [ChainsUpgradeLimitUpRatesEntity], isPage: false })

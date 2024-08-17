@@ -17,6 +17,7 @@ import CountLimitUp2 from './components/CountLimitUp2';
 import RateLimitUp1to2 from './components/RateLimitUp1to2';
 import CountLimitUp3 from './components/CountLimitUp3';
 import RateLimitUp2to3 from './components/RateLimitUp2to3';
+import CountLimitUpAbove4 from './components/CountLimitUpAbove4';
 
 function AnalysisChainsPage() {
   // searchParams 的初始值
@@ -110,6 +111,10 @@ function AnalysisChainsPage() {
             <Col span={12}>
               <RateLimitUp2to3 dateRange={searchParams.dateRange} />
             </Col>
+            <Col span={12}>
+              <CountLimitUpAbove4 dateRange={searchParams.dateRange} />
+            </Col>
+            <Col span={12} />
           </Row>
         </div>
       </div>

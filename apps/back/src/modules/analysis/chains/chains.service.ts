@@ -34,6 +34,21 @@ export class ChainsService {
   }
 
   /**
+   * n+连板数量统计
+   */
+  async countLimitUpAboveTimes(dto: ChainsCountLimitUpTimesQueryDto) {
+    const ret = await this.limitService.countAboveTimes({
+      pageNum: 1,
+      pageSize: 10000,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      limit: ELimit.U,
+      limitTimes: dto.limitTimes,
+    });
+    return ret;
+  }
+
+  /**
    * 连板晋级成功率 连板数大于1
    */
   async upgradeLimitUps(dto: ChainsUpgradeDto) {
@@ -113,7 +128,6 @@ export class ChainsService {
     // 获取时间范围
     const dateArr = items.map((i) => i.calDate);
     const ret = [];
-    console.info(upgradeNumZList, upgradeNumUList);
     for (let i = 1; i < dateArr.length; i += 1) {
       const numZ =
         upgradeNumZList.find((j) => j.tradeDate === dateArr[i])?.count || 0;

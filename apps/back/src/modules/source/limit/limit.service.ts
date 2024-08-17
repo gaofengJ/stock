@@ -85,6 +85,41 @@ export class LimitService {
     return ret;
   }
 
+  /**
+   * 连日 n+ 连板数量统计
+   */
+  async countAboveTimes({
+    orderField = 'trade_date',
+    order = Order.ASC,
+    limit = 'U',
+    limitTimes,
+    startDate,
+    endDate,
+    zeroOpenTimes,
+  }: LimitQueryDto): Promise<ChainsCountLimitUpTimesEntity[]> {
+    let ret = await this.LimitRepository.createQueryBuilder('t_source_limit')
+      .select([
+        't_source_limit.tradeDate AS tradeDate',
+        'COUNT(t_source_limit.tradeDate) as count',
+      ])
+      .where({
+        ...(limit && { limit }),
+        ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
+        ...(zeroOpenTimes && { openTimes: 0 }), // 打开次数为0，代表未开板
+      })
+      .andWhere('t_source_limit.limitTimes >= :limitTimes', { limitTimes })
+      .groupBy('t_source_limit.tradeDate')
+      .orderBy(orderField, order)
+      .getRawMany();
+
+    ret = ret.map((i) => ({
+      tradeDate: dayjs(i.tradeDate).format('YYYY-MM-DD'),
+      count: +i.count,
+    }));
+
+    return ret;
+  }
+
   async detail(id: number): Promise<LimitEntity> {
     const item = await this.LimitRepository.findOneBy({ id });
     if (!item) throw new NotFoundException('未找到该记录');
