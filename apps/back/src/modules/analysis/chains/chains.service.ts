@@ -68,6 +68,7 @@ export class ChainsService {
       endDate: dto.endDate,
       isOpen: EIsOpen.OPENED,
     });
+    if (!items.length) return [];
     const prevStartDate = items[0].preTradeDate;
     // 获取时间范围，并将 prevStartDate 拼到前面
     const dateArr = [prevStartDate, ...items.map((i) => i.calDate)];
