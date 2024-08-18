@@ -5,6 +5,7 @@ import { ELimit } from '@/modules/source/limit/limit.enum';
 import { EIsOpen } from '@/modules/source/trade-cal/trade-cal.enum';
 
 import {
+  ChainsAmountDto,
   ChainsCountLimitUpTimesQueryDto,
   ChainsUpgradeDto,
 } from './chains.dto';
@@ -141,5 +142,21 @@ export class ChainsService {
       });
     }
     return ret;
+  }
+
+  /**
+   * 涨停成交金额
+   */
+  async limitUpAmount(dto: ChainsAmountDto) {
+    console.info(dto);
+    return [];
+  }
+
+  /**
+   * 连板成交金额
+   */
+  async upgradeLimitUpAmount(dto: ChainsAmountDto) {
+    console.info(dto);
+    return [];
   }
 }

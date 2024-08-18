@@ -5,11 +5,13 @@ import { ApiResult } from '@/decorators/api-result.decorator';
 
 import { ChainsService } from './chains.service';
 import {
+  ChainsAmountDto,
   ChainsCountLimitUpTimesQueryDto,
   ChainsUpgradeDto,
 } from './chains.dto';
 import {
   ChainsCountLimitUpTimesEntity,
+  ChainsLimitUpAmountEntity,
   ChainsUpgradeLimitUpRatesEntity,
 } from './chains.entity';
 
@@ -45,6 +47,22 @@ export class ChainsController {
     }
     // 连板数大于 1
     const ret = await this.chainsService.upgradeLimitUps(dto);
+    return ret;
+  }
+
+  @Get('/limit-up-amount')
+  @ApiOperation({ summary: '涨停成交金额' })
+  @ApiResult({ type: [ChainsLimitUpAmountEntity], isPage: false })
+  async limitUpAmount(@Query() dto: ChainsAmountDto) {
+    const ret = await this.chainsService.limitUpAmount(dto);
+    return ret;
+  }
+
+  @Get('/upgrade-limit-up-amount')
+  @ApiOperation({ summary: '连板成交金额' })
+  @ApiResult({ type: [ChainsLimitUpAmountEntity], isPage: false })
+  async upgradeLimitUpAmount(@Query() dto: ChainsAmountDto) {
+    const ret = await this.chainsService.upgradeLimitUpAmount(dto);
     return ret;
   }
 }

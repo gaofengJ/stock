@@ -19,7 +19,19 @@ export class ChainsUpgradeLimitUpRatesEntity {
   tradeDate: string;
 
   @ApiProperty({
-    description: '计数',
+    description: '百分比',
   })
   rate: number;
+}
+
+export class ChainsLimitUpAmountEntity {
+  @ApiProperty({
+    description: '交易日期',
+  })
+  tradeDate: string;
+
+  @ApiProperty({
+    description: '金额',
+  })
+  amount: number;
 }
