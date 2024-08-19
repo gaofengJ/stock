@@ -23,7 +23,17 @@ export class ChainsService {
    * n连板数量统计
    */
   async countLimitUpTimes(dto: ChainsCountLimitUpTimesQueryDto) {
-    const ret = await this.limitService.countTimes({
+    const { items } = await this.tradeCalService.list({
+      pageNum: 1,
+      pageSize: 10000,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      isOpen: EIsOpen.OPENED,
+    });
+    // 获取时间范围
+    const dateArr = items.map((i) => i.calDate);
+
+    const countList = await this.limitService.countTimes({
       pageNum: 1,
       pageSize: 10000,
       startDate: dto.startDate,
@@ -31,6 +41,16 @@ export class ChainsService {
       limit: ELimit.U,
       limitTimes: dto.limitTimes,
     });
+
+    const ret = [];
+    for (let i = 0; i < dateArr.length; i += 1) {
+      const count =
+        countList.find((j) => j.tradeDate === dateArr[i])?.count || 0;
+      ret.push({
+        tradeDate: dateArr[i],
+        count,
+      });
+    }
     return ret;
   }
 
@@ -38,7 +58,17 @@ export class ChainsService {
    * n+连板数量统计
    */
   async countLimitUpAboveTimes(dto: ChainsCountLimitUpTimesQueryDto) {
-    const ret = await this.limitService.countAboveTimes({
+    const { items } = await this.tradeCalService.list({
+      pageNum: 1,
+      pageSize: 10000,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      isOpen: EIsOpen.OPENED,
+    });
+    // 获取时间范围
+    const dateArr = items.map((i) => i.calDate);
+
+    const countList = await this.limitService.countAboveTimes({
       pageNum: 1,
       pageSize: 10000,
       startDate: dto.startDate,
@@ -46,6 +76,16 @@ export class ChainsService {
       limit: ELimit.U,
       limitTimes: dto.limitTimes,
     });
+
+    const ret = [];
+    for (let i = 0; i < dateArr.length; i += 1) {
+      const count =
+        countList.find((j) => j.tradeDate === dateArr[i])?.count || 0;
+      ret.push({
+        tradeDate: dateArr[i],
+        count,
+      });
+    }
     return ret;
   }
 
@@ -130,7 +170,7 @@ export class ChainsService {
     // 获取时间范围
     const dateArr = items.map((i) => i.calDate);
     const ret = [];
-    for (let i = 1; i < dateArr.length; i += 1) {
+    for (let i = 0; i < dateArr.length; i += 1) {
       const numZ =
         upgradeNumZList.find((j) => j.tradeDate === dateArr[i])?.count || 0;
       const numU =
@@ -148,6 +188,16 @@ export class ChainsService {
    * 涨停成交金额
    */
   async limitUpAmount(dto: ChainsAmountDto) {
+    const { items } = await this.tradeCalService.list({
+      pageNum: 1,
+      pageSize: 10000,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      isOpen: EIsOpen.OPENED,
+    });
+    // 获取时间范围
+    const dateArr = items.map((i) => i.calDate);
+
     const limitUpAmountList = await this.limitService.limitUpAmount({
       pageNum: 1,
       pageSize: 10000,
@@ -155,13 +205,35 @@ export class ChainsService {
       endDate: dto.endDate,
       limit: ELimit.U,
     });
-    return limitUpAmountList;
+
+    const ret = [];
+    for (let i = 0; i < dateArr.length; i += 1) {
+      const totalAmount =
+        limitUpAmountList.find((j) => j.tradeDate === dateArr[i])
+          ?.totalAmount || 0;
+      ret.push({
+        tradeDate: dateArr[i],
+        totalAmount,
+      });
+    }
+
+    return ret;
   }
 
   /**
    * 连板成交金额
    */
   async upgradeLimitUpAmount(dto: ChainsAmountDto) {
+    const { items } = await this.tradeCalService.list({
+      pageNum: 1,
+      pageSize: 10000,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      isOpen: EIsOpen.OPENED,
+    });
+    // 获取时间范围
+    const dateArr = items.map((i) => i.calDate);
+
     const upgradeLimitUpAmountList =
       await this.limitService.upgradeLimitUpAmount({
         pageNum: 1,
@@ -170,6 +242,17 @@ export class ChainsService {
         endDate: dto.endDate,
         limit: ELimit.U,
       });
-    return upgradeLimitUpAmountList;
+
+    const ret = [];
+    for (let i = 0; i < dateArr.length; i += 1) {
+      const totalAmount =
+        upgradeLimitUpAmountList.find((j) => j.tradeDate === dateArr[i])
+          ?.totalAmount || 0;
+      ret.push({
+        tradeDate: dateArr[i],
+        totalAmount,
+      });
+    }
+    return ret;
   }
 }

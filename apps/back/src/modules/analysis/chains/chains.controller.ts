@@ -37,7 +37,7 @@ export class ChainsController {
   }
 
   @Get('/upgrade-limit-up-rates')
-  @ApiOperation({ summary: '连板晋级成功率' })
+  @ApiOperation({ summary: 'n连板晋级成功率' })
   @ApiResult({ type: [ChainsUpgradeLimitUpRatesEntity], isPage: false })
   async upgradeLimitUps(@Query() dto: ChainsUpgradeDto) {
     // 连板数为 1 特殊处理

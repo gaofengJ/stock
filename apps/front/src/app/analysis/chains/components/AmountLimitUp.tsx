@@ -130,7 +130,7 @@ const AmountLimitUp = ({ dateRange }: IProps) => {
             formatter: '{c}亿',
             color: EThemeColors.colorPinkRed78,
           },
-          data: sourceData.map((item) => (item.totalAmount / 100000000).toFixed(2)),
+          data: sourceData.map((item) => (item.totalAmount / 100000000).toFixed(0)),
         },
       ],
     };

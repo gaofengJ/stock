@@ -23,11 +23,13 @@ import AmountUpgradeLimitUp from './components/AmountUpgradeLimitUp';
 
 function AnalysisChainsPage() {
   // searchParams 的初始值
+  const now = dayjs();
+  const endDate = now.hour() >= 20 ? now : now.subtract(1, 'day'); // 20点之前展示前一天，20点之后展示当天
   const initialSearchParams = {
     // 默认时间: [当前时间一个月, 当前时间]
     dateRange: [
-      dayjs().subtract(1, 'month').format('YYYY-MM-DD'),
-      dayjs().format('YYYY-MM-DD'),
+      endDate.subtract(1, 'month').format('YYYY-MM-DD'),
+      endDate.format('YYYY-MM-DD'),
     ],
   };
   const [searchParams, setSearchParams] = useState(initialSearchParams);

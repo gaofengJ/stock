@@ -23,8 +23,10 @@ function AnalysisLimitsPage() {
   const limitsFilterConfigs = useLimitsFilterConfigs();
 
   // searchParams 的初始值
+  const now = dayjs();
+  const date = now.hour() >= 20 ? now : now.subtract(1, 'day'); // 20点之前展示前一天，20点之后展示当天
   const initialSearchParams: Partial<NSGetAnalysisLimitsLimitUpList.IParams> = {
-    date: dayjs().format('YYYY-MM-DD'),
+    date: date.format('YYYY-MM-DD'),
   };
   const [searchParams, setSearchParams] = useState<Partial<NSGetAnalysisLimitsLimitUpList.IParams>>(
     initialSearchParams,
@@ -107,6 +109,9 @@ function AnalysisLimitsPage() {
           dataSource={limitsData.items}
           columns={limitsColumns}
           bordered
+          locale={{
+            emptyText: (<div className="min-h-240 leading-[240px]">当前日期暂无数据</div>),
+          }}
           scroll={{ y: 'calc(100vh - 232px)' }}
           loading={loading}
           pagination={false}
