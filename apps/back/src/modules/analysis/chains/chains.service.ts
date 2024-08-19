@@ -185,7 +185,7 @@ export class ChainsService {
   }
 
   /**
-   * 涨停成交金额
+   * 涨停参与金额
    */
   async limitUpAmount(dto: ChainsAmountDto) {
     const { items } = await this.tradeCalService.list({
@@ -221,7 +221,7 @@ export class ChainsService {
   }
 
   /**
-   * 连板成交金额
+   * 连板参与金额
    */
   async upgradeLimitUpAmount(dto: ChainsAmountDto) {
     const { items } = await this.tradeCalService.list({

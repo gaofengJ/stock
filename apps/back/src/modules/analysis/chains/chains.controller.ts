@@ -51,7 +51,7 @@ export class ChainsController {
   }
 
   @Get('/limit-up-amount')
-  @ApiOperation({ summary: '涨停成交金额' })
+  @ApiOperation({ summary: '涨停参与金额' })
   @ApiResult({ type: [ChainsLimitUpAmountEntity], isPage: false })
   async limitUpAmount(@Query() dto: ChainsAmountDto) {
     const ret = await this.chainsService.limitUpAmount(dto);
@@ -59,7 +59,7 @@ export class ChainsController {
   }
 
   @Get('/upgrade-limit-up-amount')
-  @ApiOperation({ summary: '连板成交金额' })
+  @ApiOperation({ summary: '连板参与金额' })
   @ApiResult({ type: [ChainsLimitUpAmountEntity], isPage: false })
   async upgradeLimitUpAmount(@Query() dto: ChainsAmountDto) {
     const ret = await this.chainsService.upgradeLimitUpAmount(dto);

@@ -124,7 +124,7 @@ export class LimitService {
   }
 
   /**
-   * 涨停成交金额
+   * 涨停参与金额
    */
   async limitUpAmount({
     orderField = 'trade_date',
@@ -155,7 +155,7 @@ export class LimitService {
   }
 
   /**
-   * 连板成交金额
+   * 连板参与金额
    */
   async upgradeLimitUpAmount({
     orderField = 'trade_date',
