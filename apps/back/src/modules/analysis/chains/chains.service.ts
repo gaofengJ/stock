@@ -148,15 +148,28 @@ export class ChainsService {
    * 涨停成交金额
    */
   async limitUpAmount(dto: ChainsAmountDto) {
-    console.info(dto);
-    return [];
+    const limitUpAmountList = await this.limitService.limitUpAmount({
+      pageNum: 1,
+      pageSize: 10000,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+      limit: ELimit.U,
+    });
+    return limitUpAmountList;
   }
 
   /**
    * 连板成交金额
    */
   async upgradeLimitUpAmount(dto: ChainsAmountDto) {
-    console.info(dto);
-    return [];
+    const upgradeLimitUpAmountList =
+      await this.limitService.upgradeLimitUpAmount({
+        pageNum: 1,
+        pageSize: 10000,
+        startDate: dto.startDate,
+        endDate: dto.endDate,
+        limit: ELimit.U,
+      });
+    return upgradeLimitUpAmountList;
   }
 }

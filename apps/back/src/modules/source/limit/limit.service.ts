@@ -6,7 +6,10 @@ import * as dayjs from 'dayjs';
 import { paginate } from '@/helper/paginate/index';
 import { Pagination } from '@/helper/paginate/pagination';
 import { Order } from '@/dto/pager.dto';
-import { ChainsCountLimitUpTimesEntity } from '@/modules/analysis/chains/chains.entity';
+import {
+  ChainsCountLimitUpTimesEntity,
+  ChainsLimitUpAmountEntity,
+} from '@/modules/analysis/chains/chains.entity';
 
 import { LimitEntity } from './limit.entity';
 import { LimitDto, LimitQueryDto, LimitUpdateDto } from './limit.dto';
@@ -115,6 +118,69 @@ export class LimitService {
     ret = ret.map((i) => ({
       tradeDate: dayjs(i.tradeDate).format('YYYY-MM-DD'),
       count: +i.count,
+    }));
+
+    return ret;
+  }
+
+  /**
+   * 涨停成交金额
+   */
+  async limitUpAmount({
+    orderField = 'trade_date',
+    order = Order.ASC,
+    limit = 'U',
+    startDate,
+    endDate,
+  }: LimitQueryDto): Promise<ChainsLimitUpAmountEntity[]> {
+    let ret = await this.LimitRepository.createQueryBuilder('t_source_limit')
+      .select([
+        't_source_limit.tradeDate AS tradeDate',
+        'SUM(t_source_limit.amount) as totalAmount',
+      ])
+      .where({
+        ...(limit && { limit }),
+        ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
+      })
+      .groupBy('t_source_limit.tradeDate')
+      .orderBy(orderField, order)
+      .getRawMany();
+
+    ret = ret.map((i) => ({
+      tradeDate: dayjs(i.tradeDate).format('YYYY-MM-DD'),
+      totalAmount: +i.totalAmount,
+    }));
+
+    return ret;
+  }
+
+  /**
+   * 连板成交金额
+   */
+  async upgradeLimitUpAmount({
+    orderField = 'trade_date',
+    order = Order.ASC,
+    limit = 'U',
+    startDate,
+    endDate,
+  }: LimitQueryDto): Promise<ChainsLimitUpAmountEntity[]> {
+    let ret = await this.LimitRepository.createQueryBuilder('t_source_limit')
+      .select([
+        't_source_limit.tradeDate AS tradeDate',
+        'SUM(t_source_limit.amount) as totalAmount',
+      ])
+      .where({
+        ...(limit && { limit }),
+        ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
+      })
+      .andWhere('t_source_limit.limitTimes > 1')
+      .groupBy('t_source_limit.tradeDate')
+      .orderBy(orderField, order)
+      .getRawMany();
+
+    ret = ret.map((i) => ({
+      tradeDate: dayjs(i.tradeDate).format('YYYY-MM-DD'),
+      totalAmount: +i.totalAmount,
     }));
 
     return ret;

@@ -31,7 +31,7 @@ export class ChainsLimitUpAmountEntity {
   tradeDate: string;
 
   @ApiProperty({
-    description: '金额',
+    description: '金额合计(元)',
   })
-  amount: number;
+  totalAmount: number;
 }
