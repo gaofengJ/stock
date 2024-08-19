@@ -18,6 +18,8 @@ import RateLimitUp1to2 from './components/RateLimitUp1to2';
 import CountLimitUp3 from './components/CountLimitUp3';
 import RateLimitUp2to3 from './components/RateLimitUp2to3';
 import CountLimitUpAbove4 from './components/CountLimitUpAbove4';
+import AmountLimitUp from './components/AmountLimitUp';
+import AmountUpgradeLimitUp from './components/AmountUpgradeLimitUp';
 
 function AnalysisChainsPage() {
   // searchParams 的初始值
@@ -115,6 +117,12 @@ function AnalysisChainsPage() {
               <CountLimitUpAbove4 dateRange={searchParams.dateRange} />
             </Col>
             <Col span={12} />
+            <Col span={12}>
+              <AmountLimitUp dateRange={searchParams.dateRange} />
+            </Col>
+            <Col span={12}>
+              <AmountUpgradeLimitUp dateRange={searchParams.dateRange} />
+            </Col>
           </Row>
         </div>
       </div>

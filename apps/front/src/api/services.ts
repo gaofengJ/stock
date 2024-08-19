@@ -8,6 +8,8 @@ import type { RequestConfig } from './types';
 import type {
   NSGetAnalysisChainsCountLimitUpAboveTimes,
   NSGetAnalysisChainsCountLimitUpTimes,
+  NSGetAnalysisChainsLimitUpAmount,
+  NSGetAnalysisChainsUpgradeLimitUpAmount,
   NSGetAnalysisChainsUpgradeLimitUpRates,
   NSGetAnalysisLimitsLimitUpList,
   NSGetBasicDailyList,
@@ -42,6 +44,34 @@ export const getAnalysisChainsCountLimitUpTimes = (
     params,
     ...config,
   });
+/**
+ * 接口名称：涨停成交金额
+ *
+ * @description 接口路径：/analysis/chains/limit-up-amount
+ * @description 接口分组：数据分析
+ */
+export const getAnalysisChainsLimitUpAmount = (
+  params: NSGetAnalysisChainsLimitUpAmount.IParams,
+  config: RequestConfig = {},
+) =>
+  axios.get<NSGetAnalysisChainsLimitUpAmount.IRes>('/analysis/chains/limit-up-amount', {
+    params,
+    ...config,
+  });
+/**
+ * 接口名称：连板成交金额
+ *
+ * @description 接口路径：/analysis/chains/upgrade-limit-up-amount
+ * @description 接口分组：数据分析
+ */
+export const getAnalysisChainsUpgradeLimitUpAmount = (
+  params: NSGetAnalysisChainsUpgradeLimitUpAmount.IParams,
+  config: RequestConfig = {},
+) =>
+  axios.get<NSGetAnalysisChainsUpgradeLimitUpAmount.IRes>(
+    '/analysis/chains/upgrade-limit-up-amount',
+    { params, ...config },
+  );
 /**
  * 接口名称：连板晋级成功率
  *

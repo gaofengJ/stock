@@ -69,6 +69,64 @@ export namespace NSGetAnalysisChainsCountLimitUpTimes {
   }[];
 }
 /**
+ * 类型名称：涨停成交金额
+ *
+ * @description 接口路径：/analysis/chains/limit-up-amount
+ * @description 接口分组：数据分析
+ */
+export namespace NSGetAnalysisChainsLimitUpAmount {
+  export interface IParams {
+    /**
+     * 开始日期
+     */
+    startDate: string;
+    /**
+     * 结束日期
+     */
+    endDate: string;
+  }
+  export type IRes = {
+    /**
+     * 交易日期
+     */
+    tradeDate: string;
+    /**
+     * 金额合计(元)
+     */
+    totalAmount: number;
+    [k: string]: any;
+  }[];
+}
+/**
+ * 类型名称：连板成交金额
+ *
+ * @description 接口路径：/analysis/chains/upgrade-limit-up-amount
+ * @description 接口分组：数据分析
+ */
+export namespace NSGetAnalysisChainsUpgradeLimitUpAmount {
+  export interface IParams {
+    /**
+     * 开始日期
+     */
+    startDate: string;
+    /**
+     * 结束日期
+     */
+    endDate: string;
+  }
+  export type IRes = {
+    /**
+     * 交易日期
+     */
+    tradeDate: string;
+    /**
+     * 金额合计(元)
+     */
+    totalAmount: number;
+    [k: string]: any;
+  }[];
+}
+/**
  * 类型名称：连板晋级成功率
  *
  * @description 接口路径：/analysis/chains/upgrade-limit-up-rates
@@ -95,7 +153,7 @@ export namespace NSGetAnalysisChainsUpgradeLimitUpRates {
      */
     tradeDate: string;
     /**
-     * 计数
+     * 百分比
      */
     rate: number;
     [k: string]: any;
