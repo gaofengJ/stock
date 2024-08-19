@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { EAnalysisAsideMenuKey } from '@/components/Layout/enum';
-// import styles from './index.module.less';
 
 function AnalysisPage() {
   const router = useRouter();

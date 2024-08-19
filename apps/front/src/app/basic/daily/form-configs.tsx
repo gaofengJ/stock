@@ -2,7 +2,7 @@ import { DatePicker, Input } from 'antd';
 import { IFormItemProps } from '@/types/common.type';
 
 /**
- * 股票基本信息筛选项
+ * 每日交易数据筛选项
  */
 export const useStockFilterConfigs = (): IFormItemProps[] => [
   {

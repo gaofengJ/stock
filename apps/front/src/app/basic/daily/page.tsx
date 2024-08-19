@@ -119,6 +119,9 @@ function BasicDailyPage() {
         <Table
           dataSource={dailyData.items}
           columns={dailyColumns}
+          locale={{
+            emptyText: (<div className="min-h-240 leading-[240px]">当前日期暂无数据</div>),
+          }}
           scroll={{ x: 4000, y: 'calc(100vh - 296px)' }}
           loading={loading}
           pagination={{

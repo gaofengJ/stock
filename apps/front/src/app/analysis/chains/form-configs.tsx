@@ -4,7 +4,7 @@ import { IFormItemProps } from '@/types/common.type';
 const { RangePicker } = DatePicker;
 
 /**
- * 股票基本信息筛选项
+ * 连板统计筛选项
  */
 export const useLimitsFilterConfigs = (): IFormItemProps[] => [
   {
