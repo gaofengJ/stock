@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Like, Repository } from 'typeorm';
+import { Between, Like, Not, Repository } from 'typeorm';
 
 import { paginate } from '@/helper/paginate/index';
 import { Pagination } from '@/helper/paginate/pagination';
@@ -32,6 +32,7 @@ export class DailyService {
       ...(tradeDate && { tradeDate }),
       ...(tsCode && { tsCode: Like(`%${tsCode}%`) }),
       ...(name && { name: Like(`%${name}%`) }),
+      amount: Not(0), // 排除成交量为 0 的股票，例如暂停交易的股票、各类ETF
     });
     return paginate(queryBuilder, { pageNum, pageSize });
   }

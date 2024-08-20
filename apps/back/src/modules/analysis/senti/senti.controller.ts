@@ -14,7 +14,8 @@ export class SentiController {
 
   @Get('/distribution-tatistics')
   @ApiOperation({ summary: '涨跌分布统计' })
-  async distributionTatistics(@Query('date') date: CommonDateDto['date']) {
+  async distributionTatistics(@Query() dto: CommonDateDto) {
+    const { date } = dto;
     const formatedDate = dayjs(date).format('YYYY-MM-DD');
     const ret = await this.sentiService.distributionTatistics(formatedDate);
     return ret;

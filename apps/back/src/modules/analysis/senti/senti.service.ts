@@ -31,12 +31,28 @@ export class SentiService {
   ) {}
 
   private getRangeIndex(pctChg: number): number {
-    const ranges = [
-      -9, -8, -7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-    ];
     if (pctChg <= -9) return 0;
-    if (pctChg > 9) return 20;
-    return ranges.findIndex((range) => pctChg < range) + 1;
+    if (pctChg > -9 && pctChg <= -8) return 1;
+    if (pctChg > -8 && pctChg <= -7) return 2;
+    if (pctChg > -7 && pctChg <= -6) return 3;
+    if (pctChg > -6 && pctChg <= -5) return 4;
+    if (pctChg > -5 && pctChg <= -4) return 5;
+    if (pctChg > -4 && pctChg <= -3) return 6;
+    if (pctChg > -3 && pctChg <= -2) return 7;
+    if (pctChg > -2 && pctChg <= -1) return 8;
+    if (pctChg > -1 && pctChg < 0) return 9;
+    if (pctChg === 0) return 10;
+    if (pctChg > 0 && pctChg < 1) return 11;
+    if (pctChg >= 1 && pctChg < 2) return 12;
+    if (pctChg >= 2 && pctChg < 3) return 13;
+    if (pctChg >= 3 && pctChg < 4) return 14;
+    if (pctChg >= 4 && pctChg < 5) return 15;
+    if (pctChg >= 5 && pctChg < 6) return 16;
+    if (pctChg >= 6 && pctChg < 7) return 17;
+    if (pctChg >= 7 && pctChg < 8) return 18;
+    if (pctChg >= 8 && pctChg < 9) return 19;
+    if (pctChg >= 9) return 20;
+    return -1;
   }
 
   private initializeRet() {
@@ -80,13 +96,15 @@ export class SentiService {
     const { items: dailyItems } = await this.dailyService.list({
       pageNum: 1,
       pageSize: 10000,
+      tradeDate: date,
     });
+    console.info('dailyItems', dailyItems.length);
     const dailyPctChgItems = dailyItems.map((i) => i.pctChg);
 
     const ret = this.initializeRet();
 
     for (let i = 0; i < dailyPctChgItems.length; i += 1) {
-      const index = this.getRangeIndex(i);
+      const index = this.getRangeIndex(+dailyPctChgItems[i]);
       ret[index].value += 1;
     }
 
