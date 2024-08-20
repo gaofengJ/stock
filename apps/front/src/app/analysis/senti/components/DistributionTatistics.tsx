@@ -36,9 +36,9 @@ const DistributionTatistics = ({ tradeDate }: IProps) => {
     let countZero = 0;
     let countNegative = 0;
     for (let i = 0; i < data.length; i += 1) {
-      if (i > 0) {
+      if (i < 10) {
         countPositive += data[i].count;
-      } else if (i < 0) {
+      } else if (i > 10) {
         countNegative += data[i].count;
       } else {
         countZero += data[i].count;
