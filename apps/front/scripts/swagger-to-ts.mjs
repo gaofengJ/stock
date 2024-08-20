@@ -9,13 +9,20 @@ run.default({
      */
     '/api/common/all-options', // 公共数据-所有选项
     /**
-     * 数据分析
+     * 数据分析-情绪指标
+     */
+    '/api/analysis/senti/distribution-tatistics', // 个股涨跌统计
+    /**
+     * 数据分析-连板统计
      */
     '/api/analysis/chains/count-limit-up-times', // n 连板数量统计
     '/api/analysis/chains/count-limit-up-above-times', // n+ 连板数量统计
     '/api/analysis/chains/upgrade-limit-up-rates', // 连板晋级成功率
     '/api/analysis/chains/limit-up-amount', // 涨停金额统计
     '/api/analysis/chains/upgrade-limit-up-amount', // 连板金额统计
+    /**
+     * 数据分析-涨停板复盘
+     */
     '/api/analysis/limits/limit-up-list', // 涨停板复盘
     /**
      * 基础数据

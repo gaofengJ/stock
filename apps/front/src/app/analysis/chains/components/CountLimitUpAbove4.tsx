@@ -117,7 +117,7 @@ const CountLimitUpAbove4 = ({ dateRange }: IProps) => {
             },
           },
         },
-        top: 0,
+        top: 2,
         right: 8,
       },
       series: [

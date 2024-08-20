@@ -12,7 +12,7 @@ function SingleDateSection() {
 
   // initialSearchParams 的初始值
   const initialSearchParams = {
-    tradeDate: date,
+    tradeDate: date.format('YYYY-MM-DD'),
   };
 
   const [searchParams, setSearchParams] = useState(initialSearchParams);
@@ -31,13 +31,13 @@ function SingleDateSection() {
   };
 
   return (
-    <>
+    <div className="mb-32">
       <div className="mb-16">
         <CSearchForm
           configs={filterConfigs}
           searchParams={{
             ...searchParams,
-            dateRange: dayjs(searchParams.tradeDate),
+            tradeDate: dayjs(searchParams.tradeDate),
           }}
           setSearchParams={handleSetSearchParams}
         />
@@ -46,11 +46,12 @@ function SingleDateSection() {
       <div>
         <Row align="middle" gutter={[32, 64]} justify="space-around">
           <Col span={12}>
-            <DistributionTatistics />
+            <DistributionTatistics tradeDate={searchParams.tradeDate} />
           </Col>
+          <Col span={12} />
         </Row>
       </div>
-    </>
+    </div>
   );
 }
 

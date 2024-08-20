@@ -12,6 +12,7 @@ import type {
   NSGetAnalysisChainsUpgradeLimitUpAmount,
   NSGetAnalysisChainsUpgradeLimitUpRates,
   NSGetAnalysisLimitsLimitUpList,
+  NSGetAnalysisSentiDistributionTatistics,
   NSGetBasicDailyList,
   NSGetBasicStockList,
   NSGetCommonAllOptions,
@@ -45,7 +46,7 @@ export const getAnalysisChainsCountLimitUpTimes = (
     ...config,
   });
 /**
- * 接口名称：涨停成交金额
+ * 接口名称：涨停参与金额
  *
  * @description 接口路径：/analysis/chains/limit-up-amount
  * @description 接口分组：数据分析
@@ -59,7 +60,7 @@ export const getAnalysisChainsLimitUpAmount = (
     ...config,
   });
 /**
- * 接口名称：连板成交金额
+ * 接口名称：连板参与金额
  *
  * @description 接口路径：/analysis/chains/upgrade-limit-up-amount
  * @description 接口分组：数据分析
@@ -73,7 +74,7 @@ export const getAnalysisChainsUpgradeLimitUpAmount = (
     { params, ...config },
   );
 /**
- * 接口名称：连板晋级成功率
+ * 接口名称：n连板晋级成功率
  *
  * @description 接口路径：/analysis/chains/upgrade-limit-up-rates
  * @description 接口分组：数据分析
@@ -100,6 +101,20 @@ export const getAnalysisLimitsLimitUpList = (
     params,
     ...config,
   });
+/**
+ * 接口名称：涨跌分布统计
+ *
+ * @description 接口路径：/analysis/senti/distribution-tatistics
+ * @description 接口分组：数据分析
+ */
+export const getAnalysisSentiDistributionTatistics = (
+  params: NSGetAnalysisSentiDistributionTatistics.IParams,
+  config: RequestConfig = {},
+) =>
+  axios.get<NSGetAnalysisSentiDistributionTatistics.IRes>(
+    '/analysis/senti/distribution-tatistics',
+    { params, ...config },
+  );
 /**
  * 接口名称：每日交易数据
  *

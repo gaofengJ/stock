@@ -79,7 +79,7 @@ export class SentiService {
       '8~9',
       '>9',
     ];
-    return keys.map((key) => ({ key, value: 0 }));
+    return keys.map((key) => ({ tradeDate: key, count: 0 }));
   }
 
   /**
@@ -98,14 +98,13 @@ export class SentiService {
       pageSize: 10000,
       tradeDate: date,
     });
-    console.info('dailyItems', dailyItems.length);
     const dailyPctChgItems = dailyItems.map((i) => i.pctChg);
 
     const ret = this.initializeRet();
 
     for (let i = 0; i < dailyPctChgItems.length; i += 1) {
       const index = this.getRangeIndex(+dailyPctChgItems[i]);
-      ret[index].value += 1;
+      ret[index].count += 1;
     }
 
     return ret;
