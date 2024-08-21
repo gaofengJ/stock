@@ -56,7 +56,7 @@ export class SentiController {
   @Get('/list')
   @ApiOperation({ summary: '查询短线情绪' })
   @ApiResult({ type: [SentiEntity], isPage: false })
-  async list(dto: CommonDateRangeDto) {
+  async list(@Query() dto: CommonDateRangeDto) {
     const ret = await this.sentiService.list(dto);
     return ret;
   }

@@ -7,8 +7,8 @@ import CSearchForm from '@/components/common/CSearchForm';
 import { useDateRangeFilterConfigs } from '../form-configs';
 import LimitUpMaxTimesCount from './LimitUpMaxTimesCount';
 import UpCount from './UpCount';
-import LimitUpComparison from './LimitUpComparison';
-import LimitBreakComparison from './LimitBreakComparison';
+import LimitUpDownCompare from './LimitUpDownCompare';
+import LimitUpAndZCompare from './LimitUpAndZCompare';
 import HighOpenRate from './HighOpenRate';
 import LimitUpSuccessRate from './LimitUpSuccessRate';
 
@@ -90,10 +90,10 @@ function DateRangeSection() {
             <LimitUpMaxTimesCount dateRange={searchParams.dateRange} />
           </Col>
           <Col span={12}>
-            <LimitUpComparison />
+            <LimitUpDownCompare dateRange={searchParams.dateRange} />
           </Col>
           <Col span={12}>
-            <LimitBreakComparison />
+            <LimitUpAndZCompare dateRange={searchParams.dateRange} />
           </Col>
           <Col span={12}>
             <HighOpenRate />

@@ -153,8 +153,10 @@ export const getAnalysisSentiLimitUpMaxTimesCount = (
  * @description 接口路径：/analysis/senti/list
  * @description 接口分组：数据分析
  */
-export const getAnalysisSentiList = (config: RequestConfig = {}) =>
-  axios.get<NSGetAnalysisSentiList.IRes>('/analysis/senti/list');
+export const getAnalysisSentiList = (
+  params: NSGetAnalysisSentiList.IParams,
+  config: RequestConfig = {},
+) => axios.get<NSGetAnalysisSentiList.IRes>('/analysis/senti/list', { params, ...config });
 /**
  * 接口名称：连日涨跌统计
  *
