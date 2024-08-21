@@ -10,6 +10,7 @@ import { SentiService } from './senti.service';
 import {
   SentiDistributionTatisticsEntity,
   SentiLimitUpDownCountEntity,
+  SentiLimitUpMaxTimesCountEntity,
   SentiUpDownCountEntity,
 } from './senti.entity';
 
@@ -41,6 +42,14 @@ export class SentiController {
   @ApiResult({ type: [SentiLimitUpDownCountEntity], isPage: false })
   async limitUpDownCount(@Query() dto: CommonDateRangeDto) {
     const ret = await this.sentiService.limitUpDownCount(dto);
+    return ret;
+  }
+
+  @Get('/limit-up-max-times-count')
+  @ApiOperation({ summary: '连日涨停板高度统计' })
+  @ApiResult({ type: [SentiLimitUpMaxTimesCountEntity], isPage: false })
+  async limitUpMaxTimesCount(@Query() dto: CommonDateRangeDto) {
+    const ret = await this.sentiService.limitUpMaxTimesCount(dto);
     return ret;
   }
 

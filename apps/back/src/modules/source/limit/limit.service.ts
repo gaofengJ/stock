@@ -10,7 +10,10 @@ import {
   ChainsCountLimitUpTimesEntity,
   ChainsLimitUpAmountEntity,
 } from '@/modules/analysis/chains/chains.entity';
-import { SentiLimitUpDownCountEntity } from '@/modules/analysis/senti/senti.entity';
+import {
+  SentiLimitUpDownCountEntity,
+  SentiLimitUpMaxTimesCountEntity,
+} from '@/modules/analysis/senti/senti.entity';
 
 import { LimitEntity } from './limit.entity';
 import { LimitDto, LimitQueryDto, LimitUpdateDto } from './limit.dto';
@@ -85,6 +88,34 @@ export class LimitService {
       limitUCount: +i.limitUCount,
       limitDCount: +i.limitDCount,
       limitZCount: +i.limitZCount,
+    }));
+    return ret;
+  }
+
+  /**
+   * 连日涨停板高度统计
+   */
+  async limitUpMaxTimesCount({
+    orderField = 'trade_date',
+    order = Order.ASC,
+    startDate,
+    endDate,
+  }: LimitQueryDto): Promise<SentiLimitUpMaxTimesCountEntity[]> {
+    let ret = await this.LimitRepository.createQueryBuilder('t_source_limit')
+      .select([
+        't_source_limit.tradeDate AS tradeDate',
+        'MAX(t_source_limit.limit_times) AS maxLimitTimes',
+      ])
+      .where({
+        ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
+      })
+      .groupBy('t_source_limit.tradeDate')
+      .orderBy(orderField, order)
+      .getRawMany();
+
+    ret = ret.map((i) => ({
+      tradeDate: dayjs(i.tradeDate).format('YYYY-MM-DD'),
+      maxLimitTimes: +i.maxLimitTimes,
     }));
     return ret;
   }

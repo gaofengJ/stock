@@ -64,3 +64,18 @@ export class SentiLimitUpDownCountEntity {
   })
   limitZCount: number;
 }
+
+/**
+ * 连日涨停板高度统计 Entity
+ */
+export class SentiLimitUpMaxTimesCountEntity {
+  @ApiProperty({
+    description: '交易日期',
+  })
+  tradeDate: string;
+
+  @ApiProperty({
+    description: '连板高度',
+  })
+  maxLimitTimes: number;
+}

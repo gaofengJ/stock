@@ -3,8 +3,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import dayjs from 'dayjs';
 import { debounce } from 'lodash-es';
 import { Spin } from 'antd';
-import { getAnalysisSentiUpDownCount } from '@/api/services';
-import { NSGetAnalysisSentiUpDownCount } from '@/api/services.types';
+import { getAnalysisSentiLimitUpMaxTimesCount } from '@/api/services';
+import { NSGetAnalysisSentiLimitUpMaxTimesCount } from '@/api/services.types';
 
 import CChart from '@/components/CChart';
 import { EThemeColors } from '@/types/common.enum';
@@ -14,9 +14,9 @@ interface IProps {
   dateRange: string[]; // 起止时间
 }
 
-const UpCount = ({ dateRange }: IProps) => {
+const LimitUpMaxTimesCount = ({ dateRange }: IProps) => {
   const [loading, setLoading] = useState<boolean>(false);
-  const [sourceData, setSourceData] = useState<NSGetAnalysisSentiUpDownCount.IRes>([]);
+  const [sourceData, setSourceData] = useState<NSGetAnalysisSentiLimitUpMaxTimesCount.IRes>([]);
 
   /**
    * 获取数据
@@ -25,7 +25,7 @@ const UpCount = ({ dateRange }: IProps) => {
     try {
       setLoading(true);
       const [startDate, endDate] = dateRange;
-      const { data } = await getAnalysisSentiUpDownCount({
+      const { data } = await getAnalysisSentiLimitUpMaxTimesCount({
         startDate,
         endDate,
       });
@@ -51,8 +51,8 @@ const UpCount = ({ dateRange }: IProps) => {
    * 生成 echarts options
    */
   const genOptions = () => {
-    const min = getRoundedMin(sourceData.map((item) => item.upCount));
-    const max = getRoundedMax(sourceData.map((item) => item.upCount));
+    const min = getRoundedMin(sourceData.map((item) => item.maxLimitTimes));
+    const max = getRoundedMax(sourceData.map((item) => item.maxLimitTimes));
     const interval = (max - min) / 5;
     return {
       grid: {
@@ -63,7 +63,7 @@ const UpCount = ({ dateRange }: IProps) => {
         containLabel: true, // grid 区域是否包含坐标轴的刻度标签(为true时left，right等属性决定包含坐标轴标签在内的矩形的位置)
       },
       title: {
-        text: '上涨家数',
+        text: '连板高度',
         show: true,
         top: 0,
         left: 8,
@@ -126,7 +126,7 @@ const UpCount = ({ dateRange }: IProps) => {
             formatter: '{c}',
             color: EThemeColors.colorPinkRed78,
           },
-          data: sourceData.map((item) => item.upCount),
+          data: sourceData.map((item) => item.maxLimitTimes),
         },
       ],
     };
@@ -134,4 +134,4 @@ const UpCount = ({ dateRange }: IProps) => {
   return loading ? <Spin className="w-full h-320 !leading-[320px]" size="large" /> : <CChart genOptions={genOptions} />;
 };
 
-export default UpCount;
+export default LimitUpMaxTimesCount;

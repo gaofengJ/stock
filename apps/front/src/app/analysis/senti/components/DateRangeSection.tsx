@@ -5,7 +5,7 @@ import { Col, Row } from 'antd';
 import CSearchForm from '@/components/common/CSearchForm';
 
 import { useDateRangeFilterConfigs } from '../form-configs';
-import LimitUpHeight from './LimitUpHeight';
+import LimitUpMaxTimesCount from './LimitUpMaxTimesCount';
 import UpCount from './UpCount';
 import LimitUpComparison from './LimitUpComparison';
 import LimitBreakComparison from './LimitBreakComparison';
@@ -87,7 +87,7 @@ function DateRangeSection() {
             <UpCount dateRange={searchParams.dateRange} />
           </Col>
           <Col span={12}>
-            <LimitUpHeight />
+            <LimitUpMaxTimesCount dateRange={searchParams.dateRange} />
           </Col>
           <Col span={12}>
             <LimitUpComparison />

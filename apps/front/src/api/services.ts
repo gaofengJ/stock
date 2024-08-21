@@ -14,6 +14,7 @@ import type {
   NSGetAnalysisLimitsLimitUpList,
   NSGetAnalysisSentiDistributionTatistics,
   NSGetAnalysisSentiLimitUpDownCount,
+  NSGetAnalysisSentiLimitUpMaxTimesCount,
   NSGetAnalysisSentiList,
   NSGetAnalysisSentiUpDownCount,
   NSGetBasicDailyList,
@@ -132,6 +133,20 @@ export const getAnalysisSentiLimitUpDownCount = (
     params,
     ...config,
   });
+/**
+ * 接口名称：连日涨停板高度统计
+ *
+ * @description 接口路径：/analysis/senti/limit-up-max-times-count
+ * @description 接口分组：数据分析
+ */
+export const getAnalysisSentiLimitUpMaxTimesCount = (
+  params: NSGetAnalysisSentiLimitUpMaxTimesCount.IParams,
+  config: RequestConfig = {},
+) =>
+  axios.get<NSGetAnalysisSentiLimitUpMaxTimesCount.IRes>(
+    '/analysis/senti/limit-up-max-times-count',
+    { params, ...config },
+  );
 /**
  * 接口名称：查询短线情绪
  *

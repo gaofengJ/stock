@@ -127,6 +127,20 @@ export class SentiService {
   }
 
   /**
+   * 连日涨停板高度统计
+   */
+  async limitUpMaxTimesCount(dto: CommonDateRangeDto) {
+    const { startDate, endDate } = dto;
+    const ret = await this.limitService.limitUpMaxTimesCount({
+      pageNum: 1,
+      pageSize: 10000,
+      startDate,
+      endDate,
+    });
+    return ret;
+  }
+
+  /**
    * 短线情绪
    */
   async list(dto: CommonDateRangeDto) {

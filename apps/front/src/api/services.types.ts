@@ -311,6 +311,35 @@ export namespace NSGetAnalysisSentiLimitUpDownCount {
   }[];
 }
 /**
+ * 类型名称：连日涨停板高度统计
+ *
+ * @description 接口路径：/analysis/senti/limit-up-max-times-count
+ * @description 接口分组：数据分析
+ */
+export namespace NSGetAnalysisSentiLimitUpMaxTimesCount {
+  export interface IParams {
+    /**
+     * 开始日期
+     */
+    startDate: string;
+    /**
+     * 结束日期
+     */
+    endDate: string;
+  }
+  export type IRes = {
+    /**
+     * 交易日期
+     */
+    tradeDate: string;
+    /**
+     * 连板高度
+     */
+    maxLimitTimes: number;
+    [k: string]: any;
+  }[];
+}
+/**
  * 类型名称：查询短线情绪
  *
  * @description 接口路径：/analysis/senti/list

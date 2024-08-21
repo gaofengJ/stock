@@ -14,6 +14,7 @@ run.default({
     '/api/analysis/senti/distribution-tatistics', // 个股涨跌分布统计
     '/api/analysis/senti/up-down-count', // 连日涨跌统计
     '/api/analysis/senti/limit-up-down-count', // 连日涨跌停统计
+    '/api/analysis/senti/limit-up-max-times-count', // 连日涨停板高度统计
     '/api/analysis/senti/list', // 查询短线情绪
     /**
      * 数据分析-连板统计
