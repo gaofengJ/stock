@@ -9,8 +9,8 @@ import LimitUpMaxTimesCount from './LimitUpMaxTimesCount';
 import UpCount from './UpCount';
 import LimitUpDownCompare from './LimitUpDownCompare';
 import LimitUpAndZCompare from './LimitUpAndZCompare';
-import HighOpenRate from './HighOpenRate';
-import LimitUpSuccessRate from './LimitUpSuccessRate';
+import LimitUpHighOpen from './LimitUpHighOpen';
+import LimitUpSuccess from './LimitUpSuccess';
 
 function DateRangeSection() {
   const now = dayjs();
@@ -96,10 +96,10 @@ function DateRangeSection() {
             <LimitUpAndZCompare dateRange={searchParams.dateRange} />
           </Col>
           <Col span={12}>
-            <HighOpenRate />
+            <LimitUpHighOpen dateRange={searchParams.dateRange} />
           </Col>
           <Col span={12}>
-            <LimitUpSuccessRate />
+            <LimitUpSuccess dateRange={searchParams.dateRange} />
           </Col>
         </Row>
       </div>
