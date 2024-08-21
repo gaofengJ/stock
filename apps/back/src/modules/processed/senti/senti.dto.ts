@@ -1,7 +1,6 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { IsDateString, IsString, IsInt } from 'class-validator';
 import { IsUnique } from '@/shared/database/constraints/unique.constraint';
-import { PagerDto } from '@/dto/pager.dto';
 import { SentiEntity } from './senti.entity';
 
 export class SentiDto extends PartialType(SentiEntity) {
@@ -54,7 +53,7 @@ export class SentiDto extends PartialType(SentiEntity) {
   sentiD: string;
 }
 
-export class SentiQueryDto extends PagerDto {
+export class SentiQueryDto {
   @ApiProperty({ description: '交易日期' })
   @IsString()
   tradeDate?: string;

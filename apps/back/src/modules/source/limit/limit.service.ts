@@ -10,9 +10,11 @@ import {
   ChainsCountLimitUpTimesEntity,
   ChainsLimitUpAmountEntity,
 } from '@/modules/analysis/chains/chains.entity';
+import { SentiLimitUpDownCountEntity } from '@/modules/analysis/senti/senti.entity';
 
 import { LimitEntity } from './limit.entity';
 import { LimitDto, LimitQueryDto, LimitUpdateDto } from './limit.dto';
+import { ELimit } from './limit.enum';
 
 @Injectable()
 export class LimitService {
@@ -53,6 +55,38 @@ export class LimitService {
       })
       .orderBy(orderField, order);
     return paginate(queryBuilder, { pageNum, pageSize });
+  }
+
+  /**
+   * 连日涨跌停统计
+   */
+  async limitUpDownCount({
+    orderField = 'trade_date',
+    order = Order.ASC,
+    startDate,
+    endDate,
+  }: LimitQueryDto): Promise<SentiLimitUpDownCountEntity[]> {
+    let ret = await this.LimitRepository.createQueryBuilder('t_source_limit')
+      .select([
+        't_source_limit.tradeDate AS tradeDate',
+        `SUM(CASE WHEN t_source_limit.limit = '${ELimit.U}' THEN 1 ELSE 0 END) AS limitUCount`,
+        `SUM(CASE WHEN t_source_limit.limit = '${ELimit.D}' THEN 1 ELSE 0 END) AS limitDCount`,
+        `SUM(CASE WHEN t_source_limit.limit = '${ELimit.Z}' THEN 1 ELSE 0 END) AS limitZCount`,
+      ])
+      .where({
+        ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
+      })
+      .groupBy('t_source_limit.tradeDate')
+      .orderBy(orderField, order)
+      .getRawMany();
+
+    ret = ret.map((i) => ({
+      tradeDate: dayjs(i.tradeDate).format('YYYY-MM-DD'),
+      limitUCount: +i.limitUCount,
+      limitDCount: +i.limitDCount,
+      limitZCount: +i.limitZCount,
+    }));
+    return ret;
   }
 
   /**

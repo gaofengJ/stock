@@ -16,7 +16,7 @@ export const useSingleDayFilterConfigs = (): IFormItemProps[] => [
       format: 'YYYY-MM-DD',
       allowClear: false,
       style: {
-        width: 240,
+        width: 128,
       },
     },
   },

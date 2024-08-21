@@ -12,7 +12,6 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiResult } from '@/decorators/api-result.decorator';
 import { IdParam } from '@/decorators/id-param.decorator';
 
-import { Pagination } from '@/helper/paginate/pagination';
 // import {
 //   Perm,
 //   definePermission,
@@ -41,10 +40,11 @@ export class SentiController {
 
   @Get('/list')
   @ApiOperation({ summary: '获取Senti列表' })
-  @ApiResult({ type: [SentiEntity], isPage: true })
+  @ApiResult({ type: [SentiEntity], isPage: false })
   // @Perm(permissions.LIST)
-  async list(@Query() dto: SentiQueryDto): Promise<Pagination<SentiEntity>> {
-    return this.tradeCalService.list(dto);
+  async list(@Query() dto: SentiQueryDto): Promise<SentiEntity[]> {
+    const ret = await this.tradeCalService.list(dto);
+    return ret;
   }
 
   @Get(':id')

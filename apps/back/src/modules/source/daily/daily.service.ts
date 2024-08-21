@@ -2,10 +2,13 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Like, Not, Repository } from 'typeorm';
 
+import * as dayjs from 'dayjs';
 import { paginate } from '@/helper/paginate/index';
 import { Pagination } from '@/helper/paginate/pagination';
-import { DailyEntity } from './daily.entity';
+import { Order } from '@/dto/pager.dto';
+import { SentiUpDownCountEntity } from '@/modules/analysis/senti/senti.entity';
 
+import { DailyEntity } from './daily.entity';
 import { DailyDto, DailyQueryDto, DailyUpdateDto } from './daily.dto';
 
 @Injectable()
@@ -35,6 +38,39 @@ export class DailyService {
       amount: Not(0), // 排除成交量为 0 的股票，例如暂停交易的股票、各类ETF
     });
     return paginate(queryBuilder, { pageNum, pageSize });
+  }
+
+  /**
+   * 连日涨跌统计
+   */
+  async upDownCount({
+    orderField = 'trade_date',
+    order = Order.ASC,
+    startDate,
+    endDate,
+  }: DailyQueryDto): Promise<SentiUpDownCountEntity[]> {
+    let ret = await this.DailyRepository.createQueryBuilder('t_source_daily')
+      .select([
+        't_source_daily.tradeDate AS tradeDate',
+        'SUM(CASE WHEN t_source_daily.change > 0 THEN 1 ELSE 0 END) AS upCount',
+        'SUM(CASE WHEN t_source_daily.change = 0 THEN 1 ELSE 0 END) AS flatCount',
+        'SUM(CASE WHEN t_source_daily.change < 0 THEN 1 ELSE 0 END) AS downCount',
+      ])
+      .where({
+        ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
+        amount: Not(0), // 排除成交量为 0 的股票，例如暂停交易的股票、各类ETF
+      })
+      .groupBy('t_source_daily.tradeDate')
+      .orderBy(orderField, order)
+      .getRawMany();
+
+    ret = ret.map((i) => ({
+      tradeDate: dayjs(i.tradeDate).format('YYYY-MM-DD'),
+      upCount: +i.upCount,
+      flatCount: +i.flatCount,
+      downCount: +i.downCount,
+    }));
+    return ret;
   }
 
   async detail(id: number): Promise<DailyEntity> {

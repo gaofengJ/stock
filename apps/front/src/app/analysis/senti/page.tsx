@@ -15,7 +15,7 @@ function AnalysisSentiPage() {
     <Layout
       asideMenuItems={analysisSiderMenuItems}
       headerMenuActive={EHeaderMenuKey.analysis}
-      asideMenuActive={EAnalysisAsideMenuKey.analysisChains}
+      asideMenuActive={EAnalysisAsideMenuKey.analysisSenti}
     >
       <div className="p-16 rounded-[6px] bg-bg-white">
         <SingleDateSection />

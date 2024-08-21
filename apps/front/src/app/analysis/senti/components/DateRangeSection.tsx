@@ -84,10 +84,10 @@ function DateRangeSection() {
       <div>
         <Row align="middle" gutter={[32, 64]} justify="space-around">
           <Col span={12}>
-            <LimitUpHeight />
+            <RisingStockCount />
           </Col>
           <Col span={12}>
-            <RisingStockCount />
+            <LimitUpHeight />
           </Col>
           <Col span={12}>
             <LimitUpComparison />

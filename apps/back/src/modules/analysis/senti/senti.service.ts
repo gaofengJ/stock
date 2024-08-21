@@ -4,20 +4,8 @@ import { TradeCalService } from '@/modules/source/trade-cal/trade-cal.service';
 import { BizException } from '@/exceptions/biz.exception';
 import { DailyService } from '@/modules/source/daily/daily.service';
 import { LimitService } from '@/modules/source/limit/limit.service';
-import { ELimit } from '@/modules/source/limit/limit.enum';
 import { SentiService as SourceSentiService } from '@/modules/processed/senti/senti.service';
 import { ECustomError } from '@/types/common.enum';
-
-type ISentiResItem = {
-  tradeDate: string;
-  up: number;
-  down: number;
-};
-
-type INumsResItem = {
-  tradeDate: string;
-  sum: number;
-};
 
 @Injectable()
 export class SentiService {
@@ -111,75 +99,30 @@ export class SentiService {
   }
 
   /**
-   * 涨跌停统计
+   * 连日涨跌统计
    */
-  async limitUpDownTatistics(dto: CommonDateRangeDto) {
+  async upDownCount(dto: CommonDateRangeDto) {
     const { startDate, endDate } = dto;
-    const { items: limitItems } = await this.limitService.list({
+    const ret = await this.dailyService.upDownCount({
       pageNum: 1,
       pageSize: 10000,
       startDate,
       endDate,
     });
-    const map = new Map<string, Record<string, number>>();
-    for (let i = 0; i < limitItems.length; i += 1) {
-      const limitItem = limitItems[i];
-      if (map.has(limitItem.tradeDate)) {
-        if (limitItem.limit === ELimit.U) {
-          (map.get(limitItem.tradeDate) as any).up += 1;
-        }
-        if (limitItem.limit === ELimit.D) {
-          (map.get(limitItem.tradeDate) as any).down += 1;
-        }
-      } else {
-        map.set(limitItem.tradeDate, {
-          up: limitItem.limit === ELimit.U ? 1 : 0,
-          down: limitItem.limit === ELimit.D ? 1 : 0,
-        });
-      }
-    }
-    const ret: ISentiResItem[] = [];
-    // eslint-disable-next-line no-restricted-syntax
-    for (const [key, value] of map.entries()) {
-      ret.push({
-        tradeDate: key,
-        ...value,
-      } as ISentiResItem);
-    }
     return ret;
   }
 
   /**
-   * 上涨家数
+   * 连日涨跌停统计
    */
-  async upCount(dto: CommonDateRangeDto) {
+  async limitUpDownCount(dto: CommonDateRangeDto) {
     const { startDate, endDate } = dto;
-    const { items: dailyItems } = await this.dailyService.list({
+    const ret = await this.limitService.limitUpDownCount({
       pageNum: 1,
       pageSize: 10000,
       startDate,
       endDate,
     });
-
-    const map = new Map<string, number>();
-    for (let i = 0; i < dailyItems.length; i += 1) {
-      const dailyItem = dailyItems[i];
-      if (map.has(dailyItem.tradeDate)) {
-        if (+dailyItem.pctChg > 0) {
-          map.set(dailyItem.tradeDate, (map.get(dailyItem.tradeDate) || 0) + 1);
-        }
-      } else {
-        map.set(dailyItem.tradeDate, 1);
-      }
-    }
-    const ret: INumsResItem[] = [];
-    // eslint-disable-next-line no-restricted-syntax
-    for (const [key, value] of map.entries()) {
-      ret.push({
-        tradeDate: key,
-        sum: value,
-      } as INumsResItem);
-    }
     return ret;
   }
 
@@ -188,13 +131,10 @@ export class SentiService {
    */
   async list(dto: CommonDateRangeDto) {
     const { startDate, endDate } = dto;
-    const { items: sentiItems } = await this.sentiService.list({
-      pageNum: 1,
-      pageSize: 10000,
+    const ret = await this.sentiService.list({
       startDate,
       endDate,
     });
-
-    return sentiItems;
+    return ret;
   }
 }
