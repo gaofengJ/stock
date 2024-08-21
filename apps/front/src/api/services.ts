@@ -13,6 +13,9 @@ import type {
   NSGetAnalysisChainsUpgradeLimitUpRates,
   NSGetAnalysisLimitsLimitUpList,
   NSGetAnalysisSentiDistributionTatistics,
+  NSGetAnalysisSentiLimitUpDownCount,
+  NSGetAnalysisSentiList,
+  NSGetAnalysisSentiUpDownCount,
   NSGetBasicDailyList,
   NSGetBasicStockList,
   NSGetCommonAllOptions,
@@ -115,6 +118,42 @@ export const getAnalysisSentiDistributionTatistics = (
     '/analysis/senti/distribution-tatistics',
     { params, ...config },
   );
+/**
+ * 接口名称：连日涨跌停统计
+ *
+ * @description 接口路径：/analysis/senti/limit-up-down-count
+ * @description 接口分组：数据分析
+ */
+export const getAnalysisSentiLimitUpDownCount = (
+  params: NSGetAnalysisSentiLimitUpDownCount.IParams,
+  config: RequestConfig = {},
+) =>
+  axios.get<NSGetAnalysisSentiLimitUpDownCount.IRes>('/analysis/senti/limit-up-down-count', {
+    params,
+    ...config,
+  });
+/**
+ * 接口名称：查询短线情绪
+ *
+ * @description 接口路径：/analysis/senti/list
+ * @description 接口分组：数据分析
+ */
+export const getAnalysisSentiList = (config: RequestConfig = {}) =>
+  axios.get<NSGetAnalysisSentiList.IRes>('/analysis/senti/list');
+/**
+ * 接口名称：连日涨跌统计
+ *
+ * @description 接口路径：/analysis/senti/up-down-count
+ * @description 接口分组：数据分析
+ */
+export const getAnalysisSentiUpDownCount = (
+  params: NSGetAnalysisSentiUpDownCount.IParams,
+  config: RequestConfig = {},
+) =>
+  axios.get<NSGetAnalysisSentiUpDownCount.IRes>('/analysis/senti/up-down-count', {
+    params,
+    ...config,
+  });
 /**
  * 接口名称：每日交易数据
  *

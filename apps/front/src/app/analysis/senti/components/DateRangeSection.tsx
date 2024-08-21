@@ -6,7 +6,7 @@ import CSearchForm from '@/components/common/CSearchForm';
 
 import { useDateRangeFilterConfigs } from '../form-configs';
 import LimitUpHeight from './LimitUpHeight';
-import RisingStockCount from './RisingStockCount';
+import UpCount from './UpCount';
 import LimitUpComparison from './LimitUpComparison';
 import LimitBreakComparison from './LimitBreakComparison';
 import HighOpenRate from './HighOpenRate';
@@ -84,7 +84,7 @@ function DateRangeSection() {
       <div>
         <Row align="middle" gutter={[32, 64]} justify="space-around">
           <Col span={12}>
-            <RisingStockCount />
+            <UpCount dateRange={searchParams.dateRange} />
           </Col>
           <Col span={12}>
             <LimitUpHeight />

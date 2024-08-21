@@ -274,6 +274,131 @@ export namespace NSGetAnalysisSentiDistributionTatistics {
   }[];
 }
 /**
+ * 类型名称：连日涨跌停统计
+ *
+ * @description 接口路径：/analysis/senti/limit-up-down-count
+ * @description 接口分组：数据分析
+ */
+export namespace NSGetAnalysisSentiLimitUpDownCount {
+  export interface IParams {
+    /**
+     * 开始日期
+     */
+    startDate: string;
+    /**
+     * 结束日期
+     */
+    endDate: string;
+  }
+  export type IRes = {
+    /**
+     * 交易日期
+     */
+    tradeDate: string;
+    /**
+     * 涨停家数
+     */
+    limitUCount: number;
+    /**
+     * 跌停家数
+     */
+    limitDCount: number;
+    /**
+     * 炸板家数
+     */
+    limitZCount: number;
+    [k: string]: any;
+  }[];
+}
+/**
+ * 类型名称：查询短线情绪
+ *
+ * @description 接口路径：/analysis/senti/list
+ * @description 接口分组：数据分析
+ */
+export namespace NSGetAnalysisSentiList {
+  export type IRes = {
+    /**
+     * 交易日期
+     */
+    tradeDate: string;
+    /**
+     * 当日涨停，非一字涨停，非ST
+     */
+    a: number;
+    /**
+     * 前一日涨停，非一字涨停，非ST
+     */
+    b: number;
+    /**
+     * 前一日涨停，非一字涨停，非ST，当日高开
+     */
+    c: number;
+    /**
+     * 前一日涨停，非一字涨停，非ST，当日上涨
+     */
+    d: number;
+    /**
+     * 当日曾涨停，非ST
+     */
+    e: number;
+    /**
+     * 非一字涨停
+     */
+    sentiA: string;
+    /**
+     * 打板高开率(%)
+     */
+    sentiB: string;
+    /**
+     * 打板成功率(%)
+     */
+    sentiC: string;
+    /**
+     * 打板被砸率(%)
+     */
+    sentiD: string;
+    [k: string]: any;
+  }[];
+}
+/**
+ * 类型名称：连日涨跌统计
+ *
+ * @description 接口路径：/analysis/senti/up-down-count
+ * @description 接口分组：数据分析
+ */
+export namespace NSGetAnalysisSentiUpDownCount {
+  export interface IParams {
+    /**
+     * 开始日期
+     */
+    startDate: string;
+    /**
+     * 结束日期
+     */
+    endDate: string;
+  }
+  export type IRes = {
+    /**
+     * 交易日期
+     */
+    tradeDate: string;
+    /**
+     * 上涨家数
+     */
+    upCount: number;
+    /**
+     * 平盘家数
+     */
+    flatCount: number;
+    /**
+     * 下跌家数
+     */
+    downCount: number;
+    [k: string]: any;
+  }[];
+}
+/**
  * 类型名称：每日交易数据
  *
  * @description 接口路径：/basic/daily/list

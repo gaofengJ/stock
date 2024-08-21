@@ -18,6 +18,7 @@ export const themeConfig: ThemeConfig = {
     Layout: {
       headerBg: EThemeColors.colorWhite,
       headerPadding: '0 16px',
+      siderBg: EThemeColors.colorWhite,
       triggerBg: EThemeColors.colorWhite,
       triggerColor: EThemeColors.colorPinkRed,
     },
