@@ -21,7 +21,7 @@ const AmountLimitUp = ({ dateRange }: IProps) => {
   /**
    * 获取数据
    */
-  const getChainsCount = useCallback(async () => {
+  const getChainsAmount = useCallback(async () => {
     try {
       setLoading(true);
       const [startDate, endDate] = dateRange;
@@ -38,14 +38,14 @@ const AmountLimitUp = ({ dateRange }: IProps) => {
   }, [dateRange]);
 
   useEffect(() => {
-    const debounceGetChainsCount = debounce(getChainsCount, 300);
-    debounceGetChainsCount();
+    const debounceGetChainsAmount = debounce(getChainsAmount, 300);
+    debounceGetChainsAmount();
 
     // 清理函数以防止在组件卸载时继续调用
     return () => {
-      debounceGetChainsCount.cancel();
+      debounceGetChainsAmount.cancel();
     };
-  }, [getChainsCount]);
+  }, [getChainsAmount]);
 
   /**
    * 生成 echarts options
