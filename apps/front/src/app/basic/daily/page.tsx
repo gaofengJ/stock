@@ -19,11 +19,14 @@ import { dailyColumns } from './columns';
 function BasicDailyPage() {
   const stockFilterConfigs = useStockFilterConfigs();
 
+  const now = dayjs();
+  const date = now.hour() >= 20 ? now : now.subtract(1, 'day'); // 20点之前展示前一天，20点之后展示当天
+
   // searchParams 的初始值
   const initialSearchParams: Partial<NSGetBasicDailyList.IParams> = {
     pageNum: 1,
     pageSize: 20,
-    tradeDate: dayjs().format('YYYY-MM-DD'),
+    tradeDate: date.format('YYYY-MM-DD'),
   };
   const [searchParams, setSearchParams] = useState<
     Partial<NSGetBasicDailyList.IParams>>(initialSearchParams);
