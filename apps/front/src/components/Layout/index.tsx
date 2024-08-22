@@ -9,14 +9,18 @@ import {
   Avatar,
   message,
   MenuProps,
+  Popover,
 } from 'antd';
 import zhCN from 'antd/es/locale/zh_CN';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
 import { useRouter } from 'next/navigation';
 
+import { WechatOutlined } from '@ant-design/icons';
 import ImgFengye from '@/assets/imgs/fengye.png';
+import ImgAuthorAvatar from '@/assets/imgs/author-avatar.png';
 import { useOptionsState } from '@/store/useOptionsStore';
+import { EThemeColors } from '@/types/common.enum';
 
 import { avatarDropdownItems, headerMenuItems, themeConfig } from './config';
 
@@ -67,7 +71,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
     <ConfigProvider locale={zhCN} theme={themeConfig}>
       <Layout className="h-[100vh] min-w-[1080px]">
         <Header className="flex items-center">
-          <img src={ImgFengye.src} alt="fengye" className="h-32 w-32" />
+          <img src={ImgFengye.src} alt="fengye" className="w-32 h-32" />
           <span className="w-216 pl-8 text-20 font-medium">木风同学</span>
           <Menu
             mode="horizontal"
@@ -76,7 +80,29 @@ const CommonLayout: React.FC<ILayoutProps> = ({
             onSelect={handleHeaderMenuSelect}
           />
           <span className="grow" />
-          <span className="mr-16 font-bold text-text-pink-red78">每晚20: 00更新当日数据</span>
+          <Popover
+            content={(
+              <div>
+                <img
+                  src={ImgAuthorAvatar.src}
+                  alt="fengye"
+                  className="w-200 h-200"
+                />
+              </div>
+            )}
+          >
+            <div className="flex items-center cursor-pointer">
+              <WechatOutlined
+                style={{
+                  color: EThemeColors.colorLimeGreen,
+                }}
+              />
+              <span className="ml-4 mr-16 text-12">联系作者</span>
+            </div>
+          </Popover>
+          <span className="mr-16 font-bold text-text-pink-red78">
+            每晚20: 00更新当日数据
+          </span>
           <Dropdown
             menu={{
               items: avatarDropdownItems,
@@ -87,7 +113,9 @@ const CommonLayout: React.FC<ILayoutProps> = ({
             placement="bottomLeft"
             arrow
           >
-            <Avatar className="basis-[32px] text-white cursor-pointer">User</Avatar>
+            <Avatar className="basis-[32px] text-white cursor-pointer">
+              User
+            </Avatar>
           </Dropdown>
         </Header>
         <Layout>
