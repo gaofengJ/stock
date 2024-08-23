@@ -438,6 +438,29 @@ export namespace NSGetAnalysisSentiUpDownCount {
   }[];
 }
 /**
+ * 类型名称：游资名录
+ *
+ * @description 接口路径：/basic/active-funds/list
+ * @description 接口分组：基础数据
+ */
+export namespace NSGetBasicActiveFundsList {
+  export type IRes = {
+    /**
+     * 游资名称
+     */
+    name: string;
+    /**
+     * 关联机构
+     */
+    orgs: string[];
+    /**
+     * 说明
+     */
+    desc: string;
+    [k: string]: any;
+  }[];
+}
+/**
  * 类型名称：每日交易数据
  *
  * @description 接口路径：/basic/daily/list

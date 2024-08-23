@@ -2,10 +2,11 @@ import { Module } from '@nestjs/common';
 
 import { RouterModule } from '@nestjs/core';
 
+import { ActiveFundsModule } from './active-funds/active-funds.module';
 import { DailyModule } from './daily/daily.module';
 import { StockModule } from './stock/stock.module';
 
-const modules = [DailyModule, StockModule];
+const modules = [ActiveFundsModule, DailyModule, StockModule];
 
 @Module({
   imports: [

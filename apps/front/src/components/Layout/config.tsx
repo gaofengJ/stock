@@ -96,4 +96,8 @@ export const basicSiderMenuItems: MenuProps['items'] = [
     key: EBasicAsideMenuKey.basicStock,
     label: '个股基本信息',
   },
+  {
+    key: EBasicAsideMenuKey.basicActiveFunds,
+    label: '游资名录',
+  },
 ];

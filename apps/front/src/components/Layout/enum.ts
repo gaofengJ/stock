@@ -72,4 +72,8 @@ export enum EBasicAsideMenuKey {
    * 基础数据-每日交易数据
    */
   basicDaily = '/basic/daily',
+  /**
+   * 基础数据-游资名录
+   */
+  basicActiveFunds = '/basic/active-funds',
 }

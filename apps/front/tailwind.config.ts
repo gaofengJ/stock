@@ -22,6 +22,10 @@ const colorsConfig = {
   'bg-lime-green78': EThemeColors.colorLimeGreen78,
   'bg-lime-green56': EThemeColors.colorLimeGreen56,
 
+  'text-white': EThemeColors.colorWhite,
+  'text-grey': EThemeColors.colorGrey,
+  'text-grey78': EThemeColors.colorGrey78,
+  'text-grey56': EThemeColors.colorGrey56,
   'text-black': EThemeColors.colorBlack,
   'text-black78': EThemeColors.colorBlack78,
   'text-black56': EThemeColors.colorBlack56,

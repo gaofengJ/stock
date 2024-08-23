@@ -17,6 +17,7 @@ import type {
   NSGetAnalysisSentiLimitUpMaxTimesCount,
   NSGetAnalysisSentiList,
   NSGetAnalysisSentiUpDownCount,
+  NSGetBasicActiveFundsList,
   NSGetBasicDailyList,
   NSGetBasicStockList,
   NSGetCommonAllOptions,
@@ -171,6 +172,14 @@ export const getAnalysisSentiUpDownCount = (
     params,
     ...config,
   });
+/**
+ * 接口名称：游资名录
+ *
+ * @description 接口路径：/basic/active-funds/list
+ * @description 接口分组：基础数据
+ */
+export const getBasicActiveFundsList = (config: RequestConfig = {}) =>
+  axios.get<NSGetBasicActiveFundsList.IRes>('/basic/active-funds/list');
 /**
  * 接口名称：每日交易数据
  *
