@@ -12,10 +12,13 @@ import { StockService } from '@/modules/source/stock/stock.service';
 import { StockDto } from '@/modules/source/stock/stock.dto';
 import { DailyService } from '@/modules/source/daily/daily.service';
 import { DailyDto } from '@/modules/source/daily/daily.dto';
+import { ActiveFundsDto } from '@/modules/source/active-funds/active-funds.dto';
+
 import { LimitDto } from '../source/limit/limit.dto';
 import { LimitService } from '../source/limit/limit.service';
 import { ELimit } from '../source/limit/limit.enum';
 import { SentiService } from '../processed/senti/senti.service';
+import { ActiveFundsService } from '../source/active-funds/active-funds.service';
 
 @Injectable()
 export class DailyTaskService {
@@ -24,6 +27,7 @@ export class DailyTaskService {
   constructor(
     private tushareService: TushareService,
     private tradeCalService: TradeCalService,
+    private activeFundsService: ActiveFundsService,
     private stockService: StockService,
     private dailyService: DailyService,
     private limitService: LimitService,
@@ -36,6 +40,7 @@ export class DailyTaskService {
    */
   async import(date: CommonDateDto['date']) {
     await this.importTradeCal();
+    await this.importActiveFunds();
     await this.importStockBasic();
     const isOpen = await this.tradeCalService.isOpen(date);
     if (!isOpen) {
@@ -55,6 +60,7 @@ export class DailyTaskService {
     endDate: CommonDateRangeDto['endDate'],
   ) {
     await this.importTradeCal();
+    await this.importActiveFunds();
     await this.importStockBasic();
     const { items } = await this.tradeCalService.list({
       pageNum: 1,
@@ -83,8 +89,7 @@ export class DailyTaskService {
   }
 
   /**
-   * @param date 日期
-   * @returns
+   * 导入日历
    */
   async importTradeCal() {
     try {
@@ -105,6 +110,26 @@ export class DailyTaskService {
     } catch (error) {
       this.logger.error(`更新交易日历失败：${error.message}`);
       throw new BizException(ECustomError.IMPORT_TRADE_CAL_FAILED);
+    }
+  }
+
+  /**
+   * 导入游资名录
+   */
+  async importActiveFunds() {
+    try {
+      await this.activeFundsService.clear(); // 清空游资名录表
+      this.logger.log(`清空游资名录表`);
+
+      const { code, data } = await this.tushareService.getActiveFunds();
+      if (code) return;
+      const { fields, items } = data!;
+      const params: ActiveFundsDto[] = mixinFieldAndItems(fields, items);
+      const count = await this.activeFundsService.bulkCreate(params);
+      this.logger.log(`导入游资名录：共计${count}条数据`);
+    } catch (error) {
+      this.logger.error(`更新游资名录失败：${error.message}`);
+      throw new BizException(ECustomError.IMPORT_ACTIVE_FUNDS_FAILED);
     }
   }
 
@@ -436,6 +461,8 @@ export class DailyTaskService {
   async clear() {
     await this.tradeCalService.clear();
     this.logger.log('清空交易日历：成功');
+    await this.activeFundsService.clear();
+    this.logger.log('清空游资名录: 成功');
     await this.stockService.clear();
     this.logger.log('清空股票基本信息：成功');
     await this.dailyService.clear();

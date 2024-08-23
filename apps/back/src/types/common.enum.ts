@@ -214,6 +214,10 @@ export enum ECustomError {
    */
   IMPORT_LIMIT_FAILED = '-2005:导入涨跌停数据失败',
   /**
+   * 数据相关-导入游资名录数据失败
+   */
+  IMPORT_ACTIVE_FUNDS_FAILED = '-2006:导入游资名录数据失败',
+  /**
    * 数据相关-非开发环境禁止批量删除
    */
   CLEAR_NOT_ALLOWED = '-2006:非开发环境禁止批量删除',
