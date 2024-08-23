@@ -7,7 +7,7 @@ import { CommonEntity } from '@/entity/common.entity';
   name: 't_source_active_funds',
   comment: '游资名录表',
 })
-@Index('index_name', ['name'])
+@Index('index_name_test', ['name'])
 export class ActiveFundsEntity extends CommonEntity {
   @Column({
     name: 'name',
@@ -15,7 +15,7 @@ export class ActiveFundsEntity extends CommonEntity {
     length: 16,
     comment: '游资名称',
   })
-  @ApiProperty({ description: '游资名称' })
+  @ApiProperty({ description: '游资名称测试' })
   name: string;
 
   @Column({
