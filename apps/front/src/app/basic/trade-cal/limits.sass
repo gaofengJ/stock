@@ -3,7 +3,7 @@
 @tailwind utilities
 
 .trade-cal-calendar-month
-  @apply absolute top-1/2 left-1/2 w-80 h-80 transform -translate-x-[40px] -translate-y-[40px] text-80 text-center leading-[80px] text-text-pink-red56
+  @apply absolute top-1/2 left-1/2 w-80 h-80 transform -translate-x-[40px] -translate-y-[40px] text-80 font-medium text-center leading-[80px] text-text-pink-red56
 
 .trade-cal-calendar
   .ant-picker-calendar-header
@@ -14,19 +14,26 @@
     pointer-events: none
     cursor: default !important
     .date-cell
-      position: relative
+      .date-cell-weekend
+        color: rgba(0, 0, 0, 0.25)
       .date-cell-text-lunar
         font-size: 12px
-    .is-open
-      .date-cell-text-number
-        display: inline-block
-        border-radius: 50% 
-        position: relative
-        width: 24px
-        height: 24px
-        background-color: var(--color-pink-red-78)
-        text-align: center
-        line-height: 24px
-        color: #FFFFFF !important
-      .date-cell-weekend
-        color: var(--color-black-56)
+    &.ant-picker-cell-in-view
+      .is-open
+        .date-cell-text-number
+          display: inline-block
+          border-radius: 50% 
+          position: relative
+          width: 24px
+          height: 24px
+          background-color: var(--color-pink-red-78)
+          text-align: center
+          line-height: 24px
+          color: #FFFFFF !important
+        .today
+          .date-cell-text-number
+            background-color: var(--color-pink-red)
+            font-weight: bold
+        .past-date
+          .date-cell-text-number
+            background-color: var(--color-pink-red-56)

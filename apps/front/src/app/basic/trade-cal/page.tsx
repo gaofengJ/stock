@@ -37,6 +37,8 @@ function BasicTradeCalPage() {
   };
   const [tradeCalData, setTradeCalData] = useState(initialTradeCalData);
 
+  const [tradeCalMap, setTradeCalMap] = useState<Record<string, boolean>>({});
+
   /**
    * 获取 list
    */
@@ -54,7 +56,7 @@ function BasicTradeCalPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     const debounceGetTradeCal = debounce(getTradeCal, 300);
@@ -65,6 +67,16 @@ function BasicTradeCalPage() {
       debounceGetTradeCal.cancel();
     };
   }, [getTradeCal]);
+
+  useEffect(() => {
+    if (tradeCalData.items?.length) {
+      const tempMap: Record<string, boolean> = {};
+      for (let i = 0; i < tradeCalData.items.length; i += 1) {
+        tempMap[tradeCalData.items[i].calDate] = !!tradeCalData.items[i].isOpen;
+      }
+      setTradeCalMap(tempMap);
+    }
+  }, [tradeCalData.items]);
 
   const tradeCalConfigs = useTradeCalConfigs();
 
@@ -116,14 +128,17 @@ function BasicTradeCalPage() {
       return React.cloneElement(info.originNode, {
         ...info.originNode.props,
         className: classNames('date-cell', {
-          'is-open': true,
+          'is-open': tradeCalMap[date.format('YYYY-MM-DD')],
         }),
         children: (
-          <div className="date-cell-text">
+          <div className={classNames('date-cell-text', {
+            'date-cell-weekend': isWeekend,
+            today: date.format('YYYY-MM-DD') === dayjs().format('YYYY-MM-DD'),
+            'past-date': date.format('YYYY-MM-DD') < dayjs().format('YYYY-MM-DD'),
+          })}
+          >
             <span
-              className={classNames('date-cell-text-number', {
-                'date-cell-weekend': isWeekend,
-              })}
+              className="date-cell-text-number"
             >
               {/* 显示日期 */}
               {date.get('date')}
@@ -158,7 +173,7 @@ function BasicTradeCalPage() {
             setSearchParams={handleSetSearchParams}
           />
         </div>
-        <div className="h-[calc(100vh-176px)] overflow-y-auto">
+        <div className="h-[calc(100vh-176px)] overflow-y-auto overflow-x-hidden">
           {loading ? (
             <Spin className="w-full h-320 !leading-[320px]" size="large" />
           ) : (
@@ -171,6 +186,7 @@ function BasicTradeCalPage() {
                       fullscreen={false}
                       fullCellRender={cellRender}
                       rootClassName="trade-cal-calendar"
+                      defaultValue={dayjs(`${searchParams.year}-${i + 1}-01`)}
                     />
                   </div>
                 </Col>
