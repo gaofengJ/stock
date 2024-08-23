@@ -33,6 +33,7 @@ run.default({
      */
     '/api/basic/daily/list', // 每日交易数据
     '/api/basic/stock/list', // 股票基本信息
+    '/api/basic/trade-cal/list', // 交易日历
     '/api/basic/active-funds/list', // 游资名录
   ],
 });

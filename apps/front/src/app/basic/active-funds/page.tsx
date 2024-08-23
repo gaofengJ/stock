@@ -21,12 +21,12 @@ function BasicActiveFundsPage() {
   // activeFundsData 的初始值
   const initialActiveFundsData: {
     items: NSGetBasicActiveFundsList.IRes;
-    totalItems: number;
   } = {
     items: [],
-    totalItems: 0,
   };
-  const [activeFundsData, setActiveFundsData] = useState(initialActiveFundsData);
+  const [activeFundsData, setActiveFundsData] = useState(
+    initialActiveFundsData,
+  );
 
   /**
    * 获取 list

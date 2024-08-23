@@ -1,0 +1,23 @@
+@tailwind base
+@tailwind components
+@tailwind utilities
+
+.trade-cal-calendar-month
+  @apply absolute top-1/2 left-1/2 w-80 h-80 transform -translate-x-[40px] -translate-y-[40px] text-80 text-center leading-[80px] text-text-pink-red56
+
+.trade-cal-calendar
+  .ant-picker-calendar-header
+    color: red
+    display: none !important
+  /* 禁用日历中的所有日期点击行为 */
+  .ant-picker-cell
+    pointer-events: none
+    cursor: default !important
+    .date-cell
+      position: relative
+      .date-cell-text-lunar
+        font-size: 12px
+    .is-open
+      .date-cell-text-number
+      .date-cell-weekend
+        color: var(--color-black-56)

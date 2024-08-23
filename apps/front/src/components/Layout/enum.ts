@@ -73,6 +73,10 @@ export enum EBasicAsideMenuKey {
    */
   basicDaily = '/basic/daily',
   /**
+   * 交易日历
+   */
+  basicTradeCal = '/basic/trade-cal',
+  /**
    * 基础数据-游资名录
    */
   basicActiveFunds = '/basic/active-funds',

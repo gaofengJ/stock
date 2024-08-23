@@ -765,6 +765,35 @@ export namespace NSGetBasicStockList {
   }
 }
 /**
+ * 类型名称：交易日历
+ *
+ * @description 接口路径：/basic/trade-cal/list
+ * @description 接口分组：基础数据
+ */
+export namespace NSGetBasicTradeCalList {
+  export interface IParams {
+    /**
+     * 年份
+     */
+    year: string;
+  }
+  export type IRes = {
+    /**
+     * 日期
+     */
+    calDate: string;
+    /**
+     * 是否为交易日期 0: 否 1: 是
+     */
+    isOpen: number;
+    /**
+     * 上一个交易日期
+     */
+    preTradeDate: string;
+    [k: string]: any;
+  }[];
+}
+/**
  * 类型名称：所有选项
  *
  * @description 接口路径：/common/all-options

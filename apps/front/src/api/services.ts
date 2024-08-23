@@ -20,6 +20,7 @@ import type {
   NSGetBasicActiveFundsList,
   NSGetBasicDailyList,
   NSGetBasicStockList,
+  NSGetBasicTradeCalList,
   NSGetCommonAllOptions,
 } from './services.types.ts';
 /**
@@ -200,6 +201,16 @@ export const getBasicStockList = (
   params: NSGetBasicStockList.IParams,
   config: RequestConfig = {},
 ) => axios.get<NSGetBasicStockList.IRes>('/basic/stock/list', { params, ...config });
+/**
+ * 接口名称：交易日历
+ *
+ * @description 接口路径：/basic/trade-cal/list
+ * @description 接口分组：基础数据
+ */
+export const getBasicTradeCalList = (
+  params: NSGetBasicTradeCalList.IParams,
+  config: RequestConfig = {},
+) => axios.get<NSGetBasicTradeCalList.IRes>('/basic/trade-cal/list', { params, ...config });
 /**
  * 接口名称：所有选项
  *

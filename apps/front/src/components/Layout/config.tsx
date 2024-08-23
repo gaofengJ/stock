@@ -97,6 +97,10 @@ export const basicSiderMenuItems: MenuProps['items'] = [
     label: '个股基本信息',
   },
   {
+    key: EBasicAsideMenuKey.basicTradeCal,
+    label: '交易日历',
+  },
+  {
     key: EBasicAsideMenuKey.basicActiveFunds,
     label: '游资名录',
   },
