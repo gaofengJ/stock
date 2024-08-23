@@ -69,6 +69,6 @@ export const getEnvConfigBoolean = (
   defaultValue: boolean = false,
 ) => {
   return formatEnvConfig<boolean>(key, defaultValue, (value) => {
-    return !!value;
+    return value === 'true';
   });
 };
