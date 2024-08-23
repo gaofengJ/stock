@@ -16,7 +16,7 @@ export class ActiveFundsService {
   async list(): Promise<ActiveFundsEntity[]> {
     const ret = this.ActiveFundsRepository.createQueryBuilder(
       't_source_active_funds',
-    ).getRawMany();
+    ).getMany();
     return ret;
   }
 

@@ -142,4 +142,16 @@ export class TushareService {
       },
     });
   }
+
+  /**
+   * @description 游资名录
+   * @returns Promise<IBaseRes>
+   */
+  getActiveFunds(): Promise<IBaseRes<ITushareData>> {
+    return this.request({
+      data: {
+        api_name: 'hm_list',
+      },
+    });
+  }
 }
