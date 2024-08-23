@@ -7,7 +7,7 @@ import { CommonEntity } from '@/entity/common.entity';
   name: 't_source_trade_cal',
   comment: '交易日期表',
 })
-@Index('index_cal_date', ['calDate'])
+@Index('index_cal_date_test', ['calDate'])
 // 定义一个名为 TradeCalEntity 的类，并继承 CommonEntity
 export class TradeCalEntity extends CommonEntity {
   @Column({
