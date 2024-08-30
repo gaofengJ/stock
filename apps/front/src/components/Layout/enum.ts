@@ -11,6 +11,10 @@ export enum EHeaderMenuKey {
    */
   trends = '/trends',
   /**
+   * 策略选股
+   */
+  strategy = '/strategy',
+  /**
    * 基础数据
    */
   basic = '/basic',

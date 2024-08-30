@@ -39,6 +39,10 @@ export const headerMenuItems: MenuProps['items'] = [
     label: '市场行情',
   },
   {
+    key: EHeaderMenuKey.strategy,
+    label: '策略选股',
+  },
+  {
     key: EHeaderMenuKey.basic,
     label: '基础数据',
   },
