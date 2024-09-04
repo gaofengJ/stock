@@ -507,7 +507,7 @@ export namespace NSGetBasicDailyList {
     /**
      * 过滤字段
      */
-    fields: array;
+    fields: string[];
   }
   export interface IRes {
     items: {
