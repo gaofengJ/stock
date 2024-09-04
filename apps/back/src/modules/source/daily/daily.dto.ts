@@ -161,6 +161,10 @@ export class DailyQueryDto extends PagerDto {
   @IsString()
   @IsOptional()
   name?: string;
+
+  @ApiProperty({ description: '过滤字段' })
+  @IsOptional()
+  fields?: string[];
 }
 
 export class DailyUpdateDto extends PartialType(DailyDto) {}

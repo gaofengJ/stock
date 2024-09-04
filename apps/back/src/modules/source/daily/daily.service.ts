@@ -26,10 +26,19 @@ export class DailyService {
     endDate,
     tsCode,
     name,
+    fields = [], // 默认值为空数组
   }: DailyQueryDto): Promise<Pagination<DailyEntity>> {
-    const queryBuilder = this.DailyRepository.createQueryBuilder(
-      't_source_daily',
-    ).where({
+    let queryBuilder =
+      this.DailyRepository.createQueryBuilder('t_source_daily');
+
+    // 如果 fields 数组不为空，则使用 select 语句
+    if (fields.length > 0) {
+      queryBuilder = queryBuilder.select(
+        fields.map((i: string) => `t_source_daily.${i}`),
+      );
+    }
+
+    queryBuilder = queryBuilder.where({
       ...(tradeDate && { tradeDate }),
       ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
       ...(tradeDate && { tradeDate }),

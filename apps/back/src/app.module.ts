@@ -20,6 +20,7 @@ import { SourceModule } from '@/modules/source/source.module';
 import { ProcessedModule } from '@/modules/processed/processed.module';
 import { DailyTaskModule } from '@/modules/daily-task/daily-task.module';
 import { AnalysisModule } from '@/modules/analysis/analysis.module';
+import { StrategyModule } from '@/modules/strategy/strategy.module';
 import { BasicModule } from '@/modules/basic/basic.module';
 import { CommonModule } from '@/modules/common/common.module';
 import { DailySourceTask } from '@/tasks/daily-source.tasks';
@@ -82,6 +83,10 @@ import { DailySourceTask } from '@/tasks/daily-source.tasks';
      * 数据分析模块
      */
     AnalysisModule,
+    /**
+     * 策略选股
+     */
+    StrategyModule,
     /**
      * 基础数据模块
      */

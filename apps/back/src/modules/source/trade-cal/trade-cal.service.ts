@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
+import { Between, LessThanOrEqual, Repository } from 'typeorm';
 
 import { paginate } from '@/helper/paginate/index';
 import { Pagination } from '@/helper/paginate/pagination';
@@ -13,6 +13,7 @@ import {
   TradeCalQueryDto,
   TradeCalUpdateDto,
 } from './trade-cal.dto';
+import { EIsOpen } from './trade-cal.enum';
 
 @Injectable()
 export class TradeCalService {
@@ -93,5 +94,23 @@ export class TradeCalService {
       select: ['preTradeDate'],
     });
     return tradeCal?.preTradeDate;
+  }
+
+  /**
+   * 获取过去的 n 个交易日
+   */
+  async getLastNDays({ date, n }: { date: CommonDateDto['date']; n: number }) {
+    const ret = await this.TradeCalRepository.find({
+      where: {
+        ...(date && { calDate: LessThanOrEqual(date) }),
+        isOpen: EIsOpen.OPENED,
+      },
+      order: {
+        calDate: 'DESC', // 按日期降序排列
+      },
+      take: n,
+      select: ['calDate'],
+    });
+    return ret;
   }
 }
