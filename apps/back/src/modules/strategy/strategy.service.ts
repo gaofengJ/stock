@@ -18,7 +18,7 @@ export class StrategyService {
   private logger = new Logger(StrategyService.name);
 
   /**
-   * 向上跳空缺口后三连阳
+   * 策略选股结果列表-向上跳空缺口后三连阳
    */
   async gapThreeUp(date: CommonDateDto['date']) {
     const isOpen = await this.tradeCalService.isOpen(date);
@@ -124,7 +124,7 @@ export class StrategyService {
     const ret = [
       {
         label: '向上跳空缺口后三连阳',
-        value: EStrategyType.gapThreeUp,
+        key: EStrategyType.gapThreeUp,
       },
     ];
     return ret;

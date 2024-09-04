@@ -22,6 +22,8 @@ import type {
   NSGetBasicStockList,
   NSGetBasicTradeCalList,
   NSGetCommonAllOptions,
+  NSGetStrategyList,
+  NSGetStrategyTabsList,
 } from './services.types.ts';
 /**
  * 接口名称：n+连板数量统计
@@ -219,3 +221,19 @@ export const getBasicTradeCalList = (
  */
 export const getCommonAllOptions = (config: RequestConfig = {}) =>
   axios.get<NSGetCommonAllOptions.IRes>('/common/all-options');
+/**
+ * 接口名称：策略选股结果列表
+ *
+ * @description 接口路径：/strategy/list
+ * @description 接口分组：策略选股
+ */
+export const getStrategyList = (params: NSGetStrategyList.IParams, config: RequestConfig = {}) =>
+  axios.get<NSGetStrategyList.IRes>('/strategy/list', { params, ...config });
+/**
+ * 接口名称：策略名称列表
+ *
+ * @description 接口路径：/strategy/tabs-list
+ * @description 接口分组：策略选股
+ */
+export const getStrategyTabsList = (config: RequestConfig = {}) =>
+  axios.get<NSGetStrategyTabsList.IRes>('/strategy/tabs-list');

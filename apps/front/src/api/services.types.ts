@@ -504,6 +504,10 @@ export namespace NSGetBasicDailyList {
      * 股票名称
      */
     name: string;
+    /**
+     * 过滤字段
+     */
+    fields: array;
   }
   export interface IRes {
     items: {
@@ -801,6 +805,157 @@ export namespace NSGetBasicTradeCalList {
  */
 export namespace NSGetCommonAllOptions {
   export interface IRes {
+    key: string[];
     [k: string]: any;
   }
+}
+/**
+ * 类型名称：策略选股结果列表
+ *
+ * @description 接口路径：/strategy/list
+ * @description 接口分组：策略选股
+ */
+export namespace NSGetStrategyList {
+  export interface IParams {
+    /**
+     * 日期
+     */
+    date: string;
+    /**
+     * 策略类型
+     */
+    strategyType: string;
+  }
+  export type IRes = {
+    /**
+     * 股票代码（包含交易所）
+     */
+    tsCode: string;
+    /**
+     * 股票名称
+     */
+    name: string;
+    /**
+     * 交易日期
+     */
+    tradeDate: string;
+    /**
+     * 涨停价(元)
+     */
+    upLimit: string;
+    /**
+     * 跌停价(元)
+     */
+    downLimit: string;
+    /**
+     * 开盘价(元)
+     */
+    open: string;
+    /**
+     * 最高价(元)
+     */
+    high: string;
+    /**
+     * 最低价(元)
+     */
+    low: string;
+    /**
+     * 收盘价(元)
+     */
+    close: string;
+    /**
+     * 昨收价(元)
+     */
+    preClose: string;
+    /**
+     * 涨跌额(元)
+     */
+    change: string;
+    /**
+     * 涨跌幅(%)
+     */
+    pctChg: string;
+    /**
+     * 成交量(手)
+     */
+    vol: string;
+    /**
+     * 成交额(千元)
+     */
+    amount: string;
+    /**
+     * 换手率(%)
+     */
+    turnoverRate: string;
+    /**
+     * 换手率(自由流通股)(%)
+     */
+    turnoverRateF: string;
+    /**
+     * 量比
+     */
+    volumeRatio: string;
+    /**
+     * 市盈率(总市值/总利润)
+     */
+    pe: string;
+    /**
+     * 市盈率(TTM)
+     */
+    peTtm: string;
+    /**
+     * 市净率(总市值/净资产)
+     */
+    pb: string;
+    /**
+     * 市销率
+     */
+    ps: string;
+    /**
+     * 市销率(TTM)
+     */
+    psTtm: string;
+    /**
+     * 股息率(%)
+     */
+    dvRatio: string;
+    /**
+     * 股息率(TTM)(%)
+     */
+    dvTtm: string;
+    /**
+     * 总股本(万股)
+     */
+    totalShare: string;
+    /**
+     * 流通股本(万股)
+     */
+    floatShare: string;
+    /**
+     * 自由流通股本(万股)
+     */
+    freeShare: string;
+    /**
+     * 总市值(万元)
+     */
+    totalMv: string;
+    /**
+     * 流通市值(万元)
+     */
+    circMv: string;
+    [k: string]: any;
+  }[];
+}
+/**
+ * 类型名称：策略名称列表
+ *
+ * @description 接口路径：/strategy/tabs-list
+ * @description 接口分组：策略选股
+ */
+export namespace NSGetStrategyTabsList {
+  export type IRes = {
+    label: string;
+    key: string;
+    [k: string]: any;
+  }[];
 }

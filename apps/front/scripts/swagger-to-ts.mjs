@@ -29,6 +29,11 @@ run.default({
      */
     '/api/analysis/limits/limit-up-list', // 涨停板复盘
     /**
+     * 策略选股
+     */
+    '/api/strategy/tabs-list', // 策略名称列表
+    '/api/strategy/list', // 策略选股结果列表
+    /**
      * 基础数据
      */
     '/api/basic/daily/list', // 每日交易数据
