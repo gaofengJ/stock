@@ -23,9 +23,7 @@ function StrategyPage() {
     date: date.format('YYYY-MM-DD'),
     strategyType: '',
   };
-  const [searchParams, setSearchParams] = useState<NSGetStrategyList.IParams>(
-    initialSearchParams,
-  );
+  const [searchParams, setSearchParams] = useState<NSGetStrategyList.IParams>(initialSearchParams);
 
   /**
    * 更新 searchParams 的值
@@ -52,6 +50,13 @@ function StrategyPage() {
     items: [],
   };
   const [strategyData, setStrategyData] = useState(initialLimitsData);
+
+  /**
+   * 切换左侧 tab
+   */
+  const handleClickTabs = (activedNav: string) => {
+    setActivedNav(activedNav);
+  };
 
   /**
    * 获取 navList
@@ -95,7 +100,12 @@ function StrategyPage() {
   return (
     <Layout showAsideMenu={false} headerMenuActive={EHeaderMenuKey.strategy}>
       <div className="flex p-16 h-full rounded-[6px] bg-bg-white">
-        <Tabs tabPosition="left" size="large" items={navList} />
+        <Tabs
+          tabPosition="left"
+          size="large"
+          items={navList}
+          onChange={handleClickTabs}
+        />
         {/* 防止内容撑开宽度: w-0 设置了元素的基础宽度为 0，防止内容影响元素的初始宽度。通常，flexbox 元素的宽度会根据内容自动扩展，但 w-0 强制宽度为 0，使得元素完全依赖 flex-grow 进行扩展 */}
         <div className="grow w-0">
           <div className="mb-16">
@@ -114,7 +124,11 @@ function StrategyPage() {
             columns={strategyColumns}
             bordered
             locale={{
-              emptyText: (<div className="min-h-240 leading-[240px]">当前日期暂无数据</div>),
+              emptyText: (
+                <div className="min-h-240 leading-[240px]">
+                  当前日期暂无数据
+                </div>
+              ),
             }}
             scroll={{ x: '100%' }}
             loading={tableLoading}
