@@ -41,7 +41,7 @@ export class UserDto {
 
   @ApiProperty({ description: '用户手机号', required: false })
   @IsOptional()
-  @IsPhoneNumber(undefined, { message: '手机号格式不正确' })
+  @IsPhoneNumber('CN', { message: '手机号格式不正确' })
   @IsUnique({
     entity: UserEntity,
     message: '手机号已存在',
@@ -59,7 +59,7 @@ export class UserDto {
   @ApiProperty({ description: '用户最后登录时间', required: false })
   @IsOptional()
   @IsDateString({}, { message: '最后登录时间格式不正确' })
-  lastLogin?: Date;
+  lastLogin?: string;
 }
 
 export class UserQueryDto extends PagerDto {

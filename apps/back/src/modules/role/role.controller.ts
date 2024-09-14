@@ -17,7 +17,7 @@ import { RoleService } from './role.service';
 import { RoleEntity } from './entities/role.entity';
 import { RoleDto, RoleQueryDto, RoleUpdateDto } from './role.dto';
 
-@ApiTags('用户信息')
+@ApiTags('角色信息')
 @Controller('role')
 export class RoleController {
   constructor(private readonly roleService: RoleService) {}
