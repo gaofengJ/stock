@@ -16,6 +16,7 @@ import { AllExceptionsFilter } from '@/filters/exceptions.filter';
 import { TransformInterceptor } from '@/interceptors/transform.interceptor';
 import { TimeoutInterceptor } from '@/interceptors/timeout.interceptor';
 
+import { UserModule } from '@/modules/user/user.module';
 import { SourceModule } from '@/modules/source/source.module';
 import { ProcessedModule } from '@/modules/processed/processed.module';
 import { DailyTaskModule } from '@/modules/daily-task/daily-task.module';
@@ -62,6 +63,11 @@ import { DailySourceTask } from '@/tasks/daily-source.tasks';
     DatabaseModule,
 
     ScheduleModule.forRoot(),
+
+    /**
+     * 用户模块
+     */
+    UserModule,
 
     /**
      * 源数据模块
