@@ -25,6 +25,8 @@ import { StrategyModule } from '@/modules/strategy/strategy.module';
 import { BasicModule } from '@/modules/basic/basic.module';
 import { CommonModule } from '@/modules/common/common.module';
 import { DailySourceTask } from '@/tasks/daily-source.tasks';
+import { RoleModule } from './modules/role/role.module';
+import { PermissionModule } from './modules/permission/permission.module';
 
 @Module({
   imports: [
@@ -68,7 +70,14 @@ import { DailySourceTask } from '@/tasks/daily-source.tasks';
      * 用户模块
      */
     UserModule,
-
+    /**
+     * 角色模块
+     */
+    RoleModule,
+    /**
+     * 权限模块
+     */
+    PermissionModule,
     /**
      * 源数据模块
      */
