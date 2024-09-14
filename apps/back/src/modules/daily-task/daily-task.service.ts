@@ -60,7 +60,7 @@ export class DailyTaskService {
     endDate: CommonDateRangeDto['endDate'],
   ) {
     await this.importTradeCal();
-    await this.importActiveFunds();
+    // await this.importActiveFunds();
     await this.importStockBasic();
     const { items } = await this.tradeCalService.list({
       pageNum: 1,
