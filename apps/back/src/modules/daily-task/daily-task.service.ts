@@ -40,7 +40,7 @@ export class DailyTaskService {
    */
   async import(date: CommonDateDto['date']) {
     await this.importTradeCal();
-    await this.importActiveFunds();
+    // await this.importActiveFunds();
     await this.importStockBasic();
     const isOpen = await this.tradeCalService.isOpen(date);
     if (!isOpen) {
