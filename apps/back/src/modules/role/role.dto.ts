@@ -24,7 +24,6 @@ export class RoleDto {
 
 export class RoleQueryDto extends PagerDto {
   @ApiProperty({ description: '角色名称' })
-  @IsEnum(ERole)
   roleName: string;
 }
 
