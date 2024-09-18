@@ -15,7 +15,15 @@ import { IdParam } from '@/decorators/id-param.decorator';
 
 import { RoleService } from './role.service';
 import { RoleEntity } from './entities/role.entity';
-import { RoleDto, RoleQueryDto, RoleUpdateDto } from './role.dto';
+import {
+  RoleDto,
+  RolePermissionDto,
+  RolePermissionQueryDto,
+  RolePermissionUpdateDto,
+  RoleQueryDto,
+  RoleUpdateDto,
+} from './role.dto';
+import { RolePermissionEntity } from './entities/role_permission.entity';
 
 @ApiTags('角色信息')
 @Controller('role')
@@ -64,5 +72,56 @@ export class RoleController {
   @ApiOperation({ summary: '清空Role' })
   async clear() {
     await this.roleService.clear();
+  }
+
+  @Get('/rolePermission/list')
+  @ApiOperation({ summary: '获取RolePermission列表' })
+  @ApiResult({ type: [RolePermissionEntity], isPage: true })
+  async rolePermissionList(
+    @Query() dto: RolePermissionQueryDto,
+  ): Promise<Pagination<RolePermissionEntity>> {
+    return this.roleService.rolePermissionList(dto);
+  }
+
+  @Get('/rolePermission/:id')
+  @ApiOperation({ summary: '获取RolePermission详情' })
+  @ApiResult({ type: RolePermissionEntity })
+  async rolePermissionDetail(
+    @IdParam() id: number,
+  ): Promise<RolePermissionEntity> {
+    return this.roleService.rolePermissionDetail(id);
+  }
+
+  @Post('/rolePermission/create')
+  @ApiOperation({ summary: '创建RolePermission' })
+  async rolePermissionCreate(@Body() dto: RolePermissionDto) {
+    await this.roleService.rolePermissionCreate(dto);
+  }
+
+  @Post('/rolePermission/bulk-create')
+  @ApiOperation({ summary: '批量创建RolePermission' })
+  async rolePermissionBulkCreate(@Body() dto: RolePermissionDto[]) {
+    await this.roleService.rolePermissionBulkCreate(dto);
+  }
+
+  @Put('/rolePermission/:id')
+  @ApiOperation({ summary: '更新RolePermission' })
+  async rolePermissionUpdate(
+    @IdParam() id: number,
+    @Body() dto: RolePermissionUpdateDto,
+  ) {
+    await this.roleService.rolePermissionUpdate(id, dto);
+  }
+
+  @Delete('/rolePermission/:id')
+  @ApiOperation({ summary: '删除RolePermission' })
+  async rolePermissionDelete(@IdParam() id: number) {
+    await this.roleService.rolePermissionDelete(id);
+  }
+
+  @Delete('/rolePermission/clear')
+  @ApiOperation({ summary: '清空RolePermission' })
+  async rolePermissionClear() {
+    await this.roleService.rolePermissionClear();
   }
 }
