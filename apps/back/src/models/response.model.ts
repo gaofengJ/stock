@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+
 import { RESPONSE_SUCCESS_CODE, RESPONSE_SUCCESS_MSG } from '@/constants';
 
 /**

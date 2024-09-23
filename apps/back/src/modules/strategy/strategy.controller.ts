@@ -1,11 +1,13 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+
 import { ApiResult } from '@/decorators/api-result.decorator';
 
-import { StrategyService } from './strategy.service';
-import { TabItem } from './strategy.entity';
-import { StrategyListQueryDto } from './strategy.dto';
 import { DailyEntity } from '../source/daily/daily.entity';
+
+import { StrategyListQueryDto } from './strategy.dto';
+import { TabItem } from './strategy.entity';
+import { StrategyService } from './strategy.service';
 
 @ApiTags('策略选股')
 @Controller('strategy')

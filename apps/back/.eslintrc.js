@@ -5,7 +5,7 @@ module.exports = {
     tsconfigRootDir: __dirname,
     sourceType: 'module',
   },
-  plugins: ['@typescript-eslint/eslint-plugin'],
+  plugins: ['@typescript-eslint/eslint-plugin', 'import'],
   extends: [
     'airbnb',
     'plugin:@typescript-eslint/recommended',
@@ -44,6 +44,22 @@ module.exports = {
     'no-useless-constructor': 'off',
     'no-empty-function': 'off',
     'max-classes-per-file': 'off',
+    'import/order': [
+      'error',
+      {
+        'groups': ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
+        'newlines-between': 'always',
+        'alphabetize': { order: 'asc', caseInsensitive: true },
+        'pathGroups': [
+          {
+            pattern: '@/**',
+            group: 'internal',
+            position: 'before', // 将 @ 的引入放在 parent (..) 之前
+          },
+        ],
+        'pathGroupsExcludedImportTypes': ['builtin', 'external'], // 确保 builtin 和 external 总是在最前面
+      },
+    ],
     'no-console': [
       'error',
       {

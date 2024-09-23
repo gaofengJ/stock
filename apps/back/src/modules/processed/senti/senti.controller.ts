@@ -19,9 +19,8 @@ import { IdParam } from '@/decorators/id-param.decorator';
 // import { Resource } from '@/modules/auth/decorators/resource.decorator';
 
 // import { ResourceGuard } from '~/modules/auth/guards/resource.guard';
-import { SentiEntity } from './senti.entity';
-
 import { SentiDto, SentiQueryDto, SentiUpdateDto } from './senti.dto';
+import { SentiEntity } from './senti.entity';
 import { SentiService } from './senti.service';
 
 // export const permissions = definePermission('Senti', {

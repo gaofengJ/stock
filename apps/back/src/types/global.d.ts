@@ -1,10 +1,7 @@
 declare global {
-  interface IAuthUser {
-    uid: number; // 用户id
-    pv: number;
-    expire?: number; // 过期时间
-    iat?: number; // 签发时间
-    roles?: string[]; // 用户角色列表
+  interface IUser {
+    id: number; // 用户id
+    roles?: string[]; // 用户角色
   }
 
   export interface IBaseRes<T = any> {

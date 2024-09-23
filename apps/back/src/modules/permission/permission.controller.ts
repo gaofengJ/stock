@@ -8,18 +8,18 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+
 import { ApiResult } from '@/decorators/api-result.decorator';
-
-import { Pagination } from '@/helper/paginate/pagination';
 import { IdParam } from '@/decorators/id-param.decorator';
+import { Pagination } from '@/helper/paginate/pagination';
 
-import { PermissionService } from './permission.service';
 import { PermissionEntity } from './entities/permission.entity';
 import {
   PermissionDto,
   PermissionQueryDto,
   PermissionUpdateDto,
 } from './permission.dto';
+import { PermissionService } from './permission.service';
 
 @ApiTags('权限信息')
 @Controller('permission')

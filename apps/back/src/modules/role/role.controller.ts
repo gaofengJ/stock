@@ -8,13 +8,13 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+
 import { ApiResult } from '@/decorators/api-result.decorator';
-
-import { Pagination } from '@/helper/paginate/pagination';
 import { IdParam } from '@/decorators/id-param.decorator';
+import { Pagination } from '@/helper/paginate/pagination';
 
-import { RoleService } from './role.service';
 import { RoleEntity } from './entities/role.entity';
+import { RolePermissionEntity } from './entities/role_permission.entity';
 import {
   RoleDto,
   RolePermissionDto,
@@ -23,7 +23,7 @@ import {
   RoleQueryDto,
   RoleUpdateDto,
 } from './role.dto';
-import { RolePermissionEntity } from './entities/role_permission.entity';
+import { RoleService } from './role.service';
 
 @ApiTags('角色信息')
 @Controller('role')

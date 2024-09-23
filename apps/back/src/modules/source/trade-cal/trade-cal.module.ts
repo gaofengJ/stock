@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { TradeCalEntity } from './trade-cal.entity';
 import { TradeCalController } from './trade-cal.controller';
+import { TradeCalEntity } from './trade-cal.entity';
 import { TradeCalService } from './trade-cal.service';
 
 const services = [TradeCalService];

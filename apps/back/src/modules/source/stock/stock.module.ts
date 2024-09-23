@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { StockEntity } from './stock.entity';
 import { StockController } from './stock.controller';
+import { StockEntity } from './stock.entity';
 import { StockService } from './stock.service';
 
 const services = [StockService];

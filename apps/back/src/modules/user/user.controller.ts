@@ -8,13 +8,13 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+
 import { ApiResult } from '@/decorators/api-result.decorator';
-
-import { Pagination } from '@/helper/paginate/pagination';
 import { IdParam } from '@/decorators/id-param.decorator';
+import { Pagination } from '@/helper/paginate/pagination';
 
-import { UserService } from './user.service';
 import { UserEntity } from './entities/user.entity';
+import { UserRoleEntity } from './entities/user_role.entity';
 import {
   UserDto,
   UserQueryDto,
@@ -23,7 +23,7 @@ import {
   UserRoleUpdateDto,
   UserUpdateDto,
 } from './user.dto';
-import { UserRoleEntity } from './entities/user_role.entity';
+import { UserService } from './user.service';
 
 @ApiTags('用户信息')
 @Controller('user')

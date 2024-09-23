@@ -2,9 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
 
-import { SentiEntity } from './senti.entity';
-
 import { SentiDto, SentiQueryDto, SentiUpdateDto } from './senti.dto';
+import { SentiEntity } from './senti.entity';
 
 @Injectable()
 export class SentiService {

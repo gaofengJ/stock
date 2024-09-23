@@ -6,12 +6,12 @@ import { DataSource, DataSourceOptions, LoggerOptions } from 'typeorm';
 import { IDatabaseConfig } from '@/configs/database.configs';
 import { EGlobalConfig, EGlobalDatabaseConfig } from '@/types/common.enum';
 import { getEnvConfigString } from '@/utils';
-import { DataSourceService } from './database.service';
 
+import { ClsServiceStatic } from './cls.service';
 import { EntityExistConstraint } from './constraints/entity-exist.constraint';
 import { UniqueConstraint } from './constraints/unique.constraint';
+import { DataSourceService } from './database.service';
 import { TypeORMLogger } from './typeorm-logger';
-import { ClsServiceStatic } from './cls.service';
 
 const providers = [
   DataSourceService,

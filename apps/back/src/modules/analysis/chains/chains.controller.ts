@@ -3,7 +3,6 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { ApiResult } from '@/decorators/api-result.decorator';
 
-import { ChainsService } from './chains.service';
 import {
   ChainsAmountDto,
   ChainsCountLimitUpTimesQueryDto,
@@ -14,6 +13,7 @@ import {
   ChainsLimitUpAmountEntity,
   ChainsUpgradeLimitUpRatesEntity,
 } from './chains.entity';
+import { ChainsService } from './chains.service';
 
 @ApiTags('数据分析')
 @Controller('chains')

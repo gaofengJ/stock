@@ -1,0 +1,1 @@
+export const SKIP_AUTH_GUARD_KEY = 'SKIP_AUTH_GUARD_KEY';

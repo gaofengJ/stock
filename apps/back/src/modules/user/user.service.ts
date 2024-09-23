@@ -5,8 +5,10 @@ import { Like, Repository } from 'typeorm';
 import { paginate } from '@/helper/paginate/index';
 import { Pagination } from '@/helper/paginate/pagination';
 
-import { UserEntity } from './entities/user.entity';
+import { RoleService } from '../role/role.service';
 
+import { UserEntity } from './entities/user.entity';
+import { UserRoleEntity } from './entities/user_role.entity';
 import {
   UserDto,
   UserQueryDto,
@@ -15,15 +17,17 @@ import {
   UserRoleUpdateDto,
   UserUpdateDto,
 } from './user.dto';
-import { UserRoleEntity } from './entities/user_role.entity';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(UserEntity)
     private UserRepository: Repository<UserEntity>,
+
     @InjectRepository(UserRoleEntity)
     private UserRoleRepository: Repository<UserRoleEntity>,
+
+    private readonly roleService: RoleService,
   ) {}
 
   async list({
@@ -69,6 +73,20 @@ export class UserService {
     await this.UserRepository.clear();
   }
 
+  /**
+   * @description 根据用户名获取用户
+   * @param username 用户名
+   * @returns UserEntity
+   */
+  async getUserByUsername(username: string) {
+    const user = await this.UserRepository.findOne({
+      where: {
+        username,
+      },
+    });
+    return user;
+  }
+
   async userRoleList({
     pageNum,
     pageSize,
@@ -110,5 +128,25 @@ export class UserService {
 
   async userRoleClear() {
     await this.UserRoleRepository.clear();
+  }
+
+  /**
+   * 根据 userId 查询用户所有角色
+   */
+  async getRolesByUserId(userId: number) {
+    const userRoles = await this.UserRoleRepository.find({
+      where: { userId },
+    });
+
+    if (!userRoles.length) return []; // 如果用户没有分配角色，则返回空数组
+
+    const roleIds = userRoles.map((i) => i.roleId);
+
+    const { items: roles } = await this.roleService.list({
+      pageNum: 1,
+      pageSize: 100,
+    });
+
+    return roles.filter((i) => roleIds.includes(i.id));
   }
 }

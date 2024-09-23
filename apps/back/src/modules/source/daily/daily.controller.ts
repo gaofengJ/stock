@@ -11,7 +11,6 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { ApiResult } from '@/decorators/api-result.decorator';
 import { IdParam } from '@/decorators/id-param.decorator';
-
 import { Pagination } from '@/helper/paginate/pagination';
 // import {
 //   Perm,
@@ -20,9 +19,8 @@ import { Pagination } from '@/helper/paginate/pagination';
 // import { Resource } from '@/modules/auth/decorators/resource.decorator';
 
 // import { ResourceGuard } from '~/modules/auth/guards/resource.guard';
-import { DailyEntity } from './daily.entity';
-
 import { DailyDto, DailyQueryDto, DailyUpdateDto } from './daily.dto';
+import { DailyEntity } from './daily.entity';
 import { DailyService } from './daily.service';
 
 // export const permissions = definePermission('Daily', {

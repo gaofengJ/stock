@@ -22,6 +22,10 @@ export enum EGlobalConfig {
    * Swagger 配置
    */
   SWAGGER_CONFIG = 'SWAGGER_CONFIG',
+  /**
+   * 密钥相关配置
+   */
+  SECURITY_CONFIG = 'SECURITY_CONFIG',
 }
 
 /**
@@ -135,6 +139,28 @@ export enum EGlobalSwaggerConfig {
 }
 
 /**
+ * 全剧配置-密钥相关配置
+ */
+export enum EGlobalSecurityConfig {
+  /**
+   * JWT密钥，用于生成和验证JWT（JSON Web Token）
+   */
+  JWT_SECRET = 'JWT_SECRET',
+  /**
+   * JWT的过期时间，定义JWT有效的时长
+   */
+  JWT_EXPIRE = 'JWT_EXPIRE',
+  /**
+   * 刷新令牌的密钥，用于生成和验证Refresh Token
+   */
+  REFRESH_TOKEN_SECRET = 'REFRESH_TOKEN_SECRET',
+  /**
+   * 刷新令牌的过期时间，定义Refresh Token有效的时长
+   */
+  REFRESH_TOKEN_EXPIRE = 'REFRESH_TOKEN_EXPIRE',
+}
+
+/**
  * 不同日志级别的枚举
  */
 export enum ELogLevel {
@@ -193,6 +219,10 @@ export enum ECustomError {
    * 用户模块-用户不存在
    */
   USER_NOT_FOUND = '-1001:用户不存在',
+  /**
+   * 用户模块-用户名密码错误
+   */
+  INVALID_USERNAME_PASSWORD = '-1002:用户名密码错误',
   /**
    * 数据相关-非交易日期
    */

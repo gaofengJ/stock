@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-
 import { RouterModule } from '@nestjs/core';
 
 import { ChainsModule } from './chains/chains.module';

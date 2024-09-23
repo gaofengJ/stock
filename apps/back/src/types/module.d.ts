@@ -2,7 +2,7 @@ import 'fastify';
 
 declare module 'fastify' {
   interface FastifyRequest {
-    user?: IAuthUser;
+    user?: IUser;
     accessToken: string;
   }
 }

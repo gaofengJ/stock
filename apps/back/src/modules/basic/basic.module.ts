@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-
 import { RouterModule } from '@nestjs/core';
 
 import { ActiveFundsModule } from './active-funds/active-funds.module';

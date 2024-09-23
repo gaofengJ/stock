@@ -1,18 +1,18 @@
 import { Controller, Get, Logger, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import * as dayjs from 'dayjs';
-import { ApiResult } from '@/decorators/api-result.decorator';
 
+import { ApiResult } from '@/decorators/api-result.decorator';
 import { CommonDateDto, CommonDateRangeDto } from '@/dto/common.dto';
 import { SentiEntity } from '@/modules/processed/senti/senti.entity';
 
-import { SentiService } from './senti.service';
 import {
   SentiDistributionTatisticsEntity,
   SentiLimitUpDownCountEntity,
   SentiLimitUpMaxTimesCountEntity,
   SentiUpDownCountEntity,
 } from './senti.entity';
+import { SentiService } from './senti.service';
 
 @ApiTags('数据分析')
 @Controller('senti')

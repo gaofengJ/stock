@@ -2,9 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { ActiveFundsEntity } from './active-funds.entity';
-
 import { ActiveFundsDto, ActiveFundsUpdateDto } from './active-funds.dto';
+import { ActiveFundsEntity } from './active-funds.entity';
 
 @Injectable()
 export class ActiveFundsService {

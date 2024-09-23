@@ -1,21 +1,21 @@
 import * as path from 'path';
 
-import { NestFactory } from '@nestjs/core';
-import { ConfigService } from '@nestjs/config';
 import {
   HttpStatus,
   Logger,
   UnprocessableEntityException,
   ValidationPipe,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { NestFactory } from '@nestjs/core';
 import { NestFastifyApplication } from '@nestjs/platform-fastify';
 
 import { fastifyApp } from '@/adapters/fastify.adapters';
 import { AppModule } from '@/app.module';
-import { EGlobalConfig } from '@/types/common.enum';
-import { LoggerService } from '@/shared/logger/logger.service';
 import { IAppConfig } from '@/configs';
+import { LoggerService } from '@/shared/logger/logger.service';
 import { initSwagger } from '@/swagger';
+import { EGlobalConfig } from '@/types/common.enum';
 import { isDev } from '@/utils';
 
 /**

@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 
 import { paginate } from '@/helper/paginate/index';
 import { Pagination } from '@/helper/paginate/pagination';
 
-import { RoleEntity } from './entities/role.entity';
+import { PermissionService } from '../permission/permission.service';
 
+import { RoleEntity } from './entities/role.entity';
+import { RolePermissionEntity } from './entities/role_permission.entity';
 import {
   RoleDto,
   RolePermissionDto,
@@ -15,15 +17,17 @@ import {
   RoleQueryDto,
   RoleUpdateDto,
 } from './role.dto';
-import { RolePermissionEntity } from './entities/role_permission.entity';
 
 @Injectable()
 export class RoleService {
   constructor(
     @InjectRepository(RoleEntity)
     private RoleRepository: Repository<RoleEntity>,
+
     @InjectRepository(RolePermissionEntity)
     private RolePermissionRepository: Repository<RolePermissionEntity>,
+
+    private permissionService: PermissionService,
   ) {}
 
   async list({
@@ -108,5 +112,27 @@ export class RoleService {
 
   async rolePermissionClear() {
     await this.RolePermissionRepository.clear();
+  }
+
+  /**
+   * 根据 roles 查询所有权限
+   */
+  async getPermissionsByRoles(roles: number[]) {
+    const rolePermissions = await this.RolePermissionRepository.find({
+      where: {
+        roleId: In(roles),
+      },
+    });
+
+    if (!rolePermissions.length) return []; // 如果角色没有分配权限，则返回空数组
+
+    const permissionIds = rolePermissions.map((i) => i.permissionId);
+
+    const { items: permissions } = await this.permissionService.list({
+      pageNum: 1,
+      pageSize: 100,
+    });
+
+    return permissions.filter((i) => permissionIds.includes(i.id));
   }
 }

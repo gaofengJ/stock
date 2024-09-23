@@ -10,10 +10,9 @@ import * as qs from 'qs';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
-import { ResModel } from '@/models/response.model';
-
-import { BYPASS_KEY } from '@/decorators/bypass.decorator';
 import { RESPONSE_SUCCESS_CODE } from '@/constants';
+import { BYPASS_KEY } from '@/decorators/bypass.decorator';
+import { ResModel } from '@/models/response.model';
 
 /**
  * 统一处理接口请求与响应结果，如果不需要则添加 @Bypass 装饰器

@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Column, Entity, Index } from 'typeorm';
+
 import { CommonEntity } from '@/entity/common.entity';
 
 @Entity({
@@ -30,13 +31,32 @@ export class UserEntity extends CommonEntity {
   password: string;
 
   @Column({
+    name: 'psalt',
+    type: 'varchar',
+    length: 100,
+    nullable: false,
+    comment: '密码盐',
+  })
+  @ApiProperty({ description: '密码盐' })
+  psalt: string;
+
+  @Column({
+    name: 'avatar',
+    type: 'varchar',
+    nullable: true,
+    comment: '头像',
+  })
+  @ApiProperty({ description: '头像' })
+  avatar: string;
+
+  @Column({
     name: 'email',
     type: 'varchar',
     nullable: true,
     unique: true,
-    comment: '用户邮箱',
+    comment: '邮箱',
   })
-  @ApiProperty({ description: '用户邮箱' })
+  @ApiProperty({ description: '邮箱' })
   email: string;
 
   @Column({
@@ -45,9 +65,9 @@ export class UserEntity extends CommonEntity {
     length: 20,
     nullable: true,
     unique: true,
-    comment: '用户手机号',
+    comment: '手机号',
   })
-  @ApiProperty({ description: '用户手机号' })
+  @ApiProperty({ description: '手机号' })
   phone: string;
 
   @Column({
@@ -68,6 +88,15 @@ export class UserEntity extends CommonEntity {
   })
   @ApiProperty({ description: '用户积分' })
   point: number;
+
+  @Column({
+    name: 'remark',
+    type: 'varchar',
+    nullable: true,
+    comment: '备注',
+  })
+  @ApiProperty({ description: '备注' })
+  remark: string;
 
   @Column({
     name: 'last_login',

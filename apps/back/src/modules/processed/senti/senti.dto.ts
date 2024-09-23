@@ -1,6 +1,8 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { IsDateString, IsString, IsInt } from 'class-validator';
+
 import { IsUnique } from '@/shared/database/constraints/unique.constraint';
+
 import { SentiEntity } from './senti.entity';
 
 export class SentiDto extends PartialType(SentiEntity) {

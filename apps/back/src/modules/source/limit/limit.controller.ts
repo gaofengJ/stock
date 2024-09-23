@@ -11,7 +11,6 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { ApiResult } from '@/decorators/api-result.decorator';
 import { IdParam } from '@/decorators/id-param.decorator';
-
 import { Pagination } from '@/helper/paginate/pagination';
 // import {
 //   Perm,
@@ -20,9 +19,8 @@ import { Pagination } from '@/helper/paginate/pagination';
 // import { Resource } from '@/modules/auth/decorators/resource.decorator';
 
 // import { ResourceGuard } from '~/modules/auth/guards/resource.guard';
-import { LimitEntity } from './limit.entity';
-
 import { LimitDto, LimitQueryDto, LimitUpdateDto } from './limit.dto';
+import { LimitEntity } from './limit.entity';
 import { LimitService } from './limit.service';
 
 // export const permissions = definePermission('Limit', {

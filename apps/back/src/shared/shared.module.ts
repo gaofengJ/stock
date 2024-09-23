@@ -1,10 +1,11 @@
-import { Global, Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
+import { Global, Module } from '@nestjs/common';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 // import { ThrottlerModule } from '@nestjs/throttler';
-import { EventEmitterModule } from '@nestjs/event-emitter';
 
 import { isDev } from '@/utils';
+
 import { LoggerModule } from './logger/logger.module';
 import { TushareModule } from './tushare/tushare.module';
 

@@ -1,6 +1,7 @@
 import { ConfigType, registerAs } from '@nestjs/config';
-import { DataSource, DataSourceOptions } from 'typeorm';
 import * as dotenv from 'dotenv';
+import { DataSource, DataSourceOptions } from 'typeorm';
+
 import { EGlobalConfig } from '@/types/common.enum';
 import {
   getEnvConfigBoolean,

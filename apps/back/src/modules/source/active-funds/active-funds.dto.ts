@@ -1,6 +1,8 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { IsString } from 'class-validator';
+
 import { IsUnique } from '@/shared/database/constraints/unique.constraint';
+
 import { ActiveFundsEntity } from './active-funds.entity';
 
 export class ActiveFundsDto extends PartialType(ActiveFundsEntity) {

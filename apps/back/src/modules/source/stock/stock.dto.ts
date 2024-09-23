@@ -1,7 +1,9 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { IsOptional, IsString, IsDateString, IsEnum } from 'class-validator';
-import { IsUnique } from '@/shared/database/constraints/unique.constraint';
+
 import { PagerDto } from '@/dto/pager.dto';
+import { IsUnique } from '@/shared/database/constraints/unique.constraint';
+
 import { StockEntity } from './stock.entity';
 import { EIsHs, EListStatus, EMarket } from './stock.enum';
 

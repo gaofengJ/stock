@@ -11,7 +11,6 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { ApiResult } from '@/decorators/api-result.decorator';
 import { IdParam } from '@/decorators/id-param.decorator';
-
 import { Pagination } from '@/helper/paginate/pagination';
 // import {
 //   Perm,
@@ -20,9 +19,8 @@ import { Pagination } from '@/helper/paginate/pagination';
 // import { Resource } from '@/modules/auth/decorators/resource.decorator';
 
 // import { ResourceGuard } from '~/modules/auth/guards/resource.guard';
-import { StockEntity } from './stock.entity';
-
 import { StockDto, StockQueryDto, StockUpdateDto } from './stock.dto';
+import { StockEntity } from './stock.entity';
 import { StockService } from './stock.service';
 
 // export const permissions = definePermission('stockBasic', {

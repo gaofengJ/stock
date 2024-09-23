@@ -1,12 +1,11 @@
 import { DynamicModule, Module } from '@nestjs/common';
-
 import { RouterModule } from '@nestjs/core';
 
+import { ActiveFundsModule } from './active-funds/active-funds.module';
 import { DailyModule } from './daily/daily.module';
 import { LimitModule } from './limit/limit.module';
 import { StockModule } from './stock/stock.module';
 import { TradeCalModule } from './trade-cal/trade-cal.module';
-import { ActiveFundsModule } from './active-funds/active-funds.module';
 
 const modules = [
   ActiveFundsModule,

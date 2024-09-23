@@ -1,32 +1,28 @@
 import { ClassSerializerInterceptor, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
-
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { ClsModule } from 'nestjs-cls';
-import { FastifyRequest } from 'fastify';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
+import { FastifyRequest } from 'fastify';
+import { ClsModule } from 'nestjs-cls';
+
 import config from '@/configs';
-
-import { SharedModule } from '@/shared/shared.module';
-
-import { DatabaseModule } from '@/shared/database/database.module';
-
 import { AllExceptionsFilter } from '@/filters/exceptions.filter';
-import { TransformInterceptor } from '@/interceptors/transform.interceptor';
 import { TimeoutInterceptor } from '@/interceptors/timeout.interceptor';
-
-import { UserModule } from '@/modules/user/user.module';
-import { SourceModule } from '@/modules/source/source.module';
-import { ProcessedModule } from '@/modules/processed/processed.module';
-import { DailyTaskModule } from '@/modules/daily-task/daily-task.module';
+import { TransformInterceptor } from '@/interceptors/transform.interceptor';
 import { AnalysisModule } from '@/modules/analysis/analysis.module';
-import { StrategyModule } from '@/modules/strategy/strategy.module';
 import { BasicModule } from '@/modules/basic/basic.module';
 import { CommonModule } from '@/modules/common/common.module';
+import { DailyTaskModule } from '@/modules/daily-task/daily-task.module';
+import { ProcessedModule } from '@/modules/processed/processed.module';
+import { SourceModule } from '@/modules/source/source.module';
+import { StrategyModule } from '@/modules/strategy/strategy.module';
+import { UserModule } from '@/modules/user/user.module';
+import { DatabaseModule } from '@/shared/database/database.module';
+import { SharedModule } from '@/shared/shared.module';
 import { DailySourceTask } from '@/tasks/daily-source.tasks';
-import { RoleModule } from './modules/role/role.module';
-import { PermissionModule } from './modules/permission/permission.module';
+// import { RoleModule } from './modules/role/role.module';
+// import { PermissionModule } from './modules/permission/permission.module';
 
 @Module({
   imports: [
@@ -73,11 +69,11 @@ import { PermissionModule } from './modules/permission/permission.module';
     /**
      * 角色模块
      */
-    RoleModule,
+    // RoleModule,
     /**
      * 权限模块
      */
-    PermissionModule,
+    // PermissionModule,
     /**
      * 源数据模块
      */

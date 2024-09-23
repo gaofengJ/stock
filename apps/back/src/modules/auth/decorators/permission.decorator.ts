@@ -1,5 +1,4 @@
 import { SetMetadata, applyDecorators } from '@nestjs/common';
-
 import { isPlainObject } from 'lodash';
 
 import { PERMISSION_KEY } from '@/constants';

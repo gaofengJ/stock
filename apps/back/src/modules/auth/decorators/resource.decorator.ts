@@ -1,5 +1,4 @@
 import { SetMetadata, applyDecorators } from '@nestjs/common';
-
 import { ObjectLiteral, ObjectType, Repository } from 'typeorm';
 
 import { RESOURCE_KEY } from '@/constants';
@@ -13,7 +12,7 @@ import { RESOURCE_KEY } from '@/constants';
 export type Condition<E extends ObjectLiteral = any> = (
   Repository: Repository<E>,
   items: number[],
-  user: IAuthUser,
+  user: IUser,
 ) => Promise<boolean>;
 
 export interface ResourceObject {

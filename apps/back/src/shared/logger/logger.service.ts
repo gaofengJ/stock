@@ -1,20 +1,22 @@
-import * as path from 'path';
 import * as fs from 'fs';
-import * as dayjs from 'dayjs';
-import * as utc from 'dayjs/plugin/utc';
-import * as timezone from 'dayjs/plugin/timezone';
+import * as path from 'path';
+
 import {
   ConsoleLogger,
   ConsoleLoggerOptions,
   Injectable,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as dayjs from 'dayjs';
+import * as timezone from 'dayjs/plugin/timezone';
+import * as utc from 'dayjs/plugin/utc';
 import type { Logger as WinstonLogger } from 'winston';
 import { config, createLogger, format, transports } from 'winston';
 import 'winston-daily-rotate-file';
 
 import { ILoggerConfig } from '@/configs/logger.configs';
 import { EGlobalConfig, ELogLevel } from '@/types/common.enum';
+
 import { loggerQueryDto } from './logger.dto';
 
 // 扩展 dayjs 插件

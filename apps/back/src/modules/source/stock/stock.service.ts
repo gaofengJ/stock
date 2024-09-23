@@ -4,9 +4,9 @@ import { Like, Repository } from 'typeorm';
 
 import { paginate } from '@/helper/paginate/index';
 import { Pagination } from '@/helper/paginate/pagination';
-import { StockEntity } from './stock.entity';
 
 import { StockDto, StockQueryDto, StockUpdateDto } from './stock.dto';
+import { StockEntity } from './stock.entity';
 
 @Injectable()
 export class StockService {

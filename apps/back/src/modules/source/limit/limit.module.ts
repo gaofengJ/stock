@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { LimitEntity } from './limit.entity';
 import { LimitController } from './limit.controller';
+import { LimitEntity } from './limit.entity';
 import { LimitService } from './limit.service';
 
 const services = [LimitService];

@@ -1,9 +1,10 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+
 import { ApiResult } from '@/decorators/api-result.decorator';
 
-import { CommonService } from './common.service';
 import { AllOption } from './common.entity';
+import { CommonService } from './common.service';
 
 @ApiTags('公共数据')
 @Controller('common')

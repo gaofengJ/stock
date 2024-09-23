@@ -1,4 +1,5 @@
 import { ConfigType, registerAs } from '@nestjs/config';
+
 import { EGlobalConfig, EGlobalLoggerConfig } from '@/types/common.enum';
 import { getEnvConfigNumber, getEnvConfigString } from '@/utils';
 

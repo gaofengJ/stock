@@ -6,7 +6,6 @@ import { paginate } from '@/helper/paginate/index';
 import { Pagination } from '@/helper/paginate/pagination';
 
 import { PermissionEntity } from './entities/permission.entity';
-
 import {
   PermissionDto,
   PermissionQueryDto,

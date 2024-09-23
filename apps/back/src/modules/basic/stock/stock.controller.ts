@@ -1,7 +1,7 @@
 import { Controller, Get, Logger, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { ApiResult } from '@/decorators/api-result.decorator';
 
+import { ApiResult } from '@/decorators/api-result.decorator';
 import { StockQueryDto } from '@/modules/source/stock/stock.dto';
 import { StockEntity } from '@/modules/source/stock/stock.entity';
 

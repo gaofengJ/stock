@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DailyService as SourceDailyService } from '@/modules/source/daily/daily.service';
+
 import { DailyQueryDto } from '@/modules/source/daily/daily.dto';
+import { DailyService as SourceDailyService } from '@/modules/source/daily/daily.service';
 
 @Injectable()
 export class DailyService {

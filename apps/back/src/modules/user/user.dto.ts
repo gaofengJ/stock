@@ -31,7 +31,16 @@ export class UserDto {
   @IsString()
   password: string;
 
-  @ApiProperty({ description: '用户邮箱', required: false })
+  @ApiProperty({ description: '密码盐' })
+  @IsOptional()
+  psalt: string;
+
+  @ApiProperty({ description: '头像' })
+  @IsOptional()
+  @IsString()
+  avatar?: string;
+
+  @ApiProperty({ description: '邮箱', required: false })
   @IsOptional()
   @IsEmail({}, { message: '邮箱格式不正确' })
   @IsUnique({
@@ -40,7 +49,7 @@ export class UserDto {
   })
   email?: string;
 
-  @ApiProperty({ description: '用户手机号', required: false })
+  @ApiProperty({ description: '手机号', required: false })
   @IsOptional()
   @IsPhoneNumber('CN', { message: '手机号格式不正确' })
   @IsUnique({
@@ -56,6 +65,11 @@ export class UserDto {
   @ApiProperty({ description: '用户积分' })
   @IsInt({ message: '积分必须是整数' })
   point: number;
+
+  @ApiProperty({ description: '备注' })
+  @IsOptional()
+  @IsString()
+  remark?: string;
 
   @ApiProperty({ description: '用户最后登录时间', required: false })
   @IsOptional()

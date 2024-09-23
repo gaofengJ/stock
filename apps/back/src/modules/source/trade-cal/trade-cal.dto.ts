@@ -1,7 +1,9 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { IsDateString, IsEnum, IsNumber, IsString } from 'class-validator';
-import { IsUnique } from '@/shared/database/constraints/unique.constraint';
+
 import { PagerDto } from '@/dto/pager.dto';
+import { IsUnique } from '@/shared/database/constraints/unique.constraint';
+
 import { TradeCalEntity } from './trade-cal.entity';
 import { EIsOpen } from './trade-cal.enum';
 

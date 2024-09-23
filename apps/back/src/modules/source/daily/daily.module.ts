@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { DailyEntity } from './daily.entity';
 import { DailyController } from './daily.controller';
+import { DailyEntity } from './daily.entity';
 import { DailyService } from './daily.service';
 
 const services = [DailyService];

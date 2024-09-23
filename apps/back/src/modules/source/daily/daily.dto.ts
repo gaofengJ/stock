@@ -1,7 +1,9 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { IsDateString, IsOptional, IsString } from 'class-validator';
-import { IsUnique } from '@/shared/database/constraints/unique.constraint';
+
 import { PagerDto } from '@/dto/pager.dto';
+import { IsUnique } from '@/shared/database/constraints/unique.constraint';
+
 import { DailyEntity } from './daily.entity';
 
 export class DailyDto extends PartialType(DailyEntity) {

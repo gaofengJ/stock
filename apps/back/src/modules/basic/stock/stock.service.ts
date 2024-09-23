@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { StockService as SourceStockService } from '@/modules/source/stock/stock.service';
+
 import { StockQueryDto } from '@/modules/source/stock/stock.dto';
+import { StockService as SourceStockService } from '@/modules/source/stock/stock.service';
 
 @Injectable()
 export class StockService {

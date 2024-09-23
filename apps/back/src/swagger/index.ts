@@ -1,12 +1,13 @@
 import { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+
 import { IAppConfig, ISwaggerConfig } from '@/configs';
-import { EGlobalConfig } from '@/types/common.enum';
 import { API_SECURITY_AUTH } from '@/constants';
 import { CommonEntity } from '@/entity/common.entity';
 import { Pagination } from '@/helper/paginate/pagination';
 import { ResModel } from '@/models/response.model';
+import { EGlobalConfig } from '@/types/common.enum';
 
 export const initSwagger = async (
   app: INestApplication,

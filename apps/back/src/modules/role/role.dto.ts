@@ -24,7 +24,8 @@ export class RoleDto {
 
 export class RoleQueryDto extends PagerDto {
   @ApiProperty({ description: '角色名称' })
-  roleName: string;
+  @IsOptional()
+  roleName?: string;
 }
 
 export class RoleUpdateDto extends PartialType(RoleDto) {}

@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsDateString, IsEnum } from 'class-validator';
+
 import { EStrategyType } from './strategy.enum';
 
 export class StrategyListQueryDto {

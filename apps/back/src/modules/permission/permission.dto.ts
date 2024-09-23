@@ -33,10 +33,10 @@ export class PermissionDto {
 
 export class PermissionQueryDto extends PagerDto {
   @ApiProperty({ description: '权限名称' })
-  permissionName: string;
+  permissionName?: string;
 
   @ApiProperty({ description: '权限类型' })
-  permissionType: string;
+  permissionType?: string;
 }
 
 export class PermissionUpdateDto extends PartialType(PermissionDto) {}

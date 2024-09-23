@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { SentiEntity } from './senti.entity';
 import { SentiController } from './senti.controller';
+import { SentiEntity } from './senti.entity';
 import { SentiService } from './senti.service';
 
 const services = [SentiService];

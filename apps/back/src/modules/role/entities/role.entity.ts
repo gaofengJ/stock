@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Column, Entity } from 'typeorm';
+
 import { CommonEntity } from '@/entity/common.entity';
 
 @Entity({

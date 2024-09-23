@@ -1,5 +1,4 @@
 import { DynamicModule, Module } from '@nestjs/common';
-
 import { RouterModule } from '@nestjs/core';
 
 import { SentiModule } from './senti/senti.module';

@@ -1,12 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
+
 import { CommonDateDto } from '@/dto/common.dto';
 import { BizException } from '@/exceptions/biz.exception';
 import { ECustomError } from '@/types/common.enum';
-import { TradeCalService } from '../source/trade-cal/trade-cal.service';
+
+import { DailyEntity } from '../source/daily/daily.entity';
 import { DailyService } from '../source/daily/daily.service';
+import { TradeCalService } from '../source/trade-cal/trade-cal.service';
+
 import { StrategyListQueryDto } from './strategy.dto';
 import { EStrategyType } from './strategy.enum';
-import { DailyEntity } from '../source/daily/daily.entity';
 
 @Injectable()
 export class StrategyService {

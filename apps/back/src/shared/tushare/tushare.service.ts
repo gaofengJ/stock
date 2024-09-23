@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { Injectable } from '@nestjs/common';
 import type { AxiosRequestConfig } from 'axios';
-import { getEnvConfigString } from '@/utils';
+
 import { EGlobalTushareConfig } from '@/types/common.enum';
+import { getEnvConfigString } from '@/utils';
 
 export type ITushareData = {
   fields: string[];
