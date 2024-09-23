@@ -1,22 +1,21 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
-import { debounce } from 'lodash-es';
-import dayjs, { Dayjs } from 'dayjs';
-
 import {
   Calendar, CalendarProps, Col, Row, Spin,
 } from 'antd';
-import { HolidayUtil, Lunar } from 'lunar-typescript';
 import classNames from 'classnames';
+import dayjs, { Dayjs } from 'dayjs';
+import { debounce } from 'lodash-es';
+import { HolidayUtil, Lunar } from 'lunar-typescript';
+import React, { useCallback, useEffect, useState } from 'react';
+
+import { getBasicTradeCalList } from '@/api/services';
+import { NSGetBasicTradeCalList } from '@/api/services.types';
+import CSearchForm from '@/components/common/CSearchForm';
 import Layout from '@/components/Layout';
 import { basicSiderMenuItems } from '@/components/Layout/config';
 import { EBasicAsideMenuKey, EHeaderMenuKey } from '@/components/Layout/enum';
 
-import { getBasicTradeCalList } from '@/api/services';
-import { NSGetBasicTradeCalList } from '@/api/services.types';
-
-import CSearchForm from '@/components/common/CSearchForm';
 import { useTradeCalConfigs } from './form-configs';
 import './limits.sass';
 
@@ -56,7 +55,7 @@ function BasicTradeCalPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchParams]);
+  }, [searchParams, tradeCalData]);
 
   useEffect(() => {
     const debounceGetTradeCal = debounce(getTradeCal, 300);

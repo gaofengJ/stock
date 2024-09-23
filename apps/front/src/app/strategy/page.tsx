@@ -1,16 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
 import { Table, Tabs } from 'antd';
 import dayjs from 'dayjs';
-import Layout from '@/components/Layout';
-import { EHeaderMenuKey } from '@/components/Layout/enum';
+import { useCallback, useEffect, useState } from 'react';
+
 import { getStrategyList, getStrategyTabsList } from '@/api/services';
 import { NSGetStrategyList, NSGetStrategyTabsList } from '@/api/services.types';
 import CSearchForm from '@/components/common/CSearchForm';
+import Layout from '@/components/Layout';
+import { EHeaderMenuKey } from '@/components/Layout/enum';
 
-import { useStrategyConfigs } from './form-configs';
 import { strategyColumns } from './columns';
+import { useStrategyConfigs } from './form-configs';
 
 import './strategy.sass';
 

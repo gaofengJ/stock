@@ -1,6 +1,3 @@
-import ReactEChartsCore from 'echarts-for-react/lib/core';
-import * as echarts from 'echarts/core';
-
 // 引入所需的图表类型，带有 Chart 后缀
 import {
   LineChart,
@@ -26,7 +23,6 @@ import {
   // SunburstChart,
   // CustomChart,
 } from 'echarts/charts';
-
 // 引入所需的组件，带有 Component 后缀
 import {
   // GridSimpleComponent,
@@ -60,12 +56,13 @@ import {
   // TransformComponent,
   // DatasetComponent,
 } from 'echarts/components';
-
+import * as echarts from 'echarts/core';
 // 引入渲染器，CanvasRenderer 或 SVGRenderer 是必需的
 import {
   CanvasRenderer,
   // SVGRenderer,
 } from 'echarts/renderers';
+import ReactEChartsCore from 'echarts-for-react/lib/core';
 import { EChartsInstance, EChartsOption } from 'echarts-for-react/lib/types';
 
 // 注册所需的图表和组件

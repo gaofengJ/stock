@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+
 import { EBasicAsideMenuKey } from '@/components/Layout/enum';
 
 function AnalysisBasicPage() {

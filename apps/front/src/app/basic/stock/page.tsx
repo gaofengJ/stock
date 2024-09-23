@@ -1,8 +1,12 @@
 'use client';
 
 import { PaginationProps, Table } from 'antd';
-import { useCallback, useEffect, useState } from 'react';
 import { debounce } from 'lodash-es';
+import { useCallback, useEffect, useState } from 'react';
+
+import { getBasicStockList } from '@/api/services';
+import { NSGetBasicStockList } from '@/api/services.types';
+import CSearchForm from '@/components/common/CSearchForm';
 import Layout from '@/components/Layout';
 import { basicSiderMenuItems } from '@/components/Layout/config';
 import {
@@ -10,13 +14,8 @@ import {
   EHeaderMenuKey,
 } from '@/components/Layout/enum';
 
-import { getBasicStockList } from '@/api/services';
-import { NSGetBasicStockList } from '@/api/services.types';
-
-import CSearchForm from '@/components/common/CSearchForm';
-
-import { useStockFilterConfigs } from './form-configs';
 import { useStockColumns } from './columns';
+import { useStockFilterConfigs } from './form-configs';
 
 function BasicStockPage() {
   const stockFilterConfigs = useStockFilterConfigs();

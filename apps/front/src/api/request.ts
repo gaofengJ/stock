@@ -1,8 +1,9 @@
 /* eslint-disable class-methods-use-this */
+import { message } from 'antd';
 import axios, {
   AxiosInstance, CreateAxiosDefaults,
 } from 'axios';
-import { message } from 'antd';
+
 import { defaultConfig, errorConfig } from './config';
 import interceptors from './interceptors';
 import { IResData, RequestConfig } from './types';

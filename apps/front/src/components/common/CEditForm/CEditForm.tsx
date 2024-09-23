@@ -1,5 +1,6 @@
-import React, { FC, useEffect } from 'react';
 import { Form } from 'antd';
+import React, { FC, useEffect } from 'react';
+
 import { IFormItemProps } from '@/types/common.type';
 
 interface IProps {

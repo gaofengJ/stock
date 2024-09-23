@@ -1,14 +1,14 @@
 'use client';
 
 import { Table } from 'antd';
-import { useCallback, useEffect, useState } from 'react';
 import { debounce } from 'lodash-es';
-import Layout from '@/components/Layout';
-import { basicSiderMenuItems } from '@/components/Layout/config';
-import { EBasicAsideMenuKey, EHeaderMenuKey } from '@/components/Layout/enum';
+import { useCallback, useEffect, useState } from 'react';
 
 import { getBasicActiveFundsList } from '@/api/services';
 import { NSGetBasicActiveFundsList } from '@/api/services.types';
+import Layout from '@/components/Layout';
+import { basicSiderMenuItems } from '@/components/Layout/config';
+import { EBasicAsideMenuKey, EHeaderMenuKey } from '@/components/Layout/enum';
 
 import { useActiveFundsColumns } from './columns';
 import './limits.sass';

@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
-
+import { Spin } from 'antd';
 import dayjs from 'dayjs';
 import { debounce } from 'lodash-es';
-import { Spin } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+
 import { getAnalysisChainsUpgradeLimitUpAmount } from '@/api/services';
 import { NSGetAnalysisChainsUpgradeLimitUpAmount } from '@/api/services.types';
-
 import CChart from '@/components/CChart';
 import { EThemeColors } from '@/types/common.enum';
 import { getRoundedMax, getRoundedMin } from '@/utils';

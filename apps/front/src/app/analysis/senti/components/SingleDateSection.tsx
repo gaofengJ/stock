@@ -1,9 +1,11 @@
+import { Col, Row } from 'antd';
 import dayjs from 'dayjs';
 import { useState } from 'react';
-import { Col, Row } from 'antd';
+
 import CSearchForm from '@/components/common/CSearchForm';
 
 import { useSingleDayFilterConfigs } from '../form-configs';
+
 import DistributionTatistics from './DistributionTatistics';
 
 function SingleDateSection() {

@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
-import { debounce } from 'lodash-es';
 import { Spin } from 'antd';
-import { NSGetAnalysisSentiDistributionTatistics } from '@/api/services.types';
+import { debounce } from 'lodash-es';
+import { useCallback, useEffect, useState } from 'react';
+
 import { getAnalysisSentiDistributionTatistics } from '@/api/services';
-import { EThemeColors } from '@/types/common.enum';
+import { NSGetAnalysisSentiDistributionTatistics } from '@/api/services.types';
 import CChart from '@/components/CChart';
+import { EThemeColors } from '@/types/common.enum';
 import { getRoundedMax, getRoundedMin } from '@/utils';
 
 interface IProps {

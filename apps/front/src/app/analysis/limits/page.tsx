@@ -1,9 +1,12 @@
 'use client';
 
-import dayjs from 'dayjs';
-import { useCallback, useEffect, useState } from 'react';
 import { Table } from 'antd';
+import dayjs from 'dayjs';
 import { debounce } from 'lodash-es';
+import { useCallback, useEffect, useState } from 'react';
+
+import { getAnalysisLimitsLimitUpList } from '@/api/services';
+import { NSGetAnalysisLimitsLimitUpList } from '@/api/services.types';
 import CSearchForm from '@/components/common/CSearchForm';
 import Layout from '@/components/Layout';
 import { analysisSiderMenuItems } from '@/components/Layout/config';
@@ -12,11 +15,8 @@ import {
   EHeaderMenuKey,
 } from '@/components/Layout/enum';
 
-import { getAnalysisLimitsLimitUpList } from '@/api/services';
-import { NSGetAnalysisLimitsLimitUpList } from '@/api/services.types';
-
-import { useLimitsFilterConfigs } from './form-configs';
 import { limitsColumns } from './columns';
+import { useLimitsFilterConfigs } from './form-configs';
 import './limits.sass';
 
 function AnalysisLimitsPage() {

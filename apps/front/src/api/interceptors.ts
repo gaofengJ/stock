@@ -1,9 +1,11 @@
 import { Axios, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import qs from 'qs';
+
 import { parseJSON } from '@/utils';
-import { IResData } from './types';
-import { BaseAxios } from './request';
+
 import { EBizError, RESPONSE_SUCCESS_CODE } from './config';
+import { BaseAxios } from './request';
+import { IResData } from './types';
 
 /**
  * 注册请求拦截器

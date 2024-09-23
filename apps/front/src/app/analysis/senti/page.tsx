@@ -7,8 +7,8 @@ import {
   EHeaderMenuKey,
 } from '@/components/Layout/enum';
 
-import SingleDateSection from './components/SingleDateSection';
 import DateRangeSection from './components/DateRangeSection';
+import SingleDateSection from './components/SingleDateSection';
 
 function AnalysisSentiPage() {
   return (

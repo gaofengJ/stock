@@ -1,20 +1,19 @@
 'use client';
 
 import { PaginationProps, Table } from 'antd';
-import { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import { debounce } from 'lodash-es';
+import { useCallback, useEffect, useState } from 'react';
+
+import { getBasicDailyList } from '@/api/services';
+import { NSGetBasicDailyList } from '@/api/services.types';
+import CSearchForm from '@/components/common/CSearchForm';
 import Layout from '@/components/Layout';
 import { basicSiderMenuItems } from '@/components/Layout/config';
 import { EBasicAsideMenuKey, EHeaderMenuKey } from '@/components/Layout/enum';
 
-import { getBasicDailyList } from '@/api/services';
-import { NSGetBasicDailyList } from '@/api/services.types';
-
-import CSearchForm from '@/components/common/CSearchForm';
-
-import { useStockFilterConfigs } from './form-configs';
 import { dailyColumns } from './columns';
+import { useStockFilterConfigs } from './form-configs';
 
 function BasicDailyPage() {
   const stockFilterConfigs = useStockFilterConfigs();

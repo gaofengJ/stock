@@ -1,8 +1,8 @@
 import { StateCreator, create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 
-import { IOption } from '@/types/common.type';
 import { getCommonAllOptions } from '@/api/services';
+import { IOption } from '@/types/common.type';
 
 interface IOptionsState {
   allOptions: {
