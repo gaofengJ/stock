@@ -15,7 +15,7 @@ import { DailyEntity } from './daily.entity';
 export class DailyService {
   constructor(
     @InjectRepository(DailyEntity)
-    private DailyRepository: Repository<DailyEntity>,
+    private dailyRepository: Repository<DailyEntity>,
   ) {}
 
   async list({
@@ -29,7 +29,7 @@ export class DailyService {
     fields = [], // 默认值为空数组
   }: DailyQueryDto): Promise<Pagination<DailyEntity>> {
     let queryBuilder =
-      this.DailyRepository.createQueryBuilder('t_source_daily');
+      this.dailyRepository.createQueryBuilder('t_source_daily');
 
     // 如果 fields 数组不为空，则使用 select 语句
     if (fields.length > 0) {
@@ -58,7 +58,8 @@ export class DailyService {
     startDate,
     endDate,
   }: DailyQueryDto): Promise<SentiUpDownCountEntity[]> {
-    let ret = await this.DailyRepository.createQueryBuilder('t_source_daily')
+    let ret = await this.dailyRepository
+      .createQueryBuilder('t_source_daily')
       .select([
         't_source_daily.tradeDate AS tradeDate',
         'SUM(CASE WHEN t_source_daily.change > 0 THEN 1 ELSE 0 END) AS upCount',
@@ -83,37 +84,37 @@ export class DailyService {
   }
 
   async detail(id: number): Promise<DailyEntity> {
-    const item = await this.DailyRepository.findOneBy({ id });
+    const item = await this.dailyRepository.findOneBy({ id });
     if (!item) throw new NotFoundException('未找到该记录');
     return item;
   }
 
   async create(dto: DailyDto) {
-    await this.DailyRepository.save(dto);
+    await this.dailyRepository.save(dto);
   }
 
   async bulkCreate(dto: DailyDto[]) {
-    const list = await this.DailyRepository.save(dto);
+    const list = await this.dailyRepository.save(dto);
     return list.length;
   }
 
   async update(id: number, dto: DailyUpdateDto) {
-    await this.DailyRepository.update(id, dto);
+    await this.dailyRepository.update(id, dto);
   }
 
   async delete(id: number) {
     const item = await this.detail(id);
-    await this.DailyRepository.remove(item);
+    await this.dailyRepository.remove(item);
   }
 
   async deleteByDate(date: DailyDto['tradeDate']) {
-    const { affected } = await this.DailyRepository.delete({
+    const { affected } = await this.dailyRepository.delete({
       tradeDate: date,
     });
     return affected || 0;
   }
 
   async clear() {
-    await this.DailyRepository.clear();
+    await this.dailyRepository.clear();
   }
 }

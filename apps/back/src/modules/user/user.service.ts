@@ -22,10 +22,10 @@ import {
 export class UserService {
   constructor(
     @InjectRepository(UserEntity)
-    private UserRepository: Repository<UserEntity>,
+    private userRepository: Repository<UserEntity>,
 
     @InjectRepository(UserRoleEntity)
-    private UserRoleRepository: Repository<UserRoleEntity>,
+    private userRoleRepository: Repository<UserRoleEntity>,
 
     private readonly roleService: RoleService,
   ) {}
@@ -36,41 +36,41 @@ export class UserService {
     username,
     phone,
   }: UserQueryDto): Promise<Pagination<UserEntity>> {
-    const queryBuilder = this.UserRepository.createQueryBuilder('t_user').where(
-      {
+    const queryBuilder = this.userRepository
+      .createQueryBuilder('t_user')
+      .where({
         ...(username && { username: Like(`%${username}%`) }),
         ...(phone && { phone: Like(`%${phone}%`) }),
-      },
-    );
+      });
     return paginate(queryBuilder, { pageNum, pageSize });
   }
 
   async detail(id: number): Promise<UserEntity> {
-    const item = await this.UserRepository.findOneBy({ id });
+    const item = await this.userRepository.findOneBy({ id });
     if (!item) throw new NotFoundException('未找到该记录');
     return item;
   }
 
   async create(dto: UserDto) {
-    await this.UserRepository.save(dto);
+    await this.userRepository.save(dto);
   }
 
   async bulkCreate(dto: UserDto[]) {
-    const ret = await this.UserRepository.save(dto);
+    const ret = await this.userRepository.save(dto);
     return ret?.length || 0;
   }
 
   async update(id: number, dto: UserUpdateDto) {
-    await this.UserRepository.update(id, dto);
+    await this.userRepository.update(id, dto);
   }
 
   async delete(id: number) {
     const item = await this.detail(id);
-    await this.UserRepository.remove(item);
+    await this.userRepository.remove(item);
   }
 
   async clear() {
-    await this.UserRepository.clear();
+    await this.userRepository.clear();
   }
 
   /**
@@ -79,7 +79,7 @@ export class UserService {
    * @returns UserEntity
    */
   async getUserByUsername(username: string) {
-    const user = await this.UserRepository.findOne({
+    const user = await this.userRepository.findOne({
       where: {
         username,
       },
@@ -93,48 +93,48 @@ export class UserService {
     userId,
     roleId,
   }: UserRoleQueryDto): Promise<Pagination<UserRoleEntity>> {
-    const queryBuilder = this.UserRoleRepository.createQueryBuilder(
-      't_user_role',
-    ).where({
-      ...(userId && { userId }),
-      ...(roleId && { roleId }),
-    });
+    const queryBuilder = this.userRoleRepository
+      .createQueryBuilder('t_user_role')
+      .where({
+        ...(userId && { userId }),
+        ...(roleId && { roleId }),
+      });
     return paginate(queryBuilder, { pageNum, pageSize });
   }
 
   async userRoleDetail(id: number): Promise<UserRoleEntity> {
-    const item = await this.UserRoleRepository.findOneBy({ id });
+    const item = await this.userRoleRepository.findOneBy({ id });
     if (!item) throw new NotFoundException('未找到该记录');
     return item;
   }
 
   async userRoleCreate(dto: UserRoleDto) {
-    await this.UserRoleRepository.save(dto);
+    await this.userRoleRepository.save(dto);
   }
 
   async userRoleBulkCreate(dto: UserRoleDto[]) {
-    const ret = await this.UserRoleRepository.save(dto);
+    const ret = await this.userRoleRepository.save(dto);
     return ret?.length || 0;
   }
 
   async userRoleUpdate(id: number, dto: UserRoleUpdateDto) {
-    await this.UserRoleRepository.update(id, dto);
+    await this.userRoleRepository.update(id, dto);
   }
 
   async userRoleDelete(id: number) {
     const item = await this.userRoleDetail(id);
-    await this.UserRoleRepository.remove(item);
+    await this.userRoleRepository.remove(item);
   }
 
   async userRoleClear() {
-    await this.UserRoleRepository.clear();
+    await this.userRoleRepository.clear();
   }
 
   /**
    * 根据 userId 查询用户所有角色
    */
   async getRolesByUserId(userId: number) {
-    const userRoles = await this.UserRoleRepository.find({
+    const userRoles = await this.userRoleRepository.find({
       where: { userId },
     });
 

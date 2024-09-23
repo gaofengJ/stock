@@ -16,7 +16,7 @@ import {
 export class PermissionService {
   constructor(
     @InjectRepository(PermissionEntity)
-    private PermissionRepository: Repository<PermissionEntity>,
+    private permissionRepository: Repository<PermissionEntity>,
   ) {}
 
   async list({
@@ -25,40 +25,40 @@ export class PermissionService {
     permissionName,
     permissionType,
   }: PermissionQueryDto): Promise<Pagination<PermissionEntity>> {
-    const queryBuilder = this.PermissionRepository.createQueryBuilder(
-      't_permission',
-    ).where({
-      ...(permissionName && { permissionName: Like(`%${permissionName}%`) }),
-      ...(permissionType && { permissionType }),
-    });
+    const queryBuilder = this.permissionRepository
+      .createQueryBuilder('t_permission')
+      .where({
+        ...(permissionName && { permissionName: Like(`%${permissionName}%`) }),
+        ...(permissionType && { permissionType }),
+      });
     return paginate(queryBuilder, { pageNum, pageSize });
   }
 
   async detail(id: number): Promise<PermissionEntity> {
-    const item = await this.PermissionRepository.findOneBy({ id });
+    const item = await this.permissionRepository.findOneBy({ id });
     if (!item) throw new NotFoundException('未找到该记录');
     return item;
   }
 
   async create(dto: PermissionDto) {
-    await this.PermissionRepository.save(dto);
+    await this.permissionRepository.save(dto);
   }
 
   async bulkCreate(dto: PermissionDto[]) {
-    const ret = await this.PermissionRepository.save(dto);
+    const ret = await this.permissionRepository.save(dto);
     return ret?.length || 0;
   }
 
   async update(id: number, dto: PermissionUpdateDto) {
-    await this.PermissionRepository.update(id, dto);
+    await this.permissionRepository.update(id, dto);
   }
 
   async delete(id: number) {
     const item = await this.detail(id);
-    await this.PermissionRepository.remove(item);
+    await this.permissionRepository.remove(item);
   }
 
   async clear() {
-    await this.PermissionRepository.clear();
+    await this.permissionRepository.clear();
   }
 }

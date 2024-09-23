@@ -18,7 +18,7 @@ import { EIsOpen } from './trade-cal.enum';
 export class TradeCalService {
   constructor(
     @InjectRepository(TradeCalEntity)
-    private TradeCalRepository: Repository<TradeCalEntity>,
+    private tradeCalRepository: Repository<TradeCalEntity>,
   ) {}
 
   async list({
@@ -29,42 +29,42 @@ export class TradeCalService {
     endDate,
     isOpen,
   }: TradeCalQueryDto): Promise<Pagination<TradeCalEntity>> {
-    const queryBuilder = this.TradeCalRepository.createQueryBuilder(
-      't_source_trade_cal',
-    ).where({
-      ...(calDate && { calDate }),
-      ...(startDate && endDate && { calDate: Between(startDate, endDate) }),
-      ...(isOpen && { isOpen }),
-    });
+    const queryBuilder = this.tradeCalRepository
+      .createQueryBuilder('t_source_trade_cal')
+      .where({
+        ...(calDate && { calDate }),
+        ...(startDate && endDate && { calDate: Between(startDate, endDate) }),
+        ...(isOpen && { isOpen }),
+      });
     return paginate(queryBuilder, { pageNum, pageSize });
   }
 
   async detail(id: number): Promise<TradeCalEntity> {
-    const item = await this.TradeCalRepository.findOneBy({ id });
+    const item = await this.tradeCalRepository.findOneBy({ id });
     if (!item) throw new NotFoundException('未找到该记录');
     return item;
   }
 
   async create(dto: TradeCalDto) {
-    await this.TradeCalRepository.save(dto);
+    await this.tradeCalRepository.save(dto);
   }
 
   async bulkCreate(dto: TradeCalDto[]) {
-    const ret = await this.TradeCalRepository.save(dto);
+    const ret = await this.tradeCalRepository.save(dto);
     return ret?.length || 0;
   }
 
   async update(id: number, dto: TradeCalUpdateDto) {
-    await this.TradeCalRepository.update(id, dto);
+    await this.tradeCalRepository.update(id, dto);
   }
 
   async delete(id: number) {
     const item = await this.detail(id);
-    await this.TradeCalRepository.remove(item);
+    await this.tradeCalRepository.remove(item);
   }
 
   async clear() {
-    await this.TradeCalRepository.clear();
+    await this.tradeCalRepository.clear();
   }
 
   /**
@@ -72,7 +72,7 @@ export class TradeCalService {
    * @param date
    */
   async isOpen(date: CommonDateDto['date']) {
-    const tradeCal = await this.TradeCalRepository.findOne({
+    const tradeCal = await this.tradeCalRepository.findOne({
       where: {
         ...(date && { calDate: date }),
       },
@@ -86,7 +86,7 @@ export class TradeCalService {
    * @param date
    */
   async getPreDate(date: CommonDateDto['date']) {
-    const tradeCal = await this.TradeCalRepository.findOne({
+    const tradeCal = await this.tradeCalRepository.findOne({
       where: {
         ...(date && { calDate: date }),
       },
@@ -99,7 +99,7 @@ export class TradeCalService {
    * 获取过去的 n 个交易日
    */
   async getLastNDays({ date, n }: { date: CommonDateDto['date']; n: number }) {
-    const ret = await this.TradeCalRepository.find({
+    const ret = await this.tradeCalRepository.find({
       where: {
         ...(date && { calDate: LessThanOrEqual(date) }),
         isOpen: EIsOpen.OPENED,

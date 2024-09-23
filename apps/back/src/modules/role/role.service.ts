@@ -22,10 +22,10 @@ import {
 export class RoleService {
   constructor(
     @InjectRepository(RoleEntity)
-    private RoleRepository: Repository<RoleEntity>,
+    private roleRepository: Repository<RoleEntity>,
 
     @InjectRepository(RolePermissionEntity)
-    private RolePermissionRepository: Repository<RolePermissionEntity>,
+    private rolePermissionRepository: Repository<RolePermissionEntity>,
 
     private permissionService: PermissionService,
   ) {}
@@ -35,40 +35,40 @@ export class RoleService {
     pageSize,
     roleName,
   }: RoleQueryDto): Promise<Pagination<RoleEntity>> {
-    const queryBuilder = this.RoleRepository.createQueryBuilder('t_role').where(
-      {
+    const queryBuilder = this.roleRepository
+      .createQueryBuilder('t_role')
+      .where({
         ...(roleName && { roleName }),
-      },
-    );
+      });
     return paginate(queryBuilder, { pageNum, pageSize });
   }
 
   async detail(id: number): Promise<RoleEntity> {
-    const item = await this.RoleRepository.findOneBy({ id });
+    const item = await this.roleRepository.findOneBy({ id });
     if (!item) throw new NotFoundException('未找到该记录');
     return item;
   }
 
   async create(dto: RoleDto) {
-    await this.RoleRepository.save(dto);
+    await this.roleRepository.save(dto);
   }
 
   async bulkCreate(dto: RoleDto[]) {
-    const ret = await this.RoleRepository.save(dto);
+    const ret = await this.roleRepository.save(dto);
     return ret?.length || 0;
   }
 
   async update(id: number, dto: RoleUpdateDto) {
-    await this.RoleRepository.update(id, dto);
+    await this.roleRepository.update(id, dto);
   }
 
   async delete(id: number) {
     const item = await this.detail(id);
-    await this.RoleRepository.remove(item);
+    await this.roleRepository.remove(item);
   }
 
   async clear() {
-    await this.RoleRepository.clear();
+    await this.roleRepository.clear();
   }
 
   async rolePermissionList({
@@ -77,48 +77,48 @@ export class RoleService {
     roleId,
     permissionId,
   }: RolePermissionQueryDto): Promise<Pagination<RolePermissionEntity>> {
-    const queryBuilder = this.RolePermissionRepository.createQueryBuilder(
-      't_role_permission',
-    ).where({
-      ...(roleId && { roleId }),
-      ...(permissionId && { permissionId }),
-    });
+    const queryBuilder = this.rolePermissionRepository
+      .createQueryBuilder('t_role_permission')
+      .where({
+        ...(roleId && { roleId }),
+        ...(permissionId && { permissionId }),
+      });
     return paginate(queryBuilder, { pageNum, pageSize });
   }
 
   async rolePermissionDetail(id: number): Promise<RolePermissionEntity> {
-    const item = await this.RolePermissionRepository.findOneBy({ id });
+    const item = await this.rolePermissionRepository.findOneBy({ id });
     if (!item) throw new NotFoundException('未找到该记录');
     return item;
   }
 
   async rolePermissionCreate(dto: RolePermissionDto) {
-    await this.RolePermissionRepository.save(dto);
+    await this.rolePermissionRepository.save(dto);
   }
 
   async rolePermissionBulkCreate(dto: RolePermissionDto[]) {
-    const ret = await this.RolePermissionRepository.save(dto);
+    const ret = await this.rolePermissionRepository.save(dto);
     return ret?.length || 0;
   }
 
   async rolePermissionUpdate(id: number, dto: RolePermissionUpdateDto) {
-    await this.RolePermissionRepository.update(id, dto);
+    await this.rolePermissionRepository.update(id, dto);
   }
 
   async rolePermissionDelete(id: number) {
     const item = await this.rolePermissionDetail(id);
-    await this.RolePermissionRepository.remove(item);
+    await this.rolePermissionRepository.remove(item);
   }
 
   async rolePermissionClear() {
-    await this.RolePermissionRepository.clear();
+    await this.rolePermissionRepository.clear();
   }
 
   /**
    * 根据 roles 查询所有权限
    */
   async getPermissionsByRoles(roles: number[]) {
-    const rolePermissions = await this.RolePermissionRepository.find({
+    const rolePermissions = await this.rolePermissionRepository.find({
       where: {
         roleId: In(roles),
       },

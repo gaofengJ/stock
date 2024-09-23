@@ -23,7 +23,7 @@ import { ELimit } from './limit.enum';
 export class LimitService {
   constructor(
     @InjectRepository(LimitEntity)
-    private LimitRepository: Repository<LimitEntity>,
+    private limitRepository: Repository<LimitEntity>,
   ) {}
 
   async list({
@@ -41,7 +41,7 @@ export class LimitService {
     endDate,
   }: LimitQueryDto): Promise<Pagination<LimitEntity>> {
     let queryBuilder =
-      this.LimitRepository.createQueryBuilder('t_source_limit');
+      this.limitRepository.createQueryBuilder('t_source_limit');
     if (fields?.length) {
       queryBuilder = queryBuilder.select(
         fields.map((i: string) => `t_source_limit.${i}`),
@@ -69,7 +69,8 @@ export class LimitService {
     startDate,
     endDate,
   }: LimitQueryDto): Promise<SentiLimitUpDownCountEntity[]> {
-    let ret = await this.LimitRepository.createQueryBuilder('t_source_limit')
+    let ret = await this.limitRepository
+      .createQueryBuilder('t_source_limit')
       .select([
         't_source_limit.tradeDate AS tradeDate',
         `SUM(CASE WHEN t_source_limit.limit = '${ELimit.U}' THEN 1 ELSE 0 END) AS limitUCount`,
@@ -101,7 +102,8 @@ export class LimitService {
     startDate,
     endDate,
   }: LimitQueryDto): Promise<SentiLimitUpMaxTimesCountEntity[]> {
-    let ret = await this.LimitRepository.createQueryBuilder('t_source_limit')
+    let ret = await this.limitRepository
+      .createQueryBuilder('t_source_limit')
       .select([
         't_source_limit.tradeDate AS tradeDate',
         'MAX(t_source_limit.limit_times) AS maxLimitTimes',
@@ -132,7 +134,8 @@ export class LimitService {
     endDate,
     zeroOpenTimes,
   }: LimitQueryDto): Promise<ChainsCountLimitUpTimesEntity[]> {
-    let ret = await this.LimitRepository.createQueryBuilder('t_source_limit')
+    let ret = await this.limitRepository
+      .createQueryBuilder('t_source_limit')
       .select([
         't_source_limit.tradeDate AS tradeDate',
         'COUNT(t_source_limit.tradeDate) as count',
@@ -165,7 +168,8 @@ export class LimitService {
     endDate,
     zeroOpenTimes,
   }: LimitQueryDto): Promise<ChainsCountLimitUpTimesEntity[]> {
-    let ret = await this.LimitRepository.createQueryBuilder('t_source_limit')
+    let ret = await this.limitRepository
+      .createQueryBuilder('t_source_limit')
       .select([
         't_source_limit.tradeDate AS tradeDate',
         'COUNT(t_source_limit.tradeDate) as count',
@@ -198,7 +202,8 @@ export class LimitService {
     startDate,
     endDate,
   }: LimitQueryDto): Promise<ChainsLimitUpAmountEntity[]> {
-    let ret = await this.LimitRepository.createQueryBuilder('t_source_limit')
+    let ret = await this.limitRepository
+      .createQueryBuilder('t_source_limit')
       .select([
         't_source_limit.tradeDate AS tradeDate',
         'SUM(t_source_limit.amount) as totalAmount',
@@ -229,7 +234,8 @@ export class LimitService {
     startDate,
     endDate,
   }: LimitQueryDto): Promise<ChainsLimitUpAmountEntity[]> {
-    let ret = await this.LimitRepository.createQueryBuilder('t_source_limit')
+    let ret = await this.limitRepository
+      .createQueryBuilder('t_source_limit')
       .select([
         't_source_limit.tradeDate AS tradeDate',
         'SUM(t_source_limit.amount) as totalAmount',
@@ -252,37 +258,37 @@ export class LimitService {
   }
 
   async detail(id: number): Promise<LimitEntity> {
-    const item = await this.LimitRepository.findOneBy({ id });
+    const item = await this.limitRepository.findOneBy({ id });
     if (!item) throw new NotFoundException('未找到该记录');
     return item;
   }
 
   async create(dto: LimitDto) {
-    await this.LimitRepository.save(dto);
+    await this.limitRepository.save(dto);
   }
 
   async bulkCreate(dto: LimitDto[]) {
-    const list = await this.LimitRepository.save(dto);
+    const list = await this.limitRepository.save(dto);
     return list.length;
   }
 
   async update(id: number, dto: LimitUpdateDto) {
-    await this.LimitRepository.update(id, dto);
+    await this.limitRepository.update(id, dto);
   }
 
   async delete(id: number) {
     const item = await this.detail(id);
-    await this.LimitRepository.remove(item);
+    await this.limitRepository.remove(item);
   }
 
   async deleteByDate(date: LimitDto['tradeDate']) {
-    const { affected } = await this.LimitRepository.delete({
+    const { affected } = await this.limitRepository.delete({
       tradeDate: date,
     });
     return affected || 0;
   }
 
   async clear() {
-    await this.LimitRepository.clear();
+    await this.limitRepository.clear();
   }
 }
