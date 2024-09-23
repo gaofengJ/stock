@@ -3,7 +3,6 @@ import { Column, Entity, Index } from 'typeorm';
 
 import { CommonEntity } from '@/entity/common.entity';
 
-// 使用 @Entity 装饰器将这个类标记为一个实体，并指定数据库表名为 t_source_limit
 @Entity({
   name: 't_source_limit',
   comment: '每日涨跌停个股统计表',
@@ -31,7 +30,6 @@ export class LimitEntity extends CommonEntity {
   tradeDate: string;
 
   @Column({
-    name: 'name',
     type: 'varchar',
     length: 16,
     nullable: false,
@@ -41,7 +39,6 @@ export class LimitEntity extends CommonEntity {
   name: string;
 
   @Column({
-    name: 'industry',
     type: 'varchar',
     length: 64,
     nullable: true,
@@ -51,7 +48,6 @@ export class LimitEntity extends CommonEntity {
   industry: string;
 
   @Column({
-    name: 'close',
     type: 'decimal',
     precision: 16,
     scale: 2,
@@ -73,7 +69,6 @@ export class LimitEntity extends CommonEntity {
   pctChg: string;
 
   @Column({
-    name: 'amount',
     type: 'decimal',
     precision: 16,
     scale: 2,
@@ -185,7 +180,6 @@ export class LimitEntity extends CommonEntity {
   limitTimes: number;
 
   @Column({
-    name: 'limit',
     type: 'varchar',
     length: 1,
     nullable: true,

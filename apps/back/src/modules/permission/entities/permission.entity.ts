@@ -30,7 +30,6 @@ export class PermissionEntity extends CommonEntity {
   permissionType: string;
 
   @Column({
-    name: 'action',
     type: 'varchar',
     nullable: false,
     comment: '权限操作，如 read、write、delete',
@@ -39,7 +38,6 @@ export class PermissionEntity extends CommonEntity {
   action: string;
 
   @Column({
-    name: 'desc',
     type: 'varchar',
     length: 1024,
     nullable: true,

@@ -3,7 +3,6 @@ import { Column, Entity, Index } from 'typeorm';
 
 import { CommonEntity } from '@/entity/common.entity';
 
-// 使用 @Entity 装饰器将这个类标记为一个实体，并指定数据库表名为 't_processed_senti'
 @Entity({
   name: 't_processed_senti',
   comment: '赚钱效应表',
@@ -20,7 +19,6 @@ export class SentiEntity extends CommonEntity {
   tradeDate: string;
 
   @Column({
-    name: 'a',
     type: 'int',
     nullable: false,
     comment: '当日涨停，非一字涨停，非ST',
@@ -29,7 +27,6 @@ export class SentiEntity extends CommonEntity {
   a: number;
 
   @Column({
-    name: 'b',
     type: 'int',
     nullable: false,
     comment: '前一日涨停，非一字涨停，非ST',
@@ -38,7 +35,6 @@ export class SentiEntity extends CommonEntity {
   b: number;
 
   @Column({
-    name: 'c',
     type: 'int',
     nullable: false,
     comment: '前一日涨停，非一字涨停，非ST，当日高开',
@@ -49,7 +45,6 @@ export class SentiEntity extends CommonEntity {
   c: number;
 
   @Column({
-    name: 'd',
     type: 'int',
     nullable: false,
     comment: '前一日涨停，非一字涨停，非ST，当日上涨',
@@ -60,7 +55,6 @@ export class SentiEntity extends CommonEntity {
   d: number;
 
   @Column({
-    name: 'e',
     type: 'int',
     nullable: false,
     comment: '当日曾涨停，非ST',

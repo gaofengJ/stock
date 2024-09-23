@@ -8,25 +8,43 @@ import { CommonEntity } from '@/entity/common.entity';
   comment: '用户登录日志表',
 })
 export class LoginLogEntity extends CommonEntity {
-  @Column({ nullable: true })
+  @Column({
+    type: 'varchar',
+    nullable: true,
+    comment: 'IP',
+  })
   @ApiProperty({ description: 'IP' })
   ip: string;
 
-  @Column({ nullable: true })
+  @Column({
+    type: 'varchar',
+    nullable: true,
+    comment: '地址',
+  })
   @ApiProperty({ description: '地址' })
   address: string;
 
-  @Column({ nullable: true })
+  @Column({
+    type: 'varchar',
+    nullable: true,
+    comment: '登录方式',
+  })
   @ApiProperty({ description: '登录方式' })
   provider: string;
 
-  @Column({ length: 500, nullable: true })
+  @Column({
+    type: 'varchar',
+    length: 500,
+    nullable: true,
+    comment: '浏览器ua',
+  })
   @ApiProperty({ description: '浏览器ua' })
   ua: string;
 
   @Column({
     name: 'user_id',
-    comment: 'user_id',
+    comment: 'userId',
   })
+  @ApiProperty({ description: 'userId' })
   userId: number;
 }
