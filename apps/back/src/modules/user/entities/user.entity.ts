@@ -10,7 +10,6 @@ import { CommonEntity } from '@/entity/common.entity';
 @Index('index_username', ['username'])
 export class UserEntity extends CommonEntity {
   @Column({
-    name: 'username',
     type: 'varchar',
     length: 64,
     nullable: false,
@@ -21,7 +20,6 @@ export class UserEntity extends CommonEntity {
   username: string;
 
   @Column({
-    name: 'password',
     type: 'varchar',
     length: 100,
     nullable: false,
@@ -31,7 +29,6 @@ export class UserEntity extends CommonEntity {
   password: string;
 
   @Column({
-    name: 'psalt',
     type: 'varchar',
     length: 100,
     nullable: false,
@@ -41,7 +38,6 @@ export class UserEntity extends CommonEntity {
   psalt: string;
 
   @Column({
-    name: 'avatar',
     type: 'varchar',
     nullable: true,
     comment: '头像',
@@ -50,7 +46,6 @@ export class UserEntity extends CommonEntity {
   avatar: string;
 
   @Column({
-    name: 'email',
     type: 'varchar',
     nullable: true,
     unique: true,
@@ -60,7 +55,6 @@ export class UserEntity extends CommonEntity {
   email: string;
 
   @Column({
-    name: 'phone',
     type: 'varchar',
     length: 20,
     nullable: true,
@@ -81,7 +75,6 @@ export class UserEntity extends CommonEntity {
   isActive: number;
 
   @Column({
-    name: 'point',
     type: 'int',
     default: 0,
     comment: '用户积分',
@@ -90,7 +83,6 @@ export class UserEntity extends CommonEntity {
   point: number;
 
   @Column({
-    name: 'remark',
     type: 'varchar',
     nullable: true,
     comment: '备注',

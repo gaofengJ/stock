@@ -22,7 +22,6 @@ export class DailyEntity extends CommonEntity {
   tsCode: string;
 
   @Column({
-    name: 'name',
     type: 'varchar',
     length: 16,
     nullable: false,
@@ -63,7 +62,6 @@ export class DailyEntity extends CommonEntity {
   downLimit: string;
 
   @Column({
-    name: 'open',
     type: 'decimal',
     precision: 16,
     scale: 2,
@@ -74,7 +72,6 @@ export class DailyEntity extends CommonEntity {
   open: string;
 
   @Column({
-    name: 'high',
     type: 'decimal',
     precision: 16,
     scale: 2,
@@ -85,7 +82,6 @@ export class DailyEntity extends CommonEntity {
   high: string;
 
   @Column({
-    name: 'low',
     type: 'decimal',
     precision: 16,
     scale: 2,
@@ -96,7 +92,6 @@ export class DailyEntity extends CommonEntity {
   low: string;
 
   @Column({
-    name: 'close',
     type: 'decimal',
     precision: 16,
     scale: 2,
@@ -118,7 +113,6 @@ export class DailyEntity extends CommonEntity {
   preClose: string;
 
   @Column({
-    name: 'change',
     type: 'decimal',
     precision: 16,
     scale: 2,
@@ -140,7 +134,6 @@ export class DailyEntity extends CommonEntity {
   pctChg: string;
 
   @Column({
-    name: 'vol',
     type: 'decimal',
     precision: 16,
     scale: 2,
@@ -151,7 +144,6 @@ export class DailyEntity extends CommonEntity {
   vol: string;
 
   @Column({
-    name: 'amount',
     type: 'decimal',
     precision: 16,
     scale: 2,
@@ -195,7 +187,6 @@ export class DailyEntity extends CommonEntity {
   volumeRatio?: string;
 
   @Column({
-    name: 'pe',
     type: 'decimal',
     precision: 16,
     scale: 2,
@@ -217,7 +208,6 @@ export class DailyEntity extends CommonEntity {
   peTtm?: string;
 
   @Column({
-    name: 'pb',
     type: 'decimal',
     precision: 16,
     scale: 2,
@@ -228,7 +218,6 @@ export class DailyEntity extends CommonEntity {
   pb?: string;
 
   @Column({
-    name: 'ps',
     type: 'decimal',
     precision: 16,
     scale: 2,
@@ -325,19 +314,4 @@ export class DailyEntity extends CommonEntity {
   })
   @ApiProperty({ description: '流通市值(万元)' })
   circMv?: string;
-
-  /**
-   * @ManyToOne 表示这是一个多对一的关系，即多个 DailyEntity 对象对应于一个 StockEntity 对象
-   * () => StockEntity 表示关系的目标实体是 StockEntity
-   * (stockBasic) => stockBasic.dailys 指定了在 StockEntity 中，与当前 DailyEntity 关联的属性。
-   * 这里假设 StockEntity 中有一个名为 dailys 的属性，用来反向映射到 DailyEntity 对象
-   * @JoinColumn 用来指定在数据库表中用来连接两个实体的外键列的名字和其他选项
-   * { name: 'stock_basic_id' } 指定了在 DailyEntity 表中用来存储对应 StockEntity 主键的外键列名为 stock_basic_id
-   * stockBasic 是在 DailyEntity 中用来表示与之关联的 StockEntity 对象的属性。
-   *
-   * 这里是个示例，实际项目中并未用到
-   */
-  // @ManyToOne(() => StockEntity, (stockBasic) => stockBasic.dailys)
-  // @JoinColumn({ name: 'stock_basic_id' })
-  // stockBasic!: StockEntity;
 }

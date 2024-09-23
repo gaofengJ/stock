@@ -5,7 +5,7 @@ import { CommonEntity } from '@/entity/common.entity';
 
 @Entity({
   name: 't_role',
-  comment: '角色表',
+  comment: '用户角色表',
 })
 export class RoleEntity extends CommonEntity {
   @Column({
@@ -20,7 +20,6 @@ export class RoleEntity extends CommonEntity {
   roleName: string;
 
   @Column({
-    name: 'desc',
     type: 'varchar',
     length: 64,
     nullable: false,

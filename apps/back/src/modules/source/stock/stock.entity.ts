@@ -3,7 +3,6 @@ import { Column, Entity, Index } from 'typeorm';
 
 import { CommonEntity } from '@/entity/common.entity';
 
-// 使用 @Entity 装饰器将这个类标记为一个实体，并指定数据库表名为 't_source_stock'
 @Entity({
   name: 't_source_stock',
   comment: '股票基本信息表',
@@ -22,7 +21,6 @@ export class StockEntity extends CommonEntity {
   tsCode: string;
 
   @Column({
-    name: 'symbol',
     type: 'varchar',
     length: 16,
     nullable: false,
@@ -32,7 +30,6 @@ export class StockEntity extends CommonEntity {
   symbol: string;
 
   @Column({
-    name: 'name',
     type: 'varchar',
     length: 16,
     nullable: false,
@@ -42,7 +39,6 @@ export class StockEntity extends CommonEntity {
   name: string;
 
   @Column({
-    name: 'area',
     type: 'varchar',
     length: 16,
     nullable: false,
@@ -52,7 +48,6 @@ export class StockEntity extends CommonEntity {
   area: string;
 
   @Column({
-    name: 'industry',
     type: 'varchar',
     length: 16,
     nullable: false,
@@ -62,7 +57,6 @@ export class StockEntity extends CommonEntity {
   industry: string;
 
   @Column({
-    name: 'fullname',
     type: 'varchar',
     length: 256,
     nullable: true,
@@ -72,7 +66,6 @@ export class StockEntity extends CommonEntity {
   fullname?: string;
 
   @Column({
-    name: 'enname',
     type: 'varchar',
     length: 256,
     nullable: true,
@@ -82,7 +75,6 @@ export class StockEntity extends CommonEntity {
   enname?: string;
 
   @Column({
-    name: 'cnspell',
     type: 'varchar',
     length: 16,
     nullable: false,
@@ -92,7 +84,6 @@ export class StockEntity extends CommonEntity {
   cnspell: string;
 
   @Column({
-    name: 'market',
     type: 'varchar',
     length: 16,
     nullable: false,
@@ -102,7 +93,6 @@ export class StockEntity extends CommonEntity {
   market: string;
 
   @Column({
-    name: 'exchange',
     type: 'varchar',
     length: 16,
     nullable: true,
@@ -178,16 +168,4 @@ export class StockEntity extends CommonEntity {
   })
   @ApiProperty({ description: '实控人企业性质' })
   actEntType?: string;
-
-  /**
-   * @OneToMany 表示这是一个一对多的关系，即一个 StockEntity 对象对应多个 DailyEntity 对象
-   * () => DailyEntity 指定了关系的目标实体是 DailyEntity
-   * (daily) => daily.stockBasic 指定了在 DailyEntity 中用来表示与之关联的 StockEntity 对象的属性。
-   * 假设 DailyEntity 中有一个名为 stockBasic 的属性，用来反向映射到 StockEntity 对象
-   *
-   * dailys 是在 StockEntity 中用来表示与之关联的多个 DailyEntity 对象的属性。
-   * Relation<DailyEntity[]> 表示这是一个关系属性，类型为 DailyEntity[]，即 dailys 中存储了多个 DailyEntity 对象的数组
-   */
-  // @OneToMany(() => DailyEntity, (daily) => daily.stockBasic)
-  // dailys: Relation<DailyEntity[]>;
 }
