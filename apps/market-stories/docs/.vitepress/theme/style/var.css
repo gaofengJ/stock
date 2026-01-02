@@ -1,0 +1,30 @@
+:root {
+  --color-teal: rgba(63, 193, 201, 1);
+  --color-red: rgba(255, 46, 99, 1);
+  --color-grey: rgba(245, 245, 245, 1);
+  --color-black: rgba(37, 42, 52, 1);
+  --color-black-2: rgba(57, 62, 70, 1);
+
+  /* 标题 */
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(135deg, var(--color-grey) 10%, var(--color-red) 100%);
+
+  /* 基础颜色 */
+  --vp-c-indigo-1: rgba(63, 193, 201, 1);
+  --vp-c-indigo-2: rgba(63, 193, 201, 0.78);
+  --vp-c-indigo-3: rgba(63, 193, 201, 0.56);
+  --vp-c-text-1: rgba(37, 42, 52, 1);
+  --vp-c-text-2: rgba(37, 42, 52, 0.78);
+  --vp-c-text-3: rgba(37, 42, 52, 0.56);
+  --vp-c-bg-soft: rgba(245, 245, 245, 1);
+}
+
+.dark {
+  --vp-c-indigo-1: rgba(63, 193, 201, 1);
+  --vp-c-indigo-2: rgba(63, 193, 201, 0.78);
+  --vp-c-indigo-3: rgba(63, 193, 201, 0.56);
+  --vp-c-text-1: rgba(245, 245, 245, 1);
+  --vp-c-text-2: rgba(245, 245, 245, 0.78);
+  --vp-c-text-3: rgba(245, 245, 245, 0.56);
+  --vp-c-bg-soft: rgba(37, 42, 52, 1);
+}

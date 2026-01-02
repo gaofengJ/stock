@@ -50,7 +50,6 @@ function BasicTradeCalPage() {
         ...state,
         items: data,
       }));
-      console.log(tradeCalData);
     } catch (e) {
       console.error('e', e);
     } finally {

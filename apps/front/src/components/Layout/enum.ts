@@ -23,9 +23,13 @@ export enum EHeaderMenuKey {
    */
   news = '/news',
   /**
-   * 复盘笔记
+   * 每日复盘
    */
   review = '/review',
+  /**
+   * 市场那些事
+   */
+  marketStories = '/market-stories',
   /**
    * 后台管理
    */
