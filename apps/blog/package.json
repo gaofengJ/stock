@@ -1,7 +1,7 @@
 {
-  "name": "market-stories",
+  "name": "blog",
   "version": "1.0.0",
-  "description": "木风同学的技术博客，记录股票市场深度复盘与交易体系构建",
+  "description": "木风同学的股票博客，记录股票市场深度复盘与交易体系构建",
   "main": "index.js",
   "scripts": {
     "gen-config": "node ./scripts/generate-config",
@@ -17,9 +17,9 @@
   "author": "mufeng",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/gaofengJ/stock/apps/market-stories/issues"
+    "url": "https://github.com/gaofengJ/stock/apps/blog/issues"
   },
-  "homepage": "https://github.com/gaofengJ/stock/apps/market-stories#readme",
+  "homepage": "https://github.com/gaofengJ/stock/apps/blog#readme",
   "devDependencies": {
     "eslint": "7",
     "eslint-config-airbnb": "19",

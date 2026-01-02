@@ -55,7 +55,7 @@ export const headerMenuItems: MenuProps['items'] = [
     label: '每日复盘',
   },
   {
-    key: EHeaderMenuKey.marketStories,
+    key: EHeaderMenuKey.blog,
     label: '市场那些事',
   },
 ];

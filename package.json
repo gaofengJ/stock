@@ -5,10 +5,10 @@
   "main": "index.js",
   "scripts": {
     "dev:front": "cd apps/front && pnpm run dev",
-    "dev:market-stories": "cd apps/market-stories && pnpm run dev",
+    "dev:blog": "cd apps/blog && pnpm run dev",
     "dev:back": "cd apps/back && pnpm run start:dev",
     "build:front": "cd apps/front && pnpm run build",
-    "build:market-stories": "cd apps/market-stories && pnpm run build",
+    "build:blog": "cd apps/blog && pnpm run build",
     "build:back": "cd apps/back && pnpm run build",
     "start:back:dev": "cd apps/back && pnpm run start:dev",
     "start:back:debug": "cd apps/back && pnpm run start:debug",

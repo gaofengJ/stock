@@ -29,7 +29,7 @@ export enum EHeaderMenuKey {
   /**
    * 市场那些事
    */
-  marketStories = '/market-stories',
+  blog = '/blog',
   /**
    * 后台管理
    */

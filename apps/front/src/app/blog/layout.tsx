@@ -10,7 +10,7 @@ import MarketStoriesPage from './page';
 export default function Layout() {
   return (
     <CommonLayout
-      headerMenuActive={EHeaderMenuKey.marketStories}
+      headerMenuActive={EHeaderMenuKey.blog}
       showAsideMenu={false}
       contentClassName="p-0"
     >
