@@ -15,7 +15,15 @@ import { IdParam } from '@/decorators/id-param.decorator';
 
 import { UserService } from './user.service';
 import { UserEntity } from './entities/user.entity';
-import { UserDto, UserQueryDto, UserUpdateDto } from './user.dto';
+import {
+  UserDto,
+  UserQueryDto,
+  UserRoleDto,
+  UserRoleQueryDto,
+  UserRoleUpdateDto,
+  UserUpdateDto,
+} from './user.dto';
+import { UserRoleEntity } from './entities/user_role.entity';
 
 @ApiTags('用户信息')
 @Controller('user')
@@ -32,7 +40,7 @@ export class UserController {
   @Get(':id')
   @ApiOperation({ summary: '获取User详情' })
   @ApiResult({ type: UserEntity })
-  async info(@IdParam() id: number): Promise<UserEntity> {
+  async detail(@IdParam() id: number): Promise<UserEntity> {
     return this.userService.detail(id);
   }
 
@@ -64,5 +72,51 @@ export class UserController {
   @ApiOperation({ summary: '清空User' })
   async clear() {
     await this.userService.clear();
+  }
+
+  @Get('/userRole/list')
+  @ApiOperation({ summary: '获取UserRole列表' })
+  @ApiResult({ type: [UserRoleEntity], isPage: true })
+  async userRoleList(
+    @Query() dto: UserRoleQueryDto,
+  ): Promise<Pagination<UserRoleEntity>> {
+    return this.userService.userRoleList(dto);
+  }
+
+  @Get('/userRole/:id')
+  @ApiOperation({ summary: '获取UserRole详情' })
+  @ApiResult({ type: UserRoleEntity })
+  async userRoleDetail(@IdParam() id: number): Promise<UserRoleEntity> {
+    return this.userService.userRoleDetail(id);
+  }
+
+  @Post('/userRole/create')
+  @ApiOperation({ summary: '创建UserRole' })
+  async userRoleCreate(@Body() dto: UserRoleDto) {
+    await this.userService.userRoleCreate(dto);
+  }
+
+  @Post('/userRole/bulk-create')
+  @ApiOperation({ summary: '批量创建UserRole' })
+  async userRoleBulkCreate(@Body() dto: UserRoleDto[]) {
+    await this.userService.userRoleBulkCreate(dto);
+  }
+
+  @Put('userRole/:id')
+  @ApiOperation({ summary: '更新UserRole' })
+  async userRoleUpdate(@IdParam() id: number, @Body() dto: UserRoleUpdateDto) {
+    await this.userService.userRoleUpdate(id, dto);
+  }
+
+  @Delete('userRole/:id')
+  @ApiOperation({ summary: '删除UserRole' })
+  async userRoleDelete(@IdParam() id: number) {
+    await this.userService.userRoleDelete(id);
+  }
+
+  @Delete('/userRole/clear')
+  @ApiOperation({ summary: '清空UserRole' })
+  async userRoleClear() {
+    await this.userService.userRoleClear();
   }
 }

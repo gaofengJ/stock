@@ -5,7 +5,10 @@ import { CommonEntity } from '@/entity/common.entity';
 /**
  * 用户-角色关联表实体
  */
-@Entity('t_user_role')
+@Entity({
+  name: 't_user_role',
+  comment: '用户-角色关联表',
+})
 export class UserRoleEntity extends CommonEntity {
   @Column({
     name: 'user_id',

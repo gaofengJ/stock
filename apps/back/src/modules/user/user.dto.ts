@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsPhoneNumber,
   IsString,
@@ -73,3 +74,27 @@ export class UserQueryDto extends PagerDto {
 }
 
 export class UserUpdateDto extends PartialType(UserDto) {}
+
+export class UserRoleDto {
+  @ApiProperty({ description: 'userId' })
+  @IsNotEmpty({ message: 'userId不能为空' })
+  @IsNumber()
+  userId: number;
+
+  @ApiProperty({ description: 'roleId' })
+  @IsNotEmpty({ message: 'roleId不能为空' })
+  @IsNumber()
+  roleId: number;
+}
+
+export class UserRoleQueryDto extends PagerDto {
+  @ApiProperty({ description: 'userId' })
+  @IsNumber()
+  userId: number;
+
+  @ApiProperty({ description: 'roleId' })
+  @IsNumber()
+  roleId: number;
+}
+
+export class UserRoleUpdateDto extends PartialType(UserRoleDto) {}

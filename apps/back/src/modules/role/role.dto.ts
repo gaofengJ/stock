@@ -1,5 +1,5 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 
 import { PagerDto } from '@/dto/pager.dto';
 import { IsUnique } from '@/shared/database/constraints/unique.constraint';
@@ -24,8 +24,27 @@ export class RoleDto {
 
 export class RoleQueryDto extends PagerDto {
   @ApiProperty({ description: '角色名称' })
-  @IsEnum(ERole)
   roleName: string;
 }
 
 export class RoleUpdateDto extends PartialType(RoleDto) {}
+
+export class RolePermissionDto {
+  @ApiProperty({ description: 'roleId' })
+  @IsNumber()
+  roleId: number;
+
+  @ApiProperty({ description: 'permissionId' })
+  @IsNumber()
+  permissionId: number;
+}
+
+export class RolePermissionQueryDto extends PagerDto {
+  @ApiProperty({ description: 'roleId' })
+  roleId: number;
+
+  @ApiProperty({ description: 'permissionId' })
+  permissionId: number;
+}
+
+export class RolePermissionUpdateDto extends PartialType(RolePermissionDto) {}

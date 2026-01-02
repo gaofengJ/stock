@@ -33,11 +33,9 @@ export class PermissionDto {
 
 export class PermissionQueryDto extends PagerDto {
   @ApiProperty({ description: '权限名称' })
-  @IsString()
   permissionName: string;
 
   @ApiProperty({ description: '权限类型' })
-  @IsEnum(EPermissionType)
   permissionType: string;
 }
 
