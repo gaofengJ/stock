@@ -7,20 +7,6 @@ const targetPath = path.join(__dirname, '../docs/src');
 // 输出文件地址
 const outputPath = path.join(targetPath, 'nav-config.mts');
 
-/**
- * 获取文件名后缀
- */
-const getFileExtension = (fileName) => {
-  const match = fileName.match(/\.([^.]+)$/);
-  if (match) {
-    return match[1];
-  }
-  return ''; // 如果没有匹配到点，返回空字符串或其他默认值
-};
-
-/**
- * 获取md中title属性
- */
 const getTitleOfMarkdown = (file) => {
   try {
     const data = fs.readFileSync(file, 'utf8');
@@ -46,15 +32,7 @@ const getTitleOfMarkdown = (file) => {
  * 写文件
  */
 const writeFile = async (config) => {
-  const sortOrder = {
-    前端初阶: 1,
-    前端中阶: 2,
-    前端高阶: 3,
-    学习笔记: 4,
-    面经: 5,
-  };
-  const sortedConfig = config.sort((a, b) => sortOrder[a.text] - sortOrder[b.text]);
-  let str = JSON.stringify(sortedConfig, null, 2);
+  let str = JSON.stringify(config, null, 2);
   str = str.replace(/"/g, "'");
   await fs.writeFileSync(outputPath, `export default ${str}`);
 };
@@ -95,18 +73,6 @@ const getNavConfig = (dirs) => {
     const titleOfMd = getTitleOfMarkdown(indexPath);
     configItem.text = titleOfMd;
     const lastPathOfFistLevel = dir.match(regex)[1]; // 获取最后一级路径作为key
-
-    // 新逻辑：直接在一级目录下查找 .md 文件，而不是进入二级目录
-    // 检查是否包含 md 文件（除了 index.md）
-    const files = fs.readdirSync(dir);
-    const hasMdFiles = files.some((file) => file.endsWith('.md') && file !== 'index.md');
-
-    if (hasMdFiles) {
-      configItem.link = `/${lastPathOfFistLevel}/`;
-      configItem.activeMatch = `/${lastPathOfFistLevel}/`;
-      config.push(configItem);
-      continue;
-    }
 
     // 兼容旧逻辑：如果存在二级目录
     const secondLevelDirs = fs.readdirSync(dir);

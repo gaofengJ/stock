@@ -94,54 +94,6 @@ const getSideBarConfig = (dirs) => {
     const lastPathOfFistLevel = dir.match(regex)[1]; // 获取最后一级路径作为key
     const configValue = [];
 
-    // 新逻辑：处理一级目录下的直接文件（扁平结构）
-    // 检查是否是一级目录下的文件
-    const files = fs.readdirSync(dir);
-    // 过滤出 .md 文件，且不是 index.md
-    const mdFiles = files.filter((file) => {
-      const filePath = path.join(dir, file);
-      const fileStat = fs.statSync(filePath);
-      return fileStat.isFile() && file.endsWith('.md') && file !== 'index.md';
-    });
-
-    if (mdFiles.length > 0) {
-      // 获取当前目录的 title
-      const indexPath = `${dir}/index.md`;
-      const { title: dirTitle } = getInfoOfMarkdown(indexPath);
-
-      const configValueItem = {
-        text: dirTitle,
-        items: [
-          // 添加导读
-          { text: '导读', link: `/${lastPathOfFistLevel}/` },
-        ],
-      };
-
-      mdFiles.sort((a, b) => {
-        // 提取文件名中的数字部分
-        const numA = parseInt((a.match(/^\d+/) || [])[0], 10);
-        const numB = parseInt((b.match(/^\d+/) || [])[0], 10);
-        // 比较数字部分的大小
-        if (!isNaN(numA) && !isNaN(numB)) {
-          return numA - numB;
-        }
-        return a.localeCompare(b);
-      });
-
-      for (const file of mdFiles) {
-        const filePath = path.join(dir, file);
-        const { title: fileTitle } = getInfoOfMarkdown(filePath);
-        configValueItem.items.push({
-          text: fileTitle,
-          link: `/${lastPathOfFistLevel}/${file.replace(/\.md$/, '')}`,
-        });
-      }
-
-      configValue.push(configValueItem);
-      config[`/${lastPathOfFistLevel}/`] = configValue;
-      continue;
-    }
-
     // 旧逻辑：处理二级目录
     const secondLevelDirs = fs.readdirSync(dir);
     for (let j = 0; j < secondLevelDirs.length; j++) { // 遍历二级路径
@@ -163,16 +115,17 @@ const getSideBarConfig = (dirs) => {
         if (collapsedOfMd) {
           configValueItem.collapsed = true;
         }
-        let files = fs.readdirSync(secondLevelDirPath);
-        files = files.sort((a, b) => {
+        let secondLevelFiles = fs.readdirSync(secondLevelDirPath);
+        secondLevelFiles = secondLevelFiles.sort((a, b) => {
           // 提取文件名中的数字部分
           const numA = parseInt((a.match(/^\d+/) || [])[0], 10);
           const numB = parseInt((b.match(/^\d+/) || [])[0], 10);
           // 比较数字部分的大小
           return numA - numB;
         });
-        for (let k = 0; k < files.length; k++) { // 遍历文件
-          const file = files[k];
+        // eslint-disable-next-line no-restricted-syntax
+        for (let k = 0; k < secondLevelFiles.length; k++) { // 遍历文件
+          const file = secondLevelFiles[k];
           const filePath = path.join(secondLevelDirPath, file);
           const fileStat = fs.statSync(filePath);
           const fileSuffix = getFileExtension(filePath);
