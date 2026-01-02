@@ -6,7 +6,7 @@ export default defineConfig({
   cleanUrls: true,
   lang: 'zh-CN',
   title: "Mufeng's blog",
-  description: "木风同学的技术博客",
+  description: "木风同学的股票博客",
   head: [
     ['link', { rel: 'icon', href: '/icon/favicon.svg' }],
   ],

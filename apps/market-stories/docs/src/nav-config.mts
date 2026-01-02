@@ -1,10 +1,5 @@
 export default [
   {
-    'text': '实战案例与复盘归档',
-    'link': '/case-study/chapter1/bull-stock-review.md',
-    'activeMatch': '/case-study/'
-  },
-  {
     'text': '市场制度与微观结构',
     'link': '/market-microstructure/chapter1/capital-seat-profile.md',
     'activeMatch': '/market-microstructure/'
@@ -23,6 +18,11 @@ export default [
     'text': '技术分析与博弈形态',
     'link': '/technical-game-patterns/chapter1/classic-tactics-backtest.md',
     'activeMatch': '/technical-game-patterns/'
+  },
+  {
+    'text': '实战案例与复盘归档',
+    'link': '/case-study/chapter1/bull-stock-review.md',
+    'activeMatch': '/case-study/'
   },
   {
     'text': '题材驱动与逻辑预判',
