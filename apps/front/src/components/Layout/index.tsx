@@ -35,6 +35,7 @@ interface ILayoutProps {
   headerMenuActive: string;
   asideMenuActive?: string;
   asideMenuOpen?: string;
+  contentClassName?: string;
 }
 
 const CommonLayout: React.FC<ILayoutProps> = ({
@@ -44,6 +45,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
   headerMenuActive,
   asideMenuActive = '',
   asideMenuOpen = '',
+  contentClassName = 'p-16',
 }) => {
   const router = useRouter();
 
@@ -132,7 +134,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
               />
             </Sider>
           ) : null}
-          <Layout className="overflow-y-auto p-16">
+          <Layout className={`overflow-y-auto ${contentClassName}`}>
             <Content>{children}</Content>
           </Layout>
         </Layout>

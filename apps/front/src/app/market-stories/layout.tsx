@@ -12,6 +12,7 @@ export default function Layout() {
     <CommonLayout
       headerMenuActive={EHeaderMenuKey.marketStories}
       showAsideMenu={false}
+      contentClassName="p-0"
     >
       <MarketStoriesPage />
     </CommonLayout>

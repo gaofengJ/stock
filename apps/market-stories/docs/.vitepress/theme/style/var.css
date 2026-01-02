@@ -1,30 +1,135 @@
 :root {
+  /* 使用 front 项目的颜色定义 */
+  --color-pink-red: rgba(255, 46, 99, 1);
+  --color-pink-red-78: rgba(255, 46, 99, 0.78);
+  --color-pink-red-56: rgba(255, 46, 99, 0.56);
   --color-teal: rgba(63, 193, 201, 1);
-  --color-red: rgba(255, 46, 99, 1);
   --color-grey: rgba(245, 245, 245, 1);
   --color-black: rgba(37, 42, 52, 1);
-  --color-black-2: rgba(57, 62, 70, 1);
+  --color-white: rgba(255, 255, 255, 1);
+
+  /* VitePress 品牌色覆盖 */
+  --vp-c-brand-1: var(--color-pink-red);
+  --vp-c-brand-2: var(--color-pink-red-78);
+  --vp-c-brand-3: var(--color-pink-red-56);
+  --vp-c-brand-soft: rgba(255, 46, 99, 0.14);
 
   /* 标题 */
   --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: linear-gradient(135deg, var(--color-grey) 10%, var(--color-red) 100%);
+  --vp-home-hero-name-background: linear-gradient(135deg, var(--color-grey) 10%, var(--color-pink-red) 100%);
 
-  /* 基础颜色 */
-  --vp-c-indigo-1: rgba(63, 193, 201, 1);
-  --vp-c-indigo-2: rgba(63, 193, 201, 0.78);
-  --vp-c-indigo-3: rgba(63, 193, 201, 0.56);
-  --vp-c-text-1: rgba(37, 42, 52, 1);
+  /* 基础颜色 - 覆盖默认的 indigo 色系 */
+  --vp-c-indigo-1: var(--color-pink-red);
+  --vp-c-indigo-2: var(--color-pink-red-78);
+  --vp-c-indigo-3: var(--color-pink-red-56);
+  
+  --vp-c-text-1: var(--color-black);
   --vp-c-text-2: rgba(37, 42, 52, 0.78);
   --vp-c-text-3: rgba(37, 42, 52, 0.56);
-  --vp-c-bg-soft: rgba(245, 245, 245, 1);
+  --vp-c-bg-soft: var(--color-grey);
 }
 
 .dark {
-  --vp-c-indigo-1: rgba(63, 193, 201, 1);
-  --vp-c-indigo-2: rgba(63, 193, 201, 0.78);
-  --vp-c-indigo-3: rgba(63, 193, 201, 0.56);
+  /* 深色模式下的适配 (保持原样或调整为适合粉红色的深色变体) */
+  --vp-c-brand-1: var(--color-pink-red);
+  --vp-c-brand-2: var(--color-pink-red-78);
+  --vp-c-brand-3: var(--color-pink-red-56);
+  
+  --vp-c-indigo-1: var(--color-pink-red);
+  --vp-c-indigo-2: var(--color-pink-red-78);
+  --vp-c-indigo-3: var(--color-pink-red-56);
+  
   --vp-c-text-1: rgba(245, 245, 245, 1);
   --vp-c-text-2: rgba(245, 245, 245, 0.78);
   --vp-c-text-3: rgba(245, 245, 245, 0.56);
-  --vp-c-bg-soft: rgba(37, 42, 52, 1);
+  --vp-c-bg-soft: var(--color-black);
+}
+
+/* 嵌入模式下的样式优化 */
+html.embedded .VPFooter {
+  display: none !important;
+}
+
+/* 在嵌入模式下保留导航栏，但进行简化 */
+html.embedded .VPNav {
+  display: block !important;
+  position: sticky !important;
+  top: 0;
+  z-index: 20;
+}
+
+/* 隐藏导航栏中不需要的元素 */
+html.embedded .VPNav .VPNavBarSocialLinks,
+html.embedded .VPNav .VPNavBarAppearance,
+html.embedded .VPNav .VPNavBarTitle,
+html.embedded .VPNav .VPNavBarHamburger { /* 确保隐藏汉堡菜单，如果不需要的话 */
+  display: none !important; 
+}
+
+/* 调整导航栏高度，使其更紧凑，并移除底部边框 */
+html.embedded .VPNav .VPNavBar {
+  height: 64px !important; /* 增加高度 */
+  padding: 0 16px !important;
+  border-bottom: none !important;
+  background-color: transparent !important;
+}
+
+/* 强制重置导航菜单项的样式，确保对齐 */
+html.embedded .VPNavBarMenuLink {
+  padding: 0 12px !important;
+  line-height: 64px !important; /* 匹配新高度 */
+  margin: 0 !important;
+}
+
+/* 移除导航栏背景，使其融入主应用（如果需要） */
+html.embedded .VPNav {
+  background-color: var(--vp-c-bg) !important;
+  border-bottom: 1px solid var(--vp-c-divider) !important;
+}
+
+/* ... (keep middle sections same) ... */
+
+/* 调整内容区域顶部 Padding，留出导航栏高度 */
+html.embedded .VPContent {
+  padding-top: 0px !important; /* 匹配新高度 */
+}
+
+/* 调整侧边栏位置，避开导航栏，并统一背景色 */
+html.embedded .VPSidebar {
+  top: 64px !important; /* 匹配新高度 */
+  padding-top: 24px !important;
+  height: calc(100vh - 64px) !important; /* 匹配新高度 */
+  background-color: var(--vp-c-bg) !important;
+  border-right: 1px solid var(--vp-c-divider) !important;
+}
+
+/* 强制移除侧边栏内所有可能的灰色背景，并强制文字颜色 */
+html.embedded .VPSidebar,
+html.embedded .VPSidebar .nav,
+html.embedded .VPSidebar .group,
+html.embedded .VPSidebar .curtain { /* 添加 curtain 类，可能是遮罩层 */
+  background-color: transparent !important;
+}
+
+/* 修复侧边栏背景可能是 CSS 变量定义的问题 */
+html.embedded {
+  --vp-sidebar-bg-color: var(--vp-c-bg) !important;
+  --vp-nav-bg-color: var(--vp-c-bg) !important;
+}
+
+/* 调整侧边栏内部导航的背景色，防止继承灰色 */
+html.embedded .VPSidebar .group + .group {
+  border-top-color: var(--vp-c-divider) !important;
+}
+
+/* 调整内容区域的最大宽度，利用更多空间 */
+html.embedded .VPContent .container {
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 32px !important; /* 增加左右内边距，避免贴边 */
+}
+
+/* 针对深色模式的适配（如果主应用也是深色模式，这里可以保持一致） */
+html.embedded.dark .VPSidebar {
+  background-color: var(--vp-c-bg) !important;
 }
