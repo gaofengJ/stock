@@ -1,11 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { StockService as SourceStockService } from '@/modules/source/stock/stock.service';
 import { StockQueryDto } from '@/modules/source/stock/stock.dto';
 
 @Injectable()
 export class StockService {
-  private logger = new Logger(StockService.name);
-
   constructor(private stockService: SourceStockService) {}
 
   /**

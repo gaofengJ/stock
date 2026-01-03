@@ -1,12 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { LimitService as SourceLimitService } from '@/modules/source/limit/limit.service';
 import { LimitQueryDto } from '@/modules/source/limit/limit.dto';
 import { ELimit } from '@/modules/source/limit/limit.enum';
+import { Order } from '@/dto/pager.dto';
 
 @Injectable()
 export class LimitsService {
-  private logger = new Logger(LimitsService.name);
-
   constructor(private limitService: SourceLimitService) {}
 
   /**
@@ -18,8 +17,9 @@ export class LimitsService {
       pageSize: 10000,
       tradeDate,
       limit: ELimit.U,
+      orderField: 'limit_times',
+      order: Order.DESC,
     });
-    ret.items.sort((a, b) => b.limitTimes - a.limitTimes);
     return ret;
   }
 }
