@@ -245,4 +245,42 @@ export class DailyService {
       .andWhere('d4.turnover_rate_f > 5')
       .getMany();
   }
+
+  /**
+   * 策略：连续三日放量且量能不萎缩
+   * @param dates [date3(最新), date2, date1(最早)]
+   */
+  async findThreeDaysHighVol(dates: string[]): Promise<DailyEntity[]> {
+    const [date3, date2, date1] = dates;
+    return (
+      this.DailyRepository.createQueryBuilder('d3')
+        .innerJoin(
+          't_source_daily',
+          'd2',
+          'd3.ts_code = d2.ts_code AND d2.trade_date = :date2',
+          {
+            date2,
+          },
+        )
+        .innerJoin(
+          't_source_daily',
+          'd1',
+          'd3.ts_code = d1.ts_code AND d1.trade_date = :date1',
+          {
+            date1,
+          },
+        )
+        .where('d3.trade_date = :date3', { date3 })
+        .andWhere("d1.name NOT REGEXP 'ST|N|C'")
+        // 连续3天量比递减 (3.0 -> 2.1 -> 1.7，允许向下波动10%：2.7 -> 1.89 -> 1.53)
+        .andWhere('d1.volume_ratio > 2.7')
+        .andWhere('d2.volume_ratio > 1.89')
+        .andWhere('d3.volume_ratio > 1.53')
+        // 连续3天收阳线
+        .andWhere('d1.close > d1.open')
+        .andWhere('d2.close > d2.open')
+        .andWhere('d3.close > d3.open')
+        .getMany()
+    );
+  }
 }

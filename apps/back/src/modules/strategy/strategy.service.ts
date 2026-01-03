@@ -57,6 +57,25 @@ export class StrategyService {
   }
 
   /**
+   * 策略选股结果列表-连续三日放量且量能不萎缩
+   */
+  async threeDaysHighVol(date: CommonDateDto['date']) {
+    const isOpen = await this.tradeCalService.isOpen(date);
+    if (!isOpen) {
+      this.logger.log(`${date}非交易日，请重新选择交易日期`);
+      throw new BizException(ECustomError.NON_TRADING_DAY);
+    }
+    // 获取过去的三个交易日
+    const last3Days = await this.tradeCalService.getLastNDays({
+      date,
+      n: 3,
+    });
+
+    const dates = last3Days.map((i) => i.calDate);
+    return this.dailyService.findThreeDaysHighVol(dates);
+  }
+
+  /**
    * 策略名称列表
    */
   async navList() {
@@ -68,6 +87,10 @@ export class StrategyService {
       {
         label: '向上跳空缺口后连续三日高换手率',
         key: EStrategyType.gapThreeHighTurnover,
+      },
+      {
+        label: '连续三日放量且量能不萎缩',
+        key: EStrategyType.threeDaysHighVol,
       },
     ];
     return ret;
@@ -85,6 +108,9 @@ export class StrategyService {
         break;
       case EStrategyType.gapThreeHighTurnover:
         ret = await this.gapThreeHighTurnover(date);
+        break;
+      case EStrategyType.threeDaysHighVol:
+        ret = await this.threeDaysHighVol(date);
         break;
       default:
         ret = [];

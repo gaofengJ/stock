@@ -10,4 +10,8 @@ export enum EStrategyType {
    * 向上跳空缺口后连续三日高换手率
    */
   gapThreeHighTurnover = 'gapThreeHighTurnover',
+  /**
+   * 连续三日放量且量能不萎缩
+   */
+  threeDaysHighVol = 'threeDaysHighVol',
 }
