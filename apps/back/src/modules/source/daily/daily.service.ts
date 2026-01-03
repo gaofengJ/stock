@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Like, Not, Repository } from 'typeorm';
+import { Between, In, Like, Not, Repository } from 'typeorm';
 
 import * as dayjs from 'dayjs';
 import { paginate } from '@/helper/paginate/index';
@@ -168,39 +168,32 @@ export class DailyService {
    */
   async findGapThreeUp(dates: string[]): Promise<DailyEntity[]> {
     const [date4, date3, date2, date1] = dates;
-    return this.DailyRepository.createQueryBuilder('d4')
-      .innerJoin(
-        't_source_daily',
-        'd3',
-        'd4.ts_code = d3.ts_code AND d3.trade_date = :date3',
-        {
-          date3,
-        },
-      )
-      .innerJoin(
-        't_source_daily',
-        'd2',
-        'd4.ts_code = d2.ts_code AND d2.trade_date = :date2',
-        {
-          date2,
-        },
-      )
-      .innerJoin(
-        't_source_daily',
-        'd1',
-        'd4.ts_code = d1.ts_code AND d1.trade_date = :date1',
-        {
-          date1,
-        },
-      )
-      .where('d4.trade_date = :date4', { date4 })
-      .andWhere("d1.name NOT REGEXP 'ST|N|C'")
-      .andWhere('d1.high < d2.low')
-      .andWhere('d2.close > d2.open')
-      .andWhere('d2.up_limit != d2.close')
-      .andWhere('d3.close > d3.open')
-      .andWhere('d4.close > d4.open')
-      .getMany();
+    const map = await this.getDailyDataByDates(dates);
+    const result: DailyEntity[] = [];
+
+    map.forEach((dailyMap) => {
+      const d1 = dailyMap[date1];
+      const d2 = dailyMap[date2];
+      const d3 = dailyMap[date3];
+      const d4 = dailyMap[date4];
+
+      if (!d1 || !d2 || !d3 || !d4) return;
+
+      // 排除 ST、N、C
+      if (/ST|N|C/.test(d1.name)) return;
+
+      if (
+        +d1.high < +d2.low && // 缺口
+        +d2.close > +d2.open && // d2 阳线
+        +d2.upLimit !== +d2.close && // d2 非一字板
+        +d3.close > +d3.open && // d3 阳线
+        +d4.close > +d4.open // d4 阳线
+      ) {
+        result.push(d4);
+      }
+    });
+
+    return result;
   }
 
   /**
@@ -209,41 +202,33 @@ export class DailyService {
    */
   async findGapThreeHighTurnover(dates: string[]): Promise<DailyEntity[]> {
     const [date4, date3, date2, date1] = dates;
-    return this.DailyRepository.createQueryBuilder('d4')
-      .innerJoin(
-        't_source_daily',
-        'd3',
-        'd4.ts_code = d3.ts_code AND d3.trade_date = :date3',
-        {
-          date3,
-        },
-      )
-      .innerJoin(
-        't_source_daily',
-        'd2',
-        'd4.ts_code = d2.ts_code AND d2.trade_date = :date2',
-        {
-          date2,
-        },
-      )
-      .innerJoin(
-        't_source_daily',
-        'd1',
-        'd4.ts_code = d1.ts_code AND d1.trade_date = :date1',
-        {
-          date1,
-        },
-      )
-      .where('d4.trade_date = :date4', { date4 })
-      .andWhere("d1.name NOT REGEXP 'ST|N|C'")
-      .andWhere('d1.high < d2.low')
-      .andWhere('d2.up_limit != d2.close')
-      .andWhere('d1.high < d3.close')
-      .andWhere('d1.high < d4.close')
-      .andWhere('d2.turnover_rate_f > 5')
-      .andWhere('d3.turnover_rate_f > 5')
-      .andWhere('d4.turnover_rate_f > 5')
-      .getMany();
+    const map = await this.getDailyDataByDates(dates);
+    const result: DailyEntity[] = [];
+
+    map.forEach((dailyMap) => {
+      const d1 = dailyMap[date1];
+      const d2 = dailyMap[date2];
+      const d3 = dailyMap[date3];
+      const d4 = dailyMap[date4];
+
+      if (!d1 || !d2 || !d3 || !d4) return;
+
+      // 排除 ST、N、C
+      if (/ST|N|C/.test(d1.name)) return;
+
+      if (
+        +d1.high < +d2.low && // 缺口
+        +d2.upLimit !== +d2.close && // d2 非一字板
+        +d1.high < +d3.close && // 缺口未回补
+        +d1.high < +d4.close && // 缺口未回补
+        +(d2.turnoverRateF || 0) > 5 && // 高换手
+        +(d3.turnoverRateF || 0) > 5 && // 高换手
+        +(d4.turnoverRateF || 0) > 5 // 高换手
+      ) {
+        result.push(d4);
+      }
+    });
+    return result;
   }
 
   /**
@@ -252,35 +237,49 @@ export class DailyService {
    */
   async findThreeDaysHighVol(dates: string[]): Promise<DailyEntity[]> {
     const [date3, date2, date1] = dates;
-    return (
-      this.DailyRepository.createQueryBuilder('d3')
-        .innerJoin(
-          't_source_daily',
-          'd2',
-          'd3.ts_code = d2.ts_code AND d2.trade_date = :date2',
-          {
-            date2,
-          },
-        )
-        .innerJoin(
-          't_source_daily',
-          'd1',
-          'd3.ts_code = d1.ts_code AND d1.trade_date = :date1',
-          {
-            date1,
-          },
-        )
-        .where('d3.trade_date = :date3', { date3 })
-        .andWhere("d1.name NOT REGEXP 'ST|N|C'")
-        // 连续3天量比递减 (3.0 -> 2.1 -> 1.7，允许向下波动10%：2.7 -> 1.89 -> 1.53)
-        .andWhere('d1.volume_ratio > 2.7')
-        .andWhere('d2.volume_ratio > 1.89')
-        .andWhere('d3.volume_ratio > 1.53')
-        // 连续3天收阳线
-        .andWhere('d1.close > d1.open')
-        .andWhere('d2.close > d2.open')
-        .andWhere('d3.close > d3.open')
-        .getMany()
-    );
+    const map = await this.getDailyDataByDates(dates);
+    const result: DailyEntity[] = [];
+
+    map.forEach((dailyMap) => {
+      const d1 = dailyMap[date1];
+      const d2 = dailyMap[date2];
+      const d3 = dailyMap[date3];
+
+      if (!d1 || !d2 || !d3) return;
+
+      // 排除 ST、N、C
+      if (/ST|N|C/.test(d1.name)) return;
+
+      if (
+        +(d1.volumeRatio || 0) > 2.7 &&
+        +(d2.volumeRatio || 0) > 1.89 &&
+        +(d3.volumeRatio || 0) > 1.53 &&
+        +d1.close > +d1.open &&
+        +d2.close > +d2.open &&
+        +d3.close > +d3.open
+      ) {
+        result.push(d3);
+      }
+    });
+    return result;
+  }
+
+  private async getDailyDataByDates(dates: string[]) {
+    const list = await this.DailyRepository.find({
+      where: {
+        tradeDate: In(dates),
+      },
+      // select: ['tsCode', 'tradeDate', 'name', 'open', 'close', 'high', 'low', 'upLimit', 'turnoverRateF', 'volumeRatio'],
+    });
+
+    const map = new Map<string, Record<string, DailyEntity>>();
+    // eslint-disable-next-line no-restricted-syntax
+    for (const item of list) {
+      if (!map.has(item.tsCode)) {
+        map.set(item.tsCode, {});
+      }
+      map.get(item.tsCode)![item.tradeDate] = item;
+    }
+    return map;
   }
 }
