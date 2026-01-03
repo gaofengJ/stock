@@ -49,6 +49,11 @@ export class DailyService {
     return paginate(queryBuilder, { pageNum, pageSize });
   }
 
+  /**
+   * 获取指定日期的股票价格分布统计
+   * @param tradeDate 交易日期
+   * @returns 股票价格分布统计数组
+   */
   async getDistributionStatistics(tradeDate: string): Promise<number[]> {
     const queryBuilder = this.DailyRepository.createQueryBuilder(
       't_source_daily',
