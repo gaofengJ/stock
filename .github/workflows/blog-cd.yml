@@ -8,6 +8,8 @@ on:
   push:
     branches:
       - master
+    paths:
+      - 'apps/blog/**'
 
 # 任务
 jobs:
@@ -37,7 +39,7 @@ jobs:
 
       # 5. 打包项目 (生成静态文件)
       - name: Build Project
-        run: pnpm run build
+        run: pnpm run build:blog
 
       # 6. 登录阿里云镜像容器服务 (使用官方 Action)
       - name: Login to Aliyun Registry
@@ -51,7 +53,7 @@ jobs:
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: apps/blog
           push: true
           # 保持使用 stock-blog 镜像名，与之前的修改保持一致
           tags: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-blog:latest

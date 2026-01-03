@@ -1,7 +1,7 @@
 {
   "name": "blog",
   "version": "1.0.0",
-  "description": "木风同学的股票博客，记录股票市场深度复盘与交易体系构建",
+  "description": "木风同学的股票博客，记录股票市场那些事",
   "main": "index.js",
   "scripts": {
     "gen-config": "node ./scripts/generate-config",
