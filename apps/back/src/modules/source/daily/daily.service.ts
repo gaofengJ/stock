@@ -161,4 +161,88 @@ export class DailyService {
   async clear() {
     await this.DailyRepository.clear();
   }
+
+  /**
+   * 策略：向上跳空缺口后三连阳
+   * @param dates [date4(最新), date3, date2, date1(最早)]
+   */
+  async findGapThreeUp(dates: string[]): Promise<DailyEntity[]> {
+    const [date4, date3, date2, date1] = dates;
+    return this.DailyRepository.createQueryBuilder('d4')
+      .innerJoin(
+        't_source_daily',
+        'd3',
+        'd4.ts_code = d3.ts_code AND d3.trade_date = :date3',
+        {
+          date3,
+        },
+      )
+      .innerJoin(
+        't_source_daily',
+        'd2',
+        'd4.ts_code = d2.ts_code AND d2.trade_date = :date2',
+        {
+          date2,
+        },
+      )
+      .innerJoin(
+        't_source_daily',
+        'd1',
+        'd4.ts_code = d1.ts_code AND d1.trade_date = :date1',
+        {
+          date1,
+        },
+      )
+      .where('d4.trade_date = :date4', { date4 })
+      .andWhere("d1.name NOT REGEXP 'ST|N|C'")
+      .andWhere('d1.high < d2.low')
+      .andWhere('d2.close > d2.open')
+      .andWhere('d2.up_limit != d2.close')
+      .andWhere('d3.close > d3.open')
+      .andWhere('d4.close > d4.open')
+      .getMany();
+  }
+
+  /**
+   * 策略：向上跳空缺口后连续三日高换手率
+   * @param dates [date4(最新), date3, date2, date1(最早)]
+   */
+  async findGapThreeHighTurnover(dates: string[]): Promise<DailyEntity[]> {
+    const [date4, date3, date2, date1] = dates;
+    return this.DailyRepository.createQueryBuilder('d4')
+      .innerJoin(
+        't_source_daily',
+        'd3',
+        'd4.ts_code = d3.ts_code AND d3.trade_date = :date3',
+        {
+          date3,
+        },
+      )
+      .innerJoin(
+        't_source_daily',
+        'd2',
+        'd4.ts_code = d2.ts_code AND d2.trade_date = :date2',
+        {
+          date2,
+        },
+      )
+      .innerJoin(
+        't_source_daily',
+        'd1',
+        'd4.ts_code = d1.ts_code AND d1.trade_date = :date1',
+        {
+          date1,
+        },
+      )
+      .where('d4.trade_date = :date4', { date4 })
+      .andWhere("d1.name NOT REGEXP 'ST|N|C'")
+      .andWhere('d1.high < d2.low')
+      .andWhere('d2.up_limit != d2.close')
+      .andWhere('d1.high < d3.close')
+      .andWhere('d1.high < d4.close')
+      .andWhere('d2.turnover_rate_f > 5')
+      .andWhere('d3.turnover_rate_f > 5')
+      .andWhere('d4.turnover_rate_f > 5')
+      .getMany();
+  }
 }
