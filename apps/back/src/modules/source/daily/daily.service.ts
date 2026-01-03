@@ -49,6 +49,46 @@ export class DailyService {
     return paginate(queryBuilder, { pageNum, pageSize });
   }
 
+  async getDistributionStatistics(tradeDate: string): Promise<number[]> {
+    const queryBuilder = this.DailyRepository.createQueryBuilder(
+      't_source_daily',
+    )
+      .select([
+        `SUM(CASE WHEN t_source_daily.pct_chg <= -9 THEN 1 ELSE 0 END) AS c0`,
+        `SUM(CASE WHEN t_source_daily.pct_chg > -9 AND t_source_daily.pct_chg <= -8 THEN 1 ELSE 0 END) AS c1`,
+        `SUM(CASE WHEN t_source_daily.pct_chg > -8 AND t_source_daily.pct_chg <= -7 THEN 1 ELSE 0 END) AS c2`,
+        `SUM(CASE WHEN t_source_daily.pct_chg > -7 AND t_source_daily.pct_chg <= -6 THEN 1 ELSE 0 END) AS c3`,
+        `SUM(CASE WHEN t_source_daily.pct_chg > -6 AND t_source_daily.pct_chg <= -5 THEN 1 ELSE 0 END) AS c4`,
+        `SUM(CASE WHEN t_source_daily.pct_chg > -5 AND t_source_daily.pct_chg <= -4 THEN 1 ELSE 0 END) AS c5`,
+        `SUM(CASE WHEN t_source_daily.pct_chg > -4 AND t_source_daily.pct_chg <= -3 THEN 1 ELSE 0 END) AS c6`,
+        `SUM(CASE WHEN t_source_daily.pct_chg > -3 AND t_source_daily.pct_chg <= -2 THEN 1 ELSE 0 END) AS c7`,
+        `SUM(CASE WHEN t_source_daily.pct_chg > -2 AND t_source_daily.pct_chg <= -1 THEN 1 ELSE 0 END) AS c8`,
+        `SUM(CASE WHEN t_source_daily.pct_chg > -1 AND t_source_daily.pct_chg < 0 THEN 1 ELSE 0 END) AS c9`,
+        `SUM(CASE WHEN t_source_daily.pct_chg = 0 THEN 1 ELSE 0 END) AS c10`,
+        `SUM(CASE WHEN t_source_daily.pct_chg > 0 AND t_source_daily.pct_chg < 1 THEN 1 ELSE 0 END) AS c11`,
+        `SUM(CASE WHEN t_source_daily.pct_chg >= 1 AND t_source_daily.pct_chg < 2 THEN 1 ELSE 0 END) AS c12`,
+        `SUM(CASE WHEN t_source_daily.pct_chg >= 2 AND t_source_daily.pct_chg < 3 THEN 1 ELSE 0 END) AS c13`,
+        `SUM(CASE WHEN t_source_daily.pct_chg >= 3 AND t_source_daily.pct_chg < 4 THEN 1 ELSE 0 END) AS c14`,
+        `SUM(CASE WHEN t_source_daily.pct_chg >= 4 AND t_source_daily.pct_chg < 5 THEN 1 ELSE 0 END) AS c15`,
+        `SUM(CASE WHEN t_source_daily.pct_chg >= 5 AND t_source_daily.pct_chg < 6 THEN 1 ELSE 0 END) AS c16`,
+        `SUM(CASE WHEN t_source_daily.pct_chg >= 6 AND t_source_daily.pct_chg < 7 THEN 1 ELSE 0 END) AS c17`,
+        `SUM(CASE WHEN t_source_daily.pct_chg >= 7 AND t_source_daily.pct_chg < 8 THEN 1 ELSE 0 END) AS c18`,
+        `SUM(CASE WHEN t_source_daily.pct_chg >= 8 AND t_source_daily.pct_chg < 9 THEN 1 ELSE 0 END) AS c19`,
+        `SUM(CASE WHEN t_source_daily.pct_chg >= 9 THEN 1 ELSE 0 END) AS c20`,
+      ])
+      .where({
+        tradeDate,
+        amount: Not(0), // 排除成交量为 0 的股票
+      });
+
+    const res = await queryBuilder.getRawOne();
+    const result: number[] = [];
+    for (let i = 0; i <= 20; i += 1) {
+      result.push(res ? +res[`c${i}`] : 0);
+    }
+    return result;
+  }
+
   /**
    * 连日涨跌统计
    */
