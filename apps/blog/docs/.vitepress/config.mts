@@ -4,6 +4,7 @@ import sidebarConfig from '../src/sidebar-config.mts';
 
 export default defineConfig({
   cleanUrls: true,
+  base: '/blog/',
   lang: 'zh-CN',
   title: "Mufeng's blog",
   description: "木风同学的股票博客",
