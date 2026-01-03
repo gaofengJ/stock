@@ -1,37 +1,38 @@
 # actions 名称
 name: Docker Stock Front
+
 # 执行时机
 on:
-  #监听push操作
+  # 监听 push 操作
   push:
     branches:
       - master
     paths:
-    - 'apps/front/**'
-  # 监听拉取请求操作
-  pull_request:
-    types:
-      - closed
-    branches:
-      - master
+      - 'apps/front/**'
 
 # 任务
 jobs:
   build:
-    # 指定运行所需要的虚拟机环境
     runs-on: ubuntu-latest
     steps:
-      # 拉取代码
-      - name: checkout # 步骤名称
-        uses: actions/checkout@master # 使用action库  actions/checkout拉取源码
+      # 1. 拉取代码 (升级到 v4)
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      # 指定 pnpm 版本
-      - name: set node version
+      # 2. 安装 pnpm
+      - name: Install pnpm
         uses: pnpm/action-setup@v3
         with:
-          version: 8
+          version: 9
 
-      # 清空 npm 代理设置
+      # 3. 设置 Node.js 环境并开启缓存 (关键优化)
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      # 4. 清空 npm 代理设置 (保持原有逻辑)
       - name: clear npm proxy settings
         run: |
           pnpm config delete proxy
@@ -39,27 +40,41 @@ jobs:
           echo $HTTP_PROXY
           echo $HTTPS_PROXY
 
-      # 安装依赖
-      - name: install
-        run: pnpm install --F front
+      # 5. 安装依赖 (使用 frozen-lockfile 确保依赖版本一致性)
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
 
-      # 打包
-      - name: build
+      # 6. 打包项目
+      - name: Build Project
         run: pnpm run build:front
 
-      # 登录阿里云镜像容器服务，打包镜像，推送镜像
-      - name: build Docker Image
-        run: |
-          docker login --username=${{ secrets.DOCKER_USERNAME }} registry.cn-hangzhou.aliyuncs.com --password=${{ secrets.DOCKER_PASSWORD }}
-          docker build -t stock-front:latest apps/front
-          docker tag stock-front registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-front:latest
-          docker push registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-front:latest
+      # 7. 登录阿里云镜像容器服务 (使用官方 Action)
+      - name: Login to Aliyun Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 使用 appleboy/ssh-action@master 登录服务器执行拉取镜像脚本，服务器ip、用户名、密码配置方式同容器镜像服务配置方式一样
-      - name: ssh actions
+      # 8. 构建并推送镜像 (使用官方 Action，支持缓存)
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/front
+          push: true
+          tags: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-front:latest
+
+      # 9. 远程部署 (使用环境变量传递 Secrets，更安全)
+      - name: Deploy to Server
         uses: appleboy/ssh-action@master
-        with: 
-          host: ${{ secrets.SSH_HOST }} 
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
-          script: cd /home && sh stock-front-deploy.sh ${{ secrets.DOCKER_USERNAME }} ${{ secrets.DOCKER_PASSWORD }}
+          # 将敏感信息注入环境变量
+          envs: DOCKER_USERNAME,DOCKER_PASSWORD
+          # 脚本中不再显式传递参数，而是需要在脚本内读取环境变量
+          script: cd /home && sh stock-front-deploy.sh
