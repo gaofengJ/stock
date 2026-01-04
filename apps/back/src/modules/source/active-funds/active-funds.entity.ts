@@ -20,8 +20,8 @@ export class ActiveFundsEntity extends CommonEntity {
 
   @Column({
     name: 'orgs',
-    type: 'varchar',
-    length: 1024,
+    type: 'text',
+    nullable: true,
     comment: '关联机构',
   })
   @ApiProperty({ description: '关联机构' })
@@ -29,8 +29,8 @@ export class ActiveFundsEntity extends CommonEntity {
 
   @Column({
     name: 'desc',
-    type: 'varchar',
-    length: 1024,
+    type: 'text',
+    nullable: true,
     comment: '说明',
   })
   @ApiProperty({ description: '说明' })

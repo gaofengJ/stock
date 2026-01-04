@@ -40,7 +40,11 @@ export class DailyTaskService {
    */
   async import(date: CommonDateDto['date']) {
     await this.importTradeCal();
-    // await this.importActiveFunds();
+    try {
+      await this.importActiveFunds();
+    } catch (error) {
+      this.logger.error(`导入游资名录失败，跳过: ${error.message}`);
+    }
     await this.importStockBasic();
     const isOpen = await this.tradeCalService.isOpen(date);
     if (!isOpen) {
@@ -60,7 +64,11 @@ export class DailyTaskService {
     endDate: CommonDateRangeDto['endDate'],
   ) {
     await this.importTradeCal();
-    // await this.importActiveFunds();
+    try {
+      await this.importActiveFunds();
+    } catch (error) {
+      this.logger.error(`导入游资名录失败，跳过: ${error.message}`);
+    }
     await this.importStockBasic();
     const { items } = await this.tradeCalService.list({
       pageNum: 1,
@@ -117,11 +125,15 @@ export class DailyTaskService {
    * 导入游资名录
    */
   async importActiveFunds() {
+    // eslint-disable-next-line no-console
+    console.log('导入游资名录开始');
     try {
       await this.activeFundsService.clear(); // 清空游资名录表
       this.logger.log(`清空游资名录表`);
 
       const { code, data } = await this.tushareService.getActiveFunds();
+      // eslint-disable-next-line no-console
+      console.log('导入游资名录数据', code, data);
       if (code) return;
       const { fields, items } = data!;
       const params: ActiveFundsDto[] = mixinFieldAndItems(fields, items);
