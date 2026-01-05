@@ -185,7 +185,7 @@ export class DailyService {
       if (
         +d1.high < +d2.low && // 缺口
         +d2.close > +d2.open && // d2 阳线
-        +d2.upLimit !== +d2.close && // d2 非一字板
+        +d2.upLimit !== +d2.close && // d2 非涨停
         +d3.close > +d3.open && // d3 阳线
         +d4.close > +d4.open // d4 阳线
       ) {
@@ -218,7 +218,7 @@ export class DailyService {
       if (
         +d1.high < +d2.low && // 缺口
         +d2.close > +d2.open && // d2 阳线
-        +d2.upLimit !== +d2.close && // d2 非一字板
+        +d2.upLimit !== +d2.close && // d2 非涨停
         +d3.close > +d3.open // d3 阳线
       ) {
         result.push(d3);
