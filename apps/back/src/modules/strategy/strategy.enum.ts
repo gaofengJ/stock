@@ -7,6 +7,10 @@ export enum EStrategyType {
    */
   gapThreeUp = 'gapThreeUp',
   /**
+   * 向上跳空缺口后二连阳
+   */
+  gapTwoUp = 'gapTwoUp',
+  /**
    * 向上跳空缺口后连续三日高换手率
    */
   gapThreeHighTurnover = 'gapThreeHighTurnover',

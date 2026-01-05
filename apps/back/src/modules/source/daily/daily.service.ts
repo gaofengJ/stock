@@ -197,6 +197,38 @@ export class DailyService {
   }
 
   /**
+   * 策略：向上跳空缺口后二连阳
+   * @param dates [date3(最新), date2, date1(最早)]
+   */
+  async findGapTwoUp(dates: string[]): Promise<DailyEntity[]> {
+    const [date3, date2, date1] = dates;
+    const map = await this.getDailyDataByDates(dates);
+    const result: DailyEntity[] = [];
+
+    map.forEach((dailyMap) => {
+      const d1 = dailyMap[date1];
+      const d2 = dailyMap[date2];
+      const d3 = dailyMap[date3];
+
+      if (!d1 || !d2 || !d3) return;
+
+      // 排除 ST、N、C
+      if (/ST|N|C/.test(d1.name)) return;
+
+      if (
+        +d1.high < +d2.low && // 缺口
+        +d2.close > +d2.open && // d2 阳线
+        +d2.upLimit !== +d2.close && // d2 非一字板
+        +d3.close > +d3.open // d3 阳线
+      ) {
+        result.push(d3);
+      }
+    });
+
+    return result;
+  }
+
+  /**
    * 策略：向上跳空缺口后连续三日高换手率
    * @param dates [date4(最新), date3, date2, date1(最早)]
    */
