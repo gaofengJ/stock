@@ -50,13 +50,15 @@ export class SentiService {
    * @param date
    */
   async distributionTatistics(date: CommonDateDto['date']) {
-    const isOpen = await this.tradeCalService.isOpen(date);
-    if (!isOpen) {
-      this.logger.log(`${date}非交易日，请重新选择交易日期`);
-      throw new BizException(ECustomError.NON_TRADING_DAY);
-    }
-
     const counts = await this.dailyService.getDistributionStatistics(date);
+
+    if (counts.every((count) => count === 0)) {
+      const isOpen = await this.tradeCalService.isOpen(date);
+      if (!isOpen) {
+        this.logger.log(`${date}非交易日，请重新选择交易日期`);
+        throw new BizException(ECustomError.NON_TRADING_DAY);
+      }
+    }
 
     const ret = this.initializeRet();
 

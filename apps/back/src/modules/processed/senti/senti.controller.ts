@@ -36,14 +36,14 @@ import { SentiService } from './senti.service';
 // @UseGuards(ResourceGuard)
 @Controller('senti')
 export class SentiController {
-  constructor(private readonly tradeCalService: SentiService) {}
+  constructor(private readonly sentiService: SentiService) {}
 
   @Get('/list')
   @ApiOperation({ summary: '获取Senti列表' })
   @ApiResult({ type: [SentiEntity], isPage: false })
   // @Perm(permissions.LIST)
   async list(@Query() dto: SentiQueryDto): Promise<SentiEntity[]> {
-    const ret = await this.tradeCalService.list(dto);
+    const ret = await this.sentiService.list(dto);
     return ret;
   }
 
@@ -52,20 +52,20 @@ export class SentiController {
   @ApiResult({ type: SentiEntity })
   // @Perm(permissions.READ)
   async info(@IdParam() id: number): Promise<SentiEntity> {
-    return this.tradeCalService.detail(id);
+    return this.sentiService.detail(id);
   }
 
   @Post('/create')
   @ApiOperation({ summary: '创建Senti' })
   // @Perm(permissions.CREATE)
   async create(@Body() dto: SentiDto) {
-    await this.tradeCalService.create(dto);
+    await this.sentiService.create(dto);
   }
 
   @Post('/bulk-create')
   @ApiOperation({ summary: '批量创建Senti' })
   async bulkCreate(@Body() dto: SentiDto[]) {
-    await this.tradeCalService.bulkCreate(dto);
+    await this.sentiService.bulkCreate(dto);
   }
 
   @Put(':id')
@@ -73,7 +73,7 @@ export class SentiController {
   // @Perm(permissions.UPDATE)
   // @Resource(SentiEntity)
   async update(@IdParam() id: number, @Body() dto: SentiUpdateDto) {
-    await this.tradeCalService.update(id, dto);
+    await this.sentiService.update(id, dto);
   }
 
   @Delete(':id')
@@ -81,12 +81,12 @@ export class SentiController {
   // @Perm(permissions.DELETE)
   // @Resource(SentiEntity)
   async delete(@IdParam() id: number) {
-    await this.tradeCalService.delete(id);
+    await this.sentiService.delete(id);
   }
 
   @Delete('/clear')
   @ApiOperation({ summary: '清空Senti' })
   async clear() {
-    await this.tradeCalService.clear();
+    await this.sentiService.clear();
   }
 }

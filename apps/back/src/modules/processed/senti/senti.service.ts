@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 
 import { SentiEntity } from './senti.entity';
 
@@ -18,12 +18,23 @@ export class SentiService {
     startDate,
     endDate,
   }: SentiQueryDto): Promise<SentiEntity[]> {
-    const ret = this.SentiRepository.createQueryBuilder('t_senti')
-      .where({
-        ...(tradeDate && { tradeDate }),
-        ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
-      })
-      .getMany();
+    const query = this.SentiRepository.createQueryBuilder('t_senti');
+
+    if (tradeDate) {
+      query.where('t_senti.tradeDate = :tradeDate', { tradeDate });
+    } else if (startDate && endDate) {
+      query.where('t_senti.tradeDate BETWEEN :startDate AND :endDate', {
+        startDate,
+        endDate,
+      });
+    } else {
+      // 默认返回最近30条数据，防止全表扫描
+      query.limit(30);
+    }
+
+    query.orderBy('t_senti.tradeDate', 'ASC');
+
+    const ret = await query.getMany();
     return ret;
   }
 
