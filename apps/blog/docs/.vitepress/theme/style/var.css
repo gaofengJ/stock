@@ -133,3 +133,18 @@ html.embedded .VPContent .container {
 html.embedded.dark .VPSidebar {
   background-color: var(--vp-c-bg) !important;
 }
+
+/* 顶部菜单居中及间距调整 */
+@media (min-width: 960px) {
+  /* 让导航菜单占据剩余空间并居中 */
+  .VPNavBar .content-body {
+    display: flex !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+  }
+  .VPNavBarSearch {
+    flex-grow: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 32px !important;
+  }
+}
