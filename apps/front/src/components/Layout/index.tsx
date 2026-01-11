@@ -72,7 +72,10 @@ const CommonLayout: React.FC<ILayoutProps> = ({
   return (
     <ConfigProvider locale={zhCN} theme={themeConfig}>
       <Layout className="h-[100vh] min-w-[1080px]">
-        <Header className="flex items-center">
+        <Header
+          className="flex items-center border-b border-[#f0f0f0]"
+          style={{ backgroundColor: 'white' }}
+        >
           <img src={ImgFengye.src} alt="fengye" className="w-32 h-32" />
           <span className="w-216 pl-8 text-20 font-medium">木风同学</span>
           <Menu
@@ -80,6 +83,8 @@ const CommonLayout: React.FC<ILayoutProps> = ({
             defaultSelectedKeys={[headerMenuActive]}
             items={headerMenuItems}
             onSelect={handleHeaderMenuSelect}
+            className="border-b-0"
+            style={{ borderBottom: 'none' }}
           />
           <span className="grow" />
           <Popover

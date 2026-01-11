@@ -148,3 +148,41 @@ html.embedded.dark .VPSidebar {
     padding-right: 32px !important;
   }
 }
+
+/* 优化表格显示：增加列宽，防止内容过度换行 */
+.vp-doc table {
+  width: 100%;
+  display: block;
+  overflow-x: auto;
+}
+
+.vp-doc table th,
+.vp-doc table td {
+  white-space: nowrap; /* 强制不换行 */
+  min-width: 90px; /* 设置最小宽度 */
+  padding: 8px 16px; /* 增加内边距 */
+}
+
+/* 增加大屏下内容区域的最大宽度，减少留白 */
+@media (min-width: 1200px) {
+  /* 增加布局最大宽度（影响整体容器） */
+  :root {
+    --vp-layout-max-width: 100% !important; 
+  }
+
+  /* 增加内容容器的宽度，并适当减少内边距 */
+  .VPContent .container,
+  .VPContent .content-container { /* 同时覆盖 content-container */
+    max-width: 98% !important; /* 进一步增加宽度 */
+    padding: 0 16px !important; /* 进一步减少内边距 */
+  }
+}
+
+@media (min-width: 1440px) {
+  /* 超大屏下 */
+  .VPContent .container,
+  .VPContent .content-container {
+    max-width: 98% !important;
+    padding: 0 16px !important;
+  }
+}

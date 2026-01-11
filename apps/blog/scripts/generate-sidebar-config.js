@@ -117,11 +117,32 @@ const getSideBarConfig = (dirs) => {
         }
         let secondLevelFiles = fs.readdirSync(secondLevelDirPath);
         secondLevelFiles = secondLevelFiles.sort((a, b) => {
+          // 优先使用 frontmatter 中的 order 属性排序
+          const filePathA = path.join(secondLevelDirPath, a);
+          const filePathB = path.join(secondLevelDirPath, b);
+
+          // 只有在是文件且不是 index.md 时才读取 frontmatter
+          const isFileA = fs.statSync(filePathA).isFile() && a !== 'index.md';
+          const isFileB = fs.statSync(filePathB).isFile() && b !== 'index.md';
+
+          if (isFileA && isFileB) {
+            const infoA = getInfoOfMarkdown(filePathA);
+            const infoB = getInfoOfMarkdown(filePathB);
+            if (infoA.order !== 9999 || infoB.order !== 9999) {
+              return infoA.order - infoB.order;
+            }
+          }
+
           // 提取文件名中的数字部分
-          const numA = parseInt((a.match(/^\d+/) || [])[0], 10);
-          const numB = parseInt((b.match(/^\d+/) || [])[0], 10);
-          // 比较数字部分的大小
-          return numA - numB;
+          const numA = parseFloat((a.match(/[\d.]+/) || [])[0]);
+          const numB = parseFloat((b.match(/[\d.]+/) || [])[0]);
+
+          if (!Number.isNaN(numA) && !Number.isNaN(numB)) {
+            // 比较数字部分的大小
+            return numA - numB;
+          }
+
+          return 0;
         });
         // eslint-disable-next-line no-restricted-syntax
         for (let k = 0; k < secondLevelFiles.length; k++) { // 遍历文件

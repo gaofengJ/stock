@@ -79,16 +79,16 @@ export default {
       'text': '第一章',
       'items': [
         {
+          'text': '股票交易异常波动',
+          'link': '/trading-rules/chapter1/abnormal-fluctuation-rules.md'
+        },
+        {
           'text': '资金席位风格画像',
           'link': '/trading-rules/chapter1/capital-seat-profile.md'
         },
         {
           'text': '盘口语言与竞价博弈',
           'link': '/trading-rules/chapter1/order-book-bidding.md'
-        },
-        {
-          'text': '股票交易异常波动',
-          'link': '/trading-rules/chapter1/abnormal-fluctuation-rules.md'
         }
       ]
     }
