@@ -14,25 +14,6 @@ export default {
       ]
     }
   ],
-  '/market-microstructure/': [
-    {
-      'text': '第一章',
-      'items': [
-        {
-          'text': '资金席位风格画像',
-          'link': '/market-microstructure/chapter1/capital-seat-profile.md'
-        },
-        {
-          'text': '盘口语言与竞价博弈',
-          'link': '/market-microstructure/chapter1/order-book-bidding.md'
-        },
-        {
-          'text': '交易制度与风控限制',
-          'link': '/market-microstructure/chapter1/trading-rules-risk-control.md'
-        }
-      ]
-    }
-  ],
   '/risk-management/': [
     {
       'text': '第一章',
@@ -89,6 +70,25 @@ export default {
         {
           'text': '题材层级与估值逻辑',
           'link': '/thematic-driving-force/chapter1/theme-hierarchy-valuation.md'
+        }
+      ]
+    }
+  ],
+  '/trading-rules/': [
+    {
+      'text': '第一章',
+      'items': [
+        {
+          'text': '交易制度与风控限制',
+          'link': '/trading-rules/chapter1/trading-rules-risk-control.md'
+        },
+        {
+          'text': '盘口语言与竞价博弈',
+          'link': '/trading-rules/chapter1/order-book-bidding.md'
+        },
+        {
+          'text': '资金席位风格画像',
+          'link': '/trading-rules/chapter1/capital-seat-profile.md'
         }
       ]
     }

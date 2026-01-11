@@ -5,11 +5,6 @@ export default [
     'activeMatch': '/case-study/'
   },
   {
-    'text': '市场制度与微观结构',
-    'link': '/market-microstructure/chapter1/capital-seat-profile.md',
-    'activeMatch': '/market-microstructure/'
-  },
-  {
     'text': '风险控制与账户管理',
     'link': '/risk-management/chapter1/position-management.md',
     'activeMatch': '/risk-management/'
@@ -28,5 +23,10 @@ export default [
     'text': '题材驱动与逻辑预判',
     'link': '/thematic-driving-force/chapter1/leading-stock-echelon.md',
     'activeMatch': '/thematic-driving-force/'
+  },
+  {
+    'text': '交易规则与制度',
+    'link': '/trading-rules/index.md',
+    'activeMatch': '/trading-rules/'
   }
 ]

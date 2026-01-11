@@ -10,6 +10,6 @@ const router = useRouter()
 
 onMounted(() => {
   // 自动跳转到第一篇文章
-  router.go(withBase('/market-microstructure/chapter1/capital-seat-profile'))
+  router.go(withBase('/trading-rules/chapter1/capital-seat-profile'))
 })
 </script>
