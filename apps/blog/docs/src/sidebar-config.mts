@@ -76,19 +76,15 @@ export default {
   ],
   '/trading-rules/': [
     {
-      'text': '第一章',
+      'text': '异动监管',
       'items': [
         {
           'text': '股票交易异常波动',
-          'link': '/trading-rules/chapter1/abnormal-fluctuation-rules.md'
+          'link': '/trading-rules/fluctuation-regulation/abnormal-fluctuation-rules.md'
         },
         {
           'text': '龙虎榜规则',
-          'link': '/trading-rules/chapter1/dragon-tiger-list.md'
-        },
-        {
-          'text': '资金席位风格画像',
-          'link': '/trading-rules/chapter1/capital-seat-profile.md'
+          'link': '/trading-rules/fluctuation-regulation/dragon-tiger-list.md'
         }
       ]
     }
