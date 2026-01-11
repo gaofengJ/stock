@@ -74,6 +74,9 @@ const getNavConfig = (dirs) => {
     configItem.text = titleOfMd;
     const lastPathOfFistLevel = dir.match(regex)[1]; // 获取最后一级路径作为key
 
+    // 优先使用目录下的 index.md 作为导航链接
+    configItem.link = `/${lastPathOfFistLevel}/index.md`;
+
     // 兼容旧逻辑：如果存在二级目录
     const secondLevelDirs = fs.readdirSync(dir);
     let hasSubDirs = false;
