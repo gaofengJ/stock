@@ -87,8 +87,8 @@ export default {
           'link': '/trading-rules/chapter1/order-book-bidding.md'
         },
         {
-          'text': '交易制度与风控限制',
-          'link': '/trading-rules/chapter1/trading-rules-risk-control.md'
+          'text': '股票交易异常波动',
+          'link': '/trading-rules/chapter1/abnormal-fluctuation-rules.md'
         }
       ]
     }
