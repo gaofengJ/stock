@@ -83,12 +83,12 @@ export default {
           'link': '/trading-rules/chapter1/abnormal-fluctuation-rules.md'
         },
         {
-          'text': '资金席位风格画像',
-          'link': '/trading-rules/chapter1/capital-seat-profile.md'
+          'text': '龙虎榜规则',
+          'link': '/trading-rules/chapter1/dragon-tiger-list.md'
         },
         {
-          'text': '盘口语言与竞价博弈',
-          'link': '/trading-rules/chapter1/order-book-bidding.md'
+          'text': '资金席位风格画像',
+          'link': '/trading-rules/chapter1/capital-seat-profile.md'
         }
       ]
     }
