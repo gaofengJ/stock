@@ -10,6 +10,6 @@ const router = useRouter()
 
 onMounted(() => {
   // 自动跳转到第一篇文章
-  router.go(withBase('/trading-rules/chapter1/abnormal-fluctuation-rules'))
+  router.go(withBase('/trading-rules/fluctuation-regulation/abnormal-fluctuation-rules'))
 })
 </script>

@@ -87,8 +87,6 @@ html.embedded .VPNav {
   border-bottom: 1px solid var(--vp-c-divider) !important;
 }
 
-/* ... (keep middle sections same) ... */
-
 /* 调整内容区域顶部 Padding，留出导航栏高度 */
 html.embedded .VPContent {
   padding-top: 0px !important; /* 匹配新高度 */
@@ -184,5 +182,12 @@ html.embedded.dark .VPSidebar {
   .VPContent .content-container {
     max-width: 98% !important;
     padding: 0 16px !important;
+  }
+}
+
+/* 移动端优化：隐藏页面导航（Outline），避免挤占空间导致样式错乱 */
+@media (max-width: 960px) {
+  .VPDocOutlineDropdown {
+    display: none !important;
   }
 }
