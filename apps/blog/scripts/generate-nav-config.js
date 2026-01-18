@@ -69,11 +69,11 @@ const getNavConfig = (dirs) => {
   // 定义固定顺序和对应的显示文本（如果需要覆盖默认title）
   const ORDER_MAP = {
     'trading-rules': { order: 1, text: '交易规则' },
-    'technical-game-patterns': { order: 2, text: '技术分析' },
+    'technical': { order: 2, text: '技术分析' },
     'thematic-driving-force': { order: 3, text: '题材逻辑' },
     'sentiment-cycle': { order: 4, text: '情绪周期' },
     'risk-management': { order: 5, text: '风险管控' },
-    'case-study': { order: 6, text: '复盘文档' }
+    'reviews': { order: 6, text: '复盘文档' }
   };
 
   const config = [];

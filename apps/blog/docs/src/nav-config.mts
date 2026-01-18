@@ -6,8 +6,8 @@ export default [
   },
   {
     'text': '技术分析',
-    'link': '/technical-game-patterns/index.md',
-    'activeMatch': '/technical-game-patterns/'
+    'link': '/technical/index.md',
+    'activeMatch': '/technical/'
   },
   {
     'text': '题材逻辑',

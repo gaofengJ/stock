@@ -44,17 +44,22 @@ export default {
       ]
     }
   ],
-  '/technical-game-patterns/': [
+  '/technical/': [
     {
-      'text': '第一章',
+      'text': 'K线形态',
       'items': [
         {
-          'text': '经典战法模型与回测',
-          'link': '/technical-game-patterns/chapter1/classic-tactics-backtest.md'
-        },
+          'text': '单针探底',
+          'link': '/technical/k-line-patterns/single-needle-bottom.md'
+        }
+      ]
+    },
+    {
+      'text': '技术指标',
+      'items': [
         {
-          'text': '量价关系与筹码分布',
-          'link': '/technical-game-patterns/chapter1/volume-price-chips.md'
+          'text': 'MACD指标详解',
+          'link': '/technical/technical-indicators/macd-analysis.md'
         }
       ]
     }
