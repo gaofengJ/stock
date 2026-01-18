@@ -4,16 +4,12 @@ export default {
       'text': '爱在冰川复盘',
       'items': [
         {
+          'text': '2018-1-1复盘',
+          'link': '/case-study/aizaibingchuan/2018-01-01.md'
+        },
+        {
           'text': '2026-1-16复盘',
           'link': '/case-study/aizaibingchuan/2026-01-16.md'
-        },
-        {
-          'text': '牛股全生命周期复盘',
-          'link': '/case-study/aizaibingchuan/bull-stock-review.md'
-        },
-        {
-          'text': '亏损案例分析(错题本)',
-          'link': '/case-study/aizaibingchuan/loss-case-analysis.md'
         }
       ]
     }
