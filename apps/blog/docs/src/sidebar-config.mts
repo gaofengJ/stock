@@ -1,15 +1,11 @@
 export default {
   '/case-study/': [
     {
-      'text': '第一章',
+      'text': '爱在冰川复盘',
       'items': [
         {
-          'text': '牛股全生命周期复盘',
-          'link': '/case-study/chapter1/bull-stock-review.md'
-        },
-        {
-          'text': '亏损案例分析(错题本)',
-          'link': '/case-study/chapter1/loss-case-analysis.md'
+          'text': '2026-1-16复盘',
+          'link': '/case-study/aizaibingchuan/2026-01-16.md'
         }
       ]
     }
@@ -83,7 +79,7 @@ export default {
           'link': '/trading-rules/fluctuation-regulation/abnormal-fluctuation-rules.md'
         },
         {
-          'text': '龙虎榜规则',
+          'text': '龙虎榜',
           'link': '/trading-rules/fluctuation-regulation/dragon-tiger-list.md'
         }
       ]
