@@ -1,12 +1,13 @@
 ---
-title: 技术指标
-order: 2
+title: 技术分析
+order: 1
 ---
 
-# 技术指标
+# 技术分析
 
-常用技术指标分析。
+常用技术分析。
 
 ## 目录
 
-- [示例：MACD指标详解](./macd-analysis.md)
+- [示例：节后第一天的买点](./first-day-after-holiday.md)
+- [右侧卖出法](./right-side-selling.md)

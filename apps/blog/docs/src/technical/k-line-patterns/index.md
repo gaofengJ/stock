@@ -1,6 +1,6 @@
 ---
 title: K线形态
-order: 1
+order: 2
 ---
 
 # K线形态
@@ -9,4 +9,4 @@ K线形态分析。
 
 ## 目录
 
-- [示例：单针探底](./single-needle-bottom.md)
+- [指数黄白线分叉](./index-yellow-white-line-divergence.md)

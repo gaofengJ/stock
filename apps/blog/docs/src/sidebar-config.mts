@@ -49,8 +49,8 @@ export default {
       'text': 'K线形态',
       'items': [
         {
-          'text': '单针探底',
-          'link': '/technical/k-line-patterns/single-needle-bottom.md'
+          'text': '指数黄白线分叉',
+          'link': '/technical/k-line-patterns/index-yellow-white-line-divergence.md'
         }
       ]
     },
@@ -58,23 +58,27 @@ export default {
       'text': '技术指标',
       'items': [
         {
-          'text': 'MACD指标详解',
-          'link': '/technical/technical-indicators/macd-analysis.md'
+          'text': '节后第一天的买点',
+          'link': '/technical/technical-indicators/first-day-after-holiday.md'
+        },
+        {
+          'text': '右侧卖出法',
+          'link': '/technical/technical-indicators/right-side-selling.md'
         }
       ]
     }
   ],
-  '/thematic-driving-force/': [
+  '/thematic/': [
     {
       'text': '第一章',
       'items': [
         {
           'text': '龙头个股与梯队建设',
-          'link': '/thematic-driving-force/chapter1/leading-stock-echelon.md'
+          'link': '/thematic/chapter1/leading-stock-echelon.md'
         },
         {
           'text': '题材层级与估值逻辑',
-          'link': '/thematic-driving-force/chapter1/theme-hierarchy-valuation.md'
+          'link': '/thematic/chapter1/theme-hierarchy-valuation.md'
         }
       ]
     }

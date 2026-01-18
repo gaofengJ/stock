@@ -11,8 +11,8 @@ export default [
   },
   {
     'text': '题材逻辑',
-    'link': '/thematic-driving-force/index.md',
-    'activeMatch': '/thematic-driving-force/'
+    'link': '/thematic/index.md',
+    'activeMatch': '/thematic/'
   },
   {
     'text': '情绪周期',

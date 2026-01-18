@@ -65,15 +65,15 @@ const getDirsPath = () => {
 const getNavConfig = (dirs) => {
   // eslint-disable-next-line no-useless-escape
   const regex = /[\\\/]([^\\\/]+)$/; // 匹配最后一个斜杠后面的内容
-  
+
   // 定义固定顺序和对应的显示文本（如果需要覆盖默认title）
   const ORDER_MAP = {
     'trading-rules': { order: 1, text: '交易规则' },
-    'technical': { order: 2, text: '技术分析' },
-    'thematic-driving-force': { order: 3, text: '题材逻辑' },
+    technical: { order: 2, text: '技术分析' },
+    thematic: { order: 3, text: '题材逻辑' },
     'sentiment-cycle': { order: 4, text: '情绪周期' },
     'risk-management': { order: 5, text: '风险管控' },
-    'reviews': { order: 6, text: '复盘文档' }
+    reviews: { order: 6, text: '复盘文档' },
   };
 
   const config = [];
@@ -82,9 +82,9 @@ const getNavConfig = (dirs) => {
     const configItem = {};
     const indexPath = `${dir}/index.md`;
     const titleOfMd = getTitleOfMarkdown(indexPath);
-    
+
     const lastPathOfFistLevel = dir.match(regex)[1]; // 获取最后一级路径作为key
-    
+
     // 如果在固定顺序映射中，使用映射的文本和顺序，否则使用默认title
     if (ORDER_MAP[lastPathOfFistLevel]) {
       configItem.text = ORDER_MAP[lastPathOfFistLevel].text;
@@ -114,10 +114,10 @@ const getNavConfig = (dirs) => {
     configItem.activeMatch = `/${lastPathOfFistLevel}/`;
     config.push(configItem);
   }
-  
+
   // 根据order字段排序
   config.sort((a, b) => a.order - b.order);
-  
+
   // 移除临时使用的order字段
   return config.map(({ order, ...item }) => item);
 };
