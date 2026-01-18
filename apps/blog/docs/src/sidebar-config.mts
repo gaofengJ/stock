@@ -1,15 +1,15 @@
 export default {
-  '/case-study/': [
+  '/reviews/': [
     {
       'text': '爱在冰川复盘',
       'items': [
         {
           'text': '2018-1-1复盘',
-          'link': '/case-study/aizaibingchuan/2018-01-01.md'
+          'link': '/reviews/aizaibingchuan/2018-01-01.md'
         },
         {
           'text': '2026-1-16复盘',
-          'link': '/case-study/aizaibingchuan/2026-01-16.md'
+          'link': '/reviews/aizaibingchuan/2026-01-16.md'
         }
       ]
     }

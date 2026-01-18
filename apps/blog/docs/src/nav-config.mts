@@ -26,7 +26,7 @@ export default [
   },
   {
     'text': '复盘文档',
-    'link': '/case-study/index.md',
-    'activeMatch': '/case-study/'
+    'link': '/reviews/index.md',
+    'activeMatch': '/reviews/'
   }
 ]
