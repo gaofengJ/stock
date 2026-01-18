@@ -55,7 +55,7 @@ export default {
       ]
     },
     {
-      'text': '技术指标',
+      'text': '技术分析',
       'items': [
         {
           'text': '节后第一天的买点',
