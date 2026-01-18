@@ -8,9 +8,10 @@ title: 技术分析
 
 - [K线形态](./k-line-patterns/index.md)
   - [指数黄白线分叉](./k-line-patterns/index-yellow-white-line-divergence.md)
+  - [杀指数不杀个股](./k-line-patterns/kill-index-not-stocks.md)
 
 <br/>
 
 - [技术分析](./technical-indicators/index.md)
-  - [节后第一天的买点](./technical-indicators/first-day-after-holiday.md)
+  - [节后第一天](./technical-indicators/first-day-after-holiday.md)
   - [右侧卖出法](./technical-indicators/right-side-selling.md)

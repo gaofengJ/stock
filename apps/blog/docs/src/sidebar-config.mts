@@ -8,6 +8,10 @@ export default {
           'link': '/reviews/aizaibingchuan/2018-01-01.md'
         },
         {
+          'text': '2019-1-1复盘',
+          'link': '/reviews/aizaibingchuan/2019-01-01.md'
+        },
+        {
           'text': '2026-1-16复盘',
           'link': '/reviews/aizaibingchuan/2026-01-16.md'
         }
@@ -51,6 +55,10 @@ export default {
         {
           'text': '指数黄白线分叉',
           'link': '/technical/k-line-patterns/index-yellow-white-line-divergence.md'
+        },
+        {
+          'text': '杀指数不杀个股',
+          'link': '/technical/k-line-patterns/kill-index-not-stocks.md'
         }
       ]
     },
@@ -58,7 +66,7 @@ export default {
       'text': '技术分析',
       'items': [
         {
-          'text': '节后第一天的买点',
+          'text': '节后第一天',
           'link': '/technical/technical-indicators/first-day-after-holiday.md'
         },
         {
@@ -70,15 +78,11 @@ export default {
   ],
   '/thematic/': [
     {
-      'text': '第一章',
+      'text': '证券',
       'items': [
         {
-          'text': '龙头个股与梯队建设',
-          'link': '/thematic/chapter1/leading-stock-echelon.md'
-        },
-        {
-          'text': '题材层级与估值逻辑',
-          'link': '/thematic/chapter1/theme-hierarchy-valuation.md'
+          'text': '买点',
+          'link': '/thematic/securities/buy-point.md'
         }
       ]
     }
