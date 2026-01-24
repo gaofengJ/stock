@@ -4,7 +4,7 @@ export default {
       'text': '爱在冰川复盘',
       'items': [
         {
-          'text': '复盘关键信息提取',
+          'text': '爱在冰川复盘精华',
           'link': '/reviews/aizaibingchuan/review-summary.md'
         },
         {
@@ -117,7 +117,7 @@ export default {
       'text': '宏观政策',
       'items': [
         {
-          'text': '降准',
+          'text': '降准与升准',
           'link': '/trading-rules/macro-policy/reserve-requirement-ratio-cut.md'
         }
       ]
