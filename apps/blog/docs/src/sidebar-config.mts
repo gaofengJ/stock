@@ -12,6 +12,10 @@ export default {
           'link': '/reviews/aizaibingchuan/2019-01-01.md'
         },
         {
+          'text': '2020-1-1复盘',
+          'link': '/reviews/aizaibingchuan/2020-01-01.md'
+        },
+        {
           'text': '2026-1-16复盘',
           'link': '/reviews/aizaibingchuan/2026-01-16.md'
         }
