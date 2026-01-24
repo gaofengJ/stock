@@ -4,6 +4,10 @@ export default {
       'text': '爱在冰川复盘',
       'items': [
         {
+          'text': '复盘关键信息提取模板',
+          'link': '/reviews/aizaibingchuan/review-summary-template.md'
+        },
+        {
           'text': '2018-1-1复盘',
           'link': '/reviews/aizaibingchuan/2018-1-1.md'
         },
@@ -18,10 +22,6 @@ export default {
         {
           'text': '2026-1-16复盘',
           'link': '/reviews/aizaibingchuan/2026-1-16.md'
-        },
-        {
-          'text': '复盘关键信息提取模板',
-          'link': '/reviews/aizaibingchuan/review-summary-template.md'
         }
       ]
     }

@@ -28,6 +28,8 @@ const getInfoOfMarkdown = (file) => {
     const titleMatch = data.match(/title:\s*(.*)/);
     // 使用正则表达式匹配collapsed的值
     const collapsedMatch = data.match(/collapsed:\s*(.*)/);
+    // 使用正则表达式匹配order的值
+    const orderMatch = data.match(/order:\s*(.*)/);
 
     let title = '';
     if (titleMatch && titleMatch[1]) {
@@ -44,10 +46,11 @@ const getInfoOfMarkdown = (file) => {
     return {
       title,
       collapsed: collapsedMatch ? !!collapsedMatch[1] : false,
+      order: orderMatch ? parseFloat(orderMatch[1]) : 9999,
     };
   } catch (e) {
     console.log('e', e);
-    return { title: '', collapsed: false };
+    return { title: '', collapsed: false, order: 9999 };
   }
 };
 
@@ -115,7 +118,8 @@ const getSideBarConfig = (dirs) => {
         if (collapsedOfMd) {
           configValueItem.collapsed = true;
         }
-        let secondLevelFiles = fs.readdirSync(secondLevelDirPath);
+        let secondLevelFiles = fs.readdirSync(secondLevelDirPath).filter((file) => file !== 'index.md');
+        // console.log(`Directory: ${secondLevelDirPath}, Files: ${secondLevelFiles.join(', ')}`);
         secondLevelFiles = secondLevelFiles.sort((a, b) => {
           // 优先使用 frontmatter 中的 order 属性排序
           const filePathA = path.join(secondLevelDirPath, a);
@@ -125,9 +129,12 @@ const getSideBarConfig = (dirs) => {
           const isFileA = fs.statSync(filePathA).isFile() && a !== 'index.md';
           const isFileB = fs.statSync(filePathB).isFile() && b !== 'index.md';
 
+          // console.log(`Checking ${a} (isFile: ${isFileA}) vs ${b} (isFile: ${isFileB})`);
+
           if (isFileA && isFileB) {
             const infoA = getInfoOfMarkdown(filePathA);
             const infoB = getInfoOfMarkdown(filePathB);
+            // console.log(`Comparing ${a} (${infoA.order}) and ${b} (${infoB.order})`);
             if (infoA.order !== 9999 || infoB.order !== 9999) {
               return infoA.order - infoB.order;
             }
