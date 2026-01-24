@@ -98,6 +98,10 @@ export default {
         {
           'text': '龙虎榜',
           'link': '/trading-rules/fluctuation-regulation/dragon-tiger-list.md'
+        },
+        {
+          'text': 'A股临时停牌（临停）规则通用手册',
+          'link': '/trading-rules/fluctuation-regulation/temporary-suspension-rules.md'
         }
       ]
     }
