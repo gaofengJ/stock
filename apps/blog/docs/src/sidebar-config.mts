@@ -5,19 +5,19 @@ export default {
       'items': [
         {
           'text': '2018-1-1复盘',
-          'link': '/reviews/aizaibingchuan/2018-01-01.md'
+          'link': '/reviews/aizaibingchuan/2018-1-1.md'
         },
         {
           'text': '2019-1-1复盘',
-          'link': '/reviews/aizaibingchuan/2019-01-01.md'
+          'link': '/reviews/aizaibingchuan/2019-1-1.md'
         },
         {
           'text': '2020-1-1复盘',
-          'link': '/reviews/aizaibingchuan/2020-01-01.md'
+          'link': '/reviews/aizaibingchuan/2020-1-1.md'
         },
         {
           'text': '2026-1-16复盘',
-          'link': '/reviews/aizaibingchuan/2026-01-16.md'
+          'link': '/reviews/aizaibingchuan/2026-1-16.md'
         }
       ]
     }
