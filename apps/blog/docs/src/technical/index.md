@@ -15,3 +15,7 @@ title: 技术分析
 - [技术分析](./technical-indicators/index.md)
   - [节后第一天](./technical-indicators/first-day-after-holiday.md)
   - [右侧卖出法](./technical-indicators/right-side-selling.md)
+
+<br/>
+
+- [炒股推荐书籍](./recommended-books/index.md)

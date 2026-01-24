@@ -71,6 +71,19 @@ export default {
       ]
     },
     {
+      'text': '炒股推荐书籍',
+      'items': [
+        {
+          'text': '经典必读',
+          'link': '/technical/recommended-books/classic-reading-list.md'
+        },
+        {
+          'text': '技术分析进阶',
+          'link': '/technical/recommended-books/technical-analysis.md'
+        }
+      ]
+    },
+    {
       'text': '技术分析',
       'items': [
         {
