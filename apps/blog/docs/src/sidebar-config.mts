@@ -108,12 +108,17 @@ export default {
           'link': '/trading-rules/fluctuation-regulation/dragon-tiger-list.md'
         },
         {
-          'text': '降准',
-          'link': '/trading-rules/fluctuation-regulation/reserve-requirement-ratio-cut.md'
-        },
-        {
           'text': 'A股临时停牌（临停）规则',
           'link': '/trading-rules/fluctuation-regulation/temporary-suspension-rules.md'
+        }
+      ]
+    },
+    {
+      'text': '宏观政策',
+      'items': [
+        {
+          'text': '降准',
+          'link': '/trading-rules/macro-policy/reserve-requirement-ratio-cut.md'
         }
       ]
     }
