@@ -18,6 +18,10 @@ export default {
         {
           'text': '2026-1-16复盘',
           'link': '/reviews/aizaibingchuan/2026-1-16.md'
+        },
+        {
+          'text': '复盘关键信息提取模板',
+          'link': '/reviews/aizaibingchuan/review-summary-template.md'
         }
       ]
     }
@@ -102,6 +106,10 @@ export default {
         {
           'text': '龙虎榜',
           'link': '/trading-rules/fluctuation-regulation/dragon-tiger-list.md'
+        },
+        {
+          'text': '降准',
+          'link': '/trading-rules/fluctuation-regulation/reserve-requirement-ratio-cut.md'
         },
         {
           'text': 'A股临时停牌（临停）规则通用手册',
