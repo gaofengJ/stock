@@ -112,7 +112,7 @@ export default {
           'link': '/trading-rules/fluctuation-regulation/reserve-requirement-ratio-cut.md'
         },
         {
-          'text': 'A股临时停牌（临停）规则通用手册',
+          'text': 'A股临时停牌（临停）规则',
           'link': '/trading-rules/fluctuation-regulation/temporary-suspension-rules.md'
         }
       ]
