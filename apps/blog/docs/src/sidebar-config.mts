@@ -24,6 +24,10 @@ export default {
           'link': '/reviews/aizaibingchuan/2024-1-1.md'
         },
         {
+          'text': '2025-1-1复盘',
+          'link': '/reviews/aizaibingchuan/2025-1-1.md'
+        },
+        {
           'text': '2026-1-16复盘',
           'link': '/reviews/aizaibingchuan/2026-1-16.md'
         }
