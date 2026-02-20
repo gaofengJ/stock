@@ -13,6 +13,7 @@ title: 技术分析
 <br/>
 
 - [技术分析](./technical-indicators/index.md)
+  - [看盘基础](./technical-indicators/market-essentials.md)
   - [节后第一天](./technical-indicators/first-day-after-holiday.md)
   - [右侧卖出法](./technical-indicators/right-side-selling.md)
 

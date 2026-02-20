@@ -165,6 +165,10 @@ export default {
         {
           'text': '右侧卖出法',
           'link': '/technical/technical-indicators/right-side-selling.md'
+        },
+        {
+          'text': '看盘基础',
+          'link': '/technical/technical-indicators/market-essentials.md'
         }
       ]
     }
