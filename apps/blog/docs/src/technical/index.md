@@ -16,6 +16,7 @@ title: 技术分析
   - [看盘基础](./technical-indicators/market-essentials.md)
   - [节后第一天](./technical-indicators/first-day-after-holiday.md)
   - [右侧卖出法](./technical-indicators/right-side-selling.md)
+  - [戴维斯双击](./technical-indicators/davis-double-play.md)
 
 <br/>
 

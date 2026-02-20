@@ -76,6 +76,26 @@ export default {
           'link': '/reviews/aizaibingchuan/2018-1-22.md'
         },
         {
+          'text': '2018-1-23复盘',
+          'link': '/reviews/aizaibingchuan/2018-1-23.md'
+        },
+        {
+          'text': '2018-1-24复盘',
+          'link': '/reviews/aizaibingchuan/2018-1-24.md'
+        },
+        {
+          'text': '2018-1-25复盘',
+          'link': '/reviews/aizaibingchuan/2018-1-25.md'
+        },
+        {
+          'text': '2018-1-26复盘',
+          'link': '/reviews/aizaibingchuan/2018-1-26.md'
+        },
+        {
+          'text': '2018-1-27复盘',
+          'link': '/reviews/aizaibingchuan/2018-1-27.md'
+        },
+        {
           'text': '2019-1-1复盘',
           'link': '/reviews/aizaibingchuan/2019-1-1.md'
         },
@@ -165,6 +185,10 @@ export default {
         {
           'text': '右侧卖出法',
           'link': '/technical/technical-indicators/right-side-selling.md'
+        },
+        {
+          'text': '戴维斯双击',
+          'link': '/technical/technical-indicators/davis-double-play.md'
         },
         {
           'text': '看盘基础',
