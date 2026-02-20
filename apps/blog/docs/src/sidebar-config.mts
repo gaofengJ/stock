@@ -96,6 +96,18 @@ export default {
           'link': '/reviews/aizaibingchuan/2018-1-27.md'
         },
         {
+          'text': '2018-1-29复盘',
+          'link': '/reviews/aizaibingchuan/2018-1-29.md'
+        },
+        {
+          'text': '2018-1-30复盘',
+          'link': '/reviews/aizaibingchuan/2018-1-30.md'
+        },
+        {
+          'text': '2018-1-31复盘',
+          'link': '/reviews/aizaibingchuan/2018-1-31.md'
+        },
+        {
           'text': '2019-1-1复盘',
           'link': '/reviews/aizaibingchuan/2019-1-1.md'
         },
