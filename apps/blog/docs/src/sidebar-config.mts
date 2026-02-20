@@ -12,6 +12,46 @@ export default {
           'link': '/reviews/aizaibingchuan/2018-1-1.md'
         },
         {
+          'text': '2018-1-2复盘',
+          'link': '/reviews/aizaibingchuan/2018-1-2.md'
+        },
+        {
+          'text': '2018-1-3复盘',
+          'link': '/reviews/aizaibingchuan/2018-1-3.md'
+        },
+        {
+          'text': '2018-1-4复盘',
+          'link': '/reviews/aizaibingchuan/2018-1-4.md'
+        },
+        {
+          'text': '2018-1-5复盘',
+          'link': '/reviews/aizaibingchuan/2018-1-5.md'
+        },
+        {
+          'text': '2018-1-6复盘',
+          'link': '/reviews/aizaibingchuan/2018-1-6.md'
+        },
+        {
+          'text': '2018-1-8复盘',
+          'link': '/reviews/aizaibingchuan/2018-1-8.md'
+        },
+        {
+          'text': '2018-1-9复盘',
+          'link': '/reviews/aizaibingchuan/2018-1-9.md'
+        },
+        {
+          'text': '2018-1-10复盘',
+          'link': '/reviews/aizaibingchuan/2018-1-10.md'
+        },
+        {
+          'text': '2018-1-11复盘',
+          'link': '/reviews/aizaibingchuan/2018-1-11.md'
+        },
+        {
+          'text': '2018-1-13复盘',
+          'link': '/reviews/aizaibingchuan/2018-1-13.md'
+        },
+        {
           'text': '2019-1-1复盘',
           'link': '/reviews/aizaibingchuan/2019-1-1.md'
         },
