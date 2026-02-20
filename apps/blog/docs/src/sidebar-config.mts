@@ -144,6 +144,26 @@ export default {
           'link': '/reviews/aizaibingchuan/2018-2-10.md'
         },
         {
+          'text': '2018-2-12复盘',
+          'link': '/reviews/aizaibingchuan/2018-2-12.md'
+        },
+        {
+          'text': '2018-2-13复盘',
+          'link': '/reviews/aizaibingchuan/2018-2-13.md'
+        },
+        {
+          'text': '2018-2-21复盘',
+          'link': '/reviews/aizaibingchuan/2018-2-21.md'
+        },
+        {
+          'text': '2018-2-22复盘',
+          'link': '/reviews/aizaibingchuan/2018-2-22.md'
+        },
+        {
+          'text': '2018-2-23复盘',
+          'link': '/reviews/aizaibingchuan/2018-2-23.md'
+        },
+        {
           'text': '2019-1-1复盘',
           'link': '/reviews/aizaibingchuan/2019-1-1.md'
         },
