@@ -296,6 +296,58 @@ export default {
             {
               'text': '2019-1-31复盘',
               'link': '/reviews/aizaibingchuan/2019/2019-1-31.md'
+            },
+            {
+              'text': '2019-2-11复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-2-11.md'
+            },
+            {
+              'text': '2019-2-12复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-2-12.md'
+            },
+            {
+              'text': '2019-2-13复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-2-13.md'
+            },
+            {
+              'text': '2019-2-14复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-2-14.md'
+            },
+            {
+              'text': '2019-2-16复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-2-16.md'
+            },
+            {
+              'text': '2019-2-18复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-2-18.md'
+            },
+            {
+              'text': '2019-2-19复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-2-19.md'
+            },
+            {
+              'text': '2019-2-20复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-2-20.md'
+            },
+            {
+              'text': '2019-2-22复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-2-22.md'
+            },
+            {
+              'text': '2019-2-25复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-2-25.md'
+            },
+            {
+              'text': '2019-2-26复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-2-26.md'
+            },
+            {
+              'text': '2019-2-27复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-2-27.md'
+            },
+            {
+              'text': '2019-2-28复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-2-28.md'
             }
           ]
         },
