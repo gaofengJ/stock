@@ -394,6 +394,18 @@ export default {
             {
               'text': '2020-1-11复盘',
               'link': '/reviews/aizaibingchuan/2020/2020-1-11.md'
+            },
+            {
+              'text': '2020-1-13复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-1-13.md'
+            },
+            {
+              'text': '2020-1-14复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-1-14.md'
+            },
+            {
+              'text': '2020-1-15复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-1-15.md'
             }
           ]
         },
@@ -501,6 +513,10 @@ export default {
         {
           'text': '戴维斯双击',
           'link': '/technical/technical-indicators/davis-double-play.md'
+        },
+        {
+          'text': '背离',
+          'link': '/technical/technical-indicators/divergence.md'
         },
         {
           'text': '看盘基础',
