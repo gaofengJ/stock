@@ -236,6 +236,26 @@ export default {
             {
               'text': '2019-1-15复盘',
               'link': '/reviews/aizaibingchuan/2019/2019-1-15.md'
+            },
+            {
+              'text': '2019-1-16复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-1-16.md'
+            },
+            {
+              'text': '2019-1-17复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-1-17.md'
+            },
+            {
+              'text': '2019-1-18复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-1-18.md'
+            },
+            {
+              'text': '2019-1-19复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-1-19.md'
+            },
+            {
+              'text': '2019-1-21复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-1-21.md'
             }
           ]
         },
@@ -373,6 +393,23 @@ export default {
     }
   ],
   '/trading-rules/': [
+    {
+      'text': '基础规则',
+      'items': [
+        {
+          'text': '业绩披露',
+          'link': '/trading-rules/base-rules/financial-report-disclosure.md'
+        },
+        {
+          'text': '高送转',
+          'link': '/trading-rules/base-rules/high-dividend-transfer.md'
+        },
+        {
+          'text': 'ST 规则',
+          'link': '/trading-rules/base-rules/st-rules.md'
+        }
+      ]
+    },
     {
       'text': '异动监管',
       'items': [
