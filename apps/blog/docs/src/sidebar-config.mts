@@ -276,6 +276,26 @@ export default {
             {
               'text': '2019-1-26复盘',
               'link': '/reviews/aizaibingchuan/2019/2019-1-26.md'
+            },
+            {
+              'text': '2019-1-27复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-1-27.md'
+            },
+            {
+              'text': '2019-1-28复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-1-28.md'
+            },
+            {
+              'text': '2019-1-29复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-1-29.md'
+            },
+            {
+              'text': '2019-1-30复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-1-30.md'
+            },
+            {
+              'text': '2019-1-31复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-1-31.md'
             }
           ]
         },
