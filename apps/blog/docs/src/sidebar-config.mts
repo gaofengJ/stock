@@ -192,6 +192,18 @@ export default {
             {
               'text': '2019-1-1复盘',
               'link': '/reviews/aizaibingchuan/2019/2019-1-1.md'
+            },
+            {
+              'text': '2019-1-2复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-1-2.md'
+            },
+            {
+              'text': '2019-1-3复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-1-3.md'
+            },
+            {
+              'text': '2019-1-4复盘',
+              'link': '/reviews/aizaibingchuan/2019/2019-1-4.md'
             }
           ]
         },
@@ -352,6 +364,10 @@ export default {
         {
           'text': '降准与升准',
           'link': '/trading-rules/macro-policy/reserve-requirement-ratio-cut.md'
+        },
+        {
+          'text': '国债逆回购（GC001）',
+          'link': '/trading-rules/macro-policy/gc001.md'
         }
       ]
     }
