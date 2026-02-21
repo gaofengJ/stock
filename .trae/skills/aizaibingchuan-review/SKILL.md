@@ -41,14 +41,16 @@ description: "生成爱在冰川复盘文档。当用户输入 '/aizaibingchuan-
      - `[此处粘贴清洗并优化空行后的文章全文]`：替换为经过第 2 步清洗后的正文内容。
 
 4. **创建文件**：
+   - 确定年份目录：`[YYYY]`。
    - 确定文件名：`[YYYY-M-D].md`（例如 `2024-1-1.md`）。
-   - 检查文件是否已存在于 `f:\code\stock\apps\blog\docs\src\reviews\aizaibingchuan`。
+   - 目标路径：`f:\code\stock\apps\blog\docs\src\reviews\aizaibingchuan\[YYYY]\[YYYY-M-D].md`。
+   - 检查年份目录是否存在，若不存在则创建。
    - 将填充好的完整内容写入新文件。
 
 5. **更新索引**：
    - 读取 `f:\code\stock\apps\blog\docs\src\reviews\aizaibingchuan\index.md`。
    - 检查新文件是否已列出。
-   - 如果未列出，则按格式 `- [[日期]复盘](./[文件名])` 添加新条目。
+   - 如果未列出，则按格式 `- [[日期]复盘](./[YYYY]/[文件名])` 添加新条目（例如 `- [2024-1-1复盘](./2024/2024-1-1.md)`）。
    - 如果需要，对索引进行排序（或根据现有顺序添加到末尾/开头）。
 
 6. **配置更新**：
@@ -63,5 +65,5 @@ description: "生成爱在冰川复盘文档。当用户输入 '/aizaibingchuan-
 > /aizaibingchuan-review 2024-02-20 <https://mp.weixin.qq.com/s/example>
 
 **输出**：
-> 已成功获取链接内容并生成复盘文档：`f:\code\stock\apps\blog\docs\src\reviews\aizaibingchuan\2024-2-20.md`
+> 已成功获取链接内容并生成复盘文档：`f:\code\stock\apps\blog\docs\src\reviews\aizaibingchuan\2024\2024-2-20.md`
 > 同时也更新了索引文件。

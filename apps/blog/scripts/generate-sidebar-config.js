@@ -4,41 +4,38 @@ const path = require('path');
 const EXCLUDED_FOLDERS = ['public'];
 const INCLUDE_FILE_TYPE = ['md'];
 const targetPath = path.join(__dirname, '../docs/src');
-// 输出文件地址
 const outputPath = path.join(targetPath, 'sidebar-config.mts');
 
+console.log('Target Path:', targetPath);
+console.log('Output Path:', outputPath);
+
 /**
- * 获取文件名后缀
+ * @param {string} fileName
  */
 const getFileExtension = (fileName) => {
   const match = fileName.match(/\.([^.]+)$/);
   if (match) {
     return match[1];
   }
-  return ''; // 如果没有匹配到点，返回空字符串或其他默认值
+  return '';
 };
 
 /**
- * 获取md中属性
+ * @param {string} file
  */
 const getInfoOfMarkdown = (file) => {
   try {
     const data = fs.readFileSync(file, 'utf8');
-    // 使用正则表达式匹配title的值
     const titleMatch = data.match(/title:\s*(.*)/);
-    // 使用正则表达式匹配collapsed的值
     const collapsedMatch = data.match(/collapsed:\s*(.*)/);
-    // 使用正则表达式匹配order的值
     const orderMatch = data.match(/order:\s*(.*)/);
 
     let title = '';
     if (titleMatch && titleMatch[1]) {
       title = titleMatch[1];
     } else {
-      // 尝试匹配一级标题 # Title
       const h1Match = data.match(/^#\s+(.*)/m);
       if (h1Match && h1Match[1]) {
-        // 移除可能的 (English Title) 后缀
         title = h1Match[1].replace(/\s*\(.*\)$/, '').trim();
       }
     }
@@ -49,26 +46,32 @@ const getInfoOfMarkdown = (file) => {
       order: orderMatch ? parseFloat(orderMatch[1]) : 9999,
     };
   } catch (e) {
-    console.log('e', e);
+    console.log('Error reading markdown:', file, e);
     return { title: '', collapsed: false, order: 9999 };
   }
 };
 
 /**
- * 写文件
+ * @param {object} config
  */
 const writeFile = async (config) => {
-  let str = JSON.stringify(config, null, 2);
-  str = str.replace(/"/g, "'");
-  await fs.writeFileSync(outputPath, `export default ${str}`);
+  try {
+    let str = JSON.stringify(config, null, 2);
+    str = str.replace(/"/g, "'");
+    fs.writeFileSync(outputPath, `export default ${str}`);
+    console.log('File written successfully.');
+  } catch (e) {
+    console.error('Error writing file:', e);
+  }
 };
 
-/**
- * 获取存放源md文件的目录
- */
 const getDirsPath = () => {
   try {
     const ret = [];
+    if (!fs.existsSync(targetPath)) {
+      console.error('Target path does not exist:', targetPath);
+      return [];
+    }
     const dirs = fs.readdirSync(targetPath);
     for (let i = 0; i < dirs.length; i++) {
       const dir = dirs[i];
@@ -81,92 +84,135 @@ const getDirsPath = () => {
     }
     return ret;
   } catch (e) {
-    console.log('e', e);
+    console.log('Error getting dirs:', e);
+    return [];
   }
 };
 
 /**
- * 生成sidebar config
+ * @param {string[]} dirs
  */
 const getSideBarConfig = (dirs) => {
   // eslint-disable-next-line no-useless-escape
-  const regex = /[\\\/]([^\\\/]+)$/; // 匹配最后一个斜杠后面的内容
+  const regex = /[\\\/]([^\\\/]+)$/;
   const config = {};
-  for (let i = 0; i < dirs.length; i++) { // 遍历一级路径
+  for (let i = 0; i < dirs.length; i++) {
     const dir = dirs[i];
-    const lastPathOfFistLevel = dir.match(regex)[1]; // 获取最后一级路径作为key
+    const match = dir.match(regex);
+    if (!match) continue;
+    const lastPathOfFistLevel = match[1];
     const configValue = [];
 
-    // 旧逻辑：处理二级目录
     const secondLevelDirs = fs.readdirSync(dir);
-    for (let j = 0; j < secondLevelDirs.length; j++) { // 遍历二级路径
+    for (let j = 0; j < secondLevelDirs.length; j++) {
       const secondLevelDir = secondLevelDirs[j];
       const secondLevelDirPath = path.join(dir, secondLevelDir);
       const secondLevelDirstat = fs.statSync(secondLevelDirPath);
       if (secondLevelDirstat.isDirectory()) {
         const configValueItem = {
           text: '',
-          // collapsed: false,
           items: [],
         };
         const indexPath = `${secondLevelDirPath}/index.md`;
-        const {
-          title: titleOfMd,
-          collapsed: collapsedOfMd,
-        } = getInfoOfMarkdown(indexPath);
-        configValueItem.text = titleOfMd;
-        if (collapsedOfMd) {
-          configValueItem.collapsed = true;
+
+        if (fs.existsSync(indexPath)) {
+          const { title: titleOfMd, collapsed: collapsedOfMd } = getInfoOfMarkdown(indexPath);
+          configValueItem.text = titleOfMd;
+          if (collapsedOfMd) configValueItem.collapsed = true;
+        } else {
+          configValueItem.text = secondLevelDir;
         }
-        let secondLevelFiles = fs.readdirSync(secondLevelDirPath).filter((file) => file !== 'index.md');
-        // console.log(`Directory: ${secondLevelDirPath}, Files: ${secondLevelFiles.join(', ')}`);
-        secondLevelFiles = secondLevelFiles.sort((a, b) => {
-          // 优先使用 frontmatter 中的 order 属性排序
+
+        const entries = fs.readdirSync(secondLevelDirPath).filter((file) => file !== 'index.md');
+        const files = [];
+        const subDirs = [];
+
+        entries.forEach((entry) => {
+          const entryPath = path.join(secondLevelDirPath, entry);
+          try {
+            const stat = fs.statSync(entryPath);
+            if (stat.isFile()) {
+              files.push(entry);
+            } else if (stat.isDirectory()) {
+              subDirs.push(entry);
+            }
+          } catch (e) {
+            // ignore
+          }
+        });
+
+        files.sort((a, b) => {
           const filePathA = path.join(secondLevelDirPath, a);
           const filePathB = path.join(secondLevelDirPath, b);
-
-          // 只有在是文件且不是 index.md 时才读取 frontmatter
-          const isFileA = fs.statSync(filePathA).isFile() && a !== 'index.md';
-          const isFileB = fs.statSync(filePathB).isFile() && b !== 'index.md';
-
-          // console.log(`Checking ${a} (isFile: ${isFileA}) vs ${b} (isFile: ${isFileB})`);
-
-          if (isFileA && isFileB) {
-            const infoA = getInfoOfMarkdown(filePathA);
-            const infoB = getInfoOfMarkdown(filePathB);
-            // console.log(`Comparing ${a} (${infoA.order}) and ${b} (${infoB.order})`);
-            if (infoA.order !== 9999 || infoB.order !== 9999) {
-              return infoA.order - infoB.order;
-            }
-          }
-
-          // 提取文件名中的数字部分
+          const infoA = getInfoOfMarkdown(filePathA);
+          const infoB = getInfoOfMarkdown(filePathB);
+          if (infoA.order !== 9999 || infoB.order !== 9999) return infoA.order - infoB.order;
           const numA = parseFloat((a.match(/[\d.]+/) || [])[0]);
           const numB = parseFloat((b.match(/[\d.]+/) || [])[0]);
-
-          if (!Number.isNaN(numA) && !Number.isNaN(numB)) {
-            // 比较数字部分的大小
-            return numA - numB;
-          }
-
+          if (!Number.isNaN(numA) && !Number.isNaN(numB)) return numA - numB;
           return 0;
         });
-        // eslint-disable-next-line no-restricted-syntax
-        for (let k = 0; k < secondLevelFiles.length; k++) { // 遍历文件
-          const file = secondLevelFiles[k];
+
+        for (let k = 0; k < files.length; k++) {
+          const file = files[k];
           const filePath = path.join(secondLevelDirPath, file);
-          const fileStat = fs.statSync(filePath);
           const fileSuffix = getFileExtension(filePath);
-          if (fileStat.isFile() && INCLUDE_FILE_TYPE.includes(fileSuffix) && file !== 'index.md') {
-            const {
-              title: fileTitleOfMd,
-            } = getInfoOfMarkdown(filePath);
+          if (INCLUDE_FILE_TYPE.includes(fileSuffix)) {
+            const { title: fileTitleOfMd } = getInfoOfMarkdown(filePath);
             configValueItem.items.push({
               text: fileTitleOfMd,
               link: `/${lastPathOfFistLevel}/${secondLevelDir}/${file}`,
             });
           }
         }
+
+        subDirs.sort((a, b) => parseFloat(a) - parseFloat(b));
+
+        subDirs.forEach((subDir) => {
+          const subDirPath = path.join(secondLevelDirPath, subDir);
+          const subDirFiles = fs.readdirSync(subDirPath)
+            .filter((f) => f !== 'index.md' && INCLUDE_FILE_TYPE.includes(getFileExtension(f)));
+
+          subDirFiles.sort((a, b) => {
+            const dateA = a.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+            const dateB = b.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+            if (dateA && dateB) {
+              const timeA = new Date(
+                parseInt(dateA[1], 10),
+                parseInt(dateA[2], 10) - 1,
+                parseInt(dateA[3], 10),
+              ).getTime();
+              const timeB = new Date(
+                parseInt(dateB[1], 10),
+                parseInt(dateB[2], 10) - 1,
+                parseInt(dateB[3], 10),
+              ).getTime();
+              return timeA - timeB;
+            }
+            const numA = parseFloat((a.match(/[\d.]+/) || [])[0]);
+            const numB = parseFloat((b.match(/[\d.]+/) || [])[0]);
+            if (!Number.isNaN(numA) && !Number.isNaN(numB)) return numA - numB;
+            return 0;
+          });
+
+          const subGroup = {
+            text: subDir,
+            collapsed: true,
+            items: [],
+          };
+
+          subDirFiles.forEach((file) => {
+            const filePath = path.join(subDirPath, file);
+            const { title } = getInfoOfMarkdown(filePath);
+            subGroup.items.push({
+              text: title,
+              link: `/${lastPathOfFistLevel}/${secondLevelDir}/${subDir}/${file}`,
+            });
+          });
+
+          configValueItem.items.push(subGroup);
+        });
+
         configValue.push(configValueItem);
       }
     }
@@ -176,7 +222,9 @@ const getSideBarConfig = (dirs) => {
 };
 
 const generateSideBarConfig = () => {
+  console.log('Starting generation...');
   const dirs = getDirsPath();
+  console.log('Dirs found:', dirs.length);
   const sidebarConfig = getSideBarConfig(dirs);
   writeFile(sidebarConfig);
   console.info('sidebar-config生成成功！');
