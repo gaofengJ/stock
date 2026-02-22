@@ -438,6 +438,86 @@ export default {
             {
               'text': '2020-1-31复盘',
               'link': '/reviews/aizaibingchuan/2020/2020-1-31.md'
+            },
+            {
+              'text': '2020-2-3复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-2-3.md'
+            },
+            {
+              'text': '2020-2-4复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-2-4.md'
+            },
+            {
+              'text': '2020-2-5复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-2-5.md'
+            },
+            {
+              'text': '2020-2-6复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-2-6.md'
+            },
+            {
+              'text': '2020-2-7复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-2-7.md'
+            },
+            {
+              'text': '2020-2-10复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-2-10.md'
+            },
+            {
+              'text': '2020-2-11复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-2-11.md'
+            },
+            {
+              'text': '2020-2-12复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-2-12.md'
+            },
+            {
+              'text': '2020-2-13复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-2-13.md'
+            },
+            {
+              'text': '2020-2-15复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-2-15.md'
+            },
+            {
+              'text': '2020-2-17复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-2-17.md'
+            },
+            {
+              'text': '2020-2-18复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-2-18.md'
+            },
+            {
+              'text': '2020-2-19复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-2-19.md'
+            },
+            {
+              'text': '2020-2-20复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-2-20.md'
+            },
+            {
+              'text': '2020-2-21复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-2-21.md'
+            },
+            {
+              'text': '2020-2-24复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-2-24.md'
+            },
+            {
+              'text': '2020-2-25复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-2-25.md'
+            },
+            {
+              'text': '2020-2-26复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-2-26.md'
+            },
+            {
+              'text': '2020-2-27复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-2-27.md'
+            },
+            {
+              'text': '2020-2-28复盘',
+              'link': '/reviews/aizaibingchuan/2020/2020-2-28.md'
             }
           ]
         },
