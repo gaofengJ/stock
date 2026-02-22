@@ -698,6 +698,16 @@ export default {
           ]
         },
         {
+          'text': '2023',
+          'collapsed': true,
+          'items': [
+            {
+              'text': '2023-1-2复盘',
+              'link': '/reviews/aizaibingchuan/2023/2023-1-2.md'
+            }
+          ]
+        },
+        {
           'text': '2024',
           'collapsed': true,
           'items': [
