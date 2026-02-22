@@ -522,6 +522,144 @@ export default {
           ]
         },
         {
+          'text': '2021',
+          'collapsed': true,
+          'items': [
+            {
+              'text': '2021-1-4复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-1-4.md'
+            },
+            {
+              'text': '2021-1-5复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-1-5.md'
+            },
+            {
+              'text': '2021-1-6复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-1-6.md'
+            },
+            {
+              'text': '2021-1-7复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-1-7.md'
+            },
+            {
+              'text': '2021-1-8复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-1-8.md'
+            },
+            {
+              'text': '2021-1-11复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-1-11.md'
+            },
+            {
+              'text': '2021-1-12复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-1-12.md'
+            },
+            {
+              'text': '2021-1-13复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-1-13.md'
+            },
+            {
+              'text': '2021-1-14复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-1-14.md'
+            },
+            {
+              'text': '2021-1-18复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-1-18.md'
+            },
+            {
+              'text': '2021-1-19复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-1-19.md'
+            },
+            {
+              'text': '2021-1-20复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-1-20.md'
+            },
+            {
+              'text': '2021-1-21复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-1-21.md'
+            },
+            {
+              'text': '2021-1-22复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-1-22.md'
+            },
+            {
+              'text': '2021-1-25复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-1-25.md'
+            },
+            {
+              'text': '2021-1-27复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-1-27.md'
+            },
+            {
+              'text': '2021-1-28复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-1-28.md'
+            },
+            {
+              'text': '2021-1-29复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-1-29.md'
+            },
+            {
+              'text': '2021-2-1复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-2-1.md'
+            },
+            {
+              'text': '2021-2-2复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-2-2.md'
+            },
+            {
+              'text': '2021-2-3复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-2-3.md'
+            },
+            {
+              'text': '2021-2-4复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-2-4.md'
+            },
+            {
+              'text': '2021-2-5复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-2-5.md'
+            },
+            {
+              'text': '2021-2-8复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-2-8.md'
+            },
+            {
+              'text': '2021-2-9复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-2-9.md'
+            },
+            {
+              'text': '2021-2-17复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-2-17.md'
+            },
+            {
+              'text': '2021-2-18复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-2-18.md'
+            },
+            {
+              'text': '2021-2-19复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-2-19.md'
+            },
+            {
+              'text': '2021-2-22复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-2-22.md'
+            },
+            {
+              'text': '2021-2-23复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-2-23.md'
+            },
+            {
+              'text': '2021-2-24复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-2-24.md'
+            },
+            {
+              'text': '2021-2-25复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-2-25.md'
+            },
+            {
+              'text': '2021-2-26复盘',
+              'link': '/reviews/aizaibingchuan/2021/2021-2-26.md'
+            }
+          ]
+        },
+        {
           'text': '2024',
           'collapsed': true,
           'items': [
