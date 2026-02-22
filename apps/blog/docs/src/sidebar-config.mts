@@ -660,6 +660,44 @@ export default {
           ]
         },
         {
+          'text': '2022',
+          'collapsed': true,
+          'items': [
+            {
+              'text': '2022-1-4复盘',
+              'link': '/reviews/aizaibingchuan/2022/2022-1-4.md'
+            },
+            {
+              'text': '2022-2-6复盘',
+              'link': '/reviews/aizaibingchuan/2022/2022-2-6.md'
+            },
+            {
+              'text': '2022-2-7复盘',
+              'link': '/reviews/aizaibingchuan/2022/2022-2-7.md'
+            },
+            {
+              'text': '2022-2-8复盘',
+              'link': '/reviews/aizaibingchuan/2022/2022-2-8.md'
+            },
+            {
+              'text': '2022-2-13复盘',
+              'link': '/reviews/aizaibingchuan/2022/2022-2-13.md'
+            },
+            {
+              'text': '2022-2-16复盘',
+              'link': '/reviews/aizaibingchuan/2022/2022-2-16.md'
+            },
+            {
+              'text': '2022-2-18复盘',
+              'link': '/reviews/aizaibingchuan/2022/2022-2-18.md'
+            },
+            {
+              'text': '2022-2-24复盘',
+              'link': '/reviews/aizaibingchuan/2022/2022-2-24.md'
+            }
+          ]
+        },
+        {
           'text': '2024',
           'collapsed': true,
           'items': [
