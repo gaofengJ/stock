@@ -704,6 +704,18 @@ export default {
             {
               'text': '2023-1-2复盘',
               'link': '/reviews/aizaibingchuan/2023/2023-1-2.md'
+            },
+            {
+              'text': '2023-1-3复盘',
+              'link': '/reviews/aizaibingchuan/2023/2023-1-3.md'
+            },
+            {
+              'text': '2023-1-4复盘',
+              'link': '/reviews/aizaibingchuan/2023/2023-1-4.md'
+            },
+            {
+              'text': '2023-1-5复盘',
+              'link': '/reviews/aizaibingchuan/2023/2023-1-5.md'
             }
           ]
         },
@@ -879,6 +891,10 @@ export default {
         {
           'text': '国债逆回购（GC001）',
           'link': '/trading-rules/macro-policy/gc001.md'
+        },
+        {
+          'text': '美国加息与降息',
+          'link': '/trading-rules/macro-policy/us-interest-rate-impact.md'
         }
       ]
     }
