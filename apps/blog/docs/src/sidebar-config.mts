@@ -838,6 +838,30 @@ export default {
             {
               'text': '2024-1-1复盘',
               'link': '/reviews/aizaibingchuan/2024/2024-1-1.md'
+            },
+            {
+              'text': '2024-1-2复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-2.md'
+            },
+            {
+              'text': '2024-1-4复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-4.md'
+            },
+            {
+              'text': '2024-1-5复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-5.md'
+            },
+            {
+              'text': '2024-1-8复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-8.md'
+            },
+            {
+              'text': '2024-1-9复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-9.md'
+            },
+            {
+              'text': '2024-1-10复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-10.md'
             }
           ]
         },
