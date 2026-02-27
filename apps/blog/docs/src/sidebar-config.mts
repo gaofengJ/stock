@@ -862,6 +862,78 @@ export default {
             {
               'text': '2024-1-10复盘',
               'link': '/reviews/aizaibingchuan/2024/2024-1-10.md'
+            },
+            {
+              'text': '2024-1-11复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-11.md'
+            },
+            {
+              'text': '2024-1-12复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-12.md'
+            },
+            {
+              'text': '2024-1-14复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-14.md'
+            },
+            {
+              'text': '2024-1-15复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-15.md'
+            },
+            {
+              'text': '2024-1-16复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-16.md'
+            },
+            {
+              'text': '2024-1-17复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-17.md'
+            },
+            {
+              'text': '2024-1-18复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-18.md'
+            },
+            {
+              'text': '2024-1-19复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-19.md'
+            },
+            {
+              'text': '2024-1-21复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-21.md'
+            },
+            {
+              'text': '2024-1-22复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-22.md'
+            },
+            {
+              'text': '2024-1-23复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-23.md'
+            },
+            {
+              'text': '2024-1-24复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-24.md'
+            },
+            {
+              'text': '2024-1-25复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-25.md'
+            },
+            {
+              'text': '2024-1-26复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-26.md'
+            },
+            {
+              'text': '2024-1-28复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-28.md'
+            },
+            {
+              'text': '2024-1-29复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-29.md'
+            },
+            {
+              'text': '2024-1-30复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-30.md'
+            },
+            {
+              'text': '2024-1-31复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-1-31.md'
             }
           ]
         },
