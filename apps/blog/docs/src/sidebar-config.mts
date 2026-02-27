@@ -934,6 +934,62 @@ export default {
             {
               'text': '2024-1-31复盘',
               'link': '/reviews/aizaibingchuan/2024/2024-1-31.md'
+            },
+            {
+              'text': '2024-2-1复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-2-1.md'
+            },
+            {
+              'text': '2024-2-2复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-2-2.md'
+            },
+            {
+              'text': '2024-2-4复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-2-4.md'
+            },
+            {
+              'text': '2024-2-6复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-2-6.md'
+            },
+            {
+              'text': '2024-2-7复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-2-7.md'
+            },
+            {
+              'text': '2024-2-8复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-2-8.md'
+            },
+            {
+              'text': '2024-2-18复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-2-18.md'
+            },
+            {
+              'text': '2024-2-20复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-2-20.md'
+            },
+            {
+              'text': '2024-2-21复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-2-21.md'
+            },
+            {
+              'text': '2024-2-23复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-2-23.md'
+            },
+            {
+              'text': '2024-2-26复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-2-26.md'
+            },
+            {
+              'text': '2024-2-27复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-2-27.md'
+            },
+            {
+              'text': '2024-2-28复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-2-28.md'
+            },
+            {
+              'text': '2024-2-29复盘',
+              'link': '/reviews/aizaibingchuan/2024/2024-2-29.md'
             }
           ]
         },
