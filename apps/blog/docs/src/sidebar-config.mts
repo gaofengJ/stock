@@ -1000,6 +1000,90 @@ export default {
             {
               'text': '2025-1-1复盘',
               'link': '/reviews/aizaibingchuan/2025/2025-1-1.md'
+            },
+            {
+              'text': '2025-1-2复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-2.md'
+            },
+            {
+              'text': '2025-1-3复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-3.md'
+            },
+            {
+              'text': '2025-1-5复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-5.md'
+            },
+            {
+              'text': '2025-1-6复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-6.md'
+            },
+            {
+              'text': '2025-1-7复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-7.md'
+            },
+            {
+              'text': '2025-1-8复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-8.md'
+            },
+            {
+              'text': '2025-1-9复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-9.md'
+            },
+            {
+              'text': '2025-1-10复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-10.md'
+            },
+            {
+              'text': '2025-1-12复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-12.md'
+            },
+            {
+              'text': '2025-1-14复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-14.md'
+            },
+            {
+              'text': '2025-1-15复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-15.md'
+            },
+            {
+              'text': '2025-1-16复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-16.md'
+            },
+            {
+              'text': '2025-1-17复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-17.md'
+            },
+            {
+              'text': '2025-1-19复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-19.md'
+            },
+            {
+              'text': '2025-1-20复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-20.md'
+            },
+            {
+              'text': '2025-1-21复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-21.md'
+            },
+            {
+              'text': '2025-1-22复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-22.md'
+            },
+            {
+              'text': '2025-1-23复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-23.md'
+            },
+            {
+              'text': '2025-1-24复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-24.md'
+            },
+            {
+              'text': '2025-1-26复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-26.md'
+            },
+            {
+              'text': '2025-1-27复盘',
+              'link': '/reviews/aizaibingchuan/2025/2025-1-27.md'
             }
           ]
         },
