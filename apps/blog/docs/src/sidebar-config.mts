@@ -1180,8 +1180,120 @@ export default {
           'collapsed': true,
           'items': [
             {
+              'text': '2026-1-4复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-4.md'
+            },
+            {
+              'text': '2026-1-5复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-5.md'
+            },
+            {
+              'text': '2026-1-6复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-6.md'
+            },
+            {
+              'text': '2026-1-7复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-7.md'
+            },
+            {
+              'text': '2026-1-8复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-8.md'
+            },
+            {
+              'text': '2026-1-9复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-9.md'
+            },
+            {
+              'text': '2026-1-11复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-11.md'
+            },
+            {
+              'text': '2026-1-12复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-12.md'
+            },
+            {
+              'text': '2026-1-13复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-13.md'
+            },
+            {
+              'text': '2026-1-14复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-14.md'
+            },
+            {
+              'text': '2026-1-15复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-15.md'
+            },
+            {
               'text': '2026-1-16复盘',
               'link': '/reviews/aizaibingchuan/2026/2026-1-16.md'
+            },
+            {
+              'text': '2026-1-18复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-18.md'
+            },
+            {
+              'text': '2026-1-19复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-19.md'
+            },
+            {
+              'text': '2026-1-20复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-20.md'
+            },
+            {
+              'text': '2026-1-21复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-21.md'
+            },
+            {
+              'text': '2026-1-22复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-22.md'
+            },
+            {
+              'text': '2026-1-23复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-23.md'
+            },
+            {
+              'text': '2026-1-25复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-25.md'
+            },
+            {
+              'text': '2026-1-26复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-26.md'
+            },
+            {
+              'text': '2026-1-27复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-27.md'
+            },
+            {
+              'text': '2026-1-28复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-28.md'
+            },
+            {
+              'text': '2026-1-29复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-29.md'
+            },
+            {
+              'text': '2026-1-30复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-1-30.md'
+            },
+            {
+              'text': '2026-2-1复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-2-1.md'
+            },
+            {
+              'text': '2026-2-2复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-2-2.md'
+            },
+            {
+              'text': '2026-2-3复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-2-3.md'
+            },
+            {
+              'text': '2026-2-4复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-2-4.md'
+            },
+            {
+              'text': '2026-2-5复盘',
+              'link': '/reviews/aizaibingchuan/2026/2026-2-5.md'
             }
           ]
         }
