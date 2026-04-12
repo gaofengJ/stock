@@ -4,8 +4,146 @@ export default {
       'text': '爱在冰川复盘',
       'items': [
         {
-          'text': '爱在冰川复盘精华',
-          'link': '/reviews/aizaibingchuan/review-summary.md'
+          'text': '爱在冰川复盘精华-2017',
+          'link': '/reviews/aizaibingchuan/review-summary-2017.md'
+        },
+        {
+          'text': '爱在冰川复盘精华-2018',
+          'link': '/reviews/aizaibingchuan/review-summary-2018.md'
+        },
+        {
+          'text': '爱在冰川复盘精华-2019',
+          'link': '/reviews/aizaibingchuan/review-summary-2019.md'
+        },
+        {
+          'text': '爱在冰川复盘精华-2020',
+          'link': '/reviews/aizaibingchuan/review-summary-2020.md'
+        },
+        {
+          'text': '爱在冰川复盘精华-2021',
+          'link': '/reviews/aizaibingchuan/review-summary-2021.md'
+        },
+        {
+          'text': '爱在冰川复盘精华-2022',
+          'link': '/reviews/aizaibingchuan/review-summary-2022.md'
+        },
+        {
+          'text': '爱在冰川复盘精华-2023',
+          'link': '/reviews/aizaibingchuan/review-summary-2023.md'
+        },
+        {
+          'text': '爱在冰川复盘精华-2024',
+          'link': '/reviews/aizaibingchuan/review-summary-2024.md'
+        },
+        {
+          'text': '爱在冰川复盘精华-2025',
+          'link': '/reviews/aizaibingchuan/review-summary-2025.md'
+        },
+        {
+          'text': '爱在冰川复盘精华-2026',
+          'link': '/reviews/aizaibingchuan/review-summary-2026.md'
+        },
+        {
+          'text': '2017',
+          'collapsed': true,
+          'items': [
+            {
+              'text': '2017-6-9复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-6-9.md'
+            },
+            {
+              'text': '2017-6-14复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-6-14.md'
+            },
+            {
+              'text': '2017-6-18复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-6-18.md'
+            },
+            {
+              'text': '2017-6-19复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-6-19.md'
+            },
+            {
+              'text': '2017-6-20复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-6-20.md'
+            },
+            {
+              'text': '2017-6-22复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-6-22.md'
+            },
+            {
+              'text': '2017-6-27复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-6-27.md'
+            },
+            {
+              'text': '2017-6-29复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-6-29.md'
+            },
+            {
+              'text': '2017-6-30复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-6-30.md'
+            },
+            {
+              'text': '2017-7-3复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-7-3.md'
+            },
+            {
+              'text': '2017-7-4复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-7-4.md'
+            },
+            {
+              'text': '2017-7-6复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-7-6.md'
+            },
+            {
+              'text': '2017-7-10复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-7-10.md'
+            },
+            {
+              'text': '2017-7-11复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-7-11.md'
+            },
+            {
+              'text': '2017-7-12复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-7-12.md'
+            },
+            {
+              'text': '2017-7-20复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-7-20.md'
+            },
+            {
+              'text': '2017-7-22复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-7-22.md'
+            },
+            {
+              'text': '2017-7-25复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-7-25.md'
+            },
+            {
+              'text': '2017-7-26复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-7-26.md'
+            },
+            {
+              'text': '2017-7-27复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-7-27.md'
+            },
+            {
+              'text': '2017-7-28复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-7-28.md'
+            },
+            {
+              'text': '2017-7-29复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-7-29.md'
+            },
+            {
+              'text': '2017-7-30复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-7-30.md'
+            },
+            {
+              'text': '2017-7-31复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-7-31.md'
+            }
+          ]
         },
         {
           'text': '2018',
