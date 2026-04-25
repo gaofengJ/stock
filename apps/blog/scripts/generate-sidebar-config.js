@@ -166,7 +166,16 @@ const getSideBarConfig = (dirs) => {
           }
         }
 
-        subDirs.sort((a, b) => parseFloat(a) - parseFloat(b));
+        subDirs.sort((a, b) => {
+          const pathA = path.join(secondLevelDirPath, a, 'index.md');
+          const pathB = path.join(secondLevelDirPath, b, 'index.md');
+          let orderA = 9999;
+          let orderB = 9999;
+          if (fs.existsSync(pathA)) orderA = getInfoOfMarkdown(pathA).order;
+          if (fs.existsSync(pathB)) orderB = getInfoOfMarkdown(pathB).order;
+          if (orderA !== 9999 || orderB !== 9999) return orderA - orderB;
+          return parseFloat(a) - parseFloat(b);
+        });
 
         subDirs.forEach((subDir) => {
           const subDirPath = path.join(secondLevelDirPath, subDir);
@@ -200,6 +209,14 @@ const getSideBarConfig = (dirs) => {
             collapsed: true,
             items: [],
           };
+
+          const subDirPathIndex = path.join(subDirPath, 'index.md');
+          if (fs.existsSync(subDirPathIndex)) {
+            const { title: titleOfSubMd } = getInfoOfMarkdown(subDirPathIndex);
+            if (titleOfSubMd) {
+              subGroup.text = titleOfSubMd;
+            }
+          }
 
           subDirFiles.forEach((file) => {
             const filePath = path.join(subDirPath, file);

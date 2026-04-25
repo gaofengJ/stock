@@ -44,6 +44,32 @@ export default {
           'link': '/reviews/aizaibingchuan/review-summary-2026.md'
         },
         {
+          'text': '交易战法',
+          'collapsed': true,
+          'items': [
+            {
+              'text': '《股市--道，法，术》---第一篇',
+              'link': '/reviews/aizaibingchuan/strategies/dao-fa-shu-1.md'
+            },
+            {
+              'text': '《股市--道，法，术》---第二篇',
+              'link': '/reviews/aizaibingchuan/strategies/dao-fa-shu-2.md'
+            },
+            {
+              'text': '《股市--道，法，术》---第三篇',
+              'link': '/reviews/aizaibingchuan/strategies/dao-fa-shu-3.md'
+            },
+            {
+              'text': '道系列之低吸待涨---我的模式，我的道',
+              'link': '/reviews/aizaibingchuan/strategies/low-suction-strategy.md'
+            },
+            {
+              'text': '低吸战法',
+              'link': '/reviews/aizaibingchuan/strategies/low-suction-tactics.md'
+            }
+          ]
+        },
+        {
           'text': '2017',
           'collapsed': true,
           'items': [
@@ -238,6 +264,98 @@ export default {
             {
               'text': '2017-8-31复盘',
               'link': '/reviews/aizaibingchuan/2017/2017-8-31.md'
+            },
+            {
+              'text': '2017-9-1复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-1.md'
+            },
+            {
+              'text': '2017-9-4复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-4.md'
+            },
+            {
+              'text': '2017-9-5复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-5.md'
+            },
+            {
+              'text': '2017-9-6复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-6.md'
+            },
+            {
+              'text': '2017-9-7复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-7.md'
+            },
+            {
+              'text': '2017-9-8复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-8.md'
+            },
+            {
+              'text': '2017-9-9复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-9.md'
+            },
+            {
+              'text': '2017-9-11复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-11.md'
+            },
+            {
+              'text': '2017-9-12复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-12.md'
+            },
+            {
+              'text': '2017-9-13复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-13.md'
+            },
+            {
+              'text': '2017-9-15复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-15.md'
+            },
+            {
+              'text': '2017-9-16复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-16.md'
+            },
+            {
+              'text': '2017-9-18复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-18.md'
+            },
+            {
+              'text': '2017-9-19复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-19.md'
+            },
+            {
+              'text': '爱在冰川复盘 2017-9-20',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-20.md'
+            },
+            {
+              'text': '\'2017-9-21复盘\'',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-21.md'
+            },
+            {
+              'text': '爱在冰川复盘 2017-9-22',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-22.md'
+            },
+            {
+              'text': '爱在冰川复盘 2017-9-25',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-25.md'
+            },
+            {
+              'text': '2017-9-26复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-26.md'
+            },
+            {
+              'text': '爱在冰川复盘 2017-9-27',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-27.md'
+            },
+            {
+              'text': '2017-9-28复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-28.md'
+            },
+            {
+              'text': '2017-9-29复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-29.md'
+            },
+            {
+              'text': '2017-9-30复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-9-30.md'
             }
           ]
         },
