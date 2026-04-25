@@ -142,6 +142,102 @@ export default {
             {
               'text': '2017-7-31复盘',
               'link': '/reviews/aizaibingchuan/2017/2017-7-31.md'
+            },
+            {
+              'text': '2017-8-1复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-1.md'
+            },
+            {
+              'text': '2017-8-2复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-2.md'
+            },
+            {
+              'text': '2017-8-3复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-3.md'
+            },
+            {
+              'text': '2017-8-4复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-4.md'
+            },
+            {
+              'text': '2017-8-6复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-6.md'
+            },
+            {
+              'text': '2017-8-7复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-7.md'
+            },
+            {
+              'text': '2017-8-8复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-8.md'
+            },
+            {
+              'text': '2017-8-9复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-9.md'
+            },
+            {
+              'text': '2017-8-10复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-10.md'
+            },
+            {
+              'text': '2017-8-11复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-11.md'
+            },
+            {
+              'text': '2017-8-13复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-13.md'
+            },
+            {
+              'text': '2017-8-14复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-14.md'
+            },
+            {
+              'text': '2017-8-15复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-15.md'
+            },
+            {
+              'text': '2017-8-16复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-16.md'
+            },
+            {
+              'text': '2017-8-18复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-18.md'
+            },
+            {
+              'text': '2017-8-20复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-20.md'
+            },
+            {
+              'text': '2017-8-21复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-21.md'
+            },
+            {
+              'text': '2017-8-22复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-22.md'
+            },
+            {
+              'text': '2017-8-24复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-24.md'
+            },
+            {
+              'text': '2017-8-27复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-27.md'
+            },
+            {
+              'text': '2017-8-28复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-28.md'
+            },
+            {
+              'text': '2017-8-29复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-29.md'
+            },
+            {
+              'text': '2017-8-30复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-30.md'
+            },
+            {
+              'text': '2017-8-31复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-8-31.md'
             }
           ]
         },
