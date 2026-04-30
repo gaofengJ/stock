@@ -48,6 +48,10 @@ export default {
           'collapsed': true,
           'items': [
             {
+              'text': '凭大智行大勇---大智大勇战法',
+              'link': '/reviews/aizaibingchuan/strategies/da-zhi-da-yong-zhan-fa.md'
+            },
+            {
               'text': '《股市--道，法，术》---第一篇',
               'link': '/reviews/aizaibingchuan/strategies/dao-fa-shu-1.md'
             },
@@ -66,6 +70,10 @@ export default {
             {
               'text': '低吸战法',
               'link': '/reviews/aizaibingchuan/strategies/low-suction-tactics.md'
+            },
+            {
+              'text': '术系列2------尾盘买股技术指标之揉搓线',
+              'link': '/reviews/aizaibingchuan/strategies/shu-2-rou-cuo-xian.md'
             }
           ]
         },
@@ -356,6 +364,86 @@ export default {
             {
               'text': '2017-9-30复盘',
               'link': '/reviews/aizaibingchuan/2017/2017-9-30.md'
+            },
+            {
+              'text': '2017-10-4复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-10-4.md'
+            },
+            {
+              'text': '2017-10-5复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-10-5.md'
+            },
+            {
+              'text': '2017-10-6复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-10-6.md'
+            },
+            {
+              'text': '2017-10-7复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-10-7.md'
+            },
+            {
+              'text': '2017-10-9复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-10-9.md'
+            },
+            {
+              'text': '2017-10-10复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-10-10.md'
+            },
+            {
+              'text': '2017-10-11复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-10-11.md'
+            },
+            {
+              'text': '2017-10-12复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-10-12.md'
+            },
+            {
+              'text': '2017-10-13复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-10-13.md'
+            },
+            {
+              'text': '2017-10-16复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-10-16.md'
+            },
+            {
+              'text': '2017-10-17复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-10-17.md'
+            },
+            {
+              'text': '2017-10-18复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-10-18.md'
+            },
+            {
+              'text': '2017-10-19复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-10-19.md'
+            },
+            {
+              'text': '2017-10-23复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-10-23.md'
+            },
+            {
+              'text': '2017-10-24复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-10-24.md'
+            },
+            {
+              'text': '2017-10-25复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-10-25.md'
+            },
+            {
+              'text': '2017-10-26复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-10-26.md'
+            },
+            {
+              'text': '2017-10-27复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-10-27.md'
+            },
+            {
+              'text': '2017-10-30复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-10-30.md'
+            },
+            {
+              'text': '2017-10-31复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-10-31.md'
             }
           ]
         },
