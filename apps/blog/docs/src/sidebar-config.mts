@@ -322,19 +322,19 @@ export default {
               'link': '/reviews/aizaibingchuan/2017/2017-9-19.md'
             },
             {
-              'text': '爱在冰川复盘 2017-9-20',
+              'text': '2017-9-20复盘',
               'link': '/reviews/aizaibingchuan/2017/2017-9-20.md'
             },
             {
-              'text': '\'2017-9-21复盘\'',
+              'text': '2017-9-21复盘',
               'link': '/reviews/aizaibingchuan/2017/2017-9-21.md'
             },
             {
-              'text': '爱在冰川复盘 2017-9-22',
+              'text': '2017-9-22复盘',
               'link': '/reviews/aizaibingchuan/2017/2017-9-22.md'
             },
             {
-              'text': '爱在冰川复盘 2017-9-25',
+              'text': '2017-9-25复盘',
               'link': '/reviews/aizaibingchuan/2017/2017-9-25.md'
             },
             {
@@ -342,7 +342,7 @@ export default {
               'link': '/reviews/aizaibingchuan/2017/2017-9-26.md'
             },
             {
-              'text': '爱在冰川复盘 2017-9-27',
+              'text': '2017-9-27复盘',
               'link': '/reviews/aizaibingchuan/2017/2017-9-27.md'
             },
             {
