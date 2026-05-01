@@ -74,6 +74,10 @@ export default {
             {
               'text': '术系列2------尾盘买股技术指标之揉搓线',
               'link': '/reviews/aizaibingchuan/strategies/shu-2-rou-cuo-xian.md'
+            },
+            {
+              'text': '一个逻辑挖掘方法分享',
+              'link': '/reviews/aizaibingchuan/strategies/yi-ge-luo-ji-wa-jue-fang-fa-fen-xiang.md'
             }
           ]
         },
@@ -444,6 +448,106 @@ export default {
             {
               'text': '2017-10-31复盘',
               'link': '/reviews/aizaibingchuan/2017/2017-10-31.md'
+            },
+            {
+              'text': '2017-11-1复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-1.md'
+            },
+            {
+              'text': '2017-11-2复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-2.md'
+            },
+            {
+              'text': '2017-11-3复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-3.md'
+            },
+            {
+              'text': '2017-11-6复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-6.md'
+            },
+            {
+              'text': '2017-11-7复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-7.md'
+            },
+            {
+              'text': '2017-11-8复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-8.md'
+            },
+            {
+              'text': '2017-11-9复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-9.md'
+            },
+            {
+              'text': '2017-11-10复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-10.md'
+            },
+            {
+              'text': '2017-11-11复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-11.md'
+            },
+            {
+              'text': '2017-11-13复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-13.md'
+            },
+            {
+              'text': '2017-11-14复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-14.md'
+            },
+            {
+              'text': '2017-11-15复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-15.md'
+            },
+            {
+              'text': '2017-11-16复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-16.md'
+            },
+            {
+              'text': '2017-11-17复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-17.md'
+            },
+            {
+              'text': '2017-11-18复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-18.md'
+            },
+            {
+              'text': '2017-11-20复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-20.md'
+            },
+            {
+              'text': '2017-11-21复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-21.md'
+            },
+            {
+              'text': '2017-11-22复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-22.md'
+            },
+            {
+              'text': '2017-11-23复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-23.md'
+            },
+            {
+              'text': '2017-11-24复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-24.md'
+            },
+            {
+              'text': '2017-11-25复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-25.md'
+            },
+            {
+              'text': '2017-11-27复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-27.md'
+            },
+            {
+              'text': '2017-11-28复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-28.md'
+            },
+            {
+              'text': '2017-11-29复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-29.md'
+            },
+            {
+              'text': '2017-11-30复盘',
+              'link': '/reviews/aizaibingchuan/2017/2017-11-30.md'
             }
           ]
         },
