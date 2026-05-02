@@ -48,6 +48,10 @@ export default {
           'collapsed': true,
           'items': [
             {
+              'text': '逼空行情中的操作攻略，请收好。',
+              'link': '/reviews/aizaibingchuan/strategies/bi-kong-hang-qing-zhong-de-cao-zuo-gong-lue-qing-shou-hao.md'
+            },
+            {
               'text': '凭大智行大勇---大智大勇战法',
               'link': '/reviews/aizaibingchuan/strategies/da-zhi-da-yong-zhan-fa.md'
             },
@@ -74,6 +78,10 @@ export default {
             {
               'text': '术系列2------尾盘买股技术指标之揉搓线',
               'link': '/reviews/aizaibingchuan/strategies/shu-2-rou-cuo-xian.md'
+            },
+            {
+              'text': '我不做长线，以及那个春天。',
+              'link': '/reviews/aizaibingchuan/strategies/wo-bu-zuo-chang-xian-yi-ji-na-ge-chun-tian.md'
             },
             {
               'text': '一个逻辑挖掘方法分享',
@@ -830,6 +838,106 @@ export default {
             {
               'text': '2018-2-28复盘',
               'link': '/reviews/aizaibingchuan/2018/2018-2-28.md'
+            },
+            {
+              'text': '2018-3-1复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-1.md'
+            },
+            {
+              'text': '2018-3-5复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-5.md'
+            },
+            {
+              'text': '2018-3-6复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-6.md'
+            },
+            {
+              'text': '2018-3-7复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-7.md'
+            },
+            {
+              'text': '2018-3-8复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-8.md'
+            },
+            {
+              'text': '2018-3-9复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-9.md'
+            },
+            {
+              'text': '2018-3-10复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-10.md'
+            },
+            {
+              'text': '2018-3-12复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-12.md'
+            },
+            {
+              'text': '2018-3-13复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-13.md'
+            },
+            {
+              'text': '2018-3-14复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-14.md'
+            },
+            {
+              'text': '2018-3-15复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-15.md'
+            },
+            {
+              'text': '2018-3-16复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-16.md'
+            },
+            {
+              'text': '2018-3-17复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-17.md'
+            },
+            {
+              'text': '2018-3-19复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-19.md'
+            },
+            {
+              'text': '2018-3-20复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-20.md'
+            },
+            {
+              'text': '2018-3-21复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-21.md'
+            },
+            {
+              'text': '2018-3-22复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-22.md'
+            },
+            {
+              'text': '2018-3-23复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-23.md'
+            },
+            {
+              'text': '2018-3-24复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-24.md'
+            },
+            {
+              'text': '2018-3-26复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-26.md'
+            },
+            {
+              'text': '2018-3-27复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-27.md'
+            },
+            {
+              'text': '2018-3-28复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-28.md'
+            },
+            {
+              'text': '2018-3-29复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-29.md'
+            },
+            {
+              'text': '2018-3-30复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-30.md'
+            },
+            {
+              'text': '2018-3-31复盘',
+              'link': '/reviews/aizaibingchuan/2018/2018-3-31.md'
             }
           ]
         },

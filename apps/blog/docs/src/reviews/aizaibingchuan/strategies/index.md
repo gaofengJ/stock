@@ -13,3 +13,5 @@ order: 10
 - [术系列2------尾盘买股技术指标之揉搓线](./shu-2-rou-cuo-xian.md)
 - [凭大智行大勇---大智大勇战法](./da-zhi-da-yong-zhan-fa.md)
 - [一个逻辑挖掘方法分享](./yi-ge-luo-ji-wa-jue-fang-fa-fen-xiang.md)
+- [我不做长线，以及那个春天。](./wo-bu-zuo-chang-xian-yi-ji-na-ge-chun-tian.md)
+- [逼空行情中的操作攻略，请收好。](./bi-kong-hang-qing-zhong-de-cao-zuo-gong-lue-qing-shou-hao.md)
