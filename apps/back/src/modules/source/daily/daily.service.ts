@@ -296,12 +296,97 @@ export class DailyService {
     return result;
   }
 
+  /**
+   * 策略：连续缺口
+   * @param dates [date3(最新), date2, date1(最早)]
+   */
+  async findContinuousGap(dates: string[]): Promise<DailyEntity[]> {
+    const [date3, date2, date1] = dates;
+    const map = await this.getDailyDataByDates(dates);
+    const result: DailyEntity[] = [];
+
+    map.forEach((dailyMap) => {
+      const d1 = dailyMap[date1];
+      const d2 = dailyMap[date2];
+      const d3 = dailyMap[date3];
+
+      if (!d1 || !d2 || !d3) return;
+
+      // 排除 ST、N、C，避免特殊标的干扰策略结果
+      if (/ST|N|C/.test(d1.name)) return;
+
+      if (
+        +d2.low > +d1.high && // 昨天最低价高于前天最高价，形成第一个向上缺口
+        +d3.low > +d2.high // 今天最低价高于昨天最高价，形成第二个向上缺口
+      ) {
+        // 返回今天的数据，便于策略页直接展示最新交易日结果
+        result.push(d3);
+      }
+    });
+
+    return result;
+  }
+
+  /**
+   * 策略：上影反包
+   * @param dates [date3(最新), date2, date1(最早)]
+   */
+  async findShadowWrap(dates: string[]): Promise<DailyEntity[]> {
+    const [date3, date2, date1] = dates;
+    const map = await this.getDailyDataByDates(dates);
+    const result: DailyEntity[] = [];
+
+    map.forEach((dailyMap) => {
+      const d1 = dailyMap[date1];
+      const d2 = dailyMap[date2];
+      const d3 = dailyMap[date3];
+
+      if (!d1 || !d2 || !d3) return;
+
+      // 排除 ST、N、C，避免特殊标的干扰策略结果
+      if (/ST|N|C/.test(d1.name)) return;
+
+      // d2 为第一天长上影，实体上沿取开盘价和收盘价中的较高者
+      const bodyHigh = Math.max(+d2.open, +d2.close);
+      const upperShadowPct = ((+d2.high - bodyHigh) / +d2.preClose) * 100;
+
+      if (
+        +d2.low > +d1.high && // 第一天形成向上跳空缺口，且当日未回补
+        upperShadowPct > 3 && // 第一天上影线点数大于 3%
+        +d3.close > +d2.high // 第二天收盘价必须高于第一天最高价
+      ) {
+        // 返回第二日数据，便于策略页直接展示最新交易日结果
+        result.push(d3);
+      }
+    });
+
+    return result;
+  }
+
   private async getDailyDataByDates(dates: string[]) {
     const list = await this.DailyRepository.find({
       where: {
         tradeDate: In(dates),
       },
-      // select: ['tsCode', 'tradeDate', 'name', 'open', 'close', 'high', 'low', 'upLimit', 'turnoverRateF', 'volumeRatio'],
+      // Strategy screening only needs a subset of columns. Restricting the
+      // projection avoids fetching the whole wide row set across the network.
+      select: [
+        'tsCode',
+        'tradeDate',
+        'name',
+        'open',
+        'close',
+        'high',
+        'low',
+        'preClose',
+        'amount',
+        'upLimit',
+        'turnoverRateF',
+        'volumeRatio',
+        'peTtm',
+        'totalMv',
+        'circMv',
+      ],
     });
 
     const map = new Map<string, Record<string, DailyEntity>>();

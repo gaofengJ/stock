@@ -96,6 +96,44 @@ export class StrategyService {
   }
 
   /**
+   * 策略选股结果列表-连续缺口
+   */
+  async continuousGap(date: CommonDateDto['date']) {
+    const isOpen = await this.tradeCalService.isOpen(date);
+    if (!isOpen) {
+      this.logger.log(`${date}非交易日，请重新选择交易日期`);
+      throw new BizException(ECustomError.NON_TRADING_DAY);
+    }
+    // 获取过去的三个交易日，依次对应今天、昨天、前天
+    const last3Days = await this.tradeCalService.getLastNDays({
+      date,
+      n: 3,
+    });
+
+    const dates = last3Days.map((i) => i.calDate);
+    return this.dailyService.findContinuousGap(dates);
+  }
+
+  /**
+   * 策略选股结果列表-上影反包
+   */
+  async shadowWrap(date: CommonDateDto['date']) {
+    const isOpen = await this.tradeCalService.isOpen(date);
+    if (!isOpen) {
+      this.logger.log(`${date}非交易日，请重新选择交易日期`);
+      throw new BizException(ECustomError.NON_TRADING_DAY);
+    }
+    // 获取过去的三个交易日，依次对应第二天、第一天、基准日
+    const last3Days = await this.tradeCalService.getLastNDays({
+      date,
+      n: 3,
+    });
+
+    const dates = last3Days.map((i) => i.calDate);
+    return this.dailyService.findShadowWrap(dates);
+  }
+
+  /**
    * 策略名称列表
    */
   async navList() {
@@ -115,6 +153,14 @@ export class StrategyService {
       {
         label: '连续三日放量且量能不萎缩',
         key: EStrategyType.threeDaysHighVol,
+      },
+      {
+        label: '连续缺口',
+        key: EStrategyType.continuousGap,
+      },
+      {
+        label: '上影反包',
+        key: EStrategyType.shadowWrap,
       },
     ];
     return ret;
@@ -138,6 +184,12 @@ export class StrategyService {
         break;
       case EStrategyType.threeDaysHighVol:
         ret = await this.threeDaysHighVol(date);
+        break;
+      case EStrategyType.continuousGap:
+        ret = await this.continuousGap(date);
+        break;
+      case EStrategyType.shadowWrap:
+        ret = await this.shadowWrap(date);
         break;
       default:
         ret = [];

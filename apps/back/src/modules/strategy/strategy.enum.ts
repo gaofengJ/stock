@@ -18,4 +18,12 @@ export enum EStrategyType {
    * 连续三日放量且量能不萎缩
    */
   threeDaysHighVol = 'threeDaysHighVol',
+  /**
+   * 连续缺口
+   */
+  continuousGap = 'continuousGap',
+  /**
+   * 上影反包
+   */
+  shadowWrap = 'shadowWrap',
 }
