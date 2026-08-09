@@ -20,6 +20,16 @@ const getFileExtension = (fileName) => {
   return '';
 };
 
+const getAizaibingchuanSidebarText = (fileName, fallback) => {
+  const match = fileName.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:-[^.]+)?\.md$/);
+  if (!match) {
+    return fallback;
+  }
+
+  const [, year, month, day] = match;
+  return year + '-' + Number(month) + '-' + Number(day);
+};
+
 /**
  * @param {string} file
  */
@@ -32,7 +42,14 @@ const getInfoOfMarkdown = (file) => {
 
     let title = '';
     if (titleMatch && titleMatch[1]) {
-      title = titleMatch[1];
+      title = titleMatch[1].trim();
+      if (title.startsWith('"') && title.endsWith('"')) {
+        try {
+          title = JSON.parse(title);
+        } catch (e) {
+          title = title.slice(1, -1);
+        }
+      }
     } else {
       const h1Match = data.match(/^#\s+(.*)/m);
       if (h1Match && h1Match[1]) {
@@ -183,6 +200,17 @@ const getSideBarConfig = (dirs) => {
             .filter((f) => f !== 'index.md' && INCLUDE_FILE_TYPE.includes(getFileExtension(f)));
 
           subDirFiles.sort((a, b) => {
+            if (lastPathOfFistLevel === 'reviews' && secondLevelDir === 'aizaibingchuan') {
+              const filePathA = path.join(subDirPath, a);
+              const filePathB = path.join(subDirPath, b);
+              const infoA = getInfoOfMarkdown(filePathA);
+              const infoB = getInfoOfMarkdown(filePathB);
+              if (infoA.order !== 9999 || infoB.order !== 9999) {
+                const orderDiff = infoA.order - infoB.order;
+                if (orderDiff !== 0) return orderDiff;
+              }
+            }
+
             const dateA = a.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
             const dateB = b.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
             if (dateA && dateB) {
@@ -222,7 +250,11 @@ const getSideBarConfig = (dirs) => {
             const filePath = path.join(subDirPath, file);
             const { title } = getInfoOfMarkdown(filePath);
             subGroup.items.push({
-              text: title,
+              text: lastPathOfFistLevel === 'reviews'
+                && secondLevelDir === 'aizaibingchuan'
+                && /^\d{4}$/.test(subDir)
+                ? getAizaibingchuanSidebarText(file, title)
+                : title,
               link: `/${lastPathOfFistLevel}/${secondLevelDir}/${subDir}/${file}`,
             });
           });

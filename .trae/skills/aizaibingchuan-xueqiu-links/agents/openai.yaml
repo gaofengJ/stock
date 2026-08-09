@@ -1,0 +1,4 @@
+interface:
+  display_name: "爱在冰川雪球链接发现"
+  short_description: "按年份从雪球查找爱在冰川复盘文章候选链接"
+  default_prompt: "使用 $aizaibingchuan-xueqiu-links 查找爱在冰川 2018 年复盘链接。"

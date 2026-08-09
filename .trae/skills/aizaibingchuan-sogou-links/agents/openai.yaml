@@ -1,0 +1,4 @@
+interface:
+  display_name: "爱在冰川搜狗链接发现"
+  short_description: "按指定年份从搜狗微信发现并去重整理爱在冰川候选原文链接"
+  default_prompt: "Use $aizaibingchuan-sogou-links to discover 爱在冰川 2018 年的搜狗微信候选原文链接。"
