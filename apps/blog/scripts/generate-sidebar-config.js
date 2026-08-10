@@ -21,6 +21,12 @@ const getFileExtension = (fileName) => {
 };
 
 const getAizaibingchuanSidebarText = (fileName, fallback) => {
+  const titleDate = fallback.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:\s|数据|复盘|$)/);
+  if (titleDate) {
+    const [, year, month, day] = titleDate;
+    return year + '-' + Number(month) + '-' + Number(day);
+  }
+
   const match = fileName.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:-[^.]+)?\.md$/);
   if (!match) {
     return fallback;
@@ -39,6 +45,7 @@ const getInfoOfMarkdown = (file) => {
     const titleMatch = data.match(/title:\s*(.*)/);
     const collapsedMatch = data.match(/collapsed:\s*(.*)/);
     const orderMatch = data.match(/order:\s*(.*)/);
+    const sourceUrlMatch = data.match(/^source_url:\s*(.*)/m);
 
     let title = '';
     if (titleMatch && titleMatch[1]) {
@@ -61,10 +68,11 @@ const getInfoOfMarkdown = (file) => {
       title,
       collapsed: collapsedMatch ? !!collapsedMatch[1] : false,
       order: orderMatch ? parseFloat(orderMatch[1]) : 9999,
+      hasSourceUrl: !!sourceUrlMatch,
     };
   } catch (e) {
     console.log('Error reading markdown:', file, e);
-    return { title: '', collapsed: false, order: 9999 };
+    return { title: '', collapsed: false, order: 9999, hasSourceUrl: false };
   }
 };
 
@@ -246,18 +254,59 @@ const getSideBarConfig = (dirs) => {
             }
           }
 
+          const aizaibingchuanItems = new Map();
           subDirFiles.forEach((file) => {
             const filePath = path.join(subDirPath, file);
-            const { title } = getInfoOfMarkdown(filePath);
-            subGroup.items.push({
+            const { title, hasSourceUrl, order } = getInfoOfMarkdown(filePath);
+            const text = lastPathOfFistLevel === 'reviews'
+              && secondLevelDir === 'aizaibingchuan'
+              && /^\d{4}$/.test(subDir)
+              ? getAizaibingchuanSidebarText(file, title)
+              : title;
+            const item = {
               text: lastPathOfFistLevel === 'reviews'
                 && secondLevelDir === 'aizaibingchuan'
                 && /^\d{4}$/.test(subDir)
-                ? getAizaibingchuanSidebarText(file, title)
+                ? text
                 : title,
               link: `/${lastPathOfFistLevel}/${secondLevelDir}/${subDir}/${file}`,
-            });
+            };
+            const isAizaibingchuanYear = lastPathOfFistLevel === 'reviews'
+              && secondLevelDir === 'aizaibingchuan'
+              && /^\d{4}$/.test(subDir);
+            if (!isAizaibingchuanYear) {
+              subGroup.items.push(item);
+              return;
+            }
+            aizaibingchuanItems.set(text, [
+              ...(aizaibingchuanItems.get(text) || []),
+              { ...item, hasSourceUrl, order },
+            ]);
           });
+
+          if (lastPathOfFistLevel === 'reviews'
+            && secondLevelDir === 'aizaibingchuan'
+            && /^\d{4}$/.test(subDir)) {
+            aizaibingchuanItems.forEach((items, text) => {
+              items.sort((a, b) => {
+                if (a.hasSourceUrl !== b.hasSourceUrl) return a.hasSourceUrl ? -1 : 1;
+                return a.order - b.order;
+              });
+              const usedTexts = new Set([text]);
+              items.forEach(({ hasSourceUrl, order, ...item }, index) => {
+                if (index > 0) {
+                  const time = String(Math.floor(order) % 10_000).padStart(4, '0');
+                  let suffix = time === '0000' ? (hasSourceUrl ? 'source' : 'legacy') : time;
+                  let candidate = `${text}-${suffix}`;
+                  let serial = 2;
+                  while (usedTexts.has(candidate)) candidate = `${text}-${suffix}-${serial++}`;
+                  usedTexts.add(candidate);
+                  item.text = candidate;
+                }
+                subGroup.items.push(item);
+              });
+            });
+          }
 
           configValueItem.items.push(subGroup);
         });

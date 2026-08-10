@@ -8,7 +8,8 @@
     "gen-config": "node ./scripts/generate-config",
     "import:aizaibingchuan-pdf": "python3 ./scripts/import-aizaibingchuan-pdf.py",
     "optimize:aizaibingchuan-images": "node ./scripts/optimize-aizaibingchuan-images.mjs",
-    "dev": "pnpm run gen-config && vitepress dev docs --port 8082",
+    "prepare:pagefind": "pnpm run build && node ./scripts/copy-pagefind-for-dev.mjs",
+    "dev": "pnpm run prepare:pagefind && vitepress dev docs --port 8082",
     "build": "pnpm run gen-config && vitepress build docs && pagefind --site docs/.vitepress/dist --root-selector .vp-doc",
     "preview": "vitepress preview docs"
   },

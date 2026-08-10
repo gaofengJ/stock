@@ -30,11 +30,12 @@ const option = (name, fallback) => {
 const inputPath = option('--input');
 const refresh = args.includes('--refresh');
 const dryRun = args.includes('--dry-run');
+const reconcileLegacy = args.includes('--reconcile-legacy');
 const limit = Number(option('--limit', '0'));
 const concurrency = Math.max(1, Math.min(4, Number(option('--concurrency', '2'))));
 const delayMs = Math.max(0, Number(option('--delay-ms', '250')));
 
-if (!inputPath) throw new Error('Usage: pnpm run import:aizaibingchuan -- --input <links.jsonl> [--refresh]');
+if (!inputPath && !reconcileLegacy) throw new Error('Usage: pnpm run import:aizaibingchuan -- --input <links.jsonl> [--refresh]');
 if (!Number.isInteger(limit) || limit < 0) throw new Error('--limit must be a non-negative integer.');
 if (!Number.isInteger(concurrency) || concurrency < 1) throw new Error('--concurrency must be a positive integer.');
 
@@ -305,6 +306,110 @@ function articleTarget(record, publishedAt, existing) {
   return path.join(reviewRoot, String(year), `${year}-${month}-${day}-${timeKey}-${canonicalId(record)}.md`);
 }
 
+function frontmatterValue(source, field) {
+  const value = new RegExp(`^${field}:\\s*(.*)$`, 'm').exec(source)?.[1]?.trim();
+  if (!value) return '';
+  try { return JSON.parse(value); } catch { return value.replace(/^['"]|['"]$/g, ''); }
+}
+
+function titleDateKey(title) {
+  const match = /^(20\d{2})-(\d{1,2})-(\d{1,2})(?:\s|数据|复盘|$)/.exec(title);
+  return match ? `${match[1]}/${match[1]}-${Number(match[2])}-${Number(match[3])}` : '';
+}
+
+function daysBetween(left, right) {
+  const leftDate = new Date(`${left}T00:00:00Z`);
+  const rightDate = new Date(`${right}T00:00:00Z`);
+  return Math.abs((leftDate - rightDate) / 86_400_000);
+}
+
+function normalizeArticleText(source) {
+  return source
+    .replace(/^---[\s\S]*?---/, '')
+    .replace(/^#[\s\S]*?## 原文内容/m, '')
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+    .replace(/\[[^\]]*\]\([^)]*\)/g, '')
+    .replace(/[^\p{L}\p{N}]/gu, '');
+}
+
+function bodyMatchScore(candidate, legacy) {
+  const start = Math.min(160, Math.floor(candidate.length / 4));
+  let score = 0;
+  for (let index = start; index + 48 <= candidate.length; index += 90) {
+    if (legacy.includes(candidate.slice(index, index + 48))) score += 1;
+  }
+  return score;
+}
+
+async function reconcileLegacyArticles() {
+  const files = await listMarkdown(reviewRoot);
+  const legacy = new Map();
+  const imported = [];
+  for (const file of files) {
+    if (file.includes(`${path.sep}reports${path.sep}`) || file.includes(`${path.sep}strategies${path.sep}`)) continue;
+    const source = await readFile(file, 'utf8');
+    const relative = path.relative(reviewRoot, file).split(path.sep).join('/');
+    const basename = path.basename(file);
+    const sourceUrl = frontmatterValue(source, 'source_url');
+    if (/^20\d{2}-\d{1,2}-\d{1,2}\.md$/.test(basename) && !sourceUrl) {
+      legacy.set(relative.replace(/\.md$/, ''), file);
+      continue;
+    }
+    const title = frontmatterValue(source, 'title');
+    const publishedAt = frontmatterValue(source, 'published_at');
+    if (!sourceUrl || !publishedAt) continue;
+    imported.push({ file, sourceUrl, title, publishedAt, body: normalizeArticleText(source) });
+  }
+
+  const replacements = [];
+  const ambiguous = [];
+  const usedCandidates = new Set();
+  for (const [key, legacyFile] of legacy) {
+    const targetDate = key.replace(/^\d{4}\//, '').replace(/-(\d+)-(\d+)$/, (_, month, day) => `-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`);
+    const legacyBody = normalizeArticleText(await readFile(legacyFile, 'utf8'));
+    const candidates = imported
+      .filter((article) => !usedCandidates.has(article.file)
+        && article.publishedAt.slice(0, 4) === key.slice(0, 4)
+        && daysBetween(targetDate, article.publishedAt.slice(0, 10)) <= 2)
+      .map((article) => ({ ...article, score: bodyMatchScore(article.body, legacyBody) }))
+      .filter((article) => article.score >= 2)
+      .sort((left, right) => right.score - left.score);
+    if (!candidates.length) continue;
+    if (candidates.length === 1 || candidates[0].score > candidates[1].score) {
+      usedCandidates.add(candidates[0].file);
+      replacements.push({ key, legacyFile, ...candidates[0] });
+    } else {
+      ambiguous.push({ key, count: candidates.length, titles: candidates.map((article) => article.title) });
+    }
+  }
+
+  if (!dryRun) {
+    for (const item of replacements) {
+      const backup = `${item.legacyFile}.legacy-backup`;
+      await rename(item.legacyFile, backup);
+      try {
+        await rename(item.file, item.legacyFile);
+      } catch (error) {
+        await rename(backup, item.legacyFile);
+        throw error;
+      }
+      await rm(backup, { force: true });
+    }
+    await rebuildIndex();
+    await mkdir(reportRoot, { recursive: true });
+    await writeFile(path.join(reportRoot, 'legacy-reconciliation.md'), [
+      '---', 'title: 历史日期文件去重报告', '---', '',
+      `- 正文锚点原位替换：${replacements.length}`,
+      `- 存在歧义、未处理：${ambiguous.length}`,
+      '', '## 原位替换', '',
+      ...replacements.map((item) => `- ${item.key}：${item.title}（${item.sourceUrl}）`),
+      '', '## 存在歧义、未处理', '',
+      ...ambiguous.map((item) => `- ${item.key}：${item.count} 篇候选`), '',
+    ].join('\n'));
+  }
+  return { replacements, ambiguous };
+}
+
 async function importOne(record, documents, state) {
   const sourceUrl = normalizeUrl(record.source_url);
   const recordHash = hash(JSON.stringify(record));
@@ -362,6 +467,11 @@ async function rebuildIndex() {
 }
 
 async function main() {
+  if (reconcileLegacy) {
+    const result = await reconcileLegacyArticles();
+    console.log(JSON.stringify({ dryRun, replaced: result.replacements.length, ambiguous: result.ambiguous.length }, null, 2));
+    return;
+  }
   const contents = await readFile(inputPath, 'utf8');
   const seen = new Set();
   const records = contents.split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))

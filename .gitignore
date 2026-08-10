@@ -4,6 +4,7 @@
 cache
 /apps/blog/.cache/
 dist
+apps/blog/docs/public/pagefind/
 node_modules
 build
 
