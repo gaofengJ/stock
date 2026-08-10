@@ -83,5 +83,6 @@ out
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+__pycache__/
 
 # --- front end ---
