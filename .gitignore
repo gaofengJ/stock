@@ -2,6 +2,7 @@
 
 # compiled output
 cache
+/apps/blog/.cache/
 dist
 node_modules
 build

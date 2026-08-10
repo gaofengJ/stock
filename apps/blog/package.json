@@ -4,6 +4,7 @@
   "description": "木风同学的股票博客，记录股票市场那些事",
   "main": "index.js",
   "scripts": {
+    "import:aizaibingchuan": "node ./scripts/import-aizaibingchuan.mjs",
     "gen-config": "node ./scripts/generate-config",
     "import:aizaibingchuan-pdf": "python3 ./scripts/import-aizaibingchuan-pdf.py",
     "optimize:aizaibingchuan-images": "node ./scripts/optimize-aizaibingchuan-images.mjs",
