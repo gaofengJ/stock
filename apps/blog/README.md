@@ -15,6 +15,14 @@ pnpm run docs:dev
 
 默认端口为 `5173`。主应用 (`apps/front`) 在开发模式下配置为点击菜单时打开 `http://localhost:5173`。
 
+Pagefind 搜索需要在首次启动或文章内容更新后执行一次：
+
+```bash
+pnpm run prepare:pagefind
+```
+
+该命令会生成本地索引，随后 `pnpm run dev` 的导航栏会显示“搜索”入口。
+
 ## 部署
 
 在生产环境中，该应用应构建为静态文件，并放置在主应用的 `/blog` 子路径下。

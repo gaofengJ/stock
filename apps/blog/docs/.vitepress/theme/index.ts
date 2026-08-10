@@ -4,7 +4,7 @@ import { defineComponent, h, onMounted } from 'vue';
 import './style/var.css';
 
 const PAGEFIND_BASE = '/blog-frame/pagefind/';
-const PAGEFIND_ENABLED = import.meta.env.PROD;
+const PAGEFIND_ENABLED = true;
 
 const PagefindSearch = defineComponent({
   name: 'PagefindSearch',
