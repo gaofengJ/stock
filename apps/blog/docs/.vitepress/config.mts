@@ -10,6 +10,8 @@ export default defineConfig({
   description: "木风同学的股票博客",
   head: [
     ['link', { rel: 'icon', href: '/icon/favicon.svg' }],
+    ['link', { rel: 'stylesheet', href: '/blog-frame/pagefind/pagefind-component-ui.css' }],
+    ['script', { src: '/blog-frame/pagefind/pagefind-component-ui.js', type: 'module' }],
   ],
   srcDir: './src',
   lastUpdated: true,
@@ -17,9 +19,6 @@ export default defineConfig({
     logo: '/imgs/fengye.png',
     nav: navConfig,
     sidebar: sidebarConfig,
-    search: {
-      provider: 'local',
-    },
     socialLinks: [],
     outline: {
       level: 2,

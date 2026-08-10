@@ -21,7 +21,7 @@ from pypdf import PdfReader
 
 BLOG_ROOT = Path(__file__).resolve().parent.parent
 REVIEW_ROOT = BLOG_ROOT / "docs/src/reviews/aizaibingchuan"
-PUBLIC_ROOT = BLOG_ROOT / "docs/src/public/imgs/aizaibingchuan/pdf"
+PUBLIC_ROOT = BLOG_ROOT / "docs/src/public/imgs/aizaibingchuan"
 INDEX_FILE = REVIEW_ROOT / "index.md"
 REPORT_ROOT = REVIEW_ROOT / "reports"
 HEADER_RE = re.compile(r"^爱在冰川\s+(20\d{2})-(\d{2})-(\d{2})$")
@@ -177,7 +177,7 @@ def article_images(
                 target = folder / filename
                 if not target.exists():
                     target.write_bytes(payload)
-            results.append((page_number, f"/imgs/aizaibingchuan/pdf/{article.year}/{filename}"))
+            results.append((page_number, f"/imgs/aizaibingchuan/{article.year}/{filename}"))
     return results
 
 

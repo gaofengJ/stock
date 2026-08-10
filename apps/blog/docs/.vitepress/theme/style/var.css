@@ -145,6 +145,10 @@ html.embedded.dark .VPSidebar {
     padding-left: 0 !important;
     padding-right: 32px !important;
   }
+
+  .pagefind-search-trigger {
+    margin-left: 8px;
+  }
 }
 
 /* 优化表格显示：增加列宽，防止内容过度换行 */
