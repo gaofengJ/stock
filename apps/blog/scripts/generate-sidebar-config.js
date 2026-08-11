@@ -5,6 +5,11 @@ const EXCLUDED_FOLDERS = ['public'];
 const INCLUDE_FILE_TYPE = ['md'];
 const targetPath = path.join(__dirname, '../docs/src');
 const outputPath = path.join(targetPath, 'sidebar-config.mts');
+// These files are dynamically imported by the theme. This gives every year
+// its own JS chunk instead of adding all review entries to VitePress site data.
+const archiveOutputDir = path.join(__dirname, '../docs/.vitepress/theme/aizaibingchuan-sidebar');
+const legacyArchiveOutputDir = path.join(targetPath, 'public/data/aizaibingchuan-sidebar');
+const legacyPublicArchiveOutputDir = path.join(__dirname, '../docs/public/data/aizaibingchuan-sidebar');
 
 console.log('Target Path:', targetPath);
 console.log('Output Path:', outputPath);
@@ -90,6 +95,14 @@ const writeFile = async (config) => {
   }
 };
 
+const writeAizaibingchuanArchive = (years) => {
+  fs.mkdirSync(archiveOutputDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(archiveOutputDir, 'index.json'),
+    JSON.stringify({ years }, null, 2),
+  );
+};
+
 const getDirsPath = () => {
   try {
     const ret = [];
@@ -121,6 +134,7 @@ const getSideBarConfig = (dirs) => {
   // eslint-disable-next-line no-useless-escape
   const regex = /[\\\/]([^\\\/]+)$/;
   const config = {};
+  const aizaibingchuanYears = [];
   for (let i = 0; i < dirs.length; i++) {
     const dir = dirs[i];
     const match = dir.match(regex);
@@ -306,6 +320,15 @@ const getSideBarConfig = (dirs) => {
                 subGroup.items.push(item);
               });
             });
+
+            const archivePath = path.join(archiveOutputDir, `${subDir}.json`);
+            fs.mkdirSync(archiveOutputDir, { recursive: true });
+            fs.writeFileSync(
+              archivePath,
+              JSON.stringify({ year: subDir, items: subGroup.items }, null, 2),
+            );
+            aizaibingchuanYears.push({ year: subDir, text: subGroup.text });
+            return;
           }
 
           configValueItem.items.push(subGroup);
@@ -316,11 +339,15 @@ const getSideBarConfig = (dirs) => {
     }
     config[`/${lastPathOfFistLevel}/`] = configValue;
   }
+  writeAizaibingchuanArchive(aizaibingchuanYears);
   return config;
 };
 
 const generateSideBarConfig = () => {
   console.log('Starting generation...');
+  fs.rmSync(archiveOutputDir, { recursive: true, force: true });
+  fs.rmSync(legacyArchiveOutputDir, { recursive: true, force: true });
+  fs.rmSync(legacyPublicArchiveOutputDir, { recursive: true, force: true });
   const dirs = getDirsPath();
   console.log('Dirs found:', dirs.length);
   const sidebarConfig = getSideBarConfig(dirs);

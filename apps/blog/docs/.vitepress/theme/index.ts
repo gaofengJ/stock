@@ -1,6 +1,7 @@
 import DefaultTheme from 'vitepress/theme';
 import { inBrowser } from 'vitepress';
 import { defineComponent, h, onMounted } from 'vue';
+import AizaibingchuanArchive from './components/AizaibingchuanArchive';
 import './style/var.css';
 
 const PAGEFIND_BASE = '/blog-frame/pagefind/';
@@ -30,6 +31,7 @@ export default {
   ...DefaultTheme,
   Layout: () => h(DefaultTheme.Layout, null, {
     'nav-bar-content-after': () => h(PagefindSearch),
+    'sidebar-nav-after': () => h(AizaibingchuanArchive),
   }),
   setup() {
     // 检查是否在浏览器环境中

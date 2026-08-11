@@ -132,6 +132,48 @@ html.embedded.dark .VPSidebar {
   background-color: var(--vp-c-bg) !important;
 }
 
+.aizaibingchuan-archive {
+  padding: 0 16px 24px;
+}
+
+.aizaibingchuan-archive-years {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.aizaibingchuan-archive-years button {
+  padding: 3px 7px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 4px;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-2);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.aizaibingchuan-archive-years button.active {
+  border-color: var(--vp-c-brand-1);
+  color: var(--vp-c-brand-1);
+}
+
+.aizaibingchuan-archive-items {
+  display: grid;
+}
+
+.aizaibingchuan-archive-items a {
+  padding: 4px 0;
+  color: var(--vp-c-text-2);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.aizaibingchuan-archive-items a:hover,
+.aizaibingchuan-archive-items a.active {
+  color: var(--vp-c-brand-1);
+}
+
 /* 顶部菜单居中及间距调整 */
 @media (min-width: 960px) {
   /* 让导航菜单占据剩余空间并居中 */
