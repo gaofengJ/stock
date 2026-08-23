@@ -7,7 +7,9 @@ type ArchiveItem = {
 };
 
 type ArchiveIndex = {
+  highlights: ArchiveItem[];
   years: Array<{ year: string; text: string }>;
+  strategies: ArchiveItem[];
 };
 
 type ArchiveYear = {
@@ -37,8 +39,8 @@ export default defineComponent({
   setup() {
     const { page } = useData();
     const index = ref<ArchiveIndex>();
-    const items = ref<ArchiveItem[]>([]);
-    const selectedYear = ref<string>();
+    const yearItems = ref<Record<string, ArchiveItem[]>>({});
+    const expandedMenu = ref<string>();
 
     const currentYear = computed(() => (
       page.value.relativePath.match(/^reviews\/aizaibingchuan\/(\d{4})\//)?.[1]
@@ -57,37 +59,81 @@ export default defineComponent({
     const loadYear = async (year?: string) => {
       if (!year) return;
       await loadIndex();
+      if (yearItems.value[year]) return;
       const archive = await loadArchive<ArchiveYear>(year);
       if (!archive) return;
-      selectedYear.value = year;
-      items.value = [...archive.items].sort((left, right) => archiveDate(right.link) - archiveDate(left.link));
+      yearItems.value = {
+        ...yearItems.value,
+        [year]: [...archive.items].sort((left, right) => archiveDate(right.link) - archiveDate(left.link)),
+      };
     };
 
     const loadArchiveForPage = async () => {
       if (!isArchiveSection.value) return;
       const archiveIndex = await loadIndex();
-      const defaultYear = currentYear.value || archiveIndex?.years.at(-1)?.year;
+      if (!archiveIndex) return;
+      const relativePath = page.value.relativePath;
+      if (/^reviews\/aizaibingchuan\/review-summary-\d{4}\.md$/.test(relativePath)) {
+        expandedMenu.value = 'highlights';
+        return;
+      }
+      if (relativePath.startsWith('reviews/aizaibingchuan/strategies/')) {
+        expandedMenu.value = 'strategies';
+        return;
+      }
+      const defaultYear = currentYear.value || archiveIndex.years.at(-1)?.year;
+      expandedMenu.value = defaultYear;
       await loadYear(defaultYear);
+    };
+
+    const toggleMenu = async (menu: string) => {
+      if (expandedMenu.value === menu) {
+        expandedMenu.value = undefined;
+        return;
+      }
+      expandedMenu.value = menu;
+      if (/^\d{4}$/.test(menu)) await loadYear(menu);
+    };
+
+    const isActiveLink = (link: string) => (
+      cleanLink(link).replace(/^\//, '') === page.value.relativePath.replace(/\.md$/, '')
+    );
+
+    const renderItems = (items: ArchiveItem[]) => h(
+      'div',
+      { class: 'aizaibingchuan-menu-items' },
+      items.map((item) => h('a', {
+        class: { active: isActiveLink(item.link) },
+        href: withBase(cleanLink(item.link)),
+      }, item.text)),
+    );
+
+    const renderMenu = (menu: string, label: string, items: ArchiveItem[]) => {
+      const expanded = expandedMenu.value === menu;
+      return h('section', { class: 'aizaibingchuan-menu-group' }, [
+        h('button', {
+          class: { 'aizaibingchuan-menu-button': true, active: expanded },
+          type: 'button',
+          'aria-expanded': expanded,
+          onClick: () => toggleMenu(menu),
+        }, [
+          h('span', label),
+          h('span', { class: 'aizaibingchuan-menu-chevron', 'aria-hidden': 'true' }),
+        ]),
+        expanded ? renderItems(items) : null,
+      ]);
     };
 
     onMounted(loadArchiveForPage);
     watch(() => page.value.relativePath, loadArchiveForPage);
 
     return () => {
-      if (!isArchiveSection.value || !index.value || !selectedYear.value) return null;
+      if (!isArchiveSection.value || !index.value) return null;
 
       return h('section', { class: 'aizaibingchuan-archive' }, [
-        h('div', { class: 'aizaibingchuan-archive-years', role: 'tablist', 'aria-label': '复盘年份' }, index.value.years.map(({ year, text }) => h('button', {
-          class: { active: year === selectedYear.value },
-          type: 'button',
-          role: 'tab',
-          'aria-selected': year === selectedYear.value,
-          onClick: () => loadYear(year),
-        }, text))),
-        h('div', { class: 'aizaibingchuan-archive-items' }, items.value.map((item) => h('a', {
-          class: { active: page.value.relativePath === `${cleanLink(item.link).replace(/^\//, '')}.md` },
-          href: withBase(cleanLink(item.link)),
-        }, item.text))),
+        renderMenu('highlights', '年度精华', index.value.highlights),
+        ...index.value.years.map(({ year }) => renderMenu(year, year, yearItems.value[year] || [])),
+        renderMenu('strategies', '交易战法', index.value.strategies),
       ]);
     };
   },

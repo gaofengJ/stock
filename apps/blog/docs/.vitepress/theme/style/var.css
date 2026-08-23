@@ -133,44 +133,63 @@ html.embedded.dark .VPSidebar {
 }
 
 .aizaibingchuan-archive {
-  padding: 0 16px 24px;
+  padding: 0 0 24px;
 }
 
-.aizaibingchuan-archive-years {
+.aizaibingchuan-menu-group + .aizaibingchuan-menu-group {
+  margin-top: 2px;
+}
+
+.aizaibingchuan-menu-button {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 12px 0;
-}
-
-.aizaibingchuan-archive-years button {
-  padding: 3px 7px;
-  border: 1px solid var(--vp-c-divider);
-  border-radius: 4px;
-  background: var(--vp-c-bg);
-  color: var(--vp-c-text-2);
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--vp-c-text-1);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 24px;
+  text-align: left;
 }
 
-.aizaibingchuan-archive-years button.active {
-  border-color: var(--vp-c-brand-1);
+.aizaibingchuan-menu-button:hover,
+.aizaibingchuan-menu-button.active {
   color: var(--vp-c-brand-1);
 }
 
-.aizaibingchuan-archive-items {
-  display: grid;
+.aizaibingchuan-menu-chevron {
+  width: 7px;
+  height: 7px;
+  margin-right: 4px;
+  border-right: 1.5px solid currentcolor;
+  border-bottom: 1.5px solid currentcolor;
+  transform: rotate(45deg);
+  transition: transform 0.2s;
 }
 
-.aizaibingchuan-archive-items a {
+.aizaibingchuan-menu-button:not(.active) .aizaibingchuan-menu-chevron {
+  transform: rotate(-45deg);
+}
+
+.aizaibingchuan-menu-items {
+  display: grid;
+  padding: 2px 16px 8px 28px;
+}
+
+.aizaibingchuan-menu-items a {
   padding: 4px 0;
   color: var(--vp-c-text-2);
   font-size: 13px;
+  line-height: 20px;
   text-decoration: none;
 }
 
-.aizaibingchuan-archive-items a:hover,
-.aizaibingchuan-archive-items a.active {
+.aizaibingchuan-menu-items a:hover,
+.aizaibingchuan-menu-items a.active {
   color: var(--vp-c-brand-1);
 }
 

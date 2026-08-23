@@ -26,19 +26,26 @@ const getFileExtension = (fileName) => {
   return '';
 };
 
-const getAizaibingchuanSidebarText = (fileName, fallback) => {
-  const titleDate = fallback.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:\s|数据|复盘|$)/);
-  if (titleDate) {
-    const [, year, month, day] = titleDate;
-    return year + '-' + Number(month) + '-' + Number(day);
-  }
-
+const getAizaibingchuanSidebarText = (fileName, title, expectedYear) => {
   const match = fileName.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:-[^.]+)?\.md$/);
   if (!match) {
-    return fallback;
+    throw new Error(`复盘文件名缺少标准日期，无法生成菜单：${fileName}`);
   }
 
   const [, year, month, day] = match;
+  if (year !== expectedYear) {
+    throw new Error(`复盘文件与年份目录不一致：${expectedYear}/${fileName}`);
+  }
+
+  const titleDate = title.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:\s|数据|复盘|$)/);
+  if (titleDate) {
+    const [, titleYear, titleMonth, titleDay] = titleDate;
+    if (titleYear !== expectedYear) {
+      throw new Error(`复盘标题与年份目录不一致：${expectedYear}/${fileName}（${title}）`);
+    }
+    return titleYear + '-' + Number(titleMonth) + '-' + Number(titleDay);
+  }
+
   return year + '-' + Number(month) + '-' + Number(day);
 };
 
@@ -96,11 +103,11 @@ const writeFile = async (config) => {
   }
 };
 
-const writeAizaibingchuanArchive = (years) => {
+const writeAizaibingchuanArchive = ({ highlights, years, strategies }) => {
   fs.mkdirSync(archiveOutputDir, { recursive: true });
   fs.writeFileSync(
     path.join(archiveOutputDir, 'index.json'),
-    JSON.stringify({ years }, null, 2),
+    JSON.stringify({ highlights, years, strategies }, null, 2),
   );
 };
 
@@ -136,6 +143,8 @@ const getSideBarConfig = (dirs) => {
   const regex = /[\\\/]([^\\\/]+)$/;
   const config = {};
   const aizaibingchuanYears = [];
+  const aizaibingchuanHighlights = [];
+  const aizaibingchuanStrategies = [];
   for (let i = 0; i < dirs.length; i++) {
     const dir = dirs[i];
     const match = dir.match(regex);
@@ -206,6 +215,15 @@ const getSideBarConfig = (dirs) => {
               text: fileTitleOfMd,
               link: `/${lastPathOfFistLevel}/${secondLevelDir}/${file}`,
             });
+            if (lastPathOfFistLevel === 'reviews' && secondLevelDir === 'aizaibingchuan') {
+              const highlightYear = file.match(/^review-summary-(\d{4})\.md$/)?.[1];
+              if (highlightYear) {
+                aizaibingchuanHighlights.push({
+                  text: highlightYear,
+                  link: `/${lastPathOfFistLevel}/${secondLevelDir}/${file}`,
+                });
+              }
+            }
           }
         }
 
@@ -279,7 +297,7 @@ const getSideBarConfig = (dirs) => {
             const text = lastPathOfFistLevel === 'reviews'
               && secondLevelDir === 'aizaibingchuan'
               && /^\d{4}$/.test(subDir)
-              ? getAizaibingchuanSidebarText(file, title)
+              ? getAizaibingchuanSidebarText(file, title, subDir)
               : title;
             const item = {
               text: lastPathOfFistLevel === 'reviews'
@@ -335,15 +353,33 @@ const getSideBarConfig = (dirs) => {
             return;
           }
 
+          if (lastPathOfFistLevel === 'reviews'
+            && secondLevelDir === 'aizaibingchuan'
+            && subDir === 'strategies') {
+            aizaibingchuanStrategies.push(...subGroup.items);
+          }
           configValueItem.items.push(subGroup);
         });
 
-        configValue.push(configValueItem);
+        if (!(lastPathOfFistLevel === 'reviews' && secondLevelDir === 'aizaibingchuan')) {
+          configValue.push(configValueItem);
+        }
       }
+    }
+    // VitePress only mounts sidebar slots when the route has a non-empty
+    // sidebar config. Keep an invisible placeholder for the custom archive.
+    if (lastPathOfFistLevel === 'reviews' && configValue.length === 0) {
+      configValue.push({ text: '', items: [] });
     }
     config[`/${lastPathOfFistLevel}/`] = configValue;
   }
-  writeAizaibingchuanArchive(aizaibingchuanYears);
+  aizaibingchuanHighlights.sort((a, b) => Number(a.text) - Number(b.text));
+  aizaibingchuanYears.sort((a, b) => Number(a.year) - Number(b.year));
+  writeAizaibingchuanArchive({
+    highlights: aizaibingchuanHighlights,
+    years: aizaibingchuanYears,
+    strategies: aizaibingchuanStrategies,
+  });
   return config;
 };
 
