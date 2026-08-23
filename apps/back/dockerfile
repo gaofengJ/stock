@@ -25,6 +25,7 @@ RUN pnpm install --filter back --prod --frozen-lockfile --ignore-scripts
 
 COPY --from=builder /usr/src/app/apps/back/dist ./apps/back/dist
 COPY --from=builder /usr/src/app/apps/back/public ./apps/back/public
+COPY apps/back/.env ./apps/back/.env
 COPY apps/back/.env.production ./apps/back/.env.production
 
 WORKDIR /usr/src/app/apps/back
