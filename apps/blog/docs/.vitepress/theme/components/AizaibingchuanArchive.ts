@@ -29,8 +29,8 @@ const loadArchive = async <T>(name: string) => {
 };
 
 const cleanLink = (link: string) => link.replace(/\.md$/, '');
-const archiveDate = (link: string) => {
-  const match = link.match(/\/(\d{4})-(\d{1,2})-(\d{1,2})(?:-|\.|$)/);
+const archiveDate = (text: string) => {
+  const match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:-|$)/);
   return match ? Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : 0;
 };
 
@@ -64,7 +64,7 @@ export default defineComponent({
       if (!archive) return;
       yearItems.value = {
         ...yearItems.value,
-        [year]: [...archive.items].sort((left, right) => archiveDate(right.link) - archiveDate(left.link)),
+        [year]: [...archive.items].sort((left, right) => archiveDate(left.text) - archiveDate(right.text)),
       };
     };
 
