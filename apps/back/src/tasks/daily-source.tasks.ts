@@ -15,7 +15,7 @@ export class DailySourceTask {
     private dailyTaskService: DailyTaskService,
   ) {}
 
-  @Cron('0 0 19 * * 1-5', {
+  @Cron('0 50 19 * * 1-5', {
     timeZone: 'Asia/Shanghai', // 指定时区为东八区
   })
   async handleCorn() {
