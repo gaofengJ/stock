@@ -1,22 +1,35 @@
-FROM node:18-alpine
+FROM node:18-alpine AS builder
 
-# 安装 pnpm
-RUN npm install -g pnpm
+RUN npm install -g pnpm@9.15.9
 
-# 设置工作目录
 WORKDIR /usr/src/app
 
-# 复制 monorepo 的所有文件到工作目录
-COPY . .
+# 依赖文件单独复制，避免业务代码变更导致依赖缓存失效。
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/back/package.json ./apps/back/package.json
+RUN pnpm install --filter back --frozen-lockfile
 
-# 安装 back 项目的依赖项
-RUN pnpm install --F back
+COPY apps/back ./apps/back
+RUN pnpm --filter back build
 
-# 构建 back 项目
-RUN pnpm run build:back
+FROM node:18-alpine AS production
 
-# 暴露应用的端口
+RUN npm install -g pnpm@9.15.9
+
+WORKDIR /usr/src/app
+
+# 运行镜像只安装后端生产依赖。
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/back/package.json ./apps/back/package.json
+RUN pnpm install --filter back --prod --frozen-lockfile --ignore-scripts
+
+COPY --from=builder /usr/src/app/apps/back/dist ./apps/back/dist
+COPY --from=builder /usr/src/app/apps/back/public ./apps/back/public
+COPY apps/back/.env.production ./apps/back/.env.production
+
+WORKDIR /usr/src/app/apps/back
+ENV NODE_ENV=production
+
 EXPOSE 3000
 
-# 启动应用
-CMD ["pnpm", "run", "start:back:prod"]
+CMD ["node", "dist/main"]
