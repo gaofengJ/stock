@@ -449,21 +449,7 @@ async function importOne(record, documents, state) {
 
 async function rebuildIndex() {
   const indexPath = path.join(reviewRoot, 'index.md');
-  const original = await readFile(indexPath, 'utf8');
-  const prefix = original.split(/\n- \[20\d{2}-/)[0].trimEnd();
-  const pages = [];
-  for (const file of await listMarkdown(reviewRoot)) {
-    if (file === indexPath || file.includes(`${path.sep}reports${path.sep}`) || file.includes(`${path.sep}strategies${path.sep}`)) continue;
-    const source = await readFile(file, 'utf8');
-    const frontmatter = /^---\n([\s\S]*?)\n---/m.exec(source)?.[1] || '';
-    const title = /^title:\s*["']?(.*?)["']?$/m.exec(frontmatter)?.[1] || path.basename(file, '.md');
-    const order = Number(/^order:\s*(\d+)/m.exec(frontmatter)?.[1] || '0');
-    const relative = path.relative(reviewRoot, file).replace(/\\/g, '/').replace(/\.md$/, '');
-    pages.push({ title, order, relative });
-  }
-  pages.sort((left, right) => right.order - left.order || left.relative.localeCompare(right.relative));
-  const links = pages.map((page) => `- [${page.title}](./${page.relative})`).join('\n');
-  await writeFile(indexPath, `${prefix}\n\n${links}\n`);
+  if (!await exists(indexPath)) throw new Error(`Missing archive landing page: ${indexPath}`);
 }
 
 async function main() {

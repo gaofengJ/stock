@@ -28,7 +28,6 @@ HEADER_RE = re.compile(r"^爱在冰川\s+(20\d{2})-(\d{2})-(\d{2})$")
 FOOTER_RE = re.compile(r"第\d+页.*版权属原作者所有.*全利兔")
 ARCHIVE_AD_RE = re.compile(r"^打开支付宝首页搜索")
 SOURCE_URL_RE = re.compile(r"^(?:source_url:\s*[\"']?|原文链接:\s*<)([^\"'>\n]+)", re.MULTILINE)
-INDEX_ENTRY_RE = re.compile(r"^- \[(20\d{2})-(\d{1,2})-(\d{1,2})复盘\]\(\./20\d{2}/[^)]+(?:\.md)?\)$")
 
 
 @dataclass
@@ -240,28 +239,15 @@ def document(article: Article, source: Path, url: str | None, images: list[tuple
     return "\n".join(frontmatter)
 
 
-def update_index(paths: list[Path]) -> int:
-    content = INDEX_FILE.read_text(encoding="utf-8")
-    lines = content.splitlines()
-    fixed_lines = [line for line in lines if not INDEX_ENTRY_RE.fullmatch(line)]
-    entries: list[tuple[tuple[int, int, int, int, str], str]] = []
+def update_index(_paths: list[Path]) -> int:
+    if not INDEX_FILE.is_file():
+        raise RuntimeError(f"Missing archive landing page: {INDEX_FILE}")
+    entries = 0
     for year_directory in REVIEW_ROOT.iterdir():
         if not year_directory.is_dir() or not re.fullmatch(r"20\d{2}", year_directory.name):
             continue
-        for path in year_directory.glob("*.md"):
-            matched = re.fullmatch(r"(20\d{2})-(\d{1,2})-(\d{1,2})(.*)\.md", path.name)
-            if not matched:
-                continue
-            year, month, day = (int(value) for value in matched.groups()[:3])
-            order_match = re.search(r"^order:\s*(\d+)", path.read_text(encoding="utf-8", errors="replace"), re.MULTILINE)
-            order = int(order_match.group(1)) if order_match else 0
-            relative = path.relative_to(REVIEW_ROOT).as_posix().removesuffix(".md")
-            entries.append(((year, month, day, order, path.name), f"- [{year}-{month}-{day}复盘](./{relative})"))
-    entries.sort(key=lambda item: item[0], reverse=True)
-    static_content = "\n".join(fixed_lines).strip()
-    rebuilt = f"{static_content}\n\n" + "\n".join(entry for _, entry in entries) + "\n"
-    INDEX_FILE.write_text(rebuilt, encoding="utf-8")
-    return len(entries)
+        entries += sum(1 for _ in year_directory.glob("*.md"))
+    return entries
 
 
 def report(year: int, source: Path, detected: int, processed: list[dict[str, object]], unassigned: list[int]) -> None:
@@ -319,7 +305,7 @@ def import_year(year: int, source: Path, args: argparse.Namespace) -> tuple[list
 def main() -> None:
     args = arguments()
     if args.reindex:
-        print(f"Rebuilt {update_index([])} article index entries.")
+        print(f"Validated {update_index([])} archived article entries.")
         return
     if not args.pdf:
         raise ValueError("Provide at least one --pdf YEAR=PATH, or use --reindex.")
@@ -331,7 +317,7 @@ def main() -> None:
         total += summary["processed"]
         print(f"{year}: detected {summary['detected']}, processed {summary['processed']}, unassigned {summary['unassigned']}")
     if not args.dry_run:
-        print(f"Index entries added: {update_index(all_paths)}")
+        print(f"Archived article entries: {update_index(all_paths)}")
     print(f"{'Validated' if args.dry_run else 'Imported'} {total} article(s).")
 
 

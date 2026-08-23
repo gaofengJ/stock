@@ -88,52 +88,6 @@ export default {
               'link': '/reviews/aizaibingchuan/strategies/wo-bu-zuo-chang-xian-yi-ji-na-ge-chun-tian.md'
             }
           ]
-        },
-        {
-          'text': 'reports',
-          'collapsed': true,
-          'items': [
-            {
-              'text': '爱在冰川 2017 年采集报告',
-              'link': '/reviews/aizaibingchuan/reports/crawl-report-2017.md'
-            },
-            {
-              'text': '提供链接批量导入报告',
-              'link': '/reviews/aizaibingchuan/reports/crawl-report-provided-links.md'
-            },
-            {
-              'text': '爱在冰川图片去重报告',
-              'link': '/reviews/aizaibingchuan/reports/image-dedup-report.md'
-            },
-            {
-              'text': '历史日期文件去重报告',
-              'link': '/reviews/aizaibingchuan/reports/legacy-reconciliation.md'
-            },
-            {
-              'text': '爱在冰川 2017 年原文链接清单',
-              'link': '/reviews/aizaibingchuan/reports/source-links-2017.md'
-            },
-            {
-              'text': '爱在冰川 2018 年搜狗微信候选链接',
-              'link': '/reviews/aizaibingchuan/reports/sogou-links-2018.md'
-            },
-            {
-              'text': '爱在冰川 2018 年雪球复盘候选链接',
-              'link': '/reviews/aizaibingchuan/reports/xueqiu-links-2018.md'
-            },
-            {
-              'text': 'PDF 导入报告 2018',
-              'link': '/reviews/aizaibingchuan/reports/pdf-import-2018.md'
-            },
-            {
-              'text': 'PDF 导入报告 2019',
-              'link': '/reviews/aizaibingchuan/reports/pdf-import-2019.md'
-            },
-            {
-              'text': 'PDF 导入报告 2020',
-              'link': '/reviews/aizaibingchuan/reports/pdf-import-2020.md'
-            }
-          ]
         }
       ]
     }

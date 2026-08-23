@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const EXCLUDED_FOLDERS = ['public'];
+const EXCLUDED_AIZAIBINGCHUAN_SUBDIRS = new Set(['reports']);
 const INCLUDE_FILE_TYPE = ['md'];
 const targetPath = path.join(__dirname, '../docs/src');
 const outputPath = path.join(targetPath, 'sidebar-config.mts');
@@ -167,6 +168,9 @@ const getSideBarConfig = (dirs) => {
         const subDirs = [];
 
         entries.forEach((entry) => {
+          if (lastPathOfFistLevel === 'reviews'
+            && secondLevelDir === 'aizaibingchuan'
+            && EXCLUDED_AIZAIBINGCHUAN_SUBDIRS.has(entry)) return;
           const entryPath = path.join(secondLevelDirPath, entry);
           try {
             const stat = fs.statSync(entryPath);
