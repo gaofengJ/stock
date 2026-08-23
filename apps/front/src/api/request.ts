@@ -66,7 +66,10 @@ export class BaseAxios {
    */
   async get<T>(url: string, config?: RequestConfig):
     Promise<IResData<T>> {
-    const res = await this.service.get<IResData<T>>(url, config);
+    const res = await this.service.get<IResData<T>>(url, {
+      autoShowError: true,
+      ...config,
+    });
     return res.data;
   }
 
@@ -79,7 +82,10 @@ export class BaseAxios {
    */
   async post<T>(url: string, data?: any, config?: RequestConfig):
     Promise<IResData<T>> {
-    const res = await this.service.post<IResData<T>>(url, data, config);
+    const res = await this.service.post<IResData<T>>(url, data, {
+      autoShowError: true,
+      ...config,
+    });
     return res.data;
   }
 
@@ -92,7 +98,10 @@ export class BaseAxios {
    */
   async put<T>(url: string, data?: any, config?: RequestConfig):
     Promise<IResData<T>> {
-    const res = await this.service.put<IResData<T>>(url, data, config);
+    const res = await this.service.put<IResData<T>>(url, data, {
+      autoShowError: true,
+      ...config,
+    });
     return res.data;
   }
 
@@ -104,7 +113,10 @@ export class BaseAxios {
    */
   async delete<T>(url: string, config?: RequestConfig):
     Promise<IResData<T>> {
-    const res = await this.service.delete<IResData<T>>(url, config);
+    const res = await this.service.delete<IResData<T>>(url, {
+      autoShowError: true,
+      ...config,
+    });
     return res.data;
   }
 
@@ -131,10 +143,24 @@ export class BaseAxios {
    * 获取请求的唯一标识符
    * @param method - 请求方法
    * @param url - 请求 URL
+   * @param raceKey - 请求所属的业务作用域
    * @returns 请求的唯一标识符
    */
-  getUrlKey(method?: string, url?: string) {
-    return `${method}-${url}`;
+  getUrlKey(method?: string, url?: string, raceKey?: string) {
+    return `${method}-${url}-${raceKey || ''}`;
+  }
+
+  /**
+   * 取消指定业务作用域内仍在进行的请求。
+   */
+  cancelRace(raceKey: string) {
+    const keySuffix = `-${raceKey}`;
+    this.requestMap.forEach((controller, key) => {
+      if (key.endsWith(keySuffix)) {
+        controller.abort();
+        this.requestMap.delete(key);
+      }
+    });
   }
 
   /**
@@ -146,7 +172,7 @@ export class BaseAxios {
       this.errorMessage(msg);
       return;
     }
-    message.error(msg);
+    message.error({ content: msg, key: msg });
   }
 
   /**

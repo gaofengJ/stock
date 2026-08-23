@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 import dayjs from 'dayjs';
-import { debounce } from 'lodash-es';
 import { Spin } from 'antd';
 import { getAnalysisChainsUpgradeLimitUpRates } from '@/api/services';
 import { NSGetAnalysisChainsUpgradeLimitUpRates } from '@/api/services.types';
@@ -9,6 +8,7 @@ import { NSGetAnalysisChainsUpgradeLimitUpRates } from '@/api/services.types';
 import CChart from '@/components/CChart';
 import { EThemeColors } from '@/types/common.enum';
 import { getRoundedMax, getRoundedMin } from '@/utils';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 
 interface IProps {
   dateRange: string[]; // 起止时间
@@ -22,35 +22,31 @@ const UPGRADE_NUM = 1;
 const RateLimitUp0to1 = ({ dateRange }: IProps) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [sourceData, setSourceData] = useState<NSGetAnalysisChainsUpgradeLimitUpRates.IRes>([]);
+  const { requestConfig, runLatestRequest } = useLatestRequest('chains-rate-limit-up-0-to-1');
 
   /**
    * 获取数据
    */
-  const getChainsRates = useCallback(async () => {
-    try {
-      setLoading(true);
+  const getChainsRates = useCallback(() => runLatestRequest({
+    request: () => {
       const [startDate, endDate] = dateRange;
-      const { data } = await getAnalysisChainsUpgradeLimitUpRates({
+      return getAnalysisChainsUpgradeLimitUpRates({
         startDate,
         endDate,
         upgradeNum: UPGRADE_NUM,
-      });
-      setSourceData(data);
-    } catch (e) {
-      console.info(e);
-    } finally {
-      setLoading(false);
-    }
-  }, [dateRange]);
+      }, requestConfig);
+    },
+    onStart: () => {
+      setLoading(true);
+      setSourceData([]);
+    },
+    onSuccess: ({ data }) => setSourceData(data),
+    onError: (error) => console.info(error),
+    onFinally: () => setLoading(false),
+  }), [dateRange, requestConfig, runLatestRequest]);
 
   useEffect(() => {
-    const debounceGetChainsRates = debounce(getChainsRates, 300);
-    debounceGetChainsRates();
-
-    // 清理函数以防止在组件卸载时继续调用
-    return () => {
-      debounceGetChainsRates.cancel();
-    };
+    getChainsRates();
   }, [getChainsRates]);
 
   /**

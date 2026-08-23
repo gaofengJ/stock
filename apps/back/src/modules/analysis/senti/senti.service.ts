@@ -6,10 +6,18 @@ import { DailyService } from '@/modules/source/daily/daily.service';
 import { LimitService } from '@/modules/source/limit/limit.service';
 import { SentiService as SourceSentiService } from '@/modules/processed/senti/senti.service';
 import { ECustomError } from '@/types/common.enum';
+import { EIsOpen } from '@/modules/source/trade-cal/trade-cal.enum';
+import {
+  fillTradeDateSeries,
+  sortTradeDays,
+} from '@/modules/analysis/series.utils';
+import { AsyncTtlCache } from '@/modules/analysis/async-ttl-cache';
 
 @Injectable()
 export class SentiService {
   private logger = new Logger(SentiService.name);
+
+  private readonly queryCache = new AsyncTtlCache(5000);
 
   constructor(
     private tradeCalService: TradeCalService,
@@ -17,6 +25,22 @@ export class SentiService {
     private limitService: LimitService,
     private sentiService: SourceSentiService,
   ) {}
+
+  private async getOpenTradeDays(startDate: string, endDate: string) {
+    return this.queryCache.getOrCreate(
+      `trade-days:${startDate}:${endDate}`,
+      async () => {
+        const { items } = await this.tradeCalService.list({
+          pageNum: 1,
+          pageSize: 10000,
+          startDate,
+          endDate,
+          isOpen: EIsOpen.OPENED,
+        });
+        return sortTradeDays(items);
+      },
+    );
+  }
 
   private initializeRet() {
     const keys = [
@@ -90,13 +114,21 @@ export class SentiService {
    */
   async limitUpDownCount(dto: CommonDateRangeDto) {
     const { startDate, endDate } = dto;
-    const ret = await this.limitService.limitUpDownCount({
-      pageNum: 1,
-      pageSize: 10000,
-      startDate,
-      endDate,
-    });
-    return ret;
+    const [ret, tradeDays] = await Promise.all([
+      this.limitService.limitUpDownCount({
+        pageNum: 1,
+        pageSize: 10000,
+        startDate,
+        endDate,
+      }),
+      this.getOpenTradeDays(startDate, endDate),
+    ]);
+    return fillTradeDateSeries(tradeDays, ret, (tradeDate) => ({
+      tradeDate,
+      limitUCount: 0,
+      limitDCount: 0,
+      limitZCount: 0,
+    }));
   }
 
   /**
@@ -104,13 +136,19 @@ export class SentiService {
    */
   async limitUpMaxTimesCount(dto: CommonDateRangeDto) {
     const { startDate, endDate } = dto;
-    const ret = await this.limitService.limitUpMaxTimesCount({
-      pageNum: 1,
-      pageSize: 10000,
-      startDate,
-      endDate,
-    });
-    return ret;
+    const [ret, tradeDays] = await Promise.all([
+      this.limitService.limitUpMaxTimesCount({
+        pageNum: 1,
+        pageSize: 10000,
+        startDate,
+        endDate,
+      }),
+      this.getOpenTradeDays(startDate, endDate),
+    ]);
+    return fillTradeDateSeries(tradeDays, ret, (tradeDate) => ({
+      tradeDate,
+      maxLimitTimes: 0,
+    }));
   }
 
   /**
@@ -118,10 +156,9 @@ export class SentiService {
    */
   async list(dto: CommonDateRangeDto) {
     const { startDate, endDate } = dto;
-    const ret = await this.sentiService.list({
-      startDate,
-      endDate,
-    });
-    return ret;
+    return this.queryCache.getOrCreate(
+      `senti-list:${startDate}:${endDate}`,
+      () => this.sentiService.list({ startDate, endDate }),
+    );
   }
 }

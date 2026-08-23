@@ -16,7 +16,7 @@ export const useActiveFundsColumns = (): ColumnsType => [
     title: '关联机构',
     dataIndex: 'orgs',
     render: (val: string[]) => (
-      <div className="flex item-center flex-wrap mt-[-8px] py-16">
+      <div className="flex items-center flex-wrap mt-[-8px] py-16">
         {val.map((i) => (
           <div key={i} className="px-8 mt-8 mr-8 h-32 leading-[32px] bg-bg-pink-red78 text-text-white rounded-full">{i}</div>
         ))}

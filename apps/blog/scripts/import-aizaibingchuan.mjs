@@ -10,6 +10,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gunzipSync } from 'node:zlib';
 import sharp from 'sharp';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
@@ -153,6 +154,7 @@ function markdownFromTree(root, imagePaths) {
   const render = (node) => {
     if ('text' in node) return node.text.replace(/\u200b/g, '');
     const tag = node.tag;
+    if (/display\s*:\s*none/i.test(node.attrs.style || '')) return '';
     if (['script', 'style', 'noscript', 'iframe', 'mp-common-profile', 'mp-style-type'].includes(tag)) return '';
     const inner = node.children.map(render).join('');
     if (tag === 'root' || ['span', 'font', 'small', 'big', 'sup', 'sub'].includes(tag)) return inner;
@@ -414,12 +416,23 @@ async function importOne(record, documents, state) {
   const sourceUrl = normalizeUrl(record.source_url);
   const recordHash = hash(JSON.stringify(record));
   if (!refresh && state[sourceUrl]?.recordHash === recordHash && await exists(state[sourceUrl].file)) return { status: 'skipped', record, reason: 'resumable cache' };
-  const response = await fetchWithRetry(sourceUrl);
-  const html = await response.text();
-  if (/环境异常|完成验证后即可继续访问|去验证/.test(html)) throw new Error('WeChat access verification page returned');
-  const tree = parseHtml(findBalancedElement(html, 'js_content'));
-  const publishedAt = articleDate(html, record);
-  const title = titleFromHtml(html, record);
+  const embeddedHtml = record.content_html
+    || (record.content_html_gzip ? gunzipSync(Buffer.from(record.content_html_gzip, 'base64')).toString('utf8') : '');
+  let tree;
+  let publishedAt;
+  let title;
+  if (embeddedHtml) {
+    tree = parseHtml(embeddedHtml);
+    publishedAt = record.published_at || `${record.published_date} 00:00`;
+    title = cleanMarkdown(record.title || '未命名文章');
+  } else {
+    const response = await fetchWithRetry(sourceUrl);
+    const html = await response.text();
+    if (/环境异常|完成验证后即可继续访问|去验证/.test(html)) throw new Error('WeChat access verification page returned');
+    tree = parseHtml(findBalancedElement(html, 'js_content'));
+    publishedAt = articleDate(html, record);
+    title = titleFromHtml(html, record);
+  }
   const target = articleTarget(record, publishedAt, documents.get(sourceUrl));
   const articleId = canonicalId(record);
   const year = publishedAt.slice(0, 4);
@@ -458,7 +471,12 @@ async function main() {
     console.log(JSON.stringify({ dryRun, replaced: result.replacements.length, ambiguous: result.ambiguous.length }, null, 2));
     return;
   }
-  const contents = await readFile(inputPath, 'utf8');
+  const inputStats = await stat(inputPath);
+  const inputFiles = inputStats.isDirectory()
+    ? (await readdir(inputPath)).filter((name) => name.endsWith('.jsonl')).sort().map((name) => path.join(inputPath, name))
+    : [inputPath];
+  if (!inputFiles.length) throw new Error(`No JSONL files found in ${inputPath}`);
+  const contents = (await Promise.all(inputFiles.map((file) => readFile(file, 'utf8')))).join('\n');
   const seen = new Set();
   const records = contents.split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line))
     .filter((record) => record.account === '爱在冰川' && record.source_url)
@@ -507,8 +525,7 @@ async function main() {
       `- 失败：${summary.failed || 0}`,
       '', '## 失败或图片失败', '',
       ...failures.map((item) => `- ${item.record.published_date} ${item.record.title}：${item.reason || item.failures.map((failure) => failure.url).join('、')}（${item.record.source_url}）`),
-      '',
-    ].join('\n'));
+    ].join('\n') + '\n');
   }
   console.log(JSON.stringify({ input: selected.length, ...summary, failures: failures.length, dryRun }, null, 2));
 }

@@ -2,19 +2,20 @@
 
 import { Table } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
-import { debounce } from 'lodash-es';
 import Layout from '@/components/Layout';
 import { basicSiderMenuItems } from '@/components/Layout/config';
 import { EBasicAsideMenuKey, EHeaderMenuKey } from '@/components/Layout/enum';
 
 import { getBasicActiveFundsList } from '@/api/services';
 import { NSGetBasicActiveFundsList } from '@/api/services.types';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 
 import { useActiveFundsColumns } from './columns';
 import './limits.sass';
 
 function BasicActiveFundsPage() {
   const [loading, setLoading] = useState(false);
+  const { requestConfig, runLatestRequest } = useLatestRequest('basic-active-funds');
 
   const activeFundsColumns = useActiveFundsColumns();
 
@@ -31,29 +32,27 @@ function BasicActiveFundsPage() {
   /**
    * 获取 list
    */
-  const getActiveFunds = useCallback(async () => {
-    try {
-      setLoading(true);
-      const { data } = await getBasicActiveFundsList();
-      setActiveFundsData((state) => ({
-        ...state,
-        items: data,
-      }));
-    } catch (e) {
-      console.error('e', e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const getActiveFunds = useCallback(
+    () => runLatestRequest({
+      request: () => getBasicActiveFundsList(requestConfig),
+      onStart: () => setLoading(true),
+      onSuccess: ({ data }) => {
+        setActiveFundsData((state) => ({
+          ...state,
+          items: data,
+        }));
+      },
+      onError: (error) => {
+        console.error('e', error);
+        setActiveFundsData({ items: [] });
+      },
+      onFinally: () => setLoading(false),
+    }),
+    [requestConfig, runLatestRequest],
+  );
 
   useEffect(() => {
-    const debounceGetActiveFunds = debounce(getActiveFunds, 300);
-    debounceGetActiveFunds();
-
-    // 清理函数以防止在组件卸载时继续调用
-    return () => {
-      debounceGetActiveFunds.cancel();
-    };
+    getActiveFunds();
   }, [getActiveFunds]);
 
   return (
@@ -65,11 +64,17 @@ function BasicActiveFundsPage() {
       <div className="p-16 rounded-[6px] bg-bg-white">
         <Table
           rootClassName="active-funds-table"
+          rowKey="name"
           dataSource={activeFundsData.items}
           columns={activeFundsColumns}
-          scroll={{ y: 'calc(100vh - 180px)' }}
+          scroll={{ y: 'calc(100vh - 232px)' }}
           loading={loading}
-          pagination={false}
+          pagination={{
+            defaultPageSize: 20,
+            pageSizeOptions: [20, 50, 100],
+            showSizeChanger: true,
+            showTotal: (total) => `共 ${total} 条`,
+          }}
         />
       </div>
     </Layout>

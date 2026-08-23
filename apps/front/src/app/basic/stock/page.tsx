@@ -2,7 +2,6 @@
 
 import { PaginationProps, Table } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
-import { debounce } from 'lodash-es';
 import Layout from '@/components/Layout';
 import { basicSiderMenuItems } from '@/components/Layout/config';
 import {
@@ -14,6 +13,7 @@ import { getBasicStockList } from '@/api/services';
 import { NSGetBasicStockList } from '@/api/services.types';
 
 import CSearchForm from '@/components/common/CSearchForm';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 
 import { useStockFilterConfigs } from './form-configs';
 import { useStockColumns } from './columns';
@@ -28,6 +28,7 @@ function BasicStockPage() {
   const [searchParams, setSearchParams] = useState<Partial<NSGetBasicStockList.IParams>>(initialSearchParams);
 
   const [loading, setLoading] = useState(false);
+  const { requestConfig, runLatestRequest } = useLatestRequest('basic-stock-list');
 
   const stockColumns = useStockColumns();
 
@@ -58,15 +59,13 @@ function BasicStockPage() {
   /**
    * 获取 list
    */
-  const getStocks = useCallback(async () => {
-    try {
-      setLoading(true);
-      const {
-        data: {
-          items,
-          meta: { totalItems },
-        },
-      } = await getBasicStockList(searchParams as NSGetBasicStockList.IParams);
+  const getStocks = useCallback(() => runLatestRequest({
+    request: () => getBasicStockList(
+      searchParams as NSGetBasicStockList.IParams,
+      requestConfig,
+    ),
+    onStart: () => setLoading(true),
+    onSuccess: ({ data: { items, meta: { totalItems } } }) => {
       setStockData((state) => ({
         ...state,
         items: items.map((i) => ({
@@ -76,21 +75,16 @@ function BasicStockPage() {
         })),
         totalItems,
       }));
-    } catch (e) {
-      console.error('e', e);
-    } finally {
-      setLoading(false);
-    }
-  }, [searchParams]);
+    },
+    onError: (error) => {
+      console.error('e', error);
+      setStockData({ items: [], totalItems: 0 });
+    },
+    onFinally: () => setLoading(false),
+  }), [requestConfig, runLatestRequest, searchParams]);
 
   useEffect(() => {
-    const debounceGetStocks = debounce(getStocks, 300);
-    debounceGetStocks();
-
-    // 清理函数以防止在组件卸载时继续调用
-    return () => {
-      debounceGetStocks.cancel();
-    };
+    getStocks();
   }, [getStocks]);
 
   return (

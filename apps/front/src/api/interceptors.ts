@@ -1,4 +1,6 @@
-import { Axios, AxiosError, InternalAxiosRequestConfig } from 'axios';
+import {
+  Axios, AxiosError, InternalAxiosRequestConfig, isCancel,
+} from 'axios';
 import qs from 'qs';
 import { parseJSON } from '@/utils';
 import { IResData } from './types';
@@ -20,7 +22,7 @@ const registerRequestInterceptor = (ctx: BaseAxios, axios: Axios) => {
       }
       // 处理并发请求，如果请求标记为 race，则使用 AbortController 来中止重复请求
       if (config.race) {
-        const urlKey = ctx.getUrlKey(config.method, config.url);
+        const urlKey = ctx.getUrlKey(config.method, config.url, config.raceKey);
         if (ctx.requestMap.has(urlKey)) {
           ctx.requestMap.get(urlKey)?.abort();
         }
@@ -43,10 +45,13 @@ const registerResponseInterceptor = (ctx: BaseAxios, axios: Axios) => {
   axios.interceptors.response.use(
     async (response) => {
       const { data, config } = response;
-      const urlKey = ctx.getUrlKey(config.method, config.url);
+      const urlKey = ctx.getUrlKey(config.method, config.url, config.raceKey);
 
       // 处理并发请求，移除已完成的请求
-      if (config.race && ctx.requestMap.has(urlKey)) {
+      if (
+        config.race
+        && ctx.requestMap.get(urlKey)?.signal === config.signal
+      ) {
         ctx.requestMap.delete(urlKey);
       }
 
@@ -101,7 +106,30 @@ const registerResponseInterceptor = (ctx: BaseAxios, axios: Axios) => {
     },
     async (error: AxiosError) => {
       const { message, config } = error;
-      ctx.showBizError(message, config as InternalAxiosRequestConfig);
+      const isTimeout = error.code === 'ECONNABORTED';
+      const responseMessage = (error.response?.data as { message?: string })
+        ?.message;
+      const configuredMessage = error.response?.status
+        ? ctx.errorMessageMap?.[error.response.status]
+        : undefined;
+      if (config?.race) {
+        const urlKey = ctx.getUrlKey(config.method, config.url, config.raceKey);
+        if (ctx.requestMap.get(urlKey)?.signal === config.signal) {
+          ctx.requestMap.delete(urlKey);
+        }
+      }
+      if (isCancel(error)) return Promise.reject(error);
+
+      const mappedMessage = typeof configuredMessage === 'function'
+        ? configuredMessage()
+        : configuredMessage;
+      const errorMessage = isTimeout
+        ? '请求超时，请稍后重试'
+        : responseMessage || mappedMessage || message;
+      ctx.showBizError(
+        errorMessage,
+        config as InternalAxiosRequestConfig,
+      );
       return Promise.reject(error);
     },
   );

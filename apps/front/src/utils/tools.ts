@@ -48,17 +48,22 @@ export function parseJSON<T = any>(blobData: Blob): Promise<T> {
 
 // 获取尾数为 0 或 5 的最大值
 export const getRoundedMax = (arr: number[]) => {
-  const maxVal = Math.max(...arr);
+  const finiteValues = arr.filter(Number.isFinite);
+  if (!finiteValues.length) return 5;
+
+  const maxVal = Math.max(...finiteValues);
   // 计算初始的最大值，增加 10% 以确保最大值大一点
   const roundedMaxVal = Math.ceil(maxVal * 1.1 * 0.2) * 5;
-  // 如果最大值的尾数为 0，则返回该值
-  // 如果尾数为 5，则返回该值
-  return roundedMaxVal;
+  // 空图或全零图至少保留一个有效的纵轴区间
+  return roundedMaxVal || 5;
 };
 
 // 获取尾数为 0 或 5 的最小值
 export const getRoundedMin = (arr: number[]) => {
-  const minVal = Math.min(...arr);
+  const finiteValues = arr.filter(Number.isFinite);
+  if (!finiteValues.length) return 0;
+
+  const minVal = Math.min(...finiteValues);
   // 计算初始的最小值，减少 10% 以确保最小值小一点
   const roundedMinVal = Math.floor(minVal * 0.9 * 0.2) * 5;
   // 如果最小值的尾数为 0 或 5，则返回该值

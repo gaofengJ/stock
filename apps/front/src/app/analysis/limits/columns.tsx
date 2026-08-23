@@ -3,7 +3,9 @@ import type { ColumnsType } from 'antd/es/table/interface';
 /**
  * 设置默认值
  */
-const renderEmptyField = (val: any) => (val || '-');
+const renderEmptyField = (val: any) => (
+  val === null || val === undefined || val === '' ? '-' : val
+);
 
 export const limitsColumns: ColumnsType = [
   {

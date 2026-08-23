@@ -1,21 +1,30 @@
 import dayjs from 'dayjs';
-import { useState } from 'react';
-import { Col, Row } from 'antd';
+import { useEffect, useState } from 'react';
+import { Col, Row, Spin } from 'antd';
 import CSearchForm from '@/components/common/CSearchForm';
+import { useDefaultTradeDate } from '@/hooks/useDefaultTradeDate';
 
 import { useSingleDayFilterConfigs } from '../form-configs';
 import DistributionTatistics from './DistributionTatistics';
 
 function SingleDateSection() {
-  const now = dayjs();
-  const date = now.hour() >= 20 ? now : now.subtract(1, 'day'); // 20点之前展示前一天，20点之后展示当天
+  const { candidate, ready, tradeDate } = useDefaultTradeDate();
 
   // initialSearchParams 的初始值
   const initialSearchParams = {
-    tradeDate: date.format('YYYY-MM-DD'),
+    tradeDate: candidate,
   };
 
   const [searchParams, setSearchParams] = useState(initialSearchParams);
+  const [dateReady, setDateReady] = useState(false);
+
+  useEffect(() => {
+    if (!ready) return;
+    setSearchParams((state) => (
+      state.tradeDate === candidate ? { ...state, tradeDate } : state
+    ));
+    setDateReady(true);
+  }, [candidate, ready, tradeDate]);
 
   const filterConfigs = useSingleDayFilterConfigs();
 
@@ -44,12 +53,16 @@ function SingleDateSection() {
       </div>
 
       <div>
-        <Row align="middle" gutter={[32, 64]} justify="space-around">
-          <Col span={12}>
-            <DistributionTatistics tradeDate={searchParams.tradeDate} />
-          </Col>
-          <Col span={12} />
-        </Row>
+        {dateReady ? (
+          <Row align="middle" gutter={[32, 64]} justify="space-around">
+            <Col span={12}>
+              <DistributionTatistics tradeDate={searchParams.tradeDate} />
+            </Col>
+            <Col span={12} />
+          </Row>
+        ) : (
+          <Spin className="w-full h-320 !leading-[320px]" size="large" />
+        )}
       </div>
     </div>
   );

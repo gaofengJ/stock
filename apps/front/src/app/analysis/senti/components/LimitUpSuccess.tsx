@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 import dayjs from 'dayjs';
-import { debounce } from 'lodash-es';
 import { Spin } from 'antd';
 import { getAnalysisSentiList } from '@/api/services';
 import { NSGetAnalysisSentiList } from '@/api/services.types';
@@ -9,6 +8,7 @@ import { NSGetAnalysisSentiList } from '@/api/services.types';
 import CChart from '@/components/CChart';
 import { EThemeColors } from '@/types/common.enum';
 import { getRoundedMax, getRoundedMin } from '@/utils';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 
 interface IProps {
   dateRange: string[]; // 起止时间
@@ -17,34 +17,30 @@ interface IProps {
 const LimitUpHighSuccess = ({ dateRange }: IProps) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [sourceData, setSourceData] = useState<NSGetAnalysisSentiList.IRes>([]);
+  const { requestConfig, runLatestRequest } = useLatestRequest('senti-limit-up-success');
 
   /**
    * 获取数据
    */
-  const getSentiList = useCallback(async () => {
-    try {
-      setLoading(true);
+  const getSentiList = useCallback(() => runLatestRequest({
+    request: () => {
       const [startDate, endDate] = dateRange;
-      const { data } = await getAnalysisSentiList({
+      return getAnalysisSentiList({
         startDate,
         endDate,
-      });
-      setSourceData(data);
-    } catch (e) {
-      console.info(e);
-    } finally {
-      setLoading(false);
-    }
-  }, [dateRange]);
+      }, requestConfig);
+    },
+    onStart: () => {
+      setLoading(true);
+      setSourceData([]);
+    },
+    onSuccess: ({ data }) => setSourceData(data),
+    onError: (error) => console.info(error),
+    onFinally: () => setLoading(false),
+  }), [dateRange, requestConfig, runLatestRequest]);
 
   useEffect(() => {
-    const debounceGetSentiList = debounce(getSentiList, 300);
-    debounceGetSentiList();
-
-    // 清理函数以防止在组件卸载时继续调用
-    return () => {
-      debounceGetSentiList.cancel();
-    };
+    getSentiList();
   }, [getSentiList]);
 
   /**

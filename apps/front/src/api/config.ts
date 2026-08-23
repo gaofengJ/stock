@@ -53,6 +53,6 @@ export const defaultConfig = {
   headers: {
     'X-CSRF': genRandomString(),
   },
-  timeout: 0, // 指定请求的超时时间，0 表示没有超时时间，客户端将无限期地等待服务器的响应
+  timeout: 30000, // 查询接口最长等待 30 秒，避免异常请求无限挂起
   withCredentials: true, // 在跨域请求中携带凭据，这在需要进行身份验证的请求中非常重要
 };

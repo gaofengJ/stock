@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 import dayjs from 'dayjs';
-import { debounce } from 'lodash-es';
 import { Spin } from 'antd';
 import { getAnalysisSentiLimitUpMaxTimesCount } from '@/api/services';
 import { NSGetAnalysisSentiLimitUpMaxTimesCount } from '@/api/services.types';
@@ -9,6 +8,7 @@ import { NSGetAnalysisSentiLimitUpMaxTimesCount } from '@/api/services.types';
 import CChart from '@/components/CChart';
 import { EThemeColors } from '@/types/common.enum';
 import { getRoundedMax, getRoundedMin } from '@/utils';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 
 interface IProps {
   dateRange: string[]; // 起止时间
@@ -17,34 +17,30 @@ interface IProps {
 const LimitUpMaxTimesCount = ({ dateRange }: IProps) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [sourceData, setSourceData] = useState<NSGetAnalysisSentiLimitUpMaxTimesCount.IRes>([]);
+  const { requestConfig, runLatestRequest } = useLatestRequest('senti-limit-up-max-times');
 
   /**
    * 获取数据
    */
-  const getSentiCount = useCallback(async () => {
-    try {
-      setLoading(true);
+  const getSentiCount = useCallback(() => runLatestRequest({
+    request: () => {
       const [startDate, endDate] = dateRange;
-      const { data } = await getAnalysisSentiLimitUpMaxTimesCount({
+      return getAnalysisSentiLimitUpMaxTimesCount({
         startDate,
         endDate,
-      });
-      setSourceData(data);
-    } catch (e) {
-      console.info(e);
-    } finally {
-      setLoading(false);
-    }
-  }, [dateRange]);
+      }, requestConfig);
+    },
+    onStart: () => {
+      setLoading(true);
+      setSourceData([]);
+    },
+    onSuccess: ({ data }) => setSourceData(data),
+    onError: (error) => console.info(error),
+    onFinally: () => setLoading(false),
+  }), [dateRange, requestConfig, runLatestRequest]);
 
   useEffect(() => {
-    const debounceGetSentiCount = debounce(getSentiCount, 300);
-    debounceGetSentiCount();
-
-    // 清理函数以防止在组件卸载时继续调用
-    return () => {
-      debounceGetSentiCount.cancel();
-    };
+    getSentiCount();
   }, [getSentiCount]);
 
   /**

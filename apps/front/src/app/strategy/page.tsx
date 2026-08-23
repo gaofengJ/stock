@@ -8,6 +8,8 @@ import { EHeaderMenuKey } from '@/components/Layout/enum';
 import { getStrategyList, getStrategyTabsList } from '@/api/services';
 import { NSGetStrategyList, NSGetStrategyTabsList } from '@/api/services.types';
 import CSearchForm from '@/components/common/CSearchForm';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
+import { useDefaultTradeDate } from '@/hooks/useDefaultTradeDate';
 
 import { useStrategyConfigs } from './form-configs';
 import { strategyColumns } from './columns';
@@ -15,15 +17,15 @@ import { strategyColumns } from './columns';
 import './strategy.sass';
 
 function StrategyPage() {
-  const now = dayjs();
-  const date = now.hour() >= 20 ? now : now.subtract(1, 'day'); // 20点之前展示前一天，20点之后展示当天
+  const { candidate, ready, tradeDate } = useDefaultTradeDate();
 
   // initialSearchParams 的初始值
   const initialSearchParams: NSGetStrategyList.IParams = {
-    date: date.format('YYYY-MM-DD'),
+    date: candidate,
     strategyType: '',
   };
   const [searchParams, setSearchParams] = useState<NSGetStrategyList.IParams>(initialSearchParams);
+  const [dateReady, setDateReady] = useState(false);
 
   /**
    * 更新 searchParams 的值
@@ -37,6 +39,14 @@ function StrategyPage() {
   };
 
   const [tableLoading, setTableLoading] = useState(false);
+  const {
+    requestConfig: tabsRequestConfig,
+    runLatestRequest: runLatestTabsRequest,
+  } = useLatestRequest('strategy-tabs');
+  const {
+    requestConfig: strategyRequestConfig,
+    runLatestRequest: runLatestStrategyRequest,
+  } = useLatestRequest('strategy-list');
 
   const [activedNav, setActivedNav] = useState('');
   const [navList, setNavList] = useState<NSGetStrategyTabsList.IRes>([]);
@@ -51,6 +61,14 @@ function StrategyPage() {
   };
   const [strategyData, setStrategyData] = useState(initialLimitsData);
 
+  useEffect(() => {
+    if (!ready) return;
+    setSearchParams((state) => (
+      state.date === candidate ? { ...state, date: tradeDate } : state
+    ));
+    setDateReady(true);
+  }, [candidate, ready, tradeDate]);
+
   /**
    * 切换左侧 tab
    */
@@ -61,33 +79,42 @@ function StrategyPage() {
   /**
    * 获取 navList
    */
-  const getNavList = useCallback(async () => {
-    try {
-      const { data } = await getStrategyTabsList();
+  const getNavList = useCallback(() => runLatestTabsRequest({
+    request: () => getStrategyTabsList(tabsRequestConfig),
+    onSuccess: ({ data }) => {
       setNavList(data);
-      setActivedNav(data[0].key);
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
+      setActivedNav(data[0]?.key || '');
+    },
+    onError: (error) => {
+      console.error(error);
+      setNavList([]);
+      setActivedNav('');
+      setStrategyData({ items: [] });
+    },
+  }), [runLatestTabsRequest, tabsRequestConfig]);
 
-  const getStrategy = useCallback(async () => {
-    if (!searchParams.date || !activedNav) return;
-    try {
-      setTableLoading(true);
-      const { data } = await getStrategyList({
+  const getStrategy = useCallback(() => {
+    if (!dateReady || !searchParams.date || !activedNav) return;
+    runLatestStrategyRequest({
+      request: () => getStrategyList({
         ...searchParams,
         strategyType: activedNav,
-      });
-      setStrategyData({
-        items: data,
-      });
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setTableLoading(false);
-    }
-  }, [activedNav, searchParams]);
+      }, strategyRequestConfig),
+      onStart: () => setTableLoading(true),
+      onSuccess: ({ data }) => setStrategyData({ items: data }),
+      onError: (error) => {
+        console.error(error);
+        setStrategyData({ items: [] });
+      },
+      onFinally: () => setTableLoading(false),
+    });
+  }, [
+    activedNav,
+    dateReady,
+    runLatestStrategyRequest,
+    searchParams,
+    strategyRequestConfig,
+  ]);
 
   useEffect(() => {
     getNavList();
@@ -120,6 +147,7 @@ function StrategyPage() {
           </div>
           <Table
             rootClassName="strategy-table"
+            rowKey="tsCode"
             dataSource={strategyData.items}
             columns={strategyColumns}
             bordered
@@ -130,7 +158,7 @@ function StrategyPage() {
                 </div>
               ),
             }}
-            scroll={{ x: '100%' }}
+            scroll={{ x: 1048, y: 'calc(100vh - 232px)' }}
             loading={tableLoading}
             pagination={false}
           />

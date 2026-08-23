@@ -182,7 +182,7 @@ export const getAnalysisSentiUpDownCount = (
  * @description 接口分组：基础数据
  */
 export const getBasicActiveFundsList = (config: RequestConfig = {}) =>
-  axios.get<NSGetBasicActiveFundsList.IRes>('/basic/active-funds/list');
+  axios.get<NSGetBasicActiveFundsList.IRes>('/basic/active-funds/list', config);
 /**
  * 接口名称：每日交易数据
  *
@@ -220,7 +220,7 @@ export const getBasicTradeCalList = (
  * @description 接口分组：公共数据
  */
 export const getCommonAllOptions = (config: RequestConfig = {}) =>
-  axios.get<NSGetCommonAllOptions.IRes>('/common/all-options');
+  axios.get<NSGetCommonAllOptions.IRes>('/common/all-options', config);
 /**
  * 接口名称：策略选股结果列表
  *
@@ -236,4 +236,4 @@ export const getStrategyList = (params: NSGetStrategyList.IParams, config: Reque
  * @description 接口分组：策略选股
  */
 export const getStrategyTabsList = (config: RequestConfig = {}) =>
-  axios.get<NSGetStrategyTabsList.IRes>('/strategy/tabs-list');
+  axios.get<NSGetStrategyTabsList.IRes>('/strategy/tabs-list', config);

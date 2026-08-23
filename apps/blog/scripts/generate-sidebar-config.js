@@ -249,9 +249,17 @@ const getSideBarConfig = (dirs) => {
               const filePathB = path.join(subDirPath, b);
               const infoA = getInfoOfMarkdown(filePathA);
               const infoB = getInfoOfMarkdown(filePathB);
-              if (infoA.order !== 9999 || infoB.order !== 9999) {
-                const orderDiff = infoA.order - infoB.order;
-                if (orderDiff !== 0) return orderDiff;
+              if (/^\d{4}$/.test(subDir)) {
+                const textA = getAizaibingchuanSidebarText(a, infoA.title, subDir);
+                const textB = getAizaibingchuanSidebarText(b, infoB.title, subDir);
+                const [, yearA, monthA, dayA] = textA.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+                const [, yearB, monthB, dayB] = textB.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+                const dateA = new Date(Number(yearA), Number(monthA) - 1, Number(dayA)).getTime();
+                const dateB = new Date(Number(yearB), Number(monthB) - 1, Number(dayB)).getTime();
+                if (dateA !== dateB) return dateA - dateB;
+              }
+              if (infoA.order !== infoB.order) {
+                return infoA.order - infoB.order;
               }
             }
 

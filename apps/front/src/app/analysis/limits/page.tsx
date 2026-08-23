@@ -3,7 +3,6 @@
 import dayjs from 'dayjs';
 import { useCallback, useEffect, useState } from 'react';
 import { Table } from 'antd';
-import { debounce } from 'lodash-es';
 import CSearchForm from '@/components/common/CSearchForm';
 import Layout from '@/components/Layout';
 import { analysisSiderMenuItems } from '@/components/Layout/config';
@@ -14,6 +13,8 @@ import {
 
 import { getAnalysisLimitsLimitUpList } from '@/api/services';
 import { NSGetAnalysisLimitsLimitUpList } from '@/api/services.types';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
+import { useDefaultTradeDate } from '@/hooks/useDefaultTradeDate';
 
 import { useLimitsFilterConfigs } from './form-configs';
 import { limitsColumns } from './columns';
@@ -21,18 +22,19 @@ import './limits.sass';
 
 function AnalysisLimitsPage() {
   const limitsFilterConfigs = useLimitsFilterConfigs();
+  const { candidate, ready, tradeDate } = useDefaultTradeDate();
 
   // searchParams 的初始值
-  const now = dayjs();
-  const date = now.hour() >= 20 ? now : now.subtract(1, 'day'); // 20点之前展示前一天，20点之后展示当天
   const initialSearchParams: Partial<NSGetAnalysisLimitsLimitUpList.IParams> = {
-    date: date.format('YYYY-MM-DD'),
+    date: candidate,
   };
   const [searchParams, setSearchParams] = useState<Partial<NSGetAnalysisLimitsLimitUpList.IParams>>(
     initialSearchParams,
   );
+  const [dateReady, setDateReady] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const { requestConfig, runLatestRequest } = useLatestRequest('analysis-limit-up-list');
 
   /**
    * 更新 searchParams 的值
@@ -53,38 +55,45 @@ function AnalysisLimitsPage() {
   };
   const [limitsData, setLimitsData] = useState(initialLimitsData);
 
+  useEffect(() => {
+    if (!ready) return;
+    setSearchParams((state) => (
+      state.date === candidate ? { ...state, date: tradeDate } : state
+    ));
+    setDateReady(true);
+  }, [candidate, ready, tradeDate]);
+
   /**
    * 获取 list
    */
-  const getLimits = useCallback(async () => {
-    try {
-      setLoading(true);
-      const { data: items } = await getAnalysisLimitsLimitUpList(
+  const getLimits = useCallback(() => {
+    if (!dateReady) return;
+    runLatestRequest({
+      request: () => getAnalysisLimitsLimitUpList(
         searchParams as NSGetAnalysisLimitsLimitUpList.IParams,
-      );
-      setLimitsData((state) => ({
-        ...state,
-        items: items.map((i) => ({
-          // 为 items 的每一项添加 key
-          ...i,
-          key: i.tsCode,
-        })),
-      }));
-    } catch (e) {
-      console.error('e', e);
-    } finally {
-      setLoading(false);
-    }
-  }, [searchParams]);
+        requestConfig,
+      ),
+      onStart: () => setLoading(true),
+      onSuccess: ({ data: items }) => {
+        setLimitsData((state) => ({
+          ...state,
+          items: items.map((i) => ({
+            // 为 items 的每一项添加 key
+            ...i,
+            key: i.tsCode,
+          })),
+        }));
+      },
+      onError: (error) => {
+        console.error('e', error);
+        setLimitsData({ items: [] });
+      },
+      onFinally: () => setLoading(false),
+    });
+  }, [dateReady, requestConfig, runLatestRequest, searchParams]);
 
   useEffect(() => {
-    const debounceGetLimits = debounce(getLimits, 300);
-    debounceGetLimits();
-
-    // 清理函数以防止在组件卸载时继续调用
-    return () => {
-      debounceGetLimits.cancel();
-    };
+    getLimits();
   }, [getLimits]);
 
   return (

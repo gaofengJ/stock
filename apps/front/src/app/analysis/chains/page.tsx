@@ -1,8 +1,8 @@
 'use client';
 
-import { Col, Row } from 'antd';
+import { Col, Row, Spin } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import { analysisSiderMenuItems } from '@/components/Layout/config';
 import {
@@ -10,6 +10,7 @@ import {
   EHeaderMenuKey,
 } from '@/components/Layout/enum';
 import CSearchForm from '@/components/common/CSearchForm';
+import { useDefaultTradeDate } from '@/hooks/useDefaultTradeDate';
 import { useLimitsFilterConfigs } from './form-configs';
 import CountLimitUp1 from './components/CountLimitUp1';
 import RateLimitUp0to1 from './components/RateLimitUp0to1';
@@ -22,17 +23,33 @@ import AmountLimitUp from './components/AmountLimitUp';
 import AmountUpgradeLimitUp from './components/AmountUpgradeLimitUp';
 
 function AnalysisChainsPage() {
+  const { candidate, ready, tradeDate } = useDefaultTradeDate();
   // searchParams 的初始值
-  const now = dayjs();
-  const endDate = now.hour() >= 20 ? now : now.subtract(1, 'day'); // 20点之前展示前一天，20点之后展示当天
   const initialSearchParams = {
     // 默认时间: [当前时间一个月, 当前时间]
     dateRange: [
-      endDate.subtract(1, 'month').format('YYYY-MM-DD'),
-      endDate.format('YYYY-MM-DD'),
+      dayjs(candidate).subtract(1, 'month').format('YYYY-MM-DD'),
+      candidate,
     ],
   };
   const [searchParams, setSearchParams] = useState(initialSearchParams);
+  const [dateReady, setDateReady] = useState(false);
+
+  useEffect(() => {
+    if (!ready) return;
+    setSearchParams((state) => (
+      state.dateRange[1] === candidate
+        ? {
+          ...state,
+          dateRange: [
+            dayjs(tradeDate).subtract(1, 'month').format('YYYY-MM-DD'),
+            tradeDate,
+          ],
+        }
+        : state
+    ));
+    setDateReady(true);
+  }, [candidate, ready, tradeDate]);
 
   /**
    * dateRange 禁用时间
@@ -96,36 +113,40 @@ function AnalysisChainsPage() {
           />
         </div>
         <div className="max-h-[calc(100vh-184px)] overflow-x-hidden overflow-y-auto">
-          <Row align="middle" gutter={[32, 64]} justify="space-around">
-            <Col span={12}>
-              <CountLimitUp1 dateRange={searchParams.dateRange} />
-            </Col>
-            <Col span={12}>
-              <RateLimitUp0to1 dateRange={searchParams.dateRange} />
-            </Col>
-            <Col span={12}>
-              <CountLimitUp2 dateRange={searchParams.dateRange} />
-            </Col>
-            <Col span={12}>
-              <RateLimitUp1to2 dateRange={searchParams.dateRange} />
-            </Col>
-            <Col span={12}>
-              <CountLimitUp3 dateRange={searchParams.dateRange} />
-            </Col>
-            <Col span={12}>
-              <RateLimitUp2to3 dateRange={searchParams.dateRange} />
-            </Col>
-            <Col span={12}>
-              <CountLimitUpAbove4 dateRange={searchParams.dateRange} />
-            </Col>
-            <Col span={12} />
-            <Col span={12}>
-              <AmountLimitUp dateRange={searchParams.dateRange} />
-            </Col>
-            <Col span={12}>
-              <AmountUpgradeLimitUp dateRange={searchParams.dateRange} />
-            </Col>
-          </Row>
+          {dateReady ? (
+            <Row align="middle" gutter={[32, 64]} justify="space-around">
+              <Col span={12}>
+                <CountLimitUp1 dateRange={searchParams.dateRange} />
+              </Col>
+              <Col span={12}>
+                <RateLimitUp0to1 dateRange={searchParams.dateRange} />
+              </Col>
+              <Col span={12}>
+                <CountLimitUp2 dateRange={searchParams.dateRange} />
+              </Col>
+              <Col span={12}>
+                <RateLimitUp1to2 dateRange={searchParams.dateRange} />
+              </Col>
+              <Col span={12}>
+                <CountLimitUp3 dateRange={searchParams.dateRange} />
+              </Col>
+              <Col span={12}>
+                <RateLimitUp2to3 dateRange={searchParams.dateRange} />
+              </Col>
+              <Col span={12}>
+                <CountLimitUpAbove4 dateRange={searchParams.dateRange} />
+              </Col>
+              <Col span={12} />
+              <Col span={12}>
+                <AmountLimitUp dateRange={searchParams.dateRange} />
+              </Col>
+              <Col span={12}>
+                <AmountUpgradeLimitUp dateRange={searchParams.dateRange} />
+              </Col>
+            </Row>
+          ) : (
+            <Spin className="w-full h-320 !leading-[320px]" size="large" />
+          )}
         </div>
       </div>
     </Layout>

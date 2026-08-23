@@ -3,7 +3,6 @@
 import { PaginationProps, Table } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
-import { debounce } from 'lodash-es';
 import Layout from '@/components/Layout';
 import { basicSiderMenuItems } from '@/components/Layout/config';
 import { EBasicAsideMenuKey, EHeaderMenuKey } from '@/components/Layout/enum';
@@ -12,26 +11,28 @@ import { getBasicDailyList } from '@/api/services';
 import { NSGetBasicDailyList } from '@/api/services.types';
 
 import CSearchForm from '@/components/common/CSearchForm';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
+import { useDefaultTradeDate } from '@/hooks/useDefaultTradeDate';
 
 import { useStockFilterConfigs } from './form-configs';
 import { dailyColumns } from './columns';
 
 function BasicDailyPage() {
   const stockFilterConfigs = useStockFilterConfigs();
-
-  const now = dayjs();
-  const date = now.hour() >= 20 ? now : now.subtract(1, 'day'); // 20点之前展示前一天，20点之后展示当天
+  const { candidate, ready, tradeDate } = useDefaultTradeDate();
 
   // searchParams 的初始值
   const initialSearchParams: Partial<NSGetBasicDailyList.IParams> = {
     pageNum: 1,
     pageSize: 20,
-    tradeDate: date.format('YYYY-MM-DD'),
+    tradeDate: candidate,
   };
   const [searchParams, setSearchParams] = useState<
     Partial<NSGetBasicDailyList.IParams>>(initialSearchParams);
+  const [dateReady, setDateReady] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const { requestConfig, runLatestRequest } = useLatestRequest('basic-daily-list');
 
   /**
    * 更新 searchParams 的值
@@ -54,6 +55,16 @@ function BasicDailyPage() {
   };
   const [dailyData, setDailyData] = useState(initialDailyData);
 
+  useEffect(() => {
+    if (!ready) return;
+    setSearchParams((state) => (
+      state.tradeDate === candidate
+        ? { ...state, tradeDate }
+        : state
+    ));
+    setDateReady(true);
+  }, [candidate, ready, tradeDate]);
+
   /**
    * 切换页码
    */
@@ -71,35 +82,34 @@ function BasicDailyPage() {
   /**
    * 获取 list
    */
-  const getDailys = useCallback(async () => {
-    try {
-      setLoading(true);
-      const { data: { items, meta: { totalItems } } } = await getBasicDailyList(
+  const getDailys = useCallback(() => {
+    if (!dateReady) return;
+    runLatestRequest({
+      request: () => getBasicDailyList(
         searchParams as NSGetBasicDailyList.IParams,
-      );
-      setDailyData((state) => ({
-        ...state,
-        items: items.map((i) => ({ // 为 items 的每一项添加 key
-          ...i,
-          key: i.tsCode,
-        })),
-        totalItems,
-      }));
-    } catch (e) {
-      console.error('e', e);
-    } finally {
-      setLoading(false);
-    }
-  }, [searchParams]);
+        requestConfig,
+      ),
+      onStart: () => setLoading(true),
+      onSuccess: ({ data: { items, meta: { totalItems } } }) => {
+        setDailyData((state) => ({
+          ...state,
+          items: items.map((i) => ({ // 为 items 的每一项添加 key
+            ...i,
+            key: i.tsCode,
+          })),
+          totalItems,
+        }));
+      },
+      onError: (error) => {
+        console.error('e', error);
+        setDailyData({ items: [], totalItems: 0 });
+      },
+      onFinally: () => setLoading(false),
+    });
+  }, [dateReady, requestConfig, runLatestRequest, searchParams]);
 
   useEffect(() => {
-    const debounceGetDailys = debounce(getDailys, 300);
-    debounceGetDailys();
-
-    // 清理函数以防止在组件卸载时继续调用
-    return () => {
-      debounceGetDailys.cancel();
-    };
+    getDailys();
   }, [getDailys]);
 
   return (

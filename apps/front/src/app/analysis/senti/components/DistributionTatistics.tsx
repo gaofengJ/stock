@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { debounce } from 'lodash-es';
 import { Spin } from 'antd';
 import { NSGetAnalysisSentiDistributionTatistics } from '@/api/services.types';
 import { getAnalysisSentiDistributionTatistics } from '@/api/services';
 import { EThemeColors } from '@/types/common.enum';
 import CChart from '@/components/CChart';
 import { getRoundedMax, getRoundedMin } from '@/utils';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 
 interface IProps {
   tradeDate: string; // 交易时间
@@ -20,6 +20,7 @@ interface ITotalData {
 const DistributionTatistics = ({ tradeDate }: IProps) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [sourceData, setSourceData] = useState<NSGetAnalysisSentiDistributionTatistics.IRes>([]);
+  const { requestConfig, runLatestRequest } = useLatestRequest('senti-distribution-statistics');
 
   const [totalData, setTotalData] = useState<ITotalData>({
     countPositive: 0,
@@ -54,32 +55,29 @@ const DistributionTatistics = ({ tradeDate }: IProps) => {
   /**
    * 获取数据
    */
-  const getDistributionTatistics = useCallback(async () => {
-    try {
+  const getDistributionTatistics = useCallback(() => runLatestRequest({
+    request: () => getAnalysisSentiDistributionTatistics({
+      date: tradeDate,
+    }, requestConfig),
+    onStart: () => {
       setLoading(true);
-      const { data } = await getAnalysisSentiDistributionTatistics({
-        date: tradeDate,
+      setSourceData([]);
+      setTotalData({
+        countPositive: 0,
+        countNegative: 0,
+        countZero: 0,
       });
+    },
+    onSuccess: ({ data }) => {
       setSourceData(data);
       calcTotal(data);
-    } catch (e) {
-      console.info(e);
-    } finally {
-      setLoading(false);
-    }
-  }, [tradeDate]);
+    },
+    onError: (error) => console.info(error),
+    onFinally: () => setLoading(false),
+  }), [requestConfig, runLatestRequest, tradeDate]);
 
   useEffect(() => {
-    const debounceGetDistributionTatistics = debounce(
-      getDistributionTatistics,
-      300,
-    );
-    debounceGetDistributionTatistics();
-
-    // 清理函数以防止在组件卸载时继续调用
-    return () => {
-      debounceGetDistributionTatistics.cancel();
-    };
+    getDistributionTatistics();
   }, [getDistributionTatistics]);
 
   /**

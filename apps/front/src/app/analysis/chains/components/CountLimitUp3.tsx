@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 import dayjs from 'dayjs';
-import { debounce } from 'lodash-es';
 import { Spin } from 'antd';
 import { getAnalysisChainsCountLimitUpTimes } from '@/api/services';
 import { NSGetAnalysisChainsCountLimitUpTimes } from '@/api/services.types';
@@ -9,6 +8,7 @@ import { NSGetAnalysisChainsCountLimitUpTimes } from '@/api/services.types';
 import CChart from '@/components/CChart';
 import { EThemeColors } from '@/types/common.enum';
 import { getRoundedMax, getRoundedMin } from '@/utils';
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 
 interface IProps {
   dateRange: string[]; // 起止时间
@@ -22,35 +22,31 @@ const LIMIT_TIMES = 3;
 const CountLimitUp2 = ({ dateRange }: IProps) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [sourceData, setSourceData] = useState<NSGetAnalysisChainsCountLimitUpTimes.IRes>([]);
+  const { requestConfig, runLatestRequest } = useLatestRequest('chains-count-limit-up-3');
 
   /**
    * 获取数据
    */
-  const getChainsCount = useCallback(async () => {
-    try {
-      setLoading(true);
+  const getChainsCount = useCallback(() => runLatestRequest({
+    request: () => {
       const [startDate, endDate] = dateRange;
-      const { data } = await getAnalysisChainsCountLimitUpTimes({
+      return getAnalysisChainsCountLimitUpTimes({
         startDate,
         endDate,
         limitTimes: LIMIT_TIMES,
-      });
-      setSourceData(data);
-    } catch (e) {
-      console.info(e);
-    } finally {
-      setLoading(false);
-    }
-  }, [dateRange]);
+      }, requestConfig);
+    },
+    onStart: () => {
+      setLoading(true);
+      setSourceData([]);
+    },
+    onSuccess: ({ data }) => setSourceData(data),
+    onError: (error) => console.info(error),
+    onFinally: () => setLoading(false),
+  }), [dateRange, requestConfig, runLatestRequest]);
 
   useEffect(() => {
-    const debounceGetChainsCount = debounce(getChainsCount, 300);
-    debounceGetChainsCount();
-
-    // 清理函数以防止在组件卸载时继续调用
-    return () => {
-      debounceGetChainsCount.cancel();
-    };
+    getChainsCount();
   }, [getChainsCount]);
 
   /**

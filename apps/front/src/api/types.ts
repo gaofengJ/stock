@@ -15,6 +15,10 @@ export interface RequestConfig<D = any> extends AxiosRequestConfig<D> {
    */
   race?: boolean;
   /**
+   * 竞态请求的业务作用域。同一作用域的新请求会取消旧请求，不同图表之间互不影响。
+   */
+  raceKey?: string;
+  /**
    * 是否自动提示错误信息
    */
   autoShowError?: boolean;
