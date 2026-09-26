@@ -1,0 +1,443 @@
+import 'reflect-metadata';
+import { createConnection, Connection } from 'mysql2/promise';
+import { DataSource } from 'typeorm';
+import { Logger } from '@nestjs/common';
+import { DailyTaskService } from './daily-task.service';
+import { SyncSourceService } from './sync-source.service';
+import { SyncRunEntity } from './sync-run.entity';
+import { DailyEntity } from '../source/daily/daily.entity';
+import { LimitEntity } from '../source/limit/limit.entity';
+import { StockEntity } from '../source/stock/stock.entity';
+import { TradeCalEntity } from '../source/trade-cal/trade-cal.entity';
+import { ActiveFundsEntity } from '../source/active-funds/active-funds.entity';
+import { SentiEntity } from '../processed/senti/senti.entity';
+import { ReliableSync1790380800000 } from '../../migrations/1790380800000-ReliableSync';
+
+// 仅显式开启时连接独立本机测试实例，绝不读取应用 DB_* 配置。
+const mysqlDescribe = process.env.SYNC_TEST_MYSQL_PORT
+  ? describe
+  : describe.skip;
+const entities = [
+  DailyEntity,
+  LimitEntity,
+  StockEntity,
+  TradeCalEntity,
+  ActiveFundsEntity,
+  SentiEntity,
+  SyncRunEntity,
+];
+const daily = (tradeDate: string, close = '11') => ({
+  tradeDate,
+  tsCode: '000001.SZ',
+  name: '股票',
+  upLimit: '11',
+  downLimit: '9',
+  open: '10.5',
+  high: '11',
+  low: '10',
+  close,
+  preClose: '10',
+  change: '1',
+  pctChg: '10',
+  vol: '100',
+  amount: '1000',
+});
+const limit = (tradeDate: string) => ({
+  tradeDate,
+  tsCode: '000001.SZ',
+  name: '股票',
+  close: '11',
+  pctChg: '10',
+  limit: 'U',
+});
+const mood = (tradeDate: string) => ({
+  tradeDate,
+  a: 1,
+  b: 1,
+  c: 1,
+  d: 1,
+  e: 0,
+  sentiA: '1',
+  sentiB: '100',
+  sentiC: '100',
+  sentiD: '0',
+});
+const calendar = [
+  { calDate: '2024-06-28', isOpen: 1, preTradeDate: '2024-06-27' },
+  { calDate: '2024-06-29', isOpen: 0, preTradeDate: '2024-06-28' },
+  { calDate: '2024-06-30', isOpen: 0, preTradeDate: '2024-06-28' },
+  { calDate: '2024-07-01', isOpen: 1, preTradeDate: '2024-06-28' },
+  { calDate: '2024-07-02', isOpen: 1, preTradeDate: '2024-07-01' },
+  { calDate: '2024-07-03', isOpen: 1, preTradeDate: '2024-07-02' },
+];
+
+mysqlDescribe('MySQL 同步事务与迁移回归', () => {
+  let admin: Connection;
+  let db: DataSource;
+  let service: DailyTaskService;
+  const database = `stock_sync_test_${process.pid}_${Date.now()}`;
+  const source = {
+    calendar: jest.fn(),
+    stocks: jest.fn(),
+    activeFunds: jest.fn(),
+    daily: jest.fn(),
+    limits: jest.fn(),
+  };
+  const stock = {
+    tsCode: '000001.SZ',
+    symbol: '000001',
+    name: '股票',
+    area: '',
+    industry: '',
+    cnspell: '',
+    market: '',
+    listDate: '1991-01-01',
+  };
+
+  beforeAll(async () => {
+    const connection = {
+      host: '127.0.0.1',
+      port: Number(process.env.SYNC_TEST_MYSQL_PORT),
+      user: 'root',
+      password: process.env.SYNC_TEST_MYSQL_PASSWORD || '',
+    };
+    admin = await createConnection(connection);
+    await admin.query(`CREATE DATABASE \`${database}\``);
+    db = new DataSource({
+      type: 'mysql',
+      host: connection.host,
+      port: connection.port,
+      username: connection.user,
+      password: connection.password,
+      database,
+      entities,
+      synchronize: true,
+      timezone: 'Z',
+      migrations: [ReliableSync1790380800000],
+      migrationsTransactionMode: 'none',
+    });
+    await db.initialize();
+    service = new DailyTaskService(db, source as unknown as SyncSourceService);
+    jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+  });
+
+  afterAll(async () => {
+    jest.restoreAllMocks();
+    if (db?.isInitialized) await db.destroy();
+    if (admin) {
+      // 名称只由进程号和时间戳生成，且始终限制在测试库前缀下。
+      if (!/^stock_sync_test_\d+_\d+$/.test(database))
+        throw new Error('无效测试库名称');
+      await admin.query(`DROP DATABASE \`${database}\``);
+      await admin.end();
+    }
+  });
+
+  beforeEach(async () => {
+    // eslint-disable-next-line no-restricted-syntax
+    for (const entity of entities) {
+      // eslint-disable-next-line no-await-in-loop
+      await db.createQueryBuilder().delete().from(entity).execute();
+    }
+    Object.values(source).forEach((fn) => fn.mockReset());
+    source.calendar.mockResolvedValue(calendar);
+    source.stocks.mockResolvedValue([stock]);
+    source.activeFunds.mockResolvedValue([
+      { name: '游资', orgs: '', desc: '' },
+    ]);
+    source.daily.mockImplementation(async (date: string) => [daily(date)]);
+    source.limits.mockImplementation(async (date: string) => [limit(date)]);
+    await db.manager.insert(TradeCalEntity, calendar);
+    await db.manager.insert(StockEntity, stock);
+    await db.manager.insert(DailyEntity, daily('2024-06-28'));
+    await db.manager.insert(LimitEntity, limit('2024-06-28'));
+    await db.manager.insert(SentiEntity, mood('2024-06-28'));
+    delete process.env.SYNC_START_DATE;
+    delete process.env.SYNC_MAX_DAYS_PER_RUN;
+  });
+
+  it('同日重复导入覆盖旧数据，条数不变，移除已撤销的涨跌停记录', async () => {
+    await service.import('2024-07-01');
+    source.daily.mockResolvedValue([daily('2024-07-01', '10')]);
+    source.limits.mockResolvedValue([]);
+    await service.import('2024-07-01');
+    expect(
+      await db.manager.countBy(DailyEntity, { tradeDate: '2024-07-01' }),
+    ).toBe(1);
+    expect(
+      await db.manager.findOneBy(DailyEntity, { tradeDate: '2024-07-01' }),
+    ).toMatchObject({ close: '10.00' });
+    expect(
+      await db.manager.countBy(LimitEntity, { tradeDate: '2024-07-01' }),
+    ).toBe(0);
+    expect(
+      await db.manager.countBy(SentiEntity, { tradeDate: '2024-07-01' }),
+    ).toBe(1);
+    expect(
+      await db.manager.findOneBy(SyncRunEntity, {
+        task: 'daily',
+        tradeDate: '2024-07-01',
+      }),
+    ).toMatchObject({
+      status: 'success',
+      attempts: 2,
+      dailyCount: 1,
+      limitCount: 0,
+      sentiCount: 1,
+    });
+  });
+
+  it('数据库中途插入失败时，日线、涨跌停、情绪数据全部回滚并记录失败', async () => {
+    await service.import('2024-07-01');
+    const before = await db.manager.findOneByOrFail(DailyEntity, {
+      tradeDate: '2024-07-01',
+    });
+    source.daily.mockResolvedValue([daily('2024-07-01', '12')]);
+    source.limits.mockResolvedValue([{ ...limit('2024-07-01'), tsCode: null }]);
+    await expect(service.import('2024-07-01')).rejects.toThrow();
+    expect(
+      await db.manager.findOneBy(DailyEntity, { tradeDate: '2024-07-01' }),
+    ).toEqual(before);
+    expect(
+      await db.manager.countBy(LimitEntity, { tradeDate: '2024-07-01' }),
+    ).toBe(1);
+    expect(
+      await db.manager.countBy(SentiEntity, { tradeDate: '2024-07-01' }),
+    ).toBe(1);
+    expect(
+      await db.manager.findOneBy(SyncRunEntity, {
+        task: 'daily',
+        tradeDate: '2024-07-01',
+      }),
+    ).toMatchObject({ status: 'failed', attempts: 2 });
+    source.limits.mockResolvedValue([limit('2024-07-01')]);
+    await service.import('2024-07-01');
+    expect(
+      await db.manager.findOneBy(SyncRunEntity, {
+        task: 'daily',
+        tradeDate: '2024-07-01',
+      }),
+    ).toMatchObject({ status: 'success', attempts: 3 });
+  });
+
+  it('接口失败和空基础快照不删除已有记录，游资失败不阻断行情', async () => {
+    source.stocks.mockRejectedValueOnce(new Error('权限不足'));
+    await expect(service.import('2024-07-01')).rejects.toThrow('权限不足');
+    expect(await db.manager.count(StockEntity)).toBe(1);
+    source.stocks.mockResolvedValueOnce([]);
+    await expect(service.import('2024-07-01')).rejects.toThrow('快照为空');
+    expect(await db.manager.count(StockEntity)).toBe(1);
+    await db.manager.insert(ActiveFundsEntity, { name: '旧游资' });
+    source.activeFunds.mockRejectedValue(new Error('没有权限'));
+    await service.import('2024-07-01');
+    expect(
+      await db.manager.findOneBy(ActiveFundsEntity, { name: '旧游资' }),
+    ).not.toBeNull();
+    expect(
+      await db.manager.findOneBy(SyncRunEntity, { task: 'active-funds' }),
+    ).toMatchObject({ status: 'failed' });
+    expect(
+      await db.manager.countBy(DailyEntity, { tradeDate: '2024-07-01' }),
+    ).toBe(1);
+  });
+
+  it('前一交易日缺失时状态待计算，补齐后自动重算后一天', async () => {
+    await db.manager.delete(DailyEntity, { tradeDate: '2024-06-28' });
+    source.daily.mockImplementation(async (date: string) => {
+      if (date === '2024-06-28') throw new Error('数据源尚未就绪');
+      return [daily(date)];
+    });
+    await service.import('2024-07-01');
+    expect(
+      await db.manager.countBy(SentiEntity, { tradeDate: '2024-07-01' }),
+    ).toBe(0);
+    expect(
+      await db.manager.findOneBy(SyncRunEntity, {
+        task: 'daily',
+        tradeDate: '2024-07-01',
+      }),
+    ).toMatchObject({ status: 'pending' });
+    source.daily.mockImplementation(async (date: string) => [daily(date)]);
+    await service.import('2024-06-28');
+    expect(
+      await db.manager.findOneBy(SyncRunEntity, {
+        task: 'daily',
+        tradeDate: '2024-07-01',
+      }),
+    ).toMatchObject({ status: 'success' });
+    expect(
+      await db.manager.countBy(SentiEntity, { tradeDate: '2024-07-01' }),
+    ).toBe(1);
+  });
+
+  it('互斥锁跨服务实例生效，异常后释放连接和锁', async () => {
+    let unblock!: () => void;
+    let started!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const pending = new Promise<void>((resolve) => {
+      unblock = resolve;
+    });
+    source.daily.mockImplementationOnce(async (date: string) => {
+      started();
+      await pending;
+      return [daily(date)];
+    });
+    const first = service.import('2024-07-01');
+    await entered;
+    const second = new DailyTaskService(
+      db,
+      source as unknown as SyncSourceService,
+    );
+    try {
+      await expect(second.import('2024-07-01')).rejects.toThrow('正在进行');
+    } finally {
+      unblock();
+      await first;
+    }
+    await second.import('2024-07-01');
+    expect(
+      await db.manager.countBy(DailyEntity, { tradeDate: '2024-07-01' }),
+    ).toBe(1);
+  });
+
+  it('启动补同步只处理截止日期内的缺口，按日期顺序且重复运行不重拉完整日期', async () => {
+    await service.catchUp(new Date('2024-07-02T12:29:59Z'));
+    expect(source.daily.mock.calls.map((call) => call[0])).toEqual([
+      '2024-07-01',
+    ]);
+    await service.catchUp(new Date('2024-07-02T12:30:00Z'));
+    expect(source.daily.mock.calls.map((call) => call[0])).toEqual([
+      '2024-07-01',
+      '2024-07-02',
+    ]);
+    await service.catchUp(new Date('2024-07-02T12:31:00Z'));
+    expect(source.daily).toHaveBeenCalledTimes(2);
+    expect(
+      await db.manager.countBy(DailyEntity, { tradeDate: '2024-07-03' }),
+    ).toBe(0);
+  });
+
+  it('每次补同步有上限，下次继续，手动批量接口保持日期范围语义', async () => {
+    process.env.SYNC_MAX_DAYS_PER_RUN = '1';
+    await service.catchUp(new Date('2024-07-03T12:30:00Z'));
+    expect(
+      await db.manager.findOneBy(SyncRunEntity, {
+        task: 'daily',
+        tradeDate: '2024-07-03',
+      }),
+    ).toMatchObject({ status: 'success' });
+    expect(
+      await db.manager.countBy(DailyEntity, { tradeDate: '2024-07-01' }),
+    ).toBe(0);
+    await service.catchUp(new Date('2024-07-03T12:30:00Z'));
+    expect(
+      await db.manager.findOneBy(SyncRunEntity, {
+        task: 'daily',
+        tradeDate: '2024-07-01',
+      }),
+    ).toMatchObject({ status: 'success' });
+    source.daily.mockClear();
+    await service.bulkImport('2024-06-29', '2024-07-01');
+    expect(source.daily.mock.calls.map((call) => call[0])).toEqual([
+      '2024-07-01',
+    ]);
+  });
+
+  it('历史日期失败仍更新最新行情，恢复后补齐失败日期与待算情绪', async () => {
+    source.daily.mockImplementation(async (date: string) => {
+      if (date === '2024-07-01') throw new Error('临时故障');
+      return [daily(date)];
+    });
+    await expect(
+      service.catchUp(new Date('2024-07-02T12:30:00Z')),
+    ).rejects.toThrow('2024-07-01');
+    expect(
+      await db.manager.findOneBy(SyncRunEntity, {
+        task: 'daily',
+        tradeDate: '2024-07-01',
+      }),
+    ).toMatchObject({ status: 'failed' });
+    expect(
+      await db.manager.findOneBy(SyncRunEntity, {
+        task: 'daily',
+        tradeDate: '2024-07-02',
+      }),
+    ).toMatchObject({ status: 'pending' });
+    expect(
+      await db.manager.countBy(DailyEntity, { tradeDate: '2024-07-02' }),
+    ).toBe(1);
+    source.daily.mockImplementation(async (date: string) => [daily(date)]);
+    await service.catchUp(new Date('2024-07-02T12:30:00Z'));
+    expect(
+      await db.manager.findOneBy(SyncRunEntity, {
+        task: 'daily',
+        tradeDate: '2024-07-02',
+      }),
+    ).toMatchObject({ status: 'success' });
+  });
+
+  it('手动删除同步清理状态，下一交易日情绪待重算', async () => {
+    await service.bulkImport('2024-07-01', '2024-07-02');
+    await service.delete('2024-07-01');
+    expect(
+      await db.manager.countBy(DailyEntity, { tradeDate: '2024-07-01' }),
+    ).toBe(0);
+    expect(
+      await db.manager.countBy(SentiEntity, { tradeDate: '2024-07-02' }),
+    ).toBe(0);
+    expect(
+      await db.manager.findOneBy(SyncRunEntity, {
+        task: 'daily',
+        tradeDate: '2024-07-02',
+      }),
+    ).toMatchObject({ status: 'pending' });
+    await service.import('2024-07-01');
+    expect(
+      await db.manager.findOneBy(SyncRunEntity, {
+        task: 'daily',
+        tradeDate: '2024-07-02',
+      }),
+    ).toMatchObject({ status: 'success' });
+  });
+
+  it('迁移先备份重复记录再去重，保留最新值，唯一约束生效且可重跑', async () => {
+    const runner = db.createQueryRunner();
+    try {
+      await runner.dropIndex('t_source_daily', 'uq_daily_code_date');
+      await runner.dropIndex('t_source_limit', 'uq_limit_code_date_type');
+      await runner.dropIndex('t_processed_senti', 'uq_senti_date');
+      await runner.dropTable('t_sync_run');
+      await db.manager.insert(DailyEntity, daily('2024-06-28', '12'));
+      await db.manager.insert(LimitEntity, limit('2024-06-28'));
+      await db.manager.insert(SentiEntity, mood('2024-06-28'));
+      const migration = new ReliableSync1790380800000();
+      await db.runMigrations();
+      expect(await db.runMigrations()).toEqual([]);
+      await migration.up(runner);
+      expect(await db.manager.count(DailyEntity)).toBe(1);
+      expect(
+        await db.manager.findOneBy(DailyEntity, { tradeDate: '2024-06-28' }),
+      ).toMatchObject({ close: '12.00' });
+      const [backup] = await runner.query(
+        'SELECT COUNT(*) AS count FROM t_source_daily_sync_backup_20260926',
+      );
+      expect(Number(backup.count)).toBe(1);
+      await expect(
+        db.manager.insert(DailyEntity, daily('2024-06-28')),
+      ).rejects.toThrow();
+      await service.import('2024-07-01');
+      expect(
+        await db.manager.findOneBy(SyncRunEntity, {
+          task: 'daily',
+          tradeDate: '2024-07-01',
+        }),
+      ).toMatchObject({ status: 'success' });
+    } finally {
+      await runner.release();
+    }
+  });
+});

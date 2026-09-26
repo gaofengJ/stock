@@ -35,7 +35,10 @@ import { PermissionModule } from './modules/permission/permission.module';
       // 允许环境变量中的其他环境变量进行展开
       expandVariables: true,
       // 指定多个 env 文件时，第一个优先级最高
-      envFilePath: [`.env.${process.env.NODE_ENV}`, '.env'],
+      envFilePath: [
+        process.env.APP_ENV_FILE || `.env.${process.env.NODE_ENV}`,
+        '.env',
+      ],
       load: [...Object.values(config)],
     }),
     // 避免暴力请求，限制同一个接口 10 秒内不能超过 7 次请求
