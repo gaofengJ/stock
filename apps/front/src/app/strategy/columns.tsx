@@ -58,10 +58,10 @@ export const strategyColumns: ColumnsType = [
     render: (val) => (val / 100000).toFixed(2),
   },
   {
-    title: '换手率(ttm)(%)',
+    title: '自由流通换手率(%)',
     dataIndex: 'turnoverRateF',
     key: 'turnoverRateF',
-    width: 104,
+    width: 136,
     render: renderEmptyField,
   },
   {

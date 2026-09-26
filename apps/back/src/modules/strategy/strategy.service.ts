@@ -18,7 +18,7 @@ export class StrategyService {
   private logger = new Logger(StrategyService.name);
 
   /**
-   * 策略选股结果列表-向上跳空缺口后三连阳
+   * 策略选股结果列表-向上跳空未回补后三连阳
    */
   async gapThreeUp(date: CommonDateDto['date']) {
     const isOpen = await this.tradeCalService.isOpen(date);
@@ -38,7 +38,7 @@ export class StrategyService {
   }
 
   /**
-   * 策略选股结果列表-向上跳空缺口后二连阳
+   * 策略选股结果列表-向上跳空未回补后二连阳
    */
   async gapTwoUp(date: CommonDateDto['date']) {
     const isOpen = await this.tradeCalService.isOpen(date);
@@ -58,7 +58,7 @@ export class StrategyService {
   }
 
   /**
-   * 策略选股结果列表-向上跳空缺口后连续三日高换手率
+   * 策略选股结果列表-向上跳空后三日高换手
    */
   async gapThreeHighTurnover(date: CommonDateDto['date']) {
     const isOpen = await this.tradeCalService.isOpen(date);
@@ -96,7 +96,7 @@ export class StrategyService {
   }
 
   /**
-   * 策略选股结果列表-连续缺口
+   * 策略选股结果列表-连续两次向上缺口
    */
   async continuousGap(date: CommonDateDto['date']) {
     const isOpen = await this.tradeCalService.isOpen(date);
@@ -115,7 +115,7 @@ export class StrategyService {
   }
 
   /**
-   * 策略选股结果列表-上影反包
+   * 策略选股结果列表-向上跳空长上影反包
    */
   async shadowWrap(date: CommonDateDto['date']) {
     const isOpen = await this.tradeCalService.isOpen(date);
@@ -139,27 +139,27 @@ export class StrategyService {
   async navList() {
     const ret = [
       {
-        label: '向上跳空缺口后三连阳',
+        label: '向上跳空未回补后三连阳',
         key: EStrategyType.gapThreeUp,
       },
       {
-        label: '向上跳空缺口后二连阳',
+        label: '向上跳空未回补后二连阳',
         key: EStrategyType.gapTwoUp,
       },
       {
-        label: '向上跳空缺口后连续三日高换手率',
+        label: '向上跳空后三日高换手',
         key: EStrategyType.gapThreeHighTurnover,
       },
       {
-        label: '连续三日放量且量能不萎缩',
+        label: '连续三日放量不萎缩',
         key: EStrategyType.threeDaysHighVol,
       },
       {
-        label: '连续缺口',
+        label: '连续两次向上缺口',
         key: EStrategyType.continuousGap,
       },
       {
-        label: '上影反包',
+        label: '向上跳空长上影反包',
         key: EStrategyType.shadowWrap,
       },
     ];
