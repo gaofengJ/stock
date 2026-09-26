@@ -6,6 +6,7 @@ import { ApiResult } from '@/decorators/api-result.decorator';
 
 import { DailyQueryDto } from '@/modules/source/daily/daily.dto';
 import { DailyEntity } from '@/modules/source/daily/daily.entity';
+import { Permit } from '../../auth/permissions';
 
 import { DailyService } from './daily.service';
 
@@ -17,6 +18,7 @@ export class DailyController {
   constructor(private readonly dailyService: DailyService) {}
 
   @Get('/list')
+  @Permit('basic:daily')
   @ApiOperation({ summary: '每日交易数据' })
   @ApiResult({ type: [DailyEntity], isPage: true })
   async list(@Query() dto: DailyQueryDto) {

@@ -1,3 +1,4 @@
+import { Permit } from '@/modules/auth/permissions';
 import {
   Body,
   Controller,
@@ -31,6 +32,15 @@ import { TradeCalService } from './trade-cal.service';
 export class TradeCalController {
   constructor(private readonly tradeCalService: TradeCalService) {}
 
+  @Permit(
+    'basic:calendar',
+    'basic:daily',
+    'analysis:senti',
+    'analysis:chains',
+    'analysis:limits',
+    'strategy:read',
+    'market:read',
+  )
   @Get('/list')
   @ApiOperation({ summary: '获取TradeCal列表' })
   @ApiResult({ type: [TradeCalEntity], isPage: true })
@@ -40,6 +50,15 @@ export class TradeCalController {
     return this.tradeCalService.list(dto);
   }
 
+  @Permit(
+    'basic:calendar',
+    'basic:daily',
+    'analysis:senti',
+    'analysis:chains',
+    'analysis:limits',
+    'strategy:read',
+    'market:read',
+  )
   @Get(':id')
   @ApiOperation({ summary: '获取TradeCal详情' })
   @ApiResult({ type: TradeCalEntity })
@@ -47,36 +66,50 @@ export class TradeCalController {
     return this.tradeCalService.detail(id);
   }
 
+  @Permit('data:write')
   @Post('/create')
   @ApiOperation({ summary: '创建TradeCal' })
   async create(@Body() dto: TradeCalDto) {
     await this.tradeCalService.create(dto);
   }
 
+  @Permit('data:write')
   @Post('/bulk-create')
   @ApiOperation({ summary: '批量创建TradeCal' })
   async bulkCreate(@Body() dto: TradeCalDto[]) {
     await this.tradeCalService.bulkCreate(dto);
   }
 
+  @Permit('data:write')
   @Put(':id')
   @ApiOperation({ summary: '更新TradeCal' })
   async update(@IdParam() id: number, @Body() dto: TradeCalUpdateDto) {
     await this.tradeCalService.update(id, dto);
   }
 
+  @Permit('data:write')
   @Delete(':id')
   @ApiOperation({ summary: '删除TradeCal' })
   async delete(@IdParam() id: number) {
     await this.tradeCalService.delete(id);
   }
 
+  @Permit('data:write')
   @Delete('/clear')
   @ApiOperation({ summary: '清空TradeCal' })
   async clear() {
     await this.tradeCalService.clear();
   }
 
+  @Permit(
+    'basic:calendar',
+    'basic:daily',
+    'analysis:senti',
+    'analysis:chains',
+    'analysis:limits',
+    'strategy:read',
+    'market:read',
+  )
   @Get('/is-open')
   @ApiOperation({ summary: '查询当前日期是否为交易日' })
   @ApiResult({ type: Boolean })

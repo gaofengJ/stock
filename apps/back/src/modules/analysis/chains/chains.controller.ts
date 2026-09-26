@@ -1,3 +1,4 @@
+import { Permit } from '@/modules/auth/permissions';
 import { Controller, Get, Logger, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
@@ -22,6 +23,7 @@ export class ChainsController {
 
   constructor(private readonly chainsService: ChainsService) {}
 
+  @Permit('analysis:chains')
   @Get('/count-limit-up-times')
   @ApiOperation({ summary: 'n连板数量统计' })
   @ApiResult({ type: [ChainsCountLimitUpTimesEntity], isPage: false })
@@ -34,6 +36,7 @@ export class ChainsController {
     return ret;
   }
 
+  @Permit('analysis:chains')
   @Get('/count-limit-up-above-times')
   @ApiOperation({ summary: 'n+连板数量统计' })
   @ApiResult({ type: [ChainsCountLimitUpTimesEntity], isPage: false })
@@ -48,6 +51,7 @@ export class ChainsController {
     return ret;
   }
 
+  @Permit('analysis:chains')
   @Get('/upgrade-limit-up-rates')
   @ApiOperation({ summary: 'n连板晋级成功率' })
   @ApiResult({ type: [ChainsUpgradeLimitUpRatesEntity], isPage: false })
@@ -66,6 +70,7 @@ export class ChainsController {
     return ret;
   }
 
+  @Permit('analysis:chains')
   @Get('/limit-up-amount')
   @ApiOperation({ summary: '涨停参与金额' })
   @ApiResult({ type: [ChainsLimitUpAmountEntity], isPage: false })
@@ -78,6 +83,7 @@ export class ChainsController {
     return ret;
   }
 
+  @Permit('analysis:chains')
   @Get('/upgrade-limit-up-amount')
   @ApiOperation({ summary: '连板参与金额' })
   @ApiResult({ type: [ChainsLimitUpAmountEntity], isPage: false })

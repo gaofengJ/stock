@@ -1,5 +1,3 @@
-import { genRandomString } from '@/utils';
-
 export const RESPONSE_SUCCESS_CODE = 0;
 
 /**
@@ -50,9 +48,6 @@ export const errorConfig = {
 
 export const defaultConfig = {
   baseURL: '/api',
-  headers: {
-    'X-CSRF': genRandomString(),
-  },
   timeout: 30000, // 查询接口最长等待 30 秒，避免异常请求无限挂起
   withCredentials: true, // 在跨域请求中携带凭据，这在需要进行身份验证的请求中非常重要
 };

@@ -1,3 +1,4 @@
+import { Permit } from '@/modules/auth/permissions';
 import {
   Body,
   Controller,
@@ -39,6 +40,7 @@ import { LimitService } from './limit.service';
 export class LimitController {
   constructor(private readonly tradeCalService: LimitService) {}
 
+  @Permit('analysis:limits', 'analysis:chains')
   @Get('/list')
   @ApiOperation({ summary: '获取Limit列表' })
   @ApiResult({ type: [LimitEntity], isPage: true })
@@ -47,6 +49,7 @@ export class LimitController {
     return this.tradeCalService.list(dto);
   }
 
+  @Permit('analysis:limits', 'analysis:chains')
   @Get(':id')
   @ApiOperation({ summary: '获取Limit详情' })
   @ApiResult({ type: LimitEntity })
@@ -55,6 +58,7 @@ export class LimitController {
     return this.tradeCalService.detail(id);
   }
 
+  @Permit('data:write')
   @Post('/create')
   @ApiOperation({ summary: '创建Limit' })
   // @Perm(permissions.CREATE)
@@ -62,12 +66,14 @@ export class LimitController {
     await this.tradeCalService.create(dto);
   }
 
+  @Permit('data:write')
   @Post('/bulk-create')
   @ApiOperation({ summary: '批量创建Limit' })
   async bulkCreate(@Body() dto: LimitDto[]) {
     await this.tradeCalService.bulkCreate(dto);
   }
 
+  @Permit('data:write')
   @Put(':id')
   @ApiOperation({ summary: '更新Limit' })
   // @Perm(permissions.UPDATE)
@@ -76,6 +82,7 @@ export class LimitController {
     await this.tradeCalService.update(id, dto);
   }
 
+  @Permit('data:write')
   @Delete(':id')
   @ApiOperation({ summary: '删除Limit' })
   // @Perm(permissions.DELETE)
@@ -84,6 +91,7 @@ export class LimitController {
     await this.tradeCalService.delete(id);
   }
 
+  @Permit('data:write')
   @Delete('/clear')
   @ApiOperation({ summary: '清空Limit' })
   async clear() {

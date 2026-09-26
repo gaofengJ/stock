@@ -16,7 +16,6 @@ import { AllExceptionsFilter } from '@/filters/exceptions.filter';
 import { TransformInterceptor } from '@/interceptors/transform.interceptor';
 import { TimeoutInterceptor } from '@/interceptors/timeout.interceptor';
 
-import { UserModule } from '@/modules/user/user.module';
 import { SourceModule } from '@/modules/source/source.module';
 import { ProcessedModule } from '@/modules/processed/processed.module';
 import { DailyTaskModule } from '@/modules/daily-task/daily-task.module';
@@ -25,8 +24,10 @@ import { StrategyModule } from '@/modules/strategy/strategy.module';
 import { BasicModule } from '@/modules/basic/basic.module';
 import { CommonModule } from '@/modules/common/common.module';
 import { DailySourceTask } from '@/tasks/daily-source.tasks';
-import { RoleModule } from './modules/role/role.module';
-import { PermissionModule } from './modules/permission/permission.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { AuthGuard } from './modules/auth/auth.guard';
+import { AdminModule } from './modules/admin/admin.module';
+import { DataLockInterceptor } from './modules/admin/data-lock.interceptor';
 
 @Module({
   imports: [
@@ -35,7 +36,10 @@ import { PermissionModule } from './modules/permission/permission.module';
       // 允许环境变量中的其他环境变量进行展开
       expandVariables: true,
       // 指定多个 env 文件时，第一个优先级最高
-      envFilePath: [`.env.${process.env.NODE_ENV}`, '.env'],
+      envFilePath: [
+        process.env.APP_ENV_FILE || `.env.${process.env.NODE_ENV}`,
+        '.env',
+      ],
       load: [...Object.values(config)],
     }),
     // 避免暴力请求，限制同一个接口 10 秒内不能超过 7 次请求
@@ -62,6 +66,8 @@ import { PermissionModule } from './modules/permission/permission.module';
       },
     }),
     SharedModule,
+    AuthModule,
+    AdminModule,
     DatabaseModule,
 
     ScheduleModule.forRoot(),
@@ -69,15 +75,15 @@ import { PermissionModule } from './modules/permission/permission.module';
     /**
      * 用户模块
      */
-    UserModule,
+
     /**
      * 角色模块
      */
-    RoleModule,
+
     /**
      * 权限模块
      */
-    PermissionModule,
+
     /**
      * 源数据模块
      */
@@ -118,7 +124,8 @@ import { PermissionModule } from './modules/permission/permission.module';
     },
     // { provide: APP_INTERCEPTOR, useClass: IdempotenceInterceptor }, // 自定义拦截器，用于确保请求的幂等性，防止重复处理相同的请求
 
-    // { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: AuthGuard },
+    { provide: APP_INTERCEPTOR, useClass: DataLockInterceptor },
     // { provide: APP_GUARD, useClass: RbacGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     DailySourceTask, // 定时任务

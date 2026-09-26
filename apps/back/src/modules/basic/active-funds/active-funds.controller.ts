@@ -1,6 +1,7 @@
 import { Controller, Get, Logger } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiResult } from '@/decorators/api-result.decorator';
+import { Permit } from '../../auth/permissions';
 
 import { ActiveFundsService } from './active-funds.service';
 import { BasicActiveFundsEntity } from './active-funds.entity';
@@ -13,6 +14,7 @@ export class ActiveFundsController {
   constructor(private readonly activeFundsService: ActiveFundsService) {}
 
   @Get('/list')
+  @Permit('basic:funds')
   @ApiOperation({ summary: '游资名录' })
   @ApiResult({ type: [BasicActiveFundsEntity], isPage: false })
   async list() {

@@ -197,6 +197,7 @@ export enum ECustomError {
    * 数据相关-非交易日期
    */
   NON_TRADING_DAY = '-2001:非交易日期',
+  TRADE_CAL_MISSING = '-2007:当前数据库缺少该日期的交易日历，请先补齐数据',
   /**
    * 数据相关-导入交易日历失败
    */

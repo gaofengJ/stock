@@ -1,3 +1,4 @@
+import AccountBoundary from '@/auth/Boundary';
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
@@ -25,7 +26,7 @@ export default function RootLayout({
           width={160}
           content="木风同学的投资小站"
         >
-          <AntdRegistry>{children}</AntdRegistry>
+          <AntdRegistry><AccountBoundary>{children}</AccountBoundary></AntdRegistry>
         </Watermark>
       </body>
     </html>

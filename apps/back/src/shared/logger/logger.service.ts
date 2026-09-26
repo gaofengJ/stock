@@ -1,13 +1,8 @@
 import * as path from 'path';
-import * as fs from 'fs';
 import * as dayjs from 'dayjs';
 import * as utc from 'dayjs/plugin/utc';
 import * as timezone from 'dayjs/plugin/timezone';
-import {
-  ConsoleLogger,
-  ConsoleLoggerOptions,
-  Injectable,
-} from '@nestjs/common';
+import { ConsoleLogger, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Logger as WinstonLogger } from 'winston';
 import { config, createLogger, format, transports } from 'winston';
@@ -15,6 +10,7 @@ import 'winston-daily-rotate-file';
 
 import { ILoggerConfig } from '@/configs/logger.configs';
 import { EGlobalConfig, ELogLevel } from '@/types/common.enum';
+import { redact } from '@/modules/auth/redact';
 import { loggerQueryDto } from './logger.dto';
 
 // 扩展 dayjs 插件
@@ -32,11 +28,9 @@ export class LoggerService extends ConsoleLogger {
    * @param configService 配置服务，用于获取日志相关配置
    */
   constructor(
-    context: string,
-    options: ConsoleLoggerOptions,
     private configService: ConfigService<keyof typeof EGlobalConfig>,
   ) {
-    super(context, options); // // 调用父类的构造函数，初始化 ConsoleLogger
+    super(); // // 调用父类的构造函数，初始化 ConsoleLogger
     this.initWinston();
   }
 
@@ -80,25 +74,37 @@ export class LoggerService extends ConsoleLogger {
       transports: [
         new transports.DailyRotateFile({
           level: this.level,
-          filename: 'logs/stock-back.%DATE%.log',
+          filename: path.join(
+            process.env.LOG_DIR || path.join(process.cwd(), 'logs'),
+            'stock-back.%DATE%.log',
+          ),
           datePattern: 'YYYY-MM-DD',
           maxFiles: this.maxFiles,
           format: format.combine(
             format.timestamp({ format: this.timezoned }),
             format.json(),
           ),
-          auditFile: 'logs/.audit/stock-back.json',
+          auditFile: path.join(
+            process.env.LOG_DIR || path.join(process.cwd(), 'logs'),
+            '.audit/stock-back.json',
+          ),
         }),
         new transports.DailyRotateFile({
           level: ELogLevel.ERROR,
-          filename: 'logs/stock-back-error.%DATE%.log',
+          filename: path.join(
+            process.env.LOG_DIR || path.join(process.cwd(), 'logs'),
+            'stock-back-error.%DATE%.log',
+          ),
           datePattern: 'YYYY-MM-DD',
           maxFiles: this.maxFiles,
           format: format.combine(
             format.timestamp({ format: this.timezoned }),
             format.json(),
           ),
-          auditFile: 'logs/.audit/stock-back-error.json',
+          auditFile: path.join(
+            process.env.LOG_DIR || path.join(process.cwd(), 'logs'),
+            '.audit/stock-back-error.json',
+          ),
         }),
       ],
     });
@@ -110,8 +116,13 @@ export class LoggerService extends ConsoleLogger {
    * @param context 日志的上下文信息
    */
   verbose(message: any, context?: string) {
-    super.verbose.apply(this, [message, context]);
-    this.winstonLogger.log(ELogLevel.VERBOSE, message, { context });
+    const safeMessage = redact(
+      message instanceof Error
+        ? { message: message.message, stack: message.stack }
+        : message,
+    );
+    super.verbose.apply(this, [safeMessage, context]);
+    this.winstonLogger.log(ELogLevel.VERBOSE, safeMessage, { context });
   }
 
   /**
@@ -120,8 +131,13 @@ export class LoggerService extends ConsoleLogger {
    * @param context 日志的上下文信息
    */
   debug(message: any, context?: string) {
-    super.debug.apply(this, [message, context]);
-    this.winstonLogger.log(ELogLevel.DEBUG, message, { context });
+    const safeMessage = redact(
+      message instanceof Error
+        ? { message: message.message, stack: message.stack }
+        : message,
+    );
+    super.debug.apply(this, [safeMessage, context]);
+    this.winstonLogger.log(ELogLevel.DEBUG, safeMessage, { context });
   }
 
   /**
@@ -130,9 +146,14 @@ export class LoggerService extends ConsoleLogger {
    * @param context 日志的上下文信息
    */
   log(message: any, context?: string) {
-    super.log.apply(this, [message, context]);
+    const safeMessage = redact(
+      message instanceof Error
+        ? { message: message.message, stack: message.stack }
+        : message,
+    );
+    super.log.apply(this, [safeMessage, context]);
 
-    this.winstonLogger.log(ELogLevel.INFO, message, { context });
+    this.winstonLogger.log(ELogLevel.INFO, safeMessage, { context });
   }
 
   /**
@@ -141,9 +162,14 @@ export class LoggerService extends ConsoleLogger {
    * @param context 日志的上下文信息
    */
   warn(message: any, context?: string) {
-    super.warn.apply(this, [message, context]);
+    const safeMessage = redact(
+      message instanceof Error
+        ? { message: message.message, stack: message.stack }
+        : message,
+    );
+    super.warn.apply(this, [safeMessage, context]);
 
-    this.winstonLogger.log(ELogLevel.WARN, message);
+    this.winstonLogger.log(ELogLevel.WARN, safeMessage, { context });
   }
 
   /**
@@ -152,12 +178,18 @@ export class LoggerService extends ConsoleLogger {
    * @param context 日志的上下文信息
    */
   error(message: any, stack?: string, context?: string) {
-    super.error.apply(this, [message, stack, context]);
+    const safeMessage = redact(
+      message instanceof Error
+        ? { message: message.message, stack: message.stack }
+        : message,
+    );
+    const safeStack = redact(stack) as string;
+    super.error.apply(this, [safeMessage, safeStack, context]);
 
-    const hasStack = !!context;
     this.winstonLogger.log(ELogLevel.ERROR, {
-      context: hasStack ? context : stack,
-      message: hasStack ? new Error(message) : message,
+      context: context || safeStack,
+      message: safeMessage,
+      stack: context ? safeStack : undefined,
     });
   }
 
@@ -165,43 +197,8 @@ export class LoggerService extends ConsoleLogger {
    * 获取日志列表
    */
   list(dto: loggerQueryDto) {
-    const { startDate, endDate, loggerType } = dto;
-
-    let list: string[] = [];
-
-    // 定义日志文件夹路径
-    const logsDir = path.join(__dirname, '../../../logs');
-    // 根据 loggerType 确定文件名前缀
-    const fileNamePrefix =
-      loggerType === 'error' ? 'stock-back-error' : 'stock-back';
-
-    const start = dayjs(startDate);
-    const end = dayjs(endDate);
-    let cur = start;
-    // 遍历日期范围内的每一天
-    while (cur.isBefore(end) || cur.isSame(end, 'day')) {
-      // 生成当前日期的日志文件路径
-      const filePath = path.join(
-        logsDir,
-        `${fileNamePrefix}.${cur.format('YYYY-MM-DD')}.log`,
-      );
-      // 如果文件不存在，跳过
-      if (!fs.existsSync(filePath)) {
-        cur = cur.add(1, 'day');
-        // eslint-disable-next-line no-continue
-        continue;
-      }
-      // 更新 cur 日期
-      cur = cur.add(1, 'day');
-      // 读取文件内容并按行分割
-      const curList = fs
-        .readFileSync(filePath, 'utf8')
-        .split('\n')
-        .filter((line) => line.trim());
-
-      list = [...list, ...curList];
-    }
-
-    return list;
+    // eslint-disable-next-line no-void -- Retain the retired service signature without reading any file.
+    void dto;
+    throw new Error('旧日志入口已撤下，请使用 /admin/logs');
   }
 }

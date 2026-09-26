@@ -1,17 +1,8 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { EBasicAsideMenuKey } from '@/components/Layout/enum';
+import { useRouter } from 'next/navigation';
+import { useAccount } from '@/auth/Boundary';
+import { homePath } from '@/auth/client';
 
-function AnalysisBasicPage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace(EBasicAsideMenuKey.basicDaily);
-  }, [router]);
-
-  return null;
-}
-
-export default AnalysisBasicPage;
+export default function Page() { const { user } = useAccount(); const router = useRouter(); useEffect(() => { if (user) router.replace(homePath(user, '/basic')); }, [user, router]); return null; }

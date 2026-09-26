@@ -12,14 +12,12 @@ export class TypeORMLogger implements ITypeORMLogger {
   /**
    * 记录数据库查询日志
    */
-  logQuery(query: string, parameters?: any[]) {
+  logQuery(query: string) {
     if (!this.isEnable('query')) return;
 
-    const sql =
-      query +
-      (parameters?.length
-        ? ` -- PARAMETERS: ${this.stringifyParams(parameters)}`
-        : '');
+    const sql = /t_(auth|user|role|permission)/i.test(query)
+      ? '[account query redacted]'
+      : query;
 
     this.logger.log(`[QUERY]: ${sql}`);
   }
@@ -27,27 +25,26 @@ export class TypeORMLogger implements ITypeORMLogger {
   /**
    * 记录数据库查询错误日志
    */
-  logQueryError(error: string | Error, query: string, parameters?: any[]) {
+  logQueryError(error: string | Error, query: string) {
     if (!this.isEnable('error')) return;
 
-    const sql =
-      query +
-      (parameters?.length
-        ? ` -- PARAMETERS: ${this.stringifyParams(parameters)}`
-        : '');
+    const sql = /t_(auth|user|role|permission)/i.test(query)
+      ? '[account query redacted]'
+      : query;
 
-    this.logger.error([`[FAILED QUERY]: ${sql}`, `[QUERY ERROR]: ${error}`]);
+    this.logger.error([
+      `[FAILED QUERY]: ${sql}`,
+      '[QUERY ERROR]: database operation failed (parameters omitted)',
+    ]);
   }
 
   /**
    * 记录数据库查询慢日志
    */
-  logQuerySlow(time: number, query: string, parameters?: any[]) {
-    const sql =
-      query +
-      (parameters?.length
-        ? ` -- PARAMETERS: ${this.stringifyParams(parameters)}`
-        : '');
+  logQuerySlow(time: number, query: string) {
+    const sql = /t_(auth|user|role|permission)/i.test(query)
+      ? '[account query redacted]'
+      : query;
 
     this.logger.warn(`[SLOW QUERY: ${time} ms]: ${sql}`);
   }
@@ -94,14 +91,6 @@ export class TypeORMLogger implements ITypeORMLogger {
   /**
    * 转换参数为字符串
    */
-  private stringifyParams(parameters: any[]) {
-    try {
-      return JSON.stringify(parameters);
-    } catch (error) {
-      // 处理可能包含循环对象的参数
-      return parameters;
-    }
-  }
 
   /**
    * 检查日志是否启用

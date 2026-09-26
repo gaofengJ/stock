@@ -17,7 +17,12 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "migration:run": "node dist/run-migrations.js",
+    "migration:show": "node dist/run-migrations.js --show",
+    "test:accounts": "node test/accounts.integration.cjs",
+    "smoke:auth": "node dist/smoke-auth.js",
+    "check:argon2": "node scripts/check-argon2.cjs"
   },
   "dependencies": {
     "@fastify/cookie": "^9.3.1",
@@ -34,6 +39,7 @@
     "@nestjs/swagger": "^7.3.1",
     "@nestjs/throttler": "^5.1.2",
     "@nestjs/typeorm": "^10.0.2",
+    "@node-rs/argon2": "^2.2.1",
     "axios": "^1.7.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
@@ -64,8 +70,8 @@
     "@typescript-eslint/parser": "^6.0.0",
     "cross-env": "^7.0.3",
     "eslint": "^8.42.0",
-    "eslint-config-prettier": "^9.0.0",
     "eslint-config-airbnb": "^19.0.4",
+    "eslint-config-prettier": "^9.0.0",
     "eslint-import-resolver-alias": "^1.1.2",
     "eslint-plugin-prettier": "^5.0.0",
     "jest": "^29.5.0",
@@ -94,6 +100,9 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/$1"
+    }
   }
 }

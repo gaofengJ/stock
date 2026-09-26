@@ -1,3 +1,4 @@
+import { Permit } from '@/modules/auth/permissions';
 import { Controller, Get, Logger, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiResult } from '@/decorators/api-result.decorator';
@@ -14,6 +15,15 @@ export class TradeCalController {
 
   constructor(private readonly tradeCalService: TradeCalService) {}
 
+  @Permit(
+    'basic:calendar',
+    'basic:daily',
+    'analysis:senti',
+    'analysis:chains',
+    'analysis:limits',
+    'strategy:read',
+    'market:read',
+  )
   @Get('/list')
   @ApiOperation({ summary: '交易日历' })
   @ApiResult({ type: [TradeCalEntity], isPage: false })

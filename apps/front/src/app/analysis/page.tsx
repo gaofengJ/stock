@@ -1,17 +1,8 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { EAnalysisAsideMenuKey } from '@/components/Layout/enum';
+import { useRouter } from 'next/navigation';
+import { useAccount } from '@/auth/Boundary';
+import { homePath } from '@/auth/client';
 
-function AnalysisPage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace(EAnalysisAsideMenuKey.analysisSenti);
-  }, [router]);
-
-  return null;
-}
-
-export default AnalysisPage;
+export default function Page() { const { user } = useAccount(); const router = useRouter(); useEffect(() => { if (user) router.replace(homePath(user, '/analysis')); }, [user, router]); return null; }

@@ -4,6 +4,7 @@ import { getBasicTradeCalList } from '@/api/services';
 
 let cachedCandidate = '';
 let cachedTradeDatePromise: Promise<string> | null = null;
+export const clearTradeDateCache = () => { cachedCandidate = ''; cachedTradeDatePromise = null; };
 
 const getCandidateDate = () => {
   const now = dayjs();

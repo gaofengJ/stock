@@ -2,13 +2,11 @@ import { ConfigType, registerAs } from '@nestjs/config';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import * as dotenv from 'dotenv';
 import { EGlobalConfig } from '@/types/common.enum';
-import {
-  getEnvConfigBoolean,
-  getEnvConfigNumber,
-  getEnvConfigString,
-} from '@/utils';
+import { getEnvConfigNumber, getEnvConfigString } from '@/utils';
 
-dotenv.config({ path: `.env.${process.env.NODE_ENV}` });
+dotenv.config({
+  path: process.env.APP_ENV_FILE || `.env.${process.env.NODE_ENV}`,
+});
 
 // 当前通过 npm scripts 执行的命令
 const currentScript = process.env.npm_lifecycle_event;
@@ -22,7 +20,7 @@ const dataSourceOptions: DataSourceOptions = {
   database: getEnvConfigString('DB_DATABASE'),
   charset: 'utf8mb4_general_ci',
   timezone: 'Z', // 设置为UTC时间，避免取数据时转成东八区时间导致时间错误
-  synchronize: getEnvConfigBoolean('DB_SYNCHRONIZE', false),
+  synchronize: false,
   extra: {
     connectionLimit: 20, // 设置连接池的最大连接数
   },
