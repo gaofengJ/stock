@@ -1,4 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiHideProperty, ApiProperty } from '@nestjs/swagger';
+import { Exclude } from 'class-transformer';
 import { Column, Entity, Index } from 'typeorm';
 import { CommonEntity } from '@/entity/common.entity';
 
@@ -22,11 +23,13 @@ export class UserEntity extends CommonEntity {
   @Column({
     name: 'password',
     type: 'varchar',
-    length: 100,
+    length: 255,
+    select: false,
     nullable: false,
     comment: '密码',
   })
-  @ApiProperty({ description: '密码' })
+  @ApiHideProperty()
+  @Exclude()
   password: string;
 
   @Column({

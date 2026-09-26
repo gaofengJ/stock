@@ -3,6 +3,13 @@ name: Docker Stock Back
 
 # 执行时机
 on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'apps/back/**'
+      - 'apps/front/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/**'
   # 监听 push 操作
   push:
     branches:
@@ -10,9 +17,10 @@ on:
     paths:
       - 'apps/back/**'
       - '.github/workflows/back-cd.yml'
+      - 'pnpm-lock.yaml'
 
 concurrency:
-  group: stock-back-production
+  group: stock-back-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
 
 # 任务
@@ -39,14 +47,27 @@ jobs:
         with:
           node-version: 18
           cache: pnpm
-      - run: pnpm install --filter back --frozen-lockfile
+      - run: pnpm install --filter back --filter front --frozen-lockfile
       - run: pnpm -C apps/back run lint
       - run: pnpm -C apps/back run build
       - run: pnpm -C apps/back run test --runInBand
         env:
           SYNC_TEST_MYSQL_PORT: 3306
           SYNC_TEST_MYSQL_PASSWORD: ci-local-only
+      - name: Account integration and legacy migration
+        working-directory: apps/back
+        env:
+          AUTH_TEST_PORT: 3306
+          AUTH_TEST_PASSWORD: ci-local-only
+        run: |
+          AUTH_TEST_DATABASE=stock_auth_test_ci node test/accounts.integration.cjs
+          AUTH_TEST_DATABASE=stock_auth_test_legacy_ci node test/migration-legacy.cjs
+      - run: pnpm -C apps/front run lint
+      - run: pnpm -C apps/front run build
+      - name: Verify production image and native Argon2 runtime
+        run: docker build -f apps/back/dockerfile -t stock-back-verify .
   build:
+    if: github.event_name == 'push'
     needs: verify
     runs-on: ubuntu-latest
     steps:

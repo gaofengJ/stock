@@ -4,6 +4,7 @@ import { ApiResult } from '@/decorators/api-result.decorator';
 
 import { StockQueryDto } from '@/modules/source/stock/stock.dto';
 import { StockEntity } from '@/modules/source/stock/stock.entity';
+import { Permit } from '../../auth/permissions';
 
 import { StockService } from './stock.service';
 
@@ -15,6 +16,7 @@ export class StockController {
   constructor(private readonly stockService: StockService) {}
 
   @Get('/list')
+  @Permit('basic:stock')
   @ApiOperation({ summary: '股票基础信息' })
   @ApiResult({ type: [StockEntity], isPage: true })
   async list(@Query() dto: StockQueryDto) {

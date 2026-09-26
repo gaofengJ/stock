@@ -12,6 +12,7 @@ import { QueryFailedError } from 'typeorm';
 import { BizException } from '@/exceptions/biz.exception';
 import { ECustomError } from '@/types/common.enum';
 import { isDev } from '@/utils';
+import { redact } from '../modules/auth/redact';
 
 /**
  * 自定义错误
@@ -48,12 +49,23 @@ export class AllExceptionsFilter implements ExceptionFilter {
       !(exception instanceof BizException)
     ) {
       // 如果是内部服务器错误且不是自定义的服务器异常
-      Logger.error(exception, undefined, 'Catch');
+      Logger.error(
+        exception instanceof QueryFailedError
+          ? 'Database operation failed (details omitted)'
+          : redact(
+              exception instanceof Error
+                ? { message: exception.message, stack: exception.stack }
+                : exception,
+            ),
+        undefined,
+        'Catch',
+      );
       // 生产环境下隐藏错误信息
-      if (!isDev) message = ECustomError.SERVER_ERROR?.split(':')[1]; // 在生产环境下隐藏错误信息
+      if (!isDev || exception instanceof QueryFailedError)
+        message = ECustomError.SERVER_ERROR?.split(':')[1]; // 在生产环境下隐藏错误信息
     } else {
       this.logger.warn(
-        `错误信息：(${status}) ${message} Path: ${decodeURI(url)}`,
+        `错误信息：(${status}) ${message} Path: ${url.split('?')[0]}`,
       );
     }
 
@@ -111,11 +123,23 @@ export class AllExceptionsFilter implements ExceptionFilter {
    */
   registerCatchAllExceptionsHook() {
     process.on('unhandledRejection', (reason) => {
-      console.error('unhandledRejection: ', reason);
+      console.error(
+        'unhandledRejection: ',
+        reason instanceof QueryFailedError
+          ? 'Database operation failed'
+          : redact(
+              reason instanceof Error
+                ? { message: reason.message, stack: reason.stack }
+                : reason,
+            ),
+      );
     });
 
     process.on('uncaughtException', (err) => {
-      console.error('uncaughtException: ', err);
+      console.error(
+        'uncaughtException: ',
+        redact({ message: err.message, stack: err.stack }),
+      );
     });
   }
 }

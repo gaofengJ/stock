@@ -1,3 +1,4 @@
+import { Permit } from '@/modules/auth/permissions';
 import { Body, Controller, Delete, Get, Post, Put } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
@@ -14,6 +15,7 @@ import { ActiveFundsDto, ActiveFundsUpdateDto } from './active-funds.dto';
 export class ActiveFundsController {
   constructor(private readonly activeFundsService: ActiveFundsService) {}
 
+  @Permit('basic:funds')
   @Get('/list')
   @ApiOperation({ summary: '获取ActiveFunds列表' })
   @ApiResult({ type: [ActiveFundsEntity], isPage: true })
@@ -22,6 +24,7 @@ export class ActiveFundsController {
     return ret;
   }
 
+  @Permit('basic:funds')
   @Get(':id')
   @ApiOperation({ summary: '获取ActiveFunds详情' })
   @ApiResult({ type: ActiveFundsEntity })
@@ -29,30 +32,35 @@ export class ActiveFundsController {
     return this.activeFundsService.detail(id);
   }
 
+  @Permit('data:write')
   @Post('/create')
   @ApiOperation({ summary: '创建ActiveFunds' })
   async create(@Body() dto: ActiveFundsDto) {
     await this.activeFundsService.create(dto);
   }
 
+  @Permit('data:write')
   @Post('/bulk-create')
   @ApiOperation({ summary: '批量创建ActiveFunds' })
   async bulkCreate(@Body() dto: ActiveFundsDto[]) {
     await this.activeFundsService.bulkCreate(dto);
   }
 
+  @Permit('data:write')
   @Put(':id')
   @ApiOperation({ summary: '更新ActiveFunds' })
   async update(@IdParam() id: number, @Body() dto: ActiveFundsUpdateDto) {
     await this.activeFundsService.update(id, dto);
   }
 
+  @Permit('data:write')
   @Delete('/clear')
   @ApiOperation({ summary: '清空ActiveFunds' })
   async clear() {
     await this.activeFundsService.clear();
   }
 
+  @Permit('data:write')
   @Delete(':id')
   @ApiOperation({ summary: '删除ActiveFunds' })
   async delete(@IdParam() id: number) {

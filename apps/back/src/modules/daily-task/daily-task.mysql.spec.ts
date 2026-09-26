@@ -737,7 +737,11 @@ mysqlDescribe('MySQL 同步事务与迁移回归', () => {
         daily('2024-06-28', '14'),
       ]);
       const before = cli('preflight')[0];
-      expect(before.pending).toHaveLength(2);
+      expect(before.pending).toEqual([
+        'ReliableSync1790380800000',
+        'SyncSafety1790380800001',
+        'Accounts1790467200000',
+      ]);
       expect(before.counts.t_source_daily).toEqual({ rows: 2, duplicates: 1 });
       expect(await probeDb.manager.count(DailyEntity)).toBe(2);
       const migrated = cli('migrate');

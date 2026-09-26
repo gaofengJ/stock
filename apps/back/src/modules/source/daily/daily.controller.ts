@@ -1,3 +1,4 @@
+import { Permit } from '@/modules/auth/permissions';
 import {
   Body,
   Controller,
@@ -39,6 +40,7 @@ import { DailyService } from './daily.service';
 export class DailyController {
   constructor(private readonly tradeCalService: DailyService) {}
 
+  @Permit('basic:daily', 'market:read', 'strategy:read')
   @Get('/list')
   @ApiOperation({ summary: '获取Daily列表' })
   @ApiResult({ type: [DailyEntity], isPage: true })
@@ -47,6 +49,7 @@ export class DailyController {
     return this.tradeCalService.list(dto);
   }
 
+  @Permit('basic:daily', 'market:read', 'strategy:read')
   @Get(':id')
   @ApiOperation({ summary: '获取Daily详情' })
   @ApiResult({ type: DailyEntity })
@@ -55,6 +58,7 @@ export class DailyController {
     return this.tradeCalService.detail(id);
   }
 
+  @Permit('data:write')
   @Post('/create')
   @ApiOperation({ summary: '创建Daily' })
   // @Perm(permissions.CREATE)
@@ -62,12 +66,14 @@ export class DailyController {
     await this.tradeCalService.create(dto);
   }
 
+  @Permit('data:write')
   @Post('/bulk-create')
   @ApiOperation({ summary: '批量创建Daily' })
   async bulkCreate(@Body() dto: DailyDto[]) {
     await this.tradeCalService.bulkCreate(dto);
   }
 
+  @Permit('data:write')
   @Put(':id')
   @ApiOperation({ summary: '更新Daily' })
   // @Perm(permissions.UPDATE)
@@ -76,12 +82,14 @@ export class DailyController {
     await this.tradeCalService.update(id, dto);
   }
 
+  @Permit('data:write')
   @Delete('/clear')
   @ApiOperation({ summary: '清空Daily' })
   async clear() {
     await this.tradeCalService.clear();
   }
 
+  @Permit('data:write')
   @Delete(':id')
   @ApiOperation({ summary: '删除Daily' })
   // @Perm(permissions.DELETE)

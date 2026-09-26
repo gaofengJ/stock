@@ -7,6 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { createHash } from 'crypto';
+import { AsyncLocalStorage } from 'async_hooks';
 import {
   DataSource,
   EntityManager,
@@ -54,6 +55,11 @@ function businessKey(fields: ObjectLiteral, columns: string[]) {
 
 @Injectable()
 export class SyncWriteService {
+  private static readonly context = new AsyncLocalStorage<{
+    db: DataSource;
+    manager: EntityManager;
+  }>();
+
   private readonly logger = new Logger(SyncWriteService.name);
 
   constructor(private readonly db: DataSource) {}
@@ -61,7 +67,10 @@ export class SyncWriteService {
   async withLock<T>(
     action: (manager: EntityManager) => Promise<T>,
     skipBusy = false,
+    allowNested = false,
   ): Promise<T | undefined> {
+    const active = SyncWriteService.context.getStore();
+    if (active?.db === this.db) return action(active.manager);
     const runner = this.db.createQueryRunner();
     const name = `stock-sync:${createHash('sha256')
       .update(String(this.db.options.database))
@@ -81,7 +90,11 @@ export class SyncWriteService {
         }
         throw new ConflictException('数据同步或写入正在进行，请稍后重试');
       }
-      return await action(runner.manager);
+      if (!allowNested) return await action(runner.manager);
+      return await SyncWriteService.context.run(
+        { db: this.db, manager: runner.manager },
+        () => action(runner.manager),
+      );
     } finally {
       try {
         if (acquired) await runner.query('SELECT RELEASE_LOCK(?)', [name]);

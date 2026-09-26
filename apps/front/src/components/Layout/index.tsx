@@ -1,5 +1,8 @@
 'use client';
 
+import { useAccount } from '@/auth/Boundary';
+import { allowedPath, homePath } from '@/auth/client';
+
 import React, { useEffect } from 'react';
 import {
   Layout,
@@ -22,7 +25,7 @@ import ImgAuthorAvatar from '@/assets/imgs/author-avatar.png';
 import { useOptionsState } from '@/store/useOptionsStore';
 import { EThemeColors } from '@/types/common.enum';
 
-import { avatarDropdownItems, headerMenuItems, themeConfig } from './config';
+import { headerMenuItems, themeConfig } from './config';
 
 const { Header, Sider, Content } = Layout;
 
@@ -48,6 +51,8 @@ const CommonLayout: React.FC<ILayoutProps> = ({
   contentClassName = 'p-16',
 }) => {
   const router = useRouter();
+  const { user, logout } = useAccount();
+  const visible = (items: MenuProps['items']) => items?.filter((item) => item && allowedPath(user, String(item.key)));
 
   const { getAllOptions } = useOptionsState();
 
@@ -55,7 +60,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
    * 顶部菜单选择
    */
   const handleHeaderMenuSelect = (row: { key: string }) => {
-    router.push(row.key);
+    router.push(homePath(user, row.key));
   };
 
   /**
@@ -81,7 +86,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
           <Menu
             mode="horizontal"
             defaultSelectedKeys={[headerMenuActive]}
-            items={headerMenuItems}
+            items={visible([...(headerMenuItems || []), { key: '/admin', label: '管理后台' }])}
             onSelect={handleHeaderMenuSelect}
             className="border-b-0"
             style={{ borderBottom: 'none' }}
@@ -112,16 +117,16 @@ const CommonLayout: React.FC<ILayoutProps> = ({
           </span>
           <Dropdown
             menu={{
-              items: avatarDropdownItems,
+              items: [{ key: 'profile', label: '个人中心' }, { key: 'logout', label: '退出登录' }],
               onClick: ({ key }) => {
-                message.success(`${key}敬请期待`);
+                if (key === 'profile') router.push('/profile'); else logout().catch((e) => message.error(e.message));
               },
             }}
             placement="bottomLeft"
             arrow
           >
             <Avatar className="basis-[32px] text-white cursor-pointer">
-              User
+              {user?.nickname?.slice(0, 2) || user?.username?.slice(0, 2)}
             </Avatar>
           </Dropdown>
         </Header>
@@ -132,7 +137,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
                 mode="inline"
                 defaultSelectedKeys={[asideMenuActive]}
                 defaultOpenKeys={[asideMenuOpen]}
-                items={asideMenuItems}
+                items={visible(asideMenuItems)}
                 className="h-full"
                 style={{ borderInlineEnd: 'none' }}
                 onSelect={handleAsideMenuSelect}

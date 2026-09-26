@@ -38,7 +38,18 @@ const bootstrap = async () => {
     EGlobalConfig.APP_CONFIG,
   ) as IAppConfig;
 
-  app.enableCors({ origin: '*', credentials: true }); // 启用跨域资源共享 (CORS)，允许所有来源和携带凭证
+  const origins = (
+    process.env.AUTH_ALLOWED_ORIGINS ||
+    'http://localhost:8081,http://127.0.0.1:8081'
+  )
+    .split(',')
+    .map((s) => s.trim());
+  if (
+    process.env.NODE_ENV === 'production' &&
+    !process.env.AUTH_ALLOWED_ORIGINS
+  )
+    throw new Error('AUTH_ALLOWED_ORIGINS is required in production');
+  app.enableCors({ origin: origins, credentials: true }); // 启用跨域资源共享 (CORS)，允许所有来源和携带凭证
   app.setGlobalPrefix(globalPrefix); // 设置全局前缀
   app.useStaticAssets({ root: path.join(__dirname, '..', 'public') });
 
@@ -53,7 +64,7 @@ const bootstrap = async () => {
       transform: true, // 启用自动转换功能。比如，将请求中的字符串转换为期望的类型（如数字、布尔值等）
       whitelist: true, // 启用白名单验证。只有在 DTO（数据传输对象）中定义的属性才会被保留，其他属性会被剔除。
       transformOptions: { enableImplicitConversion: true }, // 启用隐式类型转换
-      // forbidNonWhitelisted: true, // 禁止无装饰器验证的数据通过
+      forbidNonWhitelisted: true, // 禁止无装饰器验证的数据通过
       errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY, // 将验证错误的 HTTP 状态码设置为 422 Unprocessable Entity
       stopAtFirstError: true, // 一旦发现第一个验证错误，就停止进一步的验证
       // 自定义异常工厂，用于生成验证错误时抛出的异常

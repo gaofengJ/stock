@@ -19,3 +19,5 @@ apps/back/logs
 **/*.log
 **/*.tsbuildinfo
 .DS_Store
+
+.temp

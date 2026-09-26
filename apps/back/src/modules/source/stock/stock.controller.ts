@@ -1,3 +1,4 @@
+import { Permit } from '@/modules/auth/permissions';
 import {
   Body,
   Controller,
@@ -39,6 +40,13 @@ import { StockService } from './stock.service';
 export class StockController {
   constructor(private readonly stockBasicService: StockService) {}
 
+  @Permit(
+    'basic:stock',
+    'basic:daily',
+    'strategy:read',
+    'analysis:limits',
+    'market:read',
+  )
   @Get('/list')
   @ApiOperation({ summary: '获取Stock列表' })
   @ApiResult({ type: [StockEntity], isPage: true })
@@ -47,6 +55,13 @@ export class StockController {
     return this.stockBasicService.list(dto);
   }
 
+  @Permit(
+    'basic:stock',
+    'basic:daily',
+    'strategy:read',
+    'analysis:limits',
+    'market:read',
+  )
   @Get(':id')
   @ApiOperation({ summary: '获取Stock详情' })
   @ApiResult({ type: StockEntity })
@@ -55,6 +70,7 @@ export class StockController {
     return this.stockBasicService.detail(id);
   }
 
+  @Permit('data:write')
   @Post('/create')
   @ApiOperation({ summary: '创建Stock' })
   // @Perm(permissions.CREATE)
@@ -62,12 +78,14 @@ export class StockController {
     await this.stockBasicService.create(dto);
   }
 
+  @Permit('data:write')
   @Post('/bulk-create')
   @ApiOperation({ summary: '批量创建Stock' })
   async bulkCreate(@Body() dto: StockDto[]) {
     await this.stockBasicService.bulkCreate(dto);
   }
 
+  @Permit('data:write')
   @Put(':id')
   @ApiOperation({ summary: '更新Stock' })
   // @Perm(permissions.UPDATE)
@@ -76,12 +94,14 @@ export class StockController {
     await this.stockBasicService.update(id, dto);
   }
 
+  @Permit('data:write')
   @Delete('/clear')
   @ApiOperation({ summary: '清空Stock' })
   async clear() {
     await this.stockBasicService.clear();
   }
 
+  @Permit('data:write')
   @Delete(':id')
   @ApiOperation({ summary: '删除Stock' })
   // @Perm(permissions.DELETE)

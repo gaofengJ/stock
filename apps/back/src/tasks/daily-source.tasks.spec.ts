@@ -1,5 +1,6 @@
 import { DailyTaskService } from '@/modules/daily-task/daily-task.service';
 import { LoggerService } from '@/shared/logger/logger.service';
+import { AuthService } from '@/modules/auth/auth.service';
 import { DailySourceTask } from './daily-source.tasks';
 
 describe('同步任务环境隔离', () => {
@@ -8,11 +9,13 @@ describe('同步任务环境隔离', () => {
   const task = new DailySourceTask(
     { log: jest.fn(), error: jest.fn() } as unknown as LoggerService,
     { catchUp } as unknown as DailyTaskService,
+    { audit: jest.fn().mockResolvedValue(undefined) } as unknown as AuthService,
   );
   beforeEach(() => {
     catchUp.mockClear();
     delete process.env.SYNC_ON_STARTUP;
     delete process.env.SYNC_SCHEDULE_ENABLED;
+    delete process.env.SCHEDULE_ENABLED;
   });
   afterEach(() => {
     process.env = { ...original };

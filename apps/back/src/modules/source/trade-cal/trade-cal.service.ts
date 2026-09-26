@@ -6,6 +6,8 @@ import { Between, LessThanOrEqual, Repository } from 'typeorm';
 import { paginate } from '@/helper/paginate/index';
 import { Pagination } from '@/helper/paginate/pagination';
 import { CommonDateDto } from '@/dto/common.dto';
+import { BizException } from '@/exceptions/biz.exception';
+import { ECustomError } from '@/types/common.enum';
 
 import { TradeCalEntity } from './trade-cal.entity';
 
@@ -79,7 +81,10 @@ export class TradeCalService {
       },
       select: ['isOpen'],
     });
-    return !!(tradeCal?.isOpen || 0);
+    if (!tradeCal) {
+      throw new BizException(ECustomError.TRADE_CAL_MISSING);
+    }
+    return tradeCal.isOpen === EIsOpen.OPENED;
   }
 
   /**

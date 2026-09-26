@@ -250,7 +250,11 @@ export class DailyTaskService {
     });
   }
 
-  async bulkImport(startDate: string, endDate: string) {
+  async bulkImport(
+    startDate: string,
+    endDate: string,
+    progress: (date: string) => Promise<void> = async () => {},
+  ) {
     this.checkRange(startDate, endDate);
     await this.withLock(async (manager) => {
       await this.refreshSources(manager, true);
@@ -262,6 +266,8 @@ export class DailyTaskService {
       for (const day of days) {
         // eslint-disable-next-line no-await-in-loop
         await this.importDay(manager, day.calDate, true, true);
+        // eslint-disable-next-line no-await-in-loop
+        await progress(day.calDate);
       }
     });
   }
@@ -275,9 +281,9 @@ export class DailyTaskService {
 
   // 启动补同步与每日北京时间 20:30 共用入口。
   async catchUp(now = new Date(), scheduled = false) {
-    await this.withLock(async (manager) => {
+    return this.withLock(async (manager) => {
       const slot = eveningSlot(now);
-      if (scheduled && !slot) return;
+      if (scheduled && !slot) return 'skipped';
       const task = `auto-${slot || 'startup'}`;
       const today = shanghaiDate(now);
       const earlierRuns = await manager.findBy(SyncRunEntity, {
@@ -293,7 +299,7 @@ export class DailyTaskService {
               run.error?.startsWith('permanent:')),
         )
       )
-        return;
+        return 'skipped';
       const cycle = scheduled
         ? await this.beginRun(manager, task, today)
         : undefined;
@@ -311,7 +317,7 @@ export class DailyTaskService {
             await manager.update(SyncRunEntity, cycle.id, {
               status: 'success',
             });
-          return;
+          return 'success';
         }
         // 固定补同步起点，避免情绪指标的前置日期使范围不断向过去扩张。
         const scope = await manager.findOne(SyncRunEntity, {
@@ -393,6 +399,7 @@ export class DailyTaskService {
               missingDays.length > selectedDays.length ? 'pending' : 'success',
             error: null,
           });
+        return missingDays.length > selectedDays.length ? 'pending' : 'success';
       } catch (error) {
         if (cycle)
           await manager.update(SyncRunEntity, cycle.id, {

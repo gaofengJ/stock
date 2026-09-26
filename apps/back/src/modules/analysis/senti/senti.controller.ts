@@ -1,3 +1,4 @@
+import { Permit } from '@/modules/auth/permissions';
 import { Controller, Get, Logger, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import * as dayjs from 'dayjs';
@@ -21,6 +22,7 @@ export class SentiController {
 
   constructor(private readonly sentiService: SentiService) {}
 
+  @Permit('analysis:senti')
   @Get('/distribution-tatistics')
   @ApiOperation({ summary: '涨跌分布统计' })
   @ApiResult({ type: [SentiDistributionTatisticsEntity], isPage: false })
@@ -37,6 +39,7 @@ export class SentiController {
     return ret;
   }
 
+  @Permit('analysis:senti')
   @Get('/up-down-count')
   @ApiOperation({ summary: '连日涨跌统计' })
   @ApiResult({ type: [SentiUpDownCountEntity], isPage: false })
@@ -49,6 +52,7 @@ export class SentiController {
     return ret;
   }
 
+  @Permit('analysis:senti')
   @Get('/limit-up-down-count')
   @ApiOperation({ summary: '连日涨跌停统计' })
   @ApiResult({ type: [SentiLimitUpDownCountEntity], isPage: false })
@@ -61,6 +65,7 @@ export class SentiController {
     return ret;
   }
 
+  @Permit('analysis:senti')
   @Get('/limit-up-max-times-count')
   @ApiOperation({ summary: '连日涨停板高度统计' })
   @ApiResult({ type: [SentiLimitUpMaxTimesCountEntity], isPage: false })
@@ -75,6 +80,7 @@ export class SentiController {
     return ret;
   }
 
+  @Permit('analysis:senti')
   @Get('/list')
   @ApiOperation({ summary: '查询短线情绪' })
   @ApiResult({ type: [SentiEntity], isPage: false })

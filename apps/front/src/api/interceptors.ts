@@ -1,3 +1,4 @@
+import { csrfToken, authFailure } from '@/auth/client';
 import {
   Axios, AxiosError, InternalAxiosRequestConfig, isCancel,
 } from 'axios';
@@ -12,7 +13,8 @@ import { EBizError, RESPONSE_SUCCESS_CODE } from './config';
  */
 const registerRequestInterceptor = (ctx: BaseAxios, axios: Axios) => {
   axios.interceptors.request.use(
-    (config) => {
+    async (config) => {
+      if (!['get', 'head', 'options'].includes(config.method || 'get')) config.headers['X-CSRF-Token'] = await csrfToken();
       // 如果请求方法是 GET，设置参数序列化配置
       if (config.method === 'get') {
         config.paramsSerializer = {
@@ -106,6 +108,7 @@ const registerResponseInterceptor = (ctx: BaseAxios, axios: Axios) => {
     },
     async (error: AxiosError) => {
       const { message, config } = error;
+      authFailure(error.response?.status || 0);
       const isTimeout = error.code === 'ECONNABORTED';
       const responseMessage = (error.response?.data as { message?: string })
         ?.message;

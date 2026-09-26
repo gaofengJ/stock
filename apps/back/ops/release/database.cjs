@@ -8,6 +8,15 @@ const {
 const q = (s) => '`' + s.replace(/`/g, '``') + '`';
 
 async function report() {
+  const {
+    Accounts1790467200000,
+  } = require('../../dist/migrations/1790467200000-Accounts');
+  const runner = ds.createQueryRunner();
+  try {
+    await new Accounts1790467200000().preflight(runner);
+  } finally {
+    await runner.release();
+  }
   const [server] = await ds.query('SELECT VERSION() version, DATABASE() name');
   const tables = await ds.query(
     'SELECT TABLE_NAME name, ENGINE engine, DATA_LENGTH+INDEX_LENGTH bytes FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE()',
@@ -126,6 +135,10 @@ async function main() {
       process.stdout.write(JSON.stringify({ phase: 'after', ...after }) + '\n');
     } else if (action === 'verify') {
       await checkSyncSchema(ds);
+      const [bootstrap] = await ds.query(
+        "SELECT name FROM t_auth_meta WHERE name='bootstrap-v1'",
+      );
+      if (!bootstrap) throw new Error('Account initialization missing');
       process.stdout.write(
         JSON.stringify({ status: 'verified', database: ds.options.database }) +
           '\n',

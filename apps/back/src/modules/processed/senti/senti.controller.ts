@@ -1,3 +1,4 @@
+import { Permit } from '@/modules/auth/permissions';
 import {
   Body,
   Controller,
@@ -38,6 +39,7 @@ import { SentiService } from './senti.service';
 export class SentiController {
   constructor(private readonly sentiService: SentiService) {}
 
+  @Permit('analysis:senti')
   @Get('/list')
   @ApiOperation({ summary: '获取Senti列表' })
   @ApiResult({ type: [SentiEntity], isPage: false })
@@ -47,6 +49,7 @@ export class SentiController {
     return ret;
   }
 
+  @Permit('analysis:senti')
   @Get(':id')
   @ApiOperation({ summary: '获取Senti详情' })
   @ApiResult({ type: SentiEntity })
@@ -55,6 +58,7 @@ export class SentiController {
     return this.sentiService.detail(id);
   }
 
+  @Permit('data:write')
   @Post('/create')
   @ApiOperation({ summary: '创建Senti' })
   // @Perm(permissions.CREATE)
@@ -62,12 +66,14 @@ export class SentiController {
     await this.sentiService.create(dto);
   }
 
+  @Permit('data:write')
   @Post('/bulk-create')
   @ApiOperation({ summary: '批量创建Senti' })
   async bulkCreate(@Body() dto: SentiDto[]) {
     await this.sentiService.bulkCreate(dto);
   }
 
+  @Permit('data:write')
   @Put(':id')
   @ApiOperation({ summary: '更新Senti' })
   // @Perm(permissions.UPDATE)
@@ -76,12 +82,14 @@ export class SentiController {
     await this.sentiService.update(id, dto);
   }
 
+  @Permit('data:write')
   @Delete('/clear')
   @ApiOperation({ summary: '清空Senti' })
   async clear() {
     await this.sentiService.clear();
   }
 
+  @Permit('data:write')
   @Delete(':id')
   @ApiOperation({ summary: '删除Senti' })
   // @Perm(permissions.DELETE)

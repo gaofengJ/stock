@@ -1,3 +1,4 @@
+import { Permit } from '@/modules/auth/permissions';
 import { Controller, Get, Logger, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
@@ -14,6 +15,7 @@ export class LimitsController {
 
   constructor(private readonly limitsService: LimitsService) {}
 
+  @Permit('analysis:limits')
   @Get('/limit-up-list')
   @ApiOperation({ summary: '涨停板复盘' })
   @ApiResult({ type: [LimitEntity], isPage: false })

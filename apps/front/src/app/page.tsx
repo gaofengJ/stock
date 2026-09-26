@@ -1,27 +1,8 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAccount } from '@/auth/Boundary';
+import { homePath } from '@/auth/client';
 
-import { EHeaderMenuKey } from '@/components/Layout/enum';
-
-export default () => {
-  const router = useRouter();
-
-  useEffect(() => {
-    /**
-   * 初始化
-   */
-    const init = async () => {
-      const isLoggedIn = true; // 是否已登录
-      if (isLoggedIn) {
-        router.push(EHeaderMenuKey.analysis);
-      } else {
-        router.push('/login');
-      }
-    };
-    init();
-  }, [router]);
-
-  return null;
-};
+export default function Page() { const { user } = useAccount(); const router = useRouter(); useEffect(() => { if (user) router.replace(homePath(user, '')); }, [user, router]); return null; }

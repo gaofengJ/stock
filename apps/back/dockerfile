@@ -29,7 +29,10 @@ COPY apps/back/.env ./apps/back/.env
 COPY apps/back/.env.production ./apps/back/.env.production
 COPY apps/back/ops ./apps/back/ops
 
+COPY apps/back/scripts/check-argon2.cjs ./apps/back/scripts/check-argon2.cjs
 WORKDIR /usr/src/app/apps/back
+RUN node scripts/check-argon2.cjs
+ENV TZ=Asia/Shanghai
 ENV NODE_ENV=production
 
 EXPOSE 3000
