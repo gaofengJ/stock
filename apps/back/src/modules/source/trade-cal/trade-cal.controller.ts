@@ -65,16 +65,16 @@ export class TradeCalController {
     await this.tradeCalService.update(id, dto);
   }
 
-  @Delete(':id')
-  @ApiOperation({ summary: '删除TradeCal' })
-  async delete(@IdParam() id: number) {
-    await this.tradeCalService.delete(id);
-  }
-
   @Delete('/clear')
   @ApiOperation({ summary: '清空TradeCal' })
   async clear() {
     await this.tradeCalService.clear();
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: '删除TradeCal' })
+  async delete(@IdParam() id: number) {
+    await this.tradeCalService.delete(id);
   }
 
   @Get('/is-open')

@@ -25,6 +25,7 @@ import { StrategyModule } from '@/modules/strategy/strategy.module';
 import { BasicModule } from '@/modules/basic/basic.module';
 import { CommonModule } from '@/modules/common/common.module';
 import { DailySourceTask } from '@/tasks/daily-source.tasks';
+import { SyncWriteModule } from './modules/daily-task/sync-write.module';
 import { RoleModule } from './modules/role/role.module';
 import { PermissionModule } from './modules/permission/permission.module';
 
@@ -93,6 +94,7 @@ import { PermissionModule } from './modules/permission/permission.module';
      * 每日任务模块
      */
     DailyTaskModule,
+    SyncWriteModule,
     /**
      * 公共模块
      */

@@ -18,13 +18,8 @@ export class DailySourceTask implements OnApplicationBootstrap {
 
   onApplicationBootstrap() {
     // 不阻塞 HTTP 服务启动；停机期间缺失的交易日在后台补齐。
-    if (
-      getEnvConfigBoolean(
-        'SYNC_ON_STARTUP',
-        process.env.NODE_ENV === 'production',
-      )
-    ) {
-      setImmediate(() => this.runSync());
+    if (getEnvConfigBoolean('SYNC_ON_STARTUP', false)) {
+      setImmediate(() => this.runSync(true));
     }
   }
 
@@ -39,13 +34,23 @@ export class DailySourceTask implements OnApplicationBootstrap {
       )
     )
       return;
-    await this.runSync();
+    await this.runSync(true);
   }
 
-  private async runSync() {
+  @Cron('0 45 20 * * *', { timeZone: 'Asia/Shanghai' })
+  async handleRetry() {
+    await this.handleCorn();
+  }
+
+  @Cron('0 0,15,30 21 * * *', { timeZone: 'Asia/Shanghai' })
+  async handleLateRetry() {
+    await this.handleCorn();
+  }
+
+  private async runSync(scheduled = false) {
     try {
       this.logger.log('源数据同步检查开始', DailySourceTask.name);
-      await this.dailyTaskService.catchUp();
+      await this.dailyTaskService.catchUp(new Date(), scheduled);
       this.logger.log('源数据同步检查结束', DailySourceTask.name);
     } catch (error) {
       this.logger.error(

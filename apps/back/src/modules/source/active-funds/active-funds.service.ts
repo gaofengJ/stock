@@ -1,3 +1,4 @@
+import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -9,6 +10,7 @@ import { ActiveFundsDto, ActiveFundsUpdateDto } from './active-funds.dto';
 @Injectable()
 export class ActiveFundsService {
   constructor(
+    private readonly writes: SyncWriteService,
     @InjectRepository(ActiveFundsEntity)
     private ActiveFundsRepository: Repository<ActiveFundsEntity>,
   ) {}
@@ -27,24 +29,22 @@ export class ActiveFundsService {
   }
 
   async create(dto: ActiveFundsDto) {
-    await this.ActiveFundsRepository.save(dto);
+    await this.writes.mutate(ActiveFundsEntity, 'save', dto);
   }
 
   async bulkCreate(dto: ActiveFundsDto[]) {
-    const ret = await this.ActiveFundsRepository.save(dto);
-    return ret?.length || 0;
+    return this.writes.mutate(ActiveFundsEntity, 'save', dto);
   }
 
   async update(id: number, dto: ActiveFundsUpdateDto) {
-    await this.ActiveFundsRepository.update(id, dto);
+    await this.writes.mutate(ActiveFundsEntity, 'update', dto, id);
   }
 
   async delete(id: number) {
-    const item = await this.detail(id);
-    await this.ActiveFundsRepository.remove(item);
+    await this.writes.mutate(ActiveFundsEntity, 'delete', undefined, id);
   }
 
   async clear() {
-    await this.ActiveFundsRepository.clear();
+    await this.writes.mutate(ActiveFundsEntity, 'clear');
   }
 }

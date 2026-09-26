@@ -1,7 +1,14 @@
 import 'reflect-metadata';
+import { execFileSync } from 'child_process';
+import { resolve as resolvePath } from 'path';
 import { createConnection, Connection } from 'mysql2/promise';
 import { DataSource } from 'typeorm';
 import { Logger } from '@nestjs/common';
+import { checkSyncSchema, syncIndexes } from '@/shared/database/sync-schema';
+import { SyncWriteService } from './sync-write.service';
+import { SyncDayPolicyEntity } from './sync-day-policy.entity';
+import { SyncSafety1790380800001 } from '../../migrations/1790380800001-SyncSafety';
+
 import { DailyTaskService } from './daily-task.service';
 import { SyncSourceService } from './sync-source.service';
 import { SyncRunEntity } from './sync-run.entity';
@@ -25,6 +32,7 @@ const entities = [
   ActiveFundsEntity,
   SentiEntity,
   SyncRunEntity,
+  SyncDayPolicyEntity,
 ];
 const daily = (tradeDate: string, close = '11') => ({
   tradeDate,
@@ -102,7 +110,9 @@ mysqlDescribe('MySQL 同步事务与迁移回归', () => {
       password: process.env.SYNC_TEST_MYSQL_PASSWORD || '',
     };
     admin = await createConnection(connection);
-    await admin.query(`CREATE DATABASE \`${database}\``);
+    await admin.query(
+      `CREATE DATABASE \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci`,
+    );
     db = new DataSource({
       type: 'mysql',
       host: connection.host,
@@ -113,11 +123,16 @@ mysqlDescribe('MySQL 同步事务与迁移回归', () => {
       entities,
       synchronize: true,
       timezone: 'Z',
-      migrations: [ReliableSync1790380800000],
+      charset: 'utf8mb4_general_ci',
+      migrations: [ReliableSync1790380800000, SyncSafety1790380800001],
       migrationsTransactionMode: 'none',
     });
     await db.initialize();
-    service = new DailyTaskService(db, source as unknown as SyncSourceService);
+    service = new DailyTaskService(
+      db,
+      source as unknown as SyncSourceService,
+      new SyncWriteService(db),
+    );
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
     jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
@@ -291,6 +306,7 @@ mysqlDescribe('MySQL 同步事务与迁移回归', () => {
     const second = new DailyTaskService(
       db,
       source as unknown as SyncSourceService,
+      new SyncWriteService(db),
     );
     try {
       await expect(second.import('2024-07-01')).rejects.toThrow('正在进行');
@@ -440,4 +456,303 @@ mysqlDescribe('MySQL 同步事务与迁移回归', () => {
       await runner.release();
     }
   });
+
+  it('主动删除不被自动同步或前置依赖抓取恢复，手动导入成功才解锁', async () => {
+    await service.bulkImport('2024-07-01', '2024-07-02');
+    await service.delete('2024-07-01');
+    source.daily.mockClear();
+    await expect(
+      service.catchUp(new Date('2024-07-02T12:30:00Z')),
+    ).rejects.toThrow();
+    expect(source.daily.mock.calls.map((call) => call[0])).not.toContain(
+      '2024-07-01',
+    );
+    expect(
+      await db.manager.countBy(DailyEntity, { tradeDate: '2024-07-01' }),
+    ).toBe(0);
+    expect(await db.manager.count(SyncDayPolicyEntity)).toBe(1);
+    source.daily.mockRejectedValueOnce(new Error('temporary'));
+    await expect(service.import('2024-07-01')).rejects.toThrow();
+    expect(await db.manager.count(SyncDayPolicyEntity)).toBe(1);
+    source.limits.mockResolvedValueOnce([
+      { ...limit('2024-07-01'), tsCode: null },
+    ]);
+    await expect(service.import('2024-07-01')).rejects.toThrow();
+    expect(await db.manager.count(SyncDayPolicyEntity)).toBe(1);
+    expect(
+      await db.manager.countBy(DailyEntity, { tradeDate: '2024-07-01' }),
+    ).toBe(0);
+    await service.import('2024-07-01');
+    expect(await db.manager.count(SyncDayPolicyEntity)).toBe(0);
+    expect(
+      await db.manager.countBy(SentiEntity, { tradeDate: '2024-07-02' }),
+    ).toBe(1);
+  });
+
+  it('普通创建按业务键更新并保留 ID，批量最后一项生效，失败全批回滚', async () => {
+    const writes = new SyncWriteService(db);
+    const old = await db.manager.findOneByOrFail(DailyEntity, {
+      tradeDate: '2024-06-28',
+    });
+    await writes.mutate(DailyEntity, 'save', [
+      daily('2024-06-28', '12'),
+      daily('2024-06-28', '13'),
+    ]);
+    expect(
+      await db.manager.findOneBy(DailyEntity, { id: old.id }),
+    ).toMatchObject({ close: '13.00' });
+    expect(await db.manager.count(DailyEntity)).toBe(1);
+    await expect(
+      writes.mutate(DailyEntity, 'save', [
+        daily('2024-06-28', '14'),
+        { ...daily('2024-07-01'), tsCode: null },
+      ]),
+    ).rejects.toThrow();
+    await expect(
+      writes.mutate(DailyEntity, 'save', [{ name: 'missing key' }]),
+    ).rejects.toThrow('业务键');
+    expect(
+      await db.manager.findOneBy(DailyEntity, { id: old.id }),
+    ).toMatchObject({ close: '13.00' });
+  });
+
+  it('普通更新冲突返回明确提示，删除与清空保留排除记录', async () => {
+    const writes = new SyncWriteService(db);
+    await db.manager.insert(DailyEntity, daily('2024-07-01'));
+    const old = await db.manager.findOneByOrFail(DailyEntity, {
+      tradeDate: '2024-06-28',
+    });
+    await expect(
+      writes.mutate(DailyEntity, 'update', { tradeDate: '2024-07-01' }, old.id),
+    ).rejects.toThrow('相同业务键');
+    await writes.mutate(DailyEntity, 'delete', undefined, old.id);
+    expect(
+      await db.manager.countBy(SyncDayPolicyEntity, {
+        tradeDate: '2024-06-28',
+      }),
+    ).toBe(1);
+    await service.clear();
+    expect(await db.manager.count(SyncDayPolicyEntity)).toBeGreaterThanOrEqual(
+      2,
+    );
+    await service.catchUp(new Date('2024-07-02T12:30:00Z'));
+    expect(await db.manager.count(DailyEntity)).toBe(0);
+  });
+
+  it('普通行情更新同时重算当日及下一交易日，情绪手动删除保持删除', async () => {
+    await service.bulkImport('2024-07-01', '2024-07-02');
+    const writes = new SyncWriteService(db);
+    await writes.mutate(LimitEntity, 'save', {
+      ...limit('2024-07-01'),
+      limit: 'Z',
+    });
+    expect(
+      await db.manager.findOneBy(SentiEntity, { tradeDate: '2024-07-01' }),
+    ).toMatchObject({ e: 1 });
+    await writes.mutate(SentiEntity, 'delete', { tradeDate: '2024-07-01' });
+    expect(
+      await db.manager.countBy(SentiEntity, { tradeDate: '2024-07-01' }),
+    ).toBe(0);
+    expect(
+      await db.manager.countBy(SyncDayPolicyEntity, {
+        tradeDate: '2024-07-01',
+      }),
+    ).toBe(1);
+  });
+
+  it('数据库记录限制每个晚间时段执行一次，临时失败下个时段恢复', async () => {
+    source.stocks.mockRejectedValueOnce(new Error('temporary'));
+    await expect(
+      service.catchUp(new Date('2024-07-01T12:30:00Z'), true),
+    ).rejects.toThrow();
+    await service.catchUp(new Date('2024-07-01T12:31:00Z'), true);
+    expect(source.stocks).toHaveBeenCalledTimes(1);
+    await service.catchUp(new Date('2024-07-01T12:45:00Z'), true);
+    expect(
+      await db.manager.countBy(SentiEntity, { tradeDate: '2024-07-01' }),
+    ).toBe(1);
+    await service.catchUp(new Date('2024-07-01T14:00:00Z'), true);
+    expect(source.stocks).toHaveBeenCalledTimes(2);
+    await service.catchUp(new Date('2024-07-01T13:00:00Z'), true);
+    expect(source.stocks).toHaveBeenCalledTimes(2);
+  });
+
+  it('永久权限错误当晚停止补试，次日晚间允许再检查', async () => {
+    source.stocks.mockRejectedValueOnce(new Error('没有权限'));
+    await expect(
+      service.catchUp(new Date('2024-07-01T12:30:00Z'), true),
+    ).rejects.toThrow();
+    await service.catchUp(new Date('2024-07-01T12:45:00Z'), true);
+    expect(source.stocks).toHaveBeenCalledTimes(1);
+    await service.catchUp(new Date('2024-07-02T12:30:00Z'), true);
+    expect(source.stocks).toHaveBeenCalledTimes(2);
+  });
+
+  it('前置日期发生永久配额错误时立即停止请求和当晚补试', async () => {
+    process.env.SYNC_MAX_DAYS_PER_RUN = '1';
+    source.daily.mockRejectedValue(new Error('每日配额已用完'));
+    await expect(
+      service.catchUp(new Date('2024-07-03T12:30:00Z'), true),
+    ).rejects.toThrow('permanent:');
+    expect(source.daily.mock.calls.map((call) => call[0])).toEqual([
+      '2024-07-02',
+    ]);
+    await service.catchUp(new Date('2024-07-03T12:45:00Z'), true);
+    expect(source.daily).toHaveBeenCalledTimes(1);
+  });
+
+  it('游资永久错误不阻断行情，但当日后续自动补试不重复请求游资', async () => {
+    source.activeFunds.mockRejectedValue(new Error('没有权限'));
+    source.daily.mockRejectedValue(new Error('temporary'));
+    await expect(
+      service.catchUp(new Date('2024-07-01T12:30:00Z'), true),
+    ).rejects.toThrow();
+    await expect(
+      service.catchUp(new Date('2024-07-01T12:45:00Z'), true),
+    ).rejects.toThrow();
+    expect(source.activeFunds).toHaveBeenCalledTimes(1);
+    expect(source.daily).toHaveBeenCalledTimes(2);
+  });
+
+  it('普通写接口与抓取任务共用跨实例互斥锁', async () => {
+    const writes = new SyncWriteService(db);
+    await writes.withLock(async () => {
+      await expect(
+        new SyncWriteService(db).mutate(StockEntity, 'save', stock),
+      ).rejects.toThrow('正在进行');
+      await expect(service.import('2024-07-01')).rejects.toThrow('正在进行');
+    });
+    await writes.mutate(StockEntity, 'save', stock);
+    expect(
+      await db.manager.findOneBy(SyncRunEntity, { task: 'write' }),
+    ).toMatchObject({ attempts: 1 });
+  });
+
+  it('普通清空使用日期去重保护所有现有日期，不重新填回原始数据', async () => {
+    await service.bulkImport('2024-07-01', '2024-07-02');
+    await new SyncWriteService(db).mutate(DailyEntity, 'clear');
+    expect(await db.manager.count(DailyEntity)).toBe(0);
+    expect(await db.manager.count(SyncDayPolicyEntity)).toBe(3);
+    await service.catchUp(new Date('2024-07-02T12:30:00Z'));
+    expect(await db.manager.count(DailyEntity)).toBe(0);
+  });
+
+  it('结构检查拒绝同名但列定义错误的索引，避免误认为迁移完成', async () => {
+    const runner = db.createQueryRunner();
+    try {
+      await runner.query(
+        'ALTER TABLE t_source_daily DROP INDEX uq_daily_code_date, ADD UNIQUE INDEX uq_daily_code_date (ts_code)',
+      );
+      await expect(checkSyncSchema(db)).rejects.toThrow('uq_daily_code_date');
+    } finally {
+      await runner.query(
+        'ALTER TABLE t_source_daily DROP INDEX uq_daily_code_date, ADD UNIQUE INDEX uq_daily_code_date (ts_code, trade_date)',
+      );
+      await runner.release();
+    }
+    await expect(checkSyncSchema(db)).resolves.toBeUndefined();
+  });
+
+  it('第二张表建索引中断后可以重跑，已经完成的表不再删除数据', async () => {
+    const runner = db.createQueryRunner();
+    const migration = new ReliableSync1790380800000();
+    try {
+      await runner.dropIndex('t_source_daily', 'uq_daily_code_date');
+      await runner.dropIndex('t_source_limit', 'uq_limit_code_date_type');
+      await db.manager.insert(DailyEntity, daily('2024-06-28', '14'));
+      const original = runner.createIndex.bind(runner);
+      const fault = jest
+        .spyOn(runner, 'createIndex')
+        .mockImplementation(async (table, index) => {
+          if (table === 't_source_limit')
+            throw new Error('simulated interrupted DDL');
+          return original(table, index);
+        });
+      await expect(migration.up(runner)).rejects.toThrow('interrupted DDL');
+      expect(await db.manager.count(DailyEntity)).toBe(1);
+      fault.mockRestore();
+      await migration.up(runner);
+      expect(
+        await db.manager.findOneBy(DailyEntity, { tradeDate: '2024-06-28' }),
+      ).toMatchObject({ close: '14.00' });
+      await expect(checkSyncSchema(db)).resolves.toBeUndefined();
+    } finally {
+      await runner.release();
+    }
+  });
+
+  it('发布 CLI 只读预检、去重数量核对、实际结构验证及重复迁移均通过', async () => {
+    const probe = `${database}_release`;
+    if (!/^stock_sync_test_\d+_\d+_release$/.test(probe))
+      throw new Error('Invalid test database');
+    await admin.query(
+      `CREATE DATABASE ${probe} CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci`,
+    );
+    const probeDb = new DataSource({
+      type: 'mysql',
+      host: '127.0.0.1',
+      port: Number(process.env.SYNC_TEST_MYSQL_PORT),
+      username: 'root',
+      password: process.env.SYNC_TEST_MYSQL_PASSWORD || '',
+      entities,
+      charset: 'utf8mb4_general_ci',
+      timezone: 'Z',
+      database: probe,
+      synchronize: false,
+    });
+    const cli = (action: string) =>
+      execFileSync(process.execPath, ['ops/release/database.cjs', action], {
+        cwd: resolvePath(__dirname, '../../..'),
+        encoding: 'utf8',
+        timeout: 30000,
+        env: {
+          ...process.env,
+          APP_ENV_FILE: '__isolated_test_no_env__',
+          NODE_ENV: 'development',
+          DB_HOST: '127.0.0.1',
+          DB_PORT: String(process.env.SYNC_TEST_MYSQL_PORT),
+          DB_USERNAME: 'root',
+          DB_PASSWORD: process.env.SYNC_TEST_MYSQL_PASSWORD || '',
+          DB_DATABASE: probe,
+        },
+      })
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+    try {
+      // eslint-disable-next-line no-restricted-syntax
+      for (const key of syncIndexes) {
+        // eslint-disable-next-line no-await-in-loop
+        await admin.query(
+          `CREATE TABLE ${probe}.${key.table} LIKE ${database}.${key.table}`,
+        );
+        // eslint-disable-next-line no-await-in-loop
+        await admin.query(
+          `ALTER TABLE ${probe}.${key.table} DROP INDEX ${key.name}`,
+        );
+      }
+      await probeDb.initialize();
+      await probeDb.manager.insert(DailyEntity, [
+        daily('2024-06-28'),
+        daily('2024-06-28', '14'),
+      ]);
+      const before = cli('preflight')[0];
+      expect(before.pending).toHaveLength(2);
+      expect(before.counts.t_source_daily).toEqual({ rows: 2, duplicates: 1 });
+      expect(await probeDb.manager.count(DailyEntity)).toBe(2);
+      const migrated = cli('migrate');
+      expect(migrated[1].counts.t_source_daily).toEqual({
+        rows: 1,
+        duplicates: 0,
+      });
+      expect(cli('verify')[0]).toMatchObject({
+        status: 'verified',
+        database: probe,
+      });
+      expect(cli('migrate')[0].pending).toEqual([]);
+    } finally {
+      if (probeDb.isInitialized) await probeDb.destroy();
+      await admin.query(`DROP DATABASE ${probe}`);
+    }
+  }, 30000);
 });

@@ -1,15 +1,10 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { IsDateString, IsOptional, IsString } from 'class-validator';
-import { IsUnique } from '@/shared/database/constraints/unique.constraint';
 import { PagerDto } from '@/dto/pager.dto';
 import { DailyEntity } from './daily.entity';
 
 export class DailyDto extends PartialType(DailyEntity) {
   @ApiProperty({ description: '股票代码（包含交易所）' })
-  @IsUnique({
-    entity: DailyEntity,
-    message: '已存在相同名称的股票代码（包含交易所）',
-  })
   @IsString()
   tsCode: string;
 

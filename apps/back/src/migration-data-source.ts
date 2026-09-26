@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import * as dotenv from 'dotenv';
 import { DataSource } from 'typeorm';
+import { SyncSafety1790380800001 } from './migrations/1790380800001-SyncSafety';
 import { ReliableSync1790380800000 } from './migrations/1790380800000-ReliableSync';
 
 dotenv.config({
@@ -21,5 +22,5 @@ export default new DataSource({
   synchronize: false,
   migrationsRun: false,
   migrationsTransactionMode: 'none',
-  migrations: [ReliableSync1790380800000],
+  migrations: [ReliableSync1790380800000, SyncSafety1790380800001],
 });

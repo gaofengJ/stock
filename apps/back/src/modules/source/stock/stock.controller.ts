@@ -76,17 +76,17 @@ export class StockController {
     await this.stockBasicService.update(id, dto);
   }
 
+  @Delete('/clear')
+  @ApiOperation({ summary: '清空Stock' })
+  async clear() {
+    await this.stockBasicService.clear();
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: '删除Stock' })
   // @Perm(permissions.DELETE)
   // @Resource(StockEntity)
   async delete(@IdParam() id: number) {
     await this.stockBasicService.delete(id);
-  }
-
-  @Delete('/clear')
-  @ApiOperation({ summary: '清空Stock' })
-  async clear() {
-    await this.stockBasicService.clear();
   }
 }

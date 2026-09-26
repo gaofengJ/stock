@@ -4,12 +4,15 @@ import { LimitEntity } from '../source/limit/limit.entity';
 
 // 不依赖服务器操作系统时区。
 export function shanghaiDate(now = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', {
+  const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Shanghai',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(now);
+  }).formatToParts(now);
+  return ['year', 'month', 'day']
+    .map((type) => parts.find((part) => part.type === type)!.value)
+    .join('-');
 }
 
 export function latestSyncDate(now = new Date()): string {
@@ -41,6 +44,26 @@ export function normalizeDate(value: string): string {
 
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+export function permanentSyncError(error: unknown): boolean {
+  return /权限|积分|每天|每日|配额|token.*(无效|错误)|permanent:/i.test(
+    errorMessage(error),
+  );
+}
+
+export function eveningSlot(now: Date): string | undefined {
+  const time = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Shanghai',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(now);
+  if (time < '20:30' || time > '21:30') return undefined;
+  return ['20:30', '20:45', '21:00', '21:15', '21:30']
+    .filter((slot) => slot <= time)
+    .pop()
+    ?.replace(':', '');
 }
 
 type Daily = Pick<

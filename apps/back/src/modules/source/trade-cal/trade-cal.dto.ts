@@ -1,16 +1,11 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { IsDateString, IsEnum, IsNumber, IsString } from 'class-validator';
-import { IsUnique } from '@/shared/database/constraints/unique.constraint';
 import { PagerDto } from '@/dto/pager.dto';
 import { TradeCalEntity } from './trade-cal.entity';
 import { EIsOpen } from './trade-cal.enum';
 
 export class TradeCalDto extends PartialType(TradeCalEntity) {
   @ApiProperty({ description: '日期' })
-  @IsUnique({
-    entity: TradeCalEntity,
-    message: '已存在相同名称的日期',
-  })
   @IsDateString()
   calDate: string;
 

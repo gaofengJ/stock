@@ -6,9 +6,10 @@ import {
   EntityTarget,
   ObjectLiteral,
 } from 'typeorm';
-import { createHash } from 'crypto';
 import { BizException } from '@/exceptions/biz.exception';
 import { ECustomError } from '@/types/common.enum';
+import { SyncWriteService } from './sync-write.service';
+import { SyncDayPolicyEntity } from './sync-day-policy.entity';
 import { DailyEntity } from '../source/daily/daily.entity';
 import { LimitEntity } from '../source/limit/limit.entity';
 import { StockEntity } from '../source/stock/stock.entity';
@@ -18,11 +19,12 @@ import { SentiEntity } from '../processed/senti/senti.entity';
 import { SyncRunEntity } from './sync-run.entity';
 import { SyncSourceService } from './sync-source.service';
 import {
-  calculateMood,
   errorMessage,
   normalizeDate,
   shanghaiDate,
   latestSyncDate,
+  eveningSlot,
+  permanentSyncError,
 } from './sync.utils';
 
 @Injectable()
@@ -32,40 +34,14 @@ export class DailyTaskService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly source: SyncSourceService,
+    private readonly writes: SyncWriteService,
   ) {}
 
-  // 基础表、每日导入与删除共用同一数据库连接上的命名锁，跨实例互斥。
-  private async withLock<T>(
+  private withLock<T>(
     action: (manager: EntityManager) => Promise<T>,
     skipBusy = false,
-  ): Promise<T | undefined> {
-    const runner = this.dataSource.createQueryRunner();
-    const lock = `stock-sync:${createHash('sha256')
-      .update(String(this.dataSource.options.database))
-      .digest('hex')
-      .slice(0, 40)}`;
-    let acquired = false;
-    try {
-      await runner.connect();
-      const [result] = await runner.query('SELECT GET_LOCK(?, 0) AS acquired', [
-        lock,
-      ]);
-      acquired = Number(result.acquired) === 1;
-      if (!acquired) {
-        if (skipBusy) {
-          this.logger.log('已有同步任务运行，本次自动检查跳过');
-          return undefined;
-        }
-        throw new ConflictException('数据同步或删除正在进行，请稍后重试');
-      }
-      return await action(runner.manager);
-    } finally {
-      try {
-        if (acquired) await runner.query('SELECT RELEASE_LOCK(?)', [lock]);
-      } finally {
-        await runner.release();
-      }
-    }
+  ) {
+    return this.writes.withLock(action, skipBusy);
   }
 
   private async beginRun(manager: EntityManager, task: string, date: string) {
@@ -122,7 +98,7 @@ export class DailyTaskService {
     });
   }
 
-  private async refreshSources(manager: EntityManager) {
+  private async refreshSources(manager: EntityManager, manual = false) {
     const date = shanghaiDate();
     await this.replaceSnapshot(manager, TradeCalEntity, () =>
       this.source.calendar(Number(date.slice(0, 4))),
@@ -130,6 +106,18 @@ export class DailyTaskService {
     await this.replaceSnapshot(manager, StockEntity, () =>
       this.source.stocks(),
     );
+    const previous = await manager.findOneBy(SyncRunEntity, {
+      task: 'active-funds',
+      tradeDate: date,
+    });
+    if (
+      !manual &&
+      previous?.status === 'failed' &&
+      permanentSyncError(previous.error || '')
+    ) {
+      this.logger.log('游资名录当日永久错误，跳过自动补试并保留旧数据');
+      return;
+    }
     const run = await this.beginRun(manager, 'active-funds', date);
     try {
       await this.replaceSnapshot(manager, ActiveFundsEntity, () =>
@@ -147,52 +135,12 @@ export class DailyTaskService {
     }
   }
 
-  private async rawReady(
-    manager: EntityManager,
-    date: string,
-  ): Promise<boolean> {
-    const dailyCount = await manager.countBy(DailyEntity, { tradeDate: date });
-    if (!dailyCount) return false;
-    const limitCount = await manager.countBy(LimitEntity, { tradeDate: date });
-    const run = await manager.findOneBy(SyncRunEntity, {
-      task: 'daily',
-      tradeDate: date,
-    });
-    if (run)
-      return (
-        ['success', 'pending'].includes(run.status) &&
-        run.dailyCount === dailyCount &&
-        run.limitCount === limitCount
-      );
-    // 兼容迁移前的历史记录；没有任务状态时无法把空涨跌停表认定为成功。
-    return limitCount > 0;
+  private rawReady(manager: EntityManager, date: string) {
+    return this.writes.rawReady(manager, date);
   }
 
-  private async writeMood(
-    manager: EntityManager,
-    date: string,
-  ): Promise<boolean> {
-    const calendar = await manager.findOneBy(TradeCalEntity, { calDate: date });
-    if (
-      !calendar?.preTradeDate ||
-      calendar.preTradeDate >= date ||
-      !(await this.rawReady(manager, calendar.preTradeDate))
-    )
-      return false;
-    const current = await manager.findBy(DailyEntity, { tradeDate: date });
-    const limits = await manager.findBy(LimitEntity, { tradeDate: date });
-    const previous = await manager.findBy(DailyEntity, {
-      tradeDate: calendar.preTradeDate,
-    });
-    const previousLimits = await manager.findBy(LimitEntity, {
-      tradeDate: calendar.preTradeDate,
-    });
-    await manager.delete(SentiEntity, { tradeDate: date });
-    await manager.insert(
-      SentiEntity,
-      calculateMood(date, current, limits, previous, previousLimits),
-    );
-    return true;
+  private writeMood(manager: EntityManager, date: string) {
+    return this.writes.writeMood(manager, date);
   }
 
   private async repairNextMood(manager: EntityManager, date: string) {
@@ -214,7 +162,9 @@ export class DailyTaskService {
     manager: EntityManager,
     date: string,
     includePrevious = true,
+    manual = false,
   ) {
+    if (!manual && (await this.writes.excluded(manager, date))) return;
     const calendar = await manager.findOneBy(TradeCalEntity, {
       calDate: date,
       isOpen: 1,
@@ -224,6 +174,7 @@ export class DailyTaskService {
       throw new ConflictException('不能导入未来的交易日');
     if (
       includePrevious &&
+      !(await this.writes.excluded(manager, calendar.preTradeDate)) &&
       calendar.preTradeDate < date &&
       !(await this.rawReady(manager, calendar.preTradeDate))
     ) {
@@ -235,11 +186,28 @@ export class DailyTaskService {
         try {
           await this.importDay(manager, previous.calDate, false);
         } catch (error) {
+          if (permanentSyncError(error)) throw error;
           this.logger.warn(
             `前一交易日导入失败，情绪指标将等待补算: ${errorMessage(error)}`,
           );
         }
       }
+    }
+    const existingRun = await manager.findOneBy(SyncRunEntity, {
+      task: 'daily',
+      tradeDate: date,
+    });
+    if (!manual && existingRun && (await this.rawReady(manager, date))) {
+      await manager.transaction(async (tx) => {
+        const ready = await this.writeMood(tx, date);
+        await tx.update(SyncRunEntity, existingRun.id, {
+          status: ready ? 'success' : 'pending',
+          sentiCount: ready ? 1 : 0,
+          error: ready ? null : '前置数据不足或受主动删除保护，等待补算',
+        });
+        await this.repairNextMood(tx, date);
+      });
+      return;
     }
     const run = await this.beginRun(manager, 'daily', date);
     try {
@@ -251,6 +219,7 @@ export class DailyTaskService {
       if (!daily.length || (oldCount > 0 && daily.length < oldCount * 0.8))
         throw new Error('日线快照数量异常，保留原数据');
       await manager.transaction(async (tx) => {
+        if (manual) await tx.delete(SyncDayPolicyEntity, { tradeDate: date });
         await tx.delete(DailyEntity, { tradeDate: date });
         await tx.delete(LimitEntity, { tradeDate: date });
         await tx.delete(SentiEntity, { tradeDate: date });
@@ -276,15 +245,15 @@ export class DailyTaskService {
   async import(date: string) {
     normalizeDate(date);
     await this.withLock(async (manager) => {
-      await this.refreshSources(manager);
-      await this.importDay(manager, date);
+      await this.refreshSources(manager, true);
+      await this.importDay(manager, date, true, true);
     });
   }
 
   async bulkImport(startDate: string, endDate: string) {
     this.checkRange(startDate, endDate);
     await this.withLock(async (manager) => {
-      await this.refreshSources(manager);
+      await this.refreshSources(manager, true);
       const days = await manager.find(TradeCalEntity, {
         where: { calDate: Between(startDate, endDate), isOpen: 1 },
         order: { calDate: 'ASC' },
@@ -292,7 +261,7 @@ export class DailyTaskService {
       // eslint-disable-next-line no-restricted-syntax
       for (const day of days) {
         // eslint-disable-next-line no-await-in-loop
-        await this.importDay(manager, day.calDate);
+        await this.importDay(manager, day.calDate, true, true);
       }
     });
   }
@@ -305,80 +274,135 @@ export class DailyTaskService {
   }
 
   // 启动补同步与每日北京时间 20:30 共用入口。
-  async catchUp(now = new Date()) {
+  async catchUp(now = new Date(), scheduled = false) {
     await this.withLock(async (manager) => {
-      await this.refreshSources(manager);
-      const cutoff = latestSyncDate(now);
-      const days = (
-        await manager.find(TradeCalEntity, {
-          where: { isOpen: 1 },
-          order: { calDate: 'ASC' },
-        })
-      ).filter((day) => day.calDate <= cutoff);
-      if (!days.length) return;
-      // 固定补同步起点，避免情绪指标的前置日期使范围不断向过去扩张。
-      const scope = await manager.findOne(SyncRunEntity, {
-        where: { task: 'scope' },
-        order: { tradeDate: 'ASC' },
+      const slot = eveningSlot(now);
+      if (scheduled && !slot) return;
+      const task = `auto-${slot || 'startup'}`;
+      const today = shanghaiDate(now);
+      const earlierRuns = await manager.findBy(SyncRunEntity, {
+        tradeDate: today,
       });
-      const earliest = await manager.findOne(DailyEntity, {
-        where: {},
-        order: { tradeDate: 'ASC' },
-      });
-      const startDate = normalizeDate(
-        process.env.SYNC_START_DATE ||
-          scope?.tradeDate ||
-          earliest?.tradeDate ||
-          days[days.length - 1].calDate,
-      );
-      if (!scope)
-        await manager.save(SyncRunEntity, {
-          task: 'scope',
-          tradeDate: startDate,
-          status: 'success',
-          attempts: 0,
-          error: null,
+      if (
+        scheduled &&
+        earlierRuns.some(
+          (run) =>
+            run.task.startsWith('auto-') &&
+            (run.task === task ||
+              run.status === 'success' ||
+              run.error?.startsWith('permanent:')),
+        )
+      )
+        return;
+      const cycle = scheduled
+        ? await this.beginRun(manager, task, today)
+        : undefined;
+      try {
+        await this.refreshSources(manager);
+        const cutoff = latestSyncDate(now);
+        const days = (
+          await manager.find(TradeCalEntity, {
+            where: { isOpen: 1 },
+            order: { calDate: 'ASC' },
+          })
+        ).filter((day) => day.calDate <= cutoff);
+        if (!days.length) {
+          if (cycle)
+            await manager.update(SyncRunEntity, cycle.id, {
+              status: 'success',
+            });
+          return;
+        }
+        // 固定补同步起点，避免情绪指标的前置日期使范围不断向过去扩张。
+        const scope = await manager.findOne(SyncRunEntity, {
+          where: { task: 'scope' },
+          order: { tradeDate: 'ASC' },
         });
-      const maxDays = Number(process.env.SYNC_MAX_DAYS_PER_RUN || 30);
-      if (!Number.isInteger(maxDays) || maxDays < 1)
-        throw new Error('SYNC_MAX_DAYS_PER_RUN 必须为正整数');
-      const completeDates = await this.completeDates(
-        manager,
-        startDate,
-        cutoff,
-      );
-      const missingDays = days.filter(
-        (item) => item.calDate >= startDate && !completeDates.has(item.calDate),
-      );
-      // 保留最新交易日的处理机会，历史失败或大量积压不能阻断每日更新。
-      const selectedDays =
-        missingDays.length > maxDays
-          ? [
-              ...missingDays.slice(0, maxDays - 1),
-              missingDays[missingDays.length - 1],
-            ]
-          : missingDays;
-      if (missingDays.length > selectedDays.length)
-        this.logger.log('达到本次补同步日期上限，剩余日期下次继续');
-      const failures: string[] = [];
-      // eslint-disable-next-line no-restricted-syntax
-      for (const day of selectedDays) {
-        // eslint-disable-next-line no-await-in-loop
-        const complete = await this.isComplete(manager, day.calDate);
-        if (!complete) {
-          try {
-            // eslint-disable-next-line no-await-in-loop
-            await this.importDay(manager, day.calDate);
-          } catch (error) {
-            failures.push(day.calDate);
-            this.logger.error(
-              `${day.calDate}补同步失败: ${errorMessage(error)}`,
-            );
+        const startDate = normalizeDate(
+          process.env.SYNC_START_DATE ||
+            scope?.tradeDate ||
+            days[Math.max(0, days.length - 30)].calDate,
+        );
+        if (!scope)
+          await manager.save(SyncRunEntity, {
+            task: 'scope',
+            tradeDate: startDate,
+            status: 'success',
+            attempts: 0,
+            error: null,
+          });
+        const maxDays = Number(process.env.SYNC_MAX_DAYS_PER_RUN || 3);
+        if (!Number.isInteger(maxDays) || maxDays < 1)
+          throw new Error('SYNC_MAX_DAYS_PER_RUN 必须为正整数');
+        const completeDates = await this.completeDates(
+          manager,
+          startDate,
+          cutoff,
+        );
+        const excluded = new Set(
+          (await manager.find(SyncDayPolicyEntity)).map((row) => row.tradeDate),
+        );
+        const missingDays = days.filter(
+          (item) =>
+            item.calDate >= startDate &&
+            !excluded.has(item.calDate) &&
+            !completeDates.has(item.calDate),
+        );
+        // 保留最新交易日的处理机会，历史失败或大量积压不能阻断每日更新。
+        const selectedDays =
+          missingDays.length > maxDays
+            ? [
+                missingDays[missingDays.length - 1],
+                ...missingDays.slice(0, maxDays - 1),
+              ]
+            : missingDays;
+        if (missingDays.length > selectedDays.length)
+          this.logger.log('达到本次补同步日期上限，剩余日期下次继续');
+        const failures: string[] = [];
+        let permanentFailure = false;
+        // eslint-disable-next-line no-restricted-syntax
+        for (const day of selectedDays) {
+          // eslint-disable-next-line no-await-in-loop
+          const complete = await this.isComplete(manager, day.calDate);
+          if (!complete) {
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              await this.importDay(manager, day.calDate);
+              // eslint-disable-next-line no-await-in-loop
+              if (!(await this.isComplete(manager, day.calDate)))
+                failures.push(day.calDate);
+            } catch (error) {
+              permanentFailure ||= permanentSyncError(error);
+              failures.push(day.calDate);
+              this.logger.error(
+                `${day.calDate}补同步失败: ${errorMessage(error)}`,
+              );
+              if (permanentFailure) break;
+            }
           }
         }
+        if (failures.length)
+          throw new Error(
+            `${
+              permanentFailure ? 'permanent:' : ''
+            }以下交易日同步未完成，下次重试: ${failures.join(', ')}`,
+          );
+        if (cycle)
+          await manager.update(SyncRunEntity, cycle.id, {
+            status:
+              missingDays.length > selectedDays.length ? 'pending' : 'success',
+            error: null,
+          });
+      } catch (error) {
+        if (cycle)
+          await manager.update(SyncRunEntity, cycle.id, {
+            status: 'failed',
+            error: `${
+              permanentSyncError(error) ? 'permanent:' : ''
+            }${errorMessage(error)}`.slice(0, 4000),
+          });
+        throw error;
       }
-      if (failures.length)
-        throw new Error(`以下交易日同步失败，下次重试: ${failures.join(', ')}`);
     }, true);
   }
 
@@ -437,6 +461,7 @@ export class DailyTaskService {
 
   private async deleteDay(manager: EntityManager, date: string) {
     await manager.transaction(async (tx) => {
+      await this.writes.exclude(tx, [date]);
       await tx.delete(DailyEntity, { tradeDate: date });
       await tx.delete(LimitEntity, { tradeDate: date });
       await tx.delete(SentiEntity, { tradeDate: date });
@@ -457,6 +482,7 @@ export class DailyTaskService {
           },
         );
       }
+      await this.writes.markChanged(tx);
     });
   }
 
@@ -489,6 +515,17 @@ export class DailyTaskService {
   async clear() {
     await this.withLock((manager) =>
       manager.transaction(async (tx) => {
+        const dates = await tx.query(
+          'SELECT trade_date AS date FROM t_source_daily UNION SELECT trade_date FROM t_source_limit UNION SELECT trade_date FROM t_processed_senti UNION SELECT cal_date FROM t_source_trade_cal WHERE is_open=1 AND cal_date<=CURDATE()',
+        );
+        await this.writes.exclude(
+          tx,
+          dates.map((row: { date: Date | string }) =>
+            typeof row.date === 'string'
+              ? row.date
+              : row.date.toISOString().slice(0, 10),
+          ),
+        );
         // eslint-disable-next-line no-restricted-syntax
         for (const entity of [
           SentiEntity,
@@ -502,6 +539,7 @@ export class DailyTaskService {
           // eslint-disable-next-line no-await-in-loop
           await tx.createQueryBuilder().delete().from(entity).execute();
         }
+        await this.writes.markChanged(tx);
       }),
     );
   }

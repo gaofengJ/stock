@@ -39,4 +39,18 @@ describe('同步任务环境隔离', () => {
     await task.handleCorn();
     expect(catchUp).toHaveBeenCalledTimes(1);
   });
+  it('生产默认关闭启动同步，四个补试时点继续受开关控制', async () => {
+    process.env.NODE_ENV = 'production';
+    task.onApplicationBootstrap();
+    await new Promise(setImmediate);
+    expect(catchUp).not.toHaveBeenCalled();
+    await task.handleRetry();
+    await task.handleLateRetry();
+    expect(catchUp).toHaveBeenCalledTimes(2);
+    expect(catchUp.mock.calls[0][1]).toBe(true);
+    process.env.SYNC_SCHEDULE_ENABLED = 'false';
+    await task.handleRetry();
+    await task.handleLateRetry();
+    expect(catchUp).toHaveBeenCalledTimes(2);
+  });
 });

@@ -1,3 +1,4 @@
+import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, LessThanOrEqual, Repository } from 'typeorm';
@@ -18,6 +19,7 @@ import { EIsOpen } from './trade-cal.enum';
 @Injectable()
 export class TradeCalService {
   constructor(
+    private readonly writes: SyncWriteService,
     @InjectRepository(TradeCalEntity)
     private TradeCalRepository: Repository<TradeCalEntity>,
   ) {}
@@ -47,25 +49,23 @@ export class TradeCalService {
   }
 
   async create(dto: TradeCalDto) {
-    await this.TradeCalRepository.save(dto);
+    await this.writes.mutate(TradeCalEntity, 'save', dto);
   }
 
   async bulkCreate(dto: TradeCalDto[]) {
-    const ret = await this.TradeCalRepository.save(dto);
-    return ret?.length || 0;
+    return this.writes.mutate(TradeCalEntity, 'save', dto);
   }
 
   async update(id: number, dto: TradeCalUpdateDto) {
-    await this.TradeCalRepository.update(id, dto);
+    await this.writes.mutate(TradeCalEntity, 'update', dto, id);
   }
 
   async delete(id: number) {
-    const item = await this.detail(id);
-    await this.TradeCalRepository.remove(item);
+    await this.writes.mutate(TradeCalEntity, 'delete', undefined, id);
   }
 
   async clear() {
-    await this.TradeCalRepository.clear();
+    await this.writes.mutate(TradeCalEntity, 'clear');
   }
 
   /**

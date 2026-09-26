@@ -76,17 +76,17 @@ export class DailyController {
     await this.tradeCalService.update(id, dto);
   }
 
+  @Delete('/clear')
+  @ApiOperation({ summary: '清空Daily' })
+  async clear() {
+    await this.tradeCalService.clear();
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: '删除Daily' })
   // @Perm(permissions.DELETE)
   // @Resource(DailyEntity)
   async delete(@IdParam() id: number) {
     await this.tradeCalService.delete(id);
-  }
-
-  @Delete('/clear')
-  @ApiOperation({ summary: '清空Daily' })
-  async clear() {
-    await this.tradeCalService.clear();
   }
 }

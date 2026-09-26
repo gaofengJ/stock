@@ -27,6 +27,7 @@ COPY --from=builder /usr/src/app/apps/back/dist ./apps/back/dist
 COPY --from=builder /usr/src/app/apps/back/public ./apps/back/public
 COPY apps/back/.env ./apps/back/.env
 COPY apps/back/.env.production ./apps/back/.env.production
+COPY apps/back/ops ./apps/back/ops
 
 WORKDIR /usr/src/app/apps/back
 ENV NODE_ENV=production
