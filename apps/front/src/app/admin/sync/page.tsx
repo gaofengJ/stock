@@ -16,6 +16,8 @@ import {
 } from 'antd';
 import { useAccount } from '@/auth/Boundary';
 import { api } from '@/auth/client';
+import { SyncOutlined } from '@ant-design/icons';
+import PageHeading from '@/auth/PageHeading';
 
 const labels: Record<string, string> = {
   queued: '等待执行',
@@ -68,7 +70,7 @@ export default function Page() {
   };
   return (
     <>
-      <Typography.Title level={3}>数据同步</Typography.Title>
+      <PageHeading title="数据同步" description="按日更新行情，或补齐指定日期范围的数据。" icon={<SyncOutlined />} />
       <Alert
         type="info"
         showIcon
@@ -77,6 +79,7 @@ export default function Page() {
       />
       {user?.permissions.includes('sync:run') && (
         <Form
+          className="account-toolbar"
           layout="inline"
           style={{ marginBottom: 20 }}
           onFinish={({ dates }) => submit(dates[0].format('YYYY-MM-DD'), dates[1].format('YYYY-MM-DD'))}
@@ -96,6 +99,8 @@ export default function Page() {
         </Form>
       )}
       <Table
+        size="middle"
+        scroll={{ x: 900 }}
         rowKey="id"
         dataSource={rows}
         pagination={{

@@ -10,6 +10,7 @@ const { AuthModule } = require('../dist/modules/auth/auth.module');
 const { AuthService, COOKIE, digest } = require('../dist/modules/auth/auth.service');
 const { AuthGuard } = require('../dist/modules/auth/auth.guard');
 const { Accounts1790467200000 } = require('../dist/migrations/1790467200000-Accounts');
+const { AccountAvatars1790467200001 } = require('../dist/migrations/1790467200001-AccountAvatars');
 const { TransformInterceptor } = require('../dist/interceptors/transform.interceptor');
 const { hashPassword } = require('../dist/modules/auth/password');
 const { ActiveFundsEntity } = require('../dist/modules/source/active-funds/active-funds.entity');
@@ -38,6 +39,12 @@ async function main() {
     assert.equal((await db.query('SHOW TABLES')).length, 0, 'Use a new database name for each run');
     const q = db.createQueryRunner(); const migration = new Accounts1790467200000();
     await migration.up(q);
+    const avatars = new AccountAvatars1790467200001();
+    await avatars.up(q);
+    const [portrait] = await db.query("SELECT avatar FROM t_user WHERE username='mufeng'");
+    assert.match(portrait.avatar, /^animal-[1-8]$/);
+    await avatars.up(q);
+    assert.equal((await db.query("SELECT avatar FROM t_user WHERE username='mufeng'"))[0].avatar, portrait.avatar, 'Migration preserves assigned avatars');
     const [initial] = await db.query("SELECT id,password FROM t_user WHERE username='mufeng'");
     assert.ok(initial.password.startsWith('$argon2id$'));
     // Test idempotence without ever storing the actual initial administrator password in a test.
@@ -70,6 +77,11 @@ async function main() {
     assert.equal((await inject('POST', '/auth/register', { username: 'mufeng', password: 'test-password-123' }, anon)).statusCode, 409);
     let user = await login('alice', 'test-password-123');
     const admin = await login('mufeng', adminPassword);
+    assert.match(user.user.avatar, /^animal-[1-8]$/);
+    assert.equal((await login('alice', 'test-password-123')).user.avatar, user.user.avatar, 'Avatar persists across sessions');
+    const created = await inject('POST', '/admin/users', { username: 'portrait_fixture', password: 'test-password-123' }, admin);
+    assert.equal(created.statusCode, 201);
+    assert.match((await db.query('SELECT avatar FROM t_user WHERE id=?', [created.json().data.id]))[0].avatar, /^animal-[1-8]$/);
     assert.equal(user.user.permissions.includes('users:manage'), false);
     assert.ok(user.user.permissions.includes('strategy:read'));
     assert.equal((await inject('GET', '/admin/users', undefined, user)).statusCode, 403);

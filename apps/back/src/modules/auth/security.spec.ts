@@ -14,6 +14,12 @@ import { hashPassword, checkPassword } from './password';
 import * as passwords from './password';
 
 describe('authentication security boundaries', () => {
+  it('preserves audit timestamps while redacting credentials', () => {
+    expect(
+      redact({ createdAt: new Date('2026-09-26T12:30:00Z'), token: 'private' }),
+    ).toEqual({ createdAt: '2026-09-26T12:30:00.000Z', token: '[redacted]' });
+    expect(redact(new Date('invalid'))).toBeNull();
+  });
   it('never authenticates a cleared legacy credential using the timing dummy hash', async () => {
     const database: any = {
       query: jest

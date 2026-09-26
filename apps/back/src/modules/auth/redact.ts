@@ -2,6 +2,8 @@ const sensitive =
   /password|passwd|secret|token|cookie|authorization|session|credential|csrf|currentPassword|newPassword/i;
 export function redact(value: unknown, depth = 0): any {
   if (depth > 8) return '[truncated]';
+  if (value instanceof Date)
+    return Number.isNaN(value.getTime()) ? null : value.toISOString();
   if (value instanceof Error)
     return {
       name: value.name,

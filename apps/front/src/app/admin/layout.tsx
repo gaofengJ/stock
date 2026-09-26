@@ -17,7 +17,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       asideMenuItems={items}
       asideMenuActive={path}
     >
-      {children}
+      <main className="account-page account-surface">{children}</main>
     </CommonLayout>
   );
 }

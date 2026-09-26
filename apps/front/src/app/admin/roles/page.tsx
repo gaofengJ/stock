@@ -16,6 +16,8 @@ import {
 } from 'antd';
 import { useAccount } from '@/auth/Boundary';
 import { api } from '@/auth/client';
+import { SafetyCertificateOutlined } from '@ant-design/icons';
+import PageHeading from '@/auth/PageHeading';
 
 export default function Page() {
   const { user } = useAccount();
@@ -38,7 +40,7 @@ export default function Page() {
   );
   return (
     <>
-      <Typography.Title level={3}>角色管理</Typography.Title>
+      <PageHeading title="角色管理" description="按模块配置权限，让每位成员拥有合适的访问范围。" icon={<SafetyCertificateOutlined />} />
       <Typography.Paragraph type="secondary">
         一个用户可拥有多个角色，权限取并集。调整后，下次接口请求即生效。
       </Typography.Paragraph>
@@ -54,6 +56,8 @@ export default function Page() {
         创建角色
       </Button>
       <Table
+        size="middle"
+        scroll={{ x: 900 }}
         rowKey="id"
         dataSource={rows}
         columns={[
@@ -149,7 +153,7 @@ export default function Page() {
           <Form.Item name="permissions" label="模块与操作权限">
             <Checkbox.Group style={{ width: '100%' }}>
               {groups.map((group) => (
-                <div key={group} style={{ marginBottom: 16 }}>
+                <div key={group} className="account-permission-group">
                   <Typography.Text strong>{group}</Typography.Text>
                   <div
                     style={{

@@ -9,7 +9,7 @@ import {
   ConfigProvider,
   Menu,
   Dropdown,
-  Avatar,
+  Tooltip,
   message,
   MenuProps,
   Popover,
@@ -19,6 +19,7 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
 import { useRouter } from 'next/navigation';
 
+import AccountAvatar from '@/auth/AccountAvatar';
 import { WechatOutlined } from '@ant-design/icons';
 import ImgFengye from '@/assets/imgs/fengye.png';
 import ImgAuthorAvatar from '@/assets/imgs/author-avatar.png';
@@ -71,8 +72,9 @@ const CommonLayout: React.FC<ILayoutProps> = ({
   };
 
   useEffect(() => {
-    getAllOptions(); // 获取所有选项
-  }, [getAllOptions]);
+    // The profile remains accessible while a reset password must be changed.
+    if (headerMenuActive && !user?.mustChangePassword) getAllOptions();
+  }, [getAllOptions, headerMenuActive, user?.mustChangePassword]);
 
   return (
     <ConfigProvider locale={zhCN} theme={themeConfig}>
@@ -112,9 +114,14 @@ const CommonLayout: React.FC<ILayoutProps> = ({
               <span className="ml-4 mr-16 text-12">联系作者</span>
             </div>
           </Popover>
-          <span className="mr-16 font-bold text-text-pink-red78">
-            每晚20: 00更新当日数据
-          </span>
+          <Tooltip title="北京时间每日 20:30 开始同步；未完整时于 20:45、21:00、21:15、21:30 自动补试，完成时间以数据源为准。">
+            <span className="sync-schedule">
+              每日
+              <strong>20:30</strong>
+              {' '}
+              开始同步
+            </span>
+          </Tooltip>
           <Dropdown
             menu={{
               items: [{ key: 'profile', label: '个人中心' }, { key: 'logout', label: '退出登录' }],
@@ -125,9 +132,9 @@ const CommonLayout: React.FC<ILayoutProps> = ({
             placement="bottomLeft"
             arrow
           >
-            <Avatar className="basis-[32px] text-white cursor-pointer">
-              {user?.nickname?.slice(0, 2) || user?.username?.slice(0, 2)}
-            </Avatar>
+            <button type="button" className="header-account" aria-label="打开账户菜单">
+              <AccountAvatar avatar={user?.avatar} />
+            </button>
           </Dropdown>
         </Header>
         <Layout>

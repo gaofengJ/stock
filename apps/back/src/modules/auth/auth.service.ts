@@ -23,6 +23,7 @@ import {
   UserUpdateDto,
 } from './auth.dto';
 import { redact } from './redact';
+import { randomAvatar } from './avatar';
 
 export const COOKIE = 'stock_session';
 export const digest = (value: string) =>
@@ -31,6 +32,7 @@ export interface CurrentUser {
   id: number;
   username: string;
   nickname: string;
+  avatar: string;
   mustChangePassword: boolean;
   roles: { id: number; code: string; name: string }[];
   permissions: string[];
@@ -92,7 +94,7 @@ export class AuthService implements OnModuleInit {
 
   async current(id: number, m = this.db.manager): Promise<CurrentUser> {
     const [u] = await m.query(
-      'SELECT id,username,nickname,must_change_password,is_active FROM t_user WHERE id=?',
+      'SELECT id,username,nickname,avatar,must_change_password,is_active FROM t_user WHERE id=?',
       [id],
     );
     if (!u || !u.is_active)
@@ -110,6 +112,7 @@ export class AuthService implements OnModuleInit {
       id: u.id,
       username: u.username,
       nickname: u.nickname,
+      avatar: u.avatar,
       mustChangePassword: !!u.must_change_password,
       roles,
       permissions: permissions
@@ -170,8 +173,14 @@ export class AuthService implements OnModuleInit {
     try {
       return await this.db.transaction(async (m) => {
         const result = await m.query(
-          'INSERT INTO t_user(username,password,nickname,must_change_password) VALUES (?,?,?,?)',
-          [dto.username, encoded, dto.nickname || dto.username, actor ? 1 : 0],
+          'INSERT INTO t_user(username,password,nickname,must_change_password,avatar) VALUES (?,?,?,?,?)',
+          [
+            dto.username,
+            encoded,
+            dto.nickname || dto.username,
+            actor ? 1 : 0,
+            randomAvatar(),
+          ],
         );
         await m.query(
           "INSERT INTO t_user_role(user_id,role_id) SELECT ?,id FROM t_role WHERE code='user'",
@@ -297,7 +306,7 @@ export class AuthService implements OnModuleInit {
       args,
     );
     const items = await this.db.query(
-      `SELECT id,username,nickname,is_active active,must_change_password mustChangePassword,last_login lastLogin,created_at createdAt FROM t_user${where} ORDER BY id DESC LIMIT ? OFFSET ?`,
+      `SELECT id,username,nickname,avatar,is_active active,must_change_password mustChangePassword,last_login lastLogin,created_at createdAt FROM t_user${where} ORDER BY id DESC LIMIT ? OFFSET ?`,
       [...args, q.pageSize, offset(q)],
     );
     for (const u of items)

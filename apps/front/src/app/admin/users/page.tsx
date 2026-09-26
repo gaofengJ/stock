@@ -14,6 +14,9 @@ import {
   message,
 } from 'antd';
 import { api } from '@/auth/client';
+import { TeamOutlined } from '@ant-design/icons';
+import PageHeading from '@/auth/PageHeading';
+import AccountAvatar from '@/auth/AccountAvatar';
 
 const fail = (e: unknown) => message.error((e as Error).message);
 export default function Page() {
@@ -67,10 +70,11 @@ export default function Page() {
   }
   return (
     <>
-      <Typography.Title level={3}>用户管理</Typography.Title>
-      <Space wrap style={{ marginBottom: 20 }}>
+      <PageHeading title="用户管理" description="管理站点成员、账户状态与角色授权。" icon={<TeamOutlined />} />
+      <div className="account-toolbar">
         <Input.Search
           placeholder="搜索用户名"
+          style={{ width: 260 }}
           onSearch={(v) => {
             setKeyword(v);
             setPage(1);
@@ -100,8 +104,10 @@ export default function Page() {
           创建用户
         </Button>
         <Button onClick={() => load().catch(fail)}>刷新</Button>
-      </Space>
+      </div>
       <Table
+        size="middle"
+        scroll={{ x: 900 }}
         rowKey="id"
         dataSource={rows}
         pagination={{
@@ -112,8 +118,22 @@ export default function Page() {
           showSizeChanger: false,
         }}
         columns={[
-          { title: '用户名', dataIndex: 'username' },
-          { title: '昵称', dataIndex: 'nickname' },
+          {
+            title: '用户',
+            width: 220,
+            render: (_, r) => (
+              <div className="account-identity">
+                <AccountAvatar avatar={r.avatar} />
+                <div>
+                  <strong>{r.nickname || r.username}</strong>
+                  <small>
+                    @
+                    {r.username}
+                  </small>
+                </div>
+              </div>
+            ),
+          },
           {
             title: '角色',
             render: (_, r) => r.roles.map((x: any) => <Tag key={x.id}>{x.name}</Tag>),

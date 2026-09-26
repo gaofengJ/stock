@@ -10,6 +10,8 @@ build
 
 # Logs
 logs
+!apps/front/src/app/admin/logs/
+!apps/front/src/app/admin/logs/**
 *.log
 npm-debug.log*
 pnpm-debug.log*

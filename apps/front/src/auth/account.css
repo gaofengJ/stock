@@ -1,0 +1,73 @@
+.account-page { max-width: 1480px; margin: 0 auto; color: #252a34; }
+.account-surface { background: #fff; border: 1px solid #eeeef0; border-radius: 8px; padding: 24px; }
+.account-heading { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
+.account-heading-icon { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; background: #fff0f4; color: #ff2e63; font-size: 21px; }
+.account-heading h1 { margin: 0 0 6px; font-size: 22px; font-weight: 600; letter-spacing: -.5px; }
+.account-heading p { margin: 0; font-size: 13px; line-height: 1.7; color: #858994; }
+.account-page .account-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px; margin-bottom: 20px; background: #fafafb; border: 1px solid #f0f0f2; border-radius: 6px; }
+.account-toolbar .ant-form-item { margin-bottom: 0; }
+.account-page .ant-table-thead > tr > th { background: #fafafb; color: #777d87; font-size: 12px; font-weight: 500; }
+.account-page .ant-table-cell { font-size: 13px; }
+.account-page .ant-tag { border: 0; border-radius: 4px; padding: 2px 8px; }
+.account-page .ant-table-wrapper { overflow-x: auto; }
+.account-page .ant-alert { margin-bottom: 20px; border-radius: 6px; }
+.account-page .ant-alert-info { background: #fafafb; border-color: #ededf0; }
+.account-page .ant-alert-info .ant-alert-icon { color: #9096a1; }
+.account-identity { display: flex; gap: 12px; align-items: center; }
+.account-identity strong { display: block; font-size: 13px; font-weight: 500; }
+.account-identity small { display: block; margin-top: 4px; color: #9297a0; }
+.account-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 0 0 24px; }
+.account-stats .ant-card { border-color: #ededf0; box-shadow: none; }
+.account-stats .ant-card-head { border: 0; font-size: 13px; color: #777d87; }
+.account-stat-line { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid #f5f5f6; font-size: 13px; }
+.account-stat-line strong { font-variant-numeric: tabular-nums; color: #252a34; }
+.account-stat-empty { color: #a0a4ac; font-size: 13px; padding: 12px 0; }
+.account-permission-group { background: #fafafb; padding: 16px; border-radius: 6px; margin-bottom: 12px; }
+.account-detail { background: #fafafb; border: 1px solid #ededf0; border-radius: 8px; padding: 20px; font-size: 12px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.profile-grid { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 24px; max-width: 1080px; }
+.profile-summary { padding: 32px 24px; text-align: center; align-self: start; }
+.profile-summary h2 { font-size: 20px; margin: 16px 0 6px; overflow-wrap: anywhere; }
+.profile-summary p { color: #9398a1; font-size: 13px; margin: 0 0 18px; }
+.profile-summary .ant-tag { margin: 4px; }
+.profile-note { border-top: 1px solid #f0f0f2; padding-top: 20px; margin-top: 24px; color: #9398a1; font-size: 12px; line-height: 1.8; }
+.profile-forms { min-width: 0; display: grid; gap: 20px; }
+.profile-card .ant-card-head { padding: 0 24px; font-size: 15px; border-color: #f1f1f3; }
+.profile-card .ant-card-body { padding: 24px; }
+.profile-card .ant-form { max-width: 460px; }
+.profile-card .ant-form-item-label label { font-size: 13px; }
+.profile-caption { color: #9095a0; font-size: 13px; line-height: 1.8; margin: 0 0 20px; }
+.entry-page { min-height: 100vh; box-sizing: border-box; padding: 40px; display: flex; flex-direction: column; background: #f5f5f5; }
+.entry-brand { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 600; color: #252a34; text-decoration: none; }
+.entry-brand img { width: 32px; height: 32px; }
+.entry-shell { width: 100%; max-width: 980px; margin: auto; display: grid; grid-template-columns: 1fr 440px; background: white; border: 1px solid #ebebee; border-radius: 12px; overflow: hidden; box-shadow: 0 12px 48px #252a3406; }
+.entry-intro { padding: 52px 44px; background: #fff6f8; display: flex; flex-direction: column; justify-content: center; position: relative; overflow: hidden; }
+.entry-eyebrow { font-size: 12px; color: #d34c6d; letter-spacing: 3px; margin-bottom: 18px; }
+.entry-intro h1 { font-size: 32px; font-weight: 600; letter-spacing: -1px; line-height: 1.55; margin: 0 0 16px; }
+.entry-intro p { font-size: 14px; line-height: 1.9; color: #8c7e85; max-width: 310px; margin: 0; }
+.entry-features { display: grid; gap: 20px; margin-top: 44px; }
+.entry-feature { display: flex; align-items: center; gap: 12px; color: #75636b; font-size: 13px; }
+.entry-feature .anticon { color: #df7c95; font-size: 19px; }
+.entry-form { padding: 44px 40px 32px; }
+.entry-form h2 { margin: 0 0 10px; font-size: 24px; font-weight: 600; }
+.entry-form .ant-form-item-label label { font-size: 13px; }
+.entry-form .ant-input-affix-wrapper, .entry-form .ant-input { font-size: 14px; }
+.entry-form .ant-form { margin-top: 28px; }
+.entry-form .ant-btn-primary { height: 42px; margin-top: 4px; box-shadow: none; }
+.entry-switch { text-align: center; margin-top: 24px; font-size: 13px; }
+.entry-footnote { text-align: center; font-size: 12px; color: #a4a6ad; margin-top: 24px; }
+.header-account { border: 0; background: transparent; padding: 4px; display: flex; align-items: center; border-radius: 50%; cursor: pointer; }
+.header-account:hover { background: #fff0f4; }
+.header-account:focus-visible { outline: 2px solid #ff2e63; outline-offset: 2px; }
+.sync-schedule { font-size: 12px; color: #9499a3; margin-right: 16px; white-space: nowrap; }
+.sync-schedule strong { color: #ef5b7e; font-weight: 500; }
+@media (max-width: 760px) {
+  .entry-page { padding: 20px 16px; }
+  .entry-brand { margin-bottom: 24px; }
+  .entry-shell { max-width: 440px; display: block; }
+  .entry-intro { padding: 24px; }
+  .entry-intro h1 { font-size: 23px; margin-bottom: 8px; }
+  .entry-eyebrow, .entry-features { display: none; }
+  .entry-form { padding: 28px 24px; }
+  .profile-grid, .account-stats { grid-template-columns: 1fr; }
+  .account-surface { padding: 18px; }
+}

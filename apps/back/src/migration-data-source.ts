@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import { ReliableSync1790380800000 } from './migrations/1790380800000-ReliableSync';
 import { SyncSafety1790380800001 } from './migrations/1790380800001-SyncSafety';
 import { Accounts1790467200000 } from './migrations/1790467200000-Accounts';
+import { AccountAvatars1790467200001 } from './migrations/1790467200001-AccountAvatars';
 
 dotenv.config({
   path:
@@ -23,6 +24,7 @@ export default new DataSource({
     ReliableSync1790380800000,
     SyncSafety1790380800001,
     Accounts1790467200000,
+    AccountAvatars1790467200001,
   ],
   migrationsTransactionMode: 'none',
   logging: false,

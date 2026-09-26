@@ -9,6 +9,9 @@ import { CommonEntity } from '@/entity/common.entity';
 })
 @Index('index_username', ['username'])
 export class UserEntity extends CommonEntity {
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  avatar: string;
+
   @Column({
     name: 'username',
     type: 'varchar',

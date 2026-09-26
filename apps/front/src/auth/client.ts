@@ -8,6 +8,7 @@ export interface Account {
   id: number;
   username: string;
   nickname: string;
+  avatar?: string;
   mustChangePassword: boolean;
   roles: { id: number; code: string; name: string }[];
   permissions: string[];

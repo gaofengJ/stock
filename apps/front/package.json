@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 8081",
-    "build": "next build",
+    "build": "next build && node scripts/verify-export.cjs",
     "start": "next start -p 8081",
     "lint": "next lint ."
   },
