@@ -54,16 +54,16 @@ export class ActiveFundsController {
   }
 
   @Permit('data:write')
-  @Delete(':id')
-  @ApiOperation({ summary: '删除ActiveFunds' })
-  async delete(@IdParam() id: number) {
-    await this.activeFundsService.delete(id);
-  }
-
-  @Permit('data:write')
   @Delete('/clear')
   @ApiOperation({ summary: '清空ActiveFunds' })
   async clear() {
     await this.activeFundsService.clear();
+  }
+
+  @Permit('data:write')
+  @Delete(':id')
+  @ApiOperation({ summary: '删除ActiveFunds' })
+  async delete(@IdParam() id: number) {
+    await this.activeFundsService.delete(id);
   }
 }

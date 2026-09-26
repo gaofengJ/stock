@@ -22,7 +22,7 @@ const dataSourceOptions: DataSourceOptions = {
   timezone: 'Z', // 设置为UTC时间，避免取数据时转成东八区时间导致时间错误
   synchronize: false,
   extra: {
-    connectionLimit: 20, // 设置连接池的最大连接数
+    connectionLimit: getEnvConfigNumber('DB_CONNECTION_LIMIT', 20),
   },
   // 解决通过 pnpm migration:run 初始化数据时，遇到的 SET FOREIGN_KEY_CHECKS = 0; 等语句报错问题, 仅在执行数据迁移操作时设为 true
   multipleStatements: currentScript === 'typeorm', // 是否允许在单个查询中执行多个 SQL 语句

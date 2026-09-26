@@ -103,7 +103,7 @@ export class JobsService implements OnApplicationBootstrap {
     );
     if (!job) throw new NotFoundException('任务不存在');
     const dates = await this.db.query(
-      'SELECT task,DATE_FORMAT(trade_date,"%Y-%m-%d") tradeDate,status,daily_count dailyCount,limit_count limitCount,senti_count sentiCount,error,updated_at updatedAt FROM t_sync_run WHERE trade_date BETWEEN ? AND ? ORDER BY trade_date',
+      'SELECT task,DATE_FORMAT(trade_date,"%Y-%m-%d") tradeDate,status,daily_count dailyCount,limit_count limitCount,senti_count sentiCount,error,updated_at updatedAt FROM t_sync_run WHERE task="daily" AND trade_date BETWEEN ? AND ? ORDER BY trade_date',
       [job.startDate, job.endDate],
     );
     return { ...job, dates };
@@ -159,7 +159,7 @@ export class JobsService implements OnApplicationBootstrap {
           } else
             await this.daily.bulkImport(job.startDate, job.endDate, progress);
           const [{ n }] = await this.db.query(
-            "SELECT COUNT(*) n FROM t_sync_run WHERE trade_date BETWEEN ? AND ? AND status<>'success'",
+            "SELECT COUNT(*) n FROM t_sync_run WHERE task='daily' AND trade_date BETWEEN ? AND ? AND status<>'success'",
             [job.startDate, job.endDate],
           );
           if (Number(n)) status = 'pending';

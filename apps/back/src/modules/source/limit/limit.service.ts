@@ -1,3 +1,4 @@
+import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Like, Repository } from 'typeorm';
@@ -22,6 +23,7 @@ import { ELimit } from './limit.enum';
 @Injectable()
 export class LimitService {
   constructor(
+    private readonly writes: SyncWriteService,
     @InjectRepository(LimitEntity)
     private LimitRepository: Repository<LimitEntity>,
   ) {}
@@ -258,31 +260,26 @@ export class LimitService {
   }
 
   async create(dto: LimitDto) {
-    await this.LimitRepository.save(dto);
+    await this.writes.mutate(LimitEntity, 'save', dto);
   }
 
   async bulkCreate(dto: LimitDto[]) {
-    const list = await this.LimitRepository.save(dto);
-    return list.length;
+    return this.writes.mutate(LimitEntity, 'save', dto);
   }
 
   async update(id: number, dto: LimitUpdateDto) {
-    await this.LimitRepository.update(id, dto);
+    await this.writes.mutate(LimitEntity, 'update', dto, id);
   }
 
   async delete(id: number) {
-    const item = await this.detail(id);
-    await this.LimitRepository.remove(item);
+    await this.writes.mutate(LimitEntity, 'delete', undefined, id);
   }
 
   async deleteByDate(date: LimitDto['tradeDate']) {
-    const { affected } = await this.LimitRepository.delete({
-      tradeDate: date,
-    });
-    return affected || 0;
+    return this.writes.mutate(LimitEntity, 'delete', { tradeDate: date });
   }
 
   async clear() {
-    await this.LimitRepository.clear();
+    await this.writes.mutate(LimitEntity, 'clear');
   }
 }

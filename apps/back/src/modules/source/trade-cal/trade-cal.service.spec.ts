@@ -3,7 +3,7 @@ import { TradeCalService } from './trade-cal.service';
 describe('trade calendar availability', () => {
   it('reports missing calendar data instead of claiming the market was closed', async () => {
     const repository = { findOne: jest.fn().mockResolvedValue(null) };
-    const service = new TradeCalService(repository as any);
+    const service = new TradeCalService({} as any, repository as any);
     await expect(service.isOpen('2026-09-24')).rejects.toMatchObject({
       response: {
         code: '-2007',
@@ -19,7 +19,7 @@ describe('trade calendar availability', () => {
     'respects an existing calendar record with isOpen=%s',
     async (isOpen, expected) => {
       const repository = { findOne: jest.fn().mockResolvedValue({ isOpen }) };
-      const service = new TradeCalService(repository as any);
+      const service = new TradeCalService({} as any, repository as any);
       await expect(service.isOpen('2026-09-24')).resolves.toBe(expected);
     },
   );

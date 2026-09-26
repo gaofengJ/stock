@@ -83,18 +83,18 @@ export class SentiController {
   }
 
   @Permit('data:write')
+  @Delete('/clear')
+  @ApiOperation({ summary: '清空Senti' })
+  async clear() {
+    await this.sentiService.clear();
+  }
+
+  @Permit('data:write')
   @Delete(':id')
   @ApiOperation({ summary: '删除Senti' })
   // @Perm(permissions.DELETE)
   // @Resource(SentiEntity)
   async delete(@IdParam() id: number) {
     await this.sentiService.delete(id);
-  }
-
-  @Permit('data:write')
-  @Delete('/clear')
-  @ApiOperation({ summary: '清空Senti' })
-  async clear() {
-    await this.sentiService.clear();
   }
 }

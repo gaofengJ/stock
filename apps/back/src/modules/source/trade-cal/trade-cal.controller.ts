@@ -88,17 +88,17 @@ export class TradeCalController {
   }
 
   @Permit('data:write')
-  @Delete(':id')
-  @ApiOperation({ summary: '删除TradeCal' })
-  async delete(@IdParam() id: number) {
-    await this.tradeCalService.delete(id);
-  }
-
-  @Permit('data:write')
   @Delete('/clear')
   @ApiOperation({ summary: '清空TradeCal' })
   async clear() {
     await this.tradeCalService.clear();
+  }
+
+  @Permit('data:write')
+  @Delete(':id')
+  @ApiOperation({ summary: '删除TradeCal' })
+  async delete(@IdParam() id: number) {
+    await this.tradeCalService.delete(id);
   }
 
   @Permit(

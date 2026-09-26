@@ -1,3 +1,4 @@
+import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, In, Like, Not, Repository } from 'typeorm';
@@ -22,6 +23,7 @@ import {
 @Injectable()
 export class DailyService {
   constructor(
+    private readonly writes: SyncWriteService,
     @InjectRepository(DailyEntity)
     private DailyRepository: Repository<DailyEntity>,
   ) {}
@@ -142,32 +144,27 @@ export class DailyService {
   }
 
   async create(dto: DailyDto) {
-    await this.DailyRepository.save(dto);
+    await this.writes.mutate(DailyEntity, 'save', dto);
   }
 
   async bulkCreate(dto: DailyDto[]) {
-    const list = await this.DailyRepository.save(dto);
-    return list.length;
+    return this.writes.mutate(DailyEntity, 'save', dto);
   }
 
   async update(id: number, dto: DailyUpdateDto) {
-    await this.DailyRepository.update(id, dto);
+    await this.writes.mutate(DailyEntity, 'update', dto, id);
   }
 
   async delete(id: number) {
-    const item = await this.detail(id);
-    await this.DailyRepository.remove(item);
+    await this.writes.mutate(DailyEntity, 'delete', undefined, id);
   }
 
   async deleteByDate(date: DailyDto['tradeDate']) {
-    const { affected } = await this.DailyRepository.delete({
-      tradeDate: date,
-    });
-    return affected || 0;
+    return this.writes.mutate(DailyEntity, 'delete', { tradeDate: date });
   }
 
   async clear() {
-    await this.DailyRepository.clear();
+    await this.writes.mutate(DailyEntity, 'clear');
   }
 
   /**

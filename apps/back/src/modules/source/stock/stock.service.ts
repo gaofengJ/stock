@@ -1,3 +1,4 @@
+import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Like, Repository } from 'typeorm';
@@ -11,6 +12,7 @@ import { StockDto, StockQueryDto, StockUpdateDto } from './stock.dto';
 @Injectable()
 export class StockService {
   constructor(
+    private readonly writes: SyncWriteService,
     @InjectRepository(StockEntity)
     private stockBasicRepository: Repository<StockEntity>,
   ) {}
@@ -43,24 +45,22 @@ export class StockService {
   }
 
   async create(dto: StockDto) {
-    await this.stockBasicRepository.save(dto);
+    await this.writes.mutate(StockEntity, 'save', dto);
   }
 
   async bulkCreate(dto: StockDto[]) {
-    const list = await this.stockBasicRepository.save(dto);
-    return list.length;
+    return this.writes.mutate(StockEntity, 'save', dto);
   }
 
   async update(id: number, dto: StockUpdateDto) {
-    await this.stockBasicRepository.update(id, dto);
+    await this.writes.mutate(StockEntity, 'update', dto, id);
   }
 
   async delete(id: number) {
-    const item = await this.detail(id);
-    await this.stockBasicRepository.remove(item);
+    await this.writes.mutate(StockEntity, 'delete', undefined, id);
   }
 
   async clear() {
-    await this.stockBasicRepository.clear();
+    await this.writes.mutate(StockEntity, 'clear');
   }
 }

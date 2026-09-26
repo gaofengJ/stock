@@ -8,6 +8,7 @@ import { CommonEntity } from '@/entity/common.entity';
   comment: '赚钱效应表',
 })
 @Index('index_trade_date', ['tradeDate'])
+@Index('uq_senti_date', ['tradeDate'], { unique: true })
 export class SentiEntity extends CommonEntity {
   @Column({
     name: 'trade_date',

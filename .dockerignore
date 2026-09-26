@@ -2,6 +2,9 @@
 .github
 .husky
 .trae
+.tmp
+apps/back/.env.development
+apps/back/.env.server-test
 
 node_modules
 **/node_modules
@@ -17,5 +20,4 @@ apps/back/logs
 **/*.tsbuildinfo
 .DS_Store
 
-.tmp
 .temp

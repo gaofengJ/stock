@@ -3,31 +3,99 @@ name: Docker Stock Back
 
 # 执行时机
 on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'apps/back/**'
+      - 'apps/front/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/**'
   # 监听 push 操作
   push:
     branches:
       - master
     paths:
       - 'apps/back/**'
+      - '.github/workflows/back-cd.yml'
+      - 'pnpm-lock.yaml'
+
+concurrency:
+  group: stock-back-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
 
 # 任务
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:5.7.33
+        env:
+          MYSQL_ROOT_PASSWORD: ci-local-only
+          MYSQL_ROOT_HOST: '%'
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci-local-only"
+          --health-interval=10s --health-timeout=5s --health-retries=12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: pnpm
+      - run: pnpm install --filter back --filter front --frozen-lockfile
+      - run: pnpm -C apps/back run lint
+      - run: pnpm -C apps/back run build
+      - run: pnpm -C apps/back run test --runInBand
+        env:
+          SYNC_TEST_MYSQL_PORT: 3306
+          SYNC_TEST_MYSQL_PASSWORD: ci-local-only
+      - name: Account integration and legacy migration
+        working-directory: apps/back
+        env:
+          AUTH_TEST_PORT: 3306
+          AUTH_TEST_PASSWORD: ci-local-only
+        run: |
+          AUTH_TEST_DATABASE=stock_auth_test_ci node test/accounts.integration.cjs
+          AUTH_TEST_DATABASE=stock_auth_test_legacy_ci node test/migration-legacy.cjs
+      - run: pnpm -C apps/front run lint
+      - run: pnpm -C apps/front run build
+      - name: Verify production image and native Argon2 runtime
+        run: docker build -f apps/back/dockerfile -t stock-back-verify .
   build:
+    if: github.event_name == 'push'
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       # 1. 拉取代码 (升级到 v4)
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2. 替换环境变量 (特定步骤，保持原有逻辑)
-      - name: Replace environment variables in .env.production
+      - name: Prepare production environment without logging credentials
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          TUSHARE_CONF_TOKEN: ${{ secrets.TUSHARE_CONF_TOKEN }}
         run: |
-          sed -i "s|__DB_HOST__|${{ secrets.DB_HOST }}|g" apps/back/.env.production
-          sed -i "s|__DB_PORT__|${{ secrets.DB_PORT }}|g" apps/back/.env.production
-          sed -i "s|__DB_DATABASE__|${{secrets.DB_DATABASE }}|g" apps/back/.env.production
-          sed -i "s|__DB_USERNAME__|${{secrets.DB_USERNAME }}|g" apps/back/.env.production
-          sed -i "s|__DB_PASSWORD__|${{secrets.DB_PASSWORD }}|g" apps/back/.env.production
-          sed -i "s|__TUSHARE_CONF_TOKEN__|${{secrets.TUSHARE_CONF_TOKEN }}|g" apps/back/.env.production
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          path = Path('apps/back/.env.production')
+          content = path.read_text()
+          for name in ('DB_HOST', 'DB_PORT', 'DB_DATABASE', 'DB_USERNAME', 'DB_PASSWORD', 'TUSHARE_CONF_TOKEN'):
+              value = os.environ[name]
+              if not value or any(c in value for c in ('\n', '\r', '"')):
+                  raise SystemExit('Missing or unsupported environment value: ' + name)
+              content = content.replace('__' + name + '__', '"' + value + '"')
+          path.write_text(content)
+          PY
 
       # 3. 登录阿里云镜像容器服务 (使用官方 Action)
       - name: Login to Aliyun Registry
@@ -44,19 +112,31 @@ jobs:
           context: .
           file: apps/back/dockerfile
           push: true
-          tags: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-back:latest
+          tags: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-back:${{ github.sha }}
+
+      - name: Upload versioned release scripts
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: apps/back/ops/release,apps/back/ops/test-db
+          target: /opt/stock-release/packages/${{ github.sha }}
+          strip_components: 3
 
       # 5. 远程部署 (使用环境变量传递 Secrets，更安全)
       - name: Deploy to Server
-        uses: appleboy/ssh-action@master
+        uses: appleboy/ssh-action@v1.2.0
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          RELEASE_SHA: ${{ github.sha }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
           # 将敏感信息注入环境变量
-          envs: DOCKER_USERNAME,DOCKER_PASSWORD
+          envs: DOCKER_USERNAME,DOCKER_PASSWORD,RELEASE_SHA
+          command_timeout: 120m
           # 脚本中不再显式传递参数，而是需要在脚本内读取环境变量
-          script: cd /home && sh stock-back-deploy.sh
+          script: bash /opt/stock-release/packages/${{ github.sha }}/release/deploy.sh

@@ -9,6 +9,7 @@ import { CommonEntity } from '@/entity/common.entity';
 })
 @Index('index_ts_code', ['tsCode'])
 @Index('index_trade_date', ['tradeDate'])
+@Index('uq_daily_code_date', ['tsCode', 'tradeDate'], { unique: true })
 export class DailyEntity extends CommonEntity {
   @Column({
     name: 'ts_code',

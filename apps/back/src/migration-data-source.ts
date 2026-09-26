@@ -1,6 +1,8 @@
 import 'reflect-metadata';
 import * as dotenv from 'dotenv';
 import { DataSource } from 'typeorm';
+import { ReliableSync1790380800000 } from './migrations/1790380800000-ReliableSync';
+import { SyncSafety1790380800001 } from './migrations/1790380800001-SyncSafety';
 import { Accounts1790467200000 } from './migrations/1790467200000-Accounts';
 
 dotenv.config({
@@ -17,7 +19,11 @@ export default new DataSource({
   charset: 'utf8mb4_general_ci',
   timezone: 'Z',
   synchronize: false,
-  migrations: [Accounts1790467200000],
+  migrations: [
+    ReliableSync1790380800000,
+    SyncSafety1790380800001,
+    Accounts1790467200000,
+  ],
   migrationsTransactionMode: 'none',
   logging: false,
 });

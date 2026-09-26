@@ -9,7 +9,7 @@ const common =
 export class Accounts1790467200000 implements MigrationInterface {
   transaction = false;
 
-  async up(q: QueryRunner) {
+  async preflight(q: QueryRunner) {
     // Validate old records before any schema changes. Never silently grant an existing user admin.
     if (await q.hasTable('t_user')) {
       const duplicates = await q.query(
@@ -55,6 +55,10 @@ export class Accounts1790467200000 implements MigrationInterface {
           );
       }
     }
+  }
+
+  async up(q: QueryRunner) {
+    await this.preflight(q);
     await q.query(
       `CREATE TABLE IF NOT EXISTS t_user (${common}, username VARCHAR(64) NOT NULL UNIQUE, password VARCHAR(255) NOT NULL, email VARCHAR(255) NULL UNIQUE, phone VARCHAR(20) NULL UNIQUE, is_active TINYINT NOT NULL DEFAULT 1, point INT NOT NULL DEFAULT 0, last_login TIMESTAMP NULL)`,
     );

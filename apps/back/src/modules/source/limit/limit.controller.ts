@@ -83,18 +83,18 @@ export class LimitController {
   }
 
   @Permit('data:write')
+  @Delete('/clear')
+  @ApiOperation({ summary: '清空Limit' })
+  async clear() {
+    await this.tradeCalService.clear();
+  }
+
+  @Permit('data:write')
   @Delete(':id')
   @ApiOperation({ summary: '删除Limit' })
   // @Perm(permissions.DELETE)
   // @Resource(LimitEntity)
   async delete(@IdParam() id: number) {
     await this.tradeCalService.delete(id);
-  }
-
-  @Permit('data:write')
-  @Delete('/clear')
-  @ApiOperation({ summary: '清空Limit' })
-  async clear() {
-    await this.tradeCalService.clear();
   }
 }

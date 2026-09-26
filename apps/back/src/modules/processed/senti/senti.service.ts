@@ -1,3 +1,4 @@
+import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -9,6 +10,7 @@ import { SentiDto, SentiQueryDto, SentiUpdateDto } from './senti.dto';
 @Injectable()
 export class SentiService {
   constructor(
+    private readonly writes: SyncWriteService,
     @InjectRepository(SentiEntity)
     private SentiRepository: Repository<SentiEntity>,
   ) {}
@@ -45,30 +47,26 @@ export class SentiService {
   }
 
   async create(dto: SentiDto) {
-    await this.SentiRepository.save(dto);
+    await this.writes.mutate(SentiEntity, 'save', dto);
   }
 
   async bulkCreate(dto: SentiDto[]) {
-    await this.SentiRepository.save(dto);
+    await this.writes.mutate(SentiEntity, 'save', dto);
   }
 
   async update(id: number, dto: SentiUpdateDto) {
-    await this.SentiRepository.update(id, dto);
+    await this.writes.mutate(SentiEntity, 'update', dto, id);
   }
 
   async delete(id: number) {
-    const item = await this.detail(id);
-    await this.SentiRepository.remove(item);
+    await this.writes.mutate(SentiEntity, 'delete', undefined, id);
   }
 
   async deleteByDate(date: SentiDto['tradeDate']) {
-    const { affected } = await this.SentiRepository.delete({
-      tradeDate: date,
-    });
-    return affected;
+    return this.writes.mutate(SentiEntity, 'delete', { tradeDate: date });
   }
 
   async clear() {
-    await this.SentiRepository.clear();
+    await this.writes.mutate(SentiEntity, 'clear');
   }
 }

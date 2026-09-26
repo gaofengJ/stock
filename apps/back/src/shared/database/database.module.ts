@@ -12,6 +12,7 @@ import { EntityExistConstraint } from './constraints/entity-exist.constraint';
 import { UniqueConstraint } from './constraints/unique.constraint';
 import { TypeORMLogger } from './typeorm-logger';
 import { ClsServiceStatic } from './cls.service';
+import { checkSyncSchema } from './sync-schema';
 
 const providers = [
   DataSourceService,
@@ -51,7 +52,17 @@ const providers = [
       },
       // 初始化数据源
       dataSourceFactory: async (options: DataSourceOptions) => {
+        if (options.synchronize)
+          throw new Error(
+            '新版数据库由迁移管理，请设置 DB_SYNCHRONIZE=false 并先执行迁移；本地测试使用 start:test-db',
+          );
         const dataSource = await new DataSource(options).initialize();
+        try {
+          await checkSyncSchema(dataSource);
+        } catch (error) {
+          await dataSource.destroy();
+          throw error;
+        }
         return dataSource;
       },
     }),

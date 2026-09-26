@@ -1,50 +1,71 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnApplicationBootstrap } from '@nestjs/common';
 
 import { Cron } from '@nestjs/schedule';
-import * as dayjs from 'dayjs';
 import { LoggerService } from '@/shared/logger/logger.service';
 import { DailyTaskService } from '@/modules/daily-task/daily-task.service';
+import { errorMessage } from '@/modules/daily-task/sync.utils';
+import { getEnvConfigBoolean } from '@/utils';
 import { AuthService } from '../modules/auth/auth.service';
 
 /**
  * 定时任务-源数据导入
  */
 @Injectable()
-export class DailySourceTask {
+export class DailySourceTask implements OnApplicationBootstrap {
   constructor(
-    private auth: AuthService,
     private readonly logger: LoggerService,
     private dailyTaskService: DailyTaskService,
+    private auth: AuthService,
   ) {}
 
-  @Cron('0 50 19 * * 1-5', {
+  onApplicationBootstrap() {
+    if (process.env.SCHEDULE_ENABLED === 'false') return;
+    // 不阻塞 HTTP 服务启动；停机期间缺失的交易日在后台补齐。
+    if (getEnvConfigBoolean('SYNC_ON_STARTUP', false)) {
+      setImmediate(() => this.runSync(true));
+    }
+  }
+
+  @Cron('0 30 20 * * *', {
     timeZone: 'Asia/Shanghai', // 指定时区为东八区
   })
   async handleCorn() {
     if (process.env.SCHEDULE_ENABLED === 'false') return;
-    const date = dayjs().format('YYYY-MM-DD');
-    this.logger.log(
-      `定时任务-源数据导入开始，日期：${date}`,
-      DailySourceTask.name,
-    );
-    await this.auth.audit(null, 'sync.scheduled', date, 'started');
+    if (
+      !getEnvConfigBoolean(
+        'SYNC_SCHEDULE_ENABLED',
+        process.env.NODE_ENV === 'production',
+      )
+    )
+      return;
+    await this.runSync(true);
+  }
+
+  @Cron('0 45 20 * * *', { timeZone: 'Asia/Shanghai' })
+  async handleRetry() {
+    await this.handleCorn();
+  }
+
+  @Cron('0 0,15,30 21 * * *', { timeZone: 'Asia/Shanghai' })
+  async handleLateRetry() {
+    await this.handleCorn();
+  }
+
+  private async runSync(scheduled = false) {
     try {
-      const complete = await this.dailyTaskService.import(date);
-      await this.auth.audit(
-        null,
-        'sync.scheduled',
-        date,
-        complete ? 'success' : 'pending',
-      );
-    } catch (e) {
-      await this.auth.audit(null, 'sync.scheduled', date, 'failed', {
-        error: e.message,
+      this.logger.log('源数据同步检查开始', DailySourceTask.name);
+      await this.auth.audit(null, 'sync.scheduled', null, 'started');
+      const result = await this.dailyTaskService.catchUp(new Date(), scheduled);
+      await this.auth.audit(null, 'sync.scheduled', null, result || 'skipped');
+      this.logger.log('源数据同步检查结束', DailySourceTask.name);
+    } catch (error) {
+      await this.auth.audit(null, 'sync.scheduled', null, 'failed', {
+        error: errorMessage(error),
       });
-      throw e;
+      this.logger.error(
+        `源数据同步失败，下次检查重试: ${errorMessage(error)}`,
+        DailySourceTask.name,
+      );
     }
-    this.logger.log(
-      `定时任务-源数据导入结束，日期：${date}`,
-      DailySourceTask.name,
-    );
   }
 }

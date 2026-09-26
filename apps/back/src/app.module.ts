@@ -24,6 +24,7 @@ import { StrategyModule } from '@/modules/strategy/strategy.module';
 import { BasicModule } from '@/modules/basic/basic.module';
 import { CommonModule } from '@/modules/common/common.module';
 import { DailySourceTask } from '@/tasks/daily-source.tasks';
+import { SyncWriteModule } from './modules/daily-task/sync-write.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AuthGuard } from './modules/auth/auth.guard';
 import { AdminModule } from './modules/admin/admin.module';
@@ -96,6 +97,7 @@ import { DataLockInterceptor } from './modules/admin/data-lock.interceptor';
      * 每日任务模块
      */
     DailyTaskModule,
+    SyncWriteModule,
     /**
      * 公共模块
      */
