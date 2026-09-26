@@ -1,14 +1,9 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { IsDateString, IsString, IsInt } from 'class-validator';
-import { IsUnique } from '@/shared/database/constraints/unique.constraint';
 import { SentiEntity } from './senti.entity';
 
 export class SentiDto extends PartialType(SentiEntity) {
   @ApiProperty({ description: '交易日期' })
-  @IsUnique({
-    entity: SentiEntity,
-    message: '已存在相同名称的交易日期',
-  })
   @IsDateString()
   tradeDate: string;
 

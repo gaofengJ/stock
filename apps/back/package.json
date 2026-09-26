@@ -10,6 +10,8 @@
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "cross-env NODE_ENV=development nest start --watch",
+    "start:test-db": "cross-env NODE_ENV=development APP_ENV_FILE=.env.server-test nest start --watch",
+    "migration:test-db": "cross-env NODE_ENV=development APP_ENV_FILE=.env.server-test node node_modules/typeorm/cli.js migration:run -d dist/migration-data-source.js",
     "start:debug": "cross-env NODE_ENV=development nest start --debug --watch",
     "start:prod": "cross-env NODE_ENV=production node dist/main",
     "lint": "eslint .",
@@ -17,7 +19,12 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "migration:show": "node node_modules/typeorm/cli.js migration:show -d dist/migration-data-source.js",
+    "migration:run": "node node_modules/typeorm/cli.js migration:run -d dist/migration-data-source.js",
+    "migration:revert": "node node_modules/typeorm/cli.js migration:revert -d dist/migration-data-source.js",
+    "migration:preflight": "node ops/release/database.cjs preflight",
+    "migration:verify": "node ops/release/database.cjs verify"
   },
   "dependencies": {
     "@fastify/cookie": "^9.3.1",
@@ -94,6 +101,9 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/$1"
+    }
   }
 }

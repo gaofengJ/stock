@@ -8,11 +8,54 @@ export type ITushareData = {
   fields: string[];
   items: any[];
 };
+
+class TushareRequestError extends Error {
+  constructor(
+    message: string,
+    readonly retryable: boolean,
+  ) {
+    super(message);
+  }
+}
 @Injectable()
 export class TushareService {
   constructor(private readonly httpService: HttpService) {}
 
   private async request(config: AxiosRequestConfig) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        return await this.requestOnce(config);
+      } catch (error) {
+        const status = error?.response?.status;
+        const retryable =
+          error instanceof TushareRequestError
+            ? error.retryable
+            : status === 429 ||
+              status >= 500 ||
+              ['ECONNABORTED', 'ETIMEDOUT', 'ECONNRESET', 'EAI_AGAIN'].includes(
+                error?.code,
+              );
+        if (!retryable || attempt === 2) {
+          // 不把 Axios config 中的 token 写入日志或错误响应。
+          throw new Error(
+            `Tushare ${config.data?.api_name} 请求失败: ${
+              error instanceof TushareRequestError
+                ? error.message
+                : status || error?.code || '响应异常'
+            }`,
+          );
+        }
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((resolve) => {
+          setTimeout(resolve, 1000 * 2 ** attempt);
+        });
+      }
+    }
+    throw new Error('Tushare 重试次数耗尽');
+  }
+
+  private async requestOnce(config: AxiosRequestConfig) {
     const response = await this.httpService.axiosRef.request({
       method: 'post',
       baseURL: 'http://api.waditu.com',
@@ -31,6 +74,15 @@ export class TushareService {
       ...config,
     });
     const { data } = response;
+
+    if (data?.code !== 0) {
+      const message = String(data?.msg || '响应缺少成功状态');
+      throw new TushareRequestError(
+        message,
+        /每分钟|每秒|频率|频次|稍后|繁忙/.test(message) &&
+          !/每天|每日|权限|积分/.test(message),
+      );
+    }
 
     return {
       code: data.code,

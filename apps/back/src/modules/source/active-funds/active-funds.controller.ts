@@ -47,15 +47,15 @@ export class ActiveFundsController {
     await this.activeFundsService.update(id, dto);
   }
 
-  @Delete(':id')
-  @ApiOperation({ summary: '删除ActiveFunds' })
-  async delete(@IdParam() id: number) {
-    await this.activeFundsService.delete(id);
-  }
-
   @Delete('/clear')
   @ApiOperation({ summary: '清空ActiveFunds' })
   async clear() {
     await this.activeFundsService.clear();
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: '删除ActiveFunds' })
+  async delete(@IdParam() id: number) {
+    await this.activeFundsService.delete(id);
   }
 }

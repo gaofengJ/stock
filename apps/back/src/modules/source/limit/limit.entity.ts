@@ -9,6 +9,9 @@ import { CommonEntity } from '@/entity/common.entity';
 })
 @Index('index_ts_code', ['tsCode'])
 @Index('index_trade_date', ['tradeDate'])
+@Index('uq_limit_code_date_type', ['tsCode', 'tradeDate', 'limit'], {
+  unique: true,
+})
 export class LimitEntity extends CommonEntity {
   @Column({
     name: 'ts_code',
