@@ -10,9 +10,8 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { QueryFailedError } from 'typeorm';
 
 import { BizException } from '@/exceptions/biz.exception';
-import { ECustomError } from '@/types/common.enum';
-import { isDev } from '@/utils';
 import { redact } from '../modules/auth/redact';
+import { localizedErrorMessage } from './error-message';
 
 /**
  * 自定义错误
@@ -42,7 +41,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const url = request.raw.url!; // ! 是 TypeScript 中的非空断言操作符
 
     const status = this.getStatus(exception); // 获取异常的状态码
-    let message = this.getErrorMessage(exception); // 获取异常的错误信息
+    const message = localizedErrorMessage(
+      this.getErrorMessage(exception),
+      status,
+    );
 
     if (
       status === HttpStatus.INTERNAL_SERVER_ERROR &&
@@ -60,9 +62,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
         undefined,
         'Catch',
       );
-      // 生产环境下隐藏错误信息
-      if (!isDev || exception instanceof QueryFailedError)
-        message = ECustomError.SERVER_ERROR?.split(':')[1]; // 在生产环境下隐藏错误信息
     } else {
       this.logger.warn(
         `错误信息：(${status}) ${message} Path: ${url.split('?')[0]}`,
@@ -103,9 +102,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
   /**
    * 获取异常的错误信息
    */
-  getErrorMessage(exception: unknown): string {
+  getErrorMessage(exception: unknown): unknown {
     if (exception instanceof HttpException) {
-      return exception.message;
+      const body = exception.getResponse();
+      return typeof body === 'string'
+        ? body
+        : (body as { message?: unknown }).message;
     }
     if (exception instanceof QueryFailedError) {
       return exception.message;

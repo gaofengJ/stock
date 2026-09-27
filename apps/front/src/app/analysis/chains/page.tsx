@@ -1,156 +1,107 @@
 'use client';
 
-import { Col, Row, Spin } from 'antd';
-import dayjs, { Dayjs } from 'dayjs';
-import { useEffect, useState } from 'react';
-import Layout from '@/components/Layout';
-import { analysisSiderMenuItems } from '@/components/Layout/config';
 import {
-  EAnalysisAsideMenuKey,
-  EHeaderMenuKey,
-} from '@/components/Layout/enum';
-import CSearchForm from '@/components/common/CSearchForm';
-import { useDefaultTradeDate } from '@/hooks/useDefaultTradeDate';
-import { useLimitsFilterConfigs } from './form-configs';
-import CountLimitUp1 from './components/CountLimitUp1';
-import RateLimitUp0to1 from './components/RateLimitUp0to1';
-import CountLimitUp2 from './components/CountLimitUp2';
-import RateLimitUp1to2 from './components/RateLimitUp1to2';
-import CountLimitUp3 from './components/CountLimitUp3';
-import RateLimitUp2to3 from './components/RateLimitUp2to3';
-import CountLimitUpAbove4 from './components/CountLimitUpAbove4';
-import AmountLimitUp from './components/AmountLimitUp';
-import AmountUpgradeLimitUp from './components/AmountUpgradeLimitUp';
+  Card, Col, Row, Table, Tabs, Tag,
+} from 'antd';
+import { Ladder, MarketSeries } from '@/api/market';
+import MarketCompatibility from '../components/MarketCompatibility';
+import LegacyPage from './LegacyPage';
 
-function AnalysisChainsPage() {
-  const { candidate, ready, tradeDate } = useDefaultTradeDate();
-  // searchParams 的初始值
-  const initialSearchParams = {
-    // 默认时间: [当前时间一个月, 当前时间]
-    dateRange: [
-      dayjs(candidate).subtract(1, 'month').format('YYYY-MM-DD'),
-      candidate,
-    ],
-  };
-  const [searchParams, setSearchParams] = useState(initialSearchParams);
-  const [dateReady, setDateReady] = useState(false);
+import MarketShell from '../components/MarketShell';
+import useMarketData from '../components/useMarketData';
+import { DataState, numberText, Trend } from '../components/MarketCharts';
 
-  useEffect(() => {
-    if (!ready) return;
-    setSearchParams((state) => (
-      state.dateRange[1] === candidate
-        ? {
-          ...state,
-          dateRange: [
-            dayjs(tradeDate).subtract(1, 'month').format('YYYY-MM-DD'),
-            tradeDate,
-          ],
-        }
-        : state
-    ));
-    setDateReady(true);
-  }, [candidate, ready, tradeDate]);
-
-  /**
-   * dateRange 禁用时间
-   */
-  const disabledDate = (current: Dayjs) => {
-    const maxDiff = 90; // 最大日期差
-    if (!searchParams.dateRange.length) return false;
-    const [startDate, endDate] = searchParams.dateRange;
-    let tooEarly = false;
-    let tooLate = false;
-    if (startDate) {
-      tooEarly = current.diff(startDate, 'days') > maxDiff;
-    }
-    if (endDate) {
-      tooLate = dayjs(endDate).diff(current, 'days') > maxDiff;
-    }
-    return tooEarly || tooLate;
-  };
-
-  let limitsFilterConfigs = useLimitsFilterConfigs();
-  // 为 dateRange 添加禁用时间
-  limitsFilterConfigs = limitsFilterConfigs.map((i) => {
-    if (i.name === 'dateRange') {
-      return {
-        ...i,
-        attrs: {
-          ...i.attrs,
-          disabledDate,
-        },
-      };
-    }
-    return i;
-  });
-
-  /**
-   * 更新 searchParams 的值
-   */
-  const handleSetSearchParams = (val: any) => {
-    setSearchParams((state) => ({
-      ...state,
-      ...val,
-      dateRange: val.dateRange.map((i: Dayjs) => i.format('YYYY-MM-DD')),
-    }));
-  };
-
+function ChainsPage() {
+  const series = useMarketData<MarketSeries>('chains');
+  const ladder = useMarketData<Ladder>('ladder');
+  const heights = Array.from(new Set(ladder.data?.items.map((r) => r.limitTimes) || [])).sort((a, b) => b - a);
   return (
-    <Layout
-      asideMenuItems={analysisSiderMenuItems}
-      headerMenuActive={EHeaderMenuKey.analysis}
-      asideMenuActive={EAnalysisAsideMenuKey.analysisChains}
-    >
-      <div className="p-16 rounded-[6px] bg-bg-white">
-        <div className="mb-16">
-          <CSearchForm
-            configs={limitsFilterConfigs}
-            searchParams={{
-              ...searchParams,
-              dateRange: searchParams.dateRange.map((i) => dayjs(i)),
-            }}
-            setSearchParams={handleSetSearchParams}
-          />
-        </div>
-        <div className="max-h-[calc(100vh-184px)] overflow-x-hidden overflow-y-auto">
-          {dateReady ? (
-            <Row align="middle" gutter={[32, 64]} justify="space-around">
-              <Col span={12}>
-                <CountLimitUp1 dateRange={searchParams.dateRange} />
-              </Col>
-              <Col span={12}>
-                <RateLimitUp0to1 dateRange={searchParams.dateRange} />
-              </Col>
-              <Col span={12}>
-                <CountLimitUp2 dateRange={searchParams.dateRange} />
-              </Col>
-              <Col span={12}>
-                <RateLimitUp1to2 dateRange={searchParams.dateRange} />
-              </Col>
-              <Col span={12}>
-                <CountLimitUp3 dateRange={searchParams.dateRange} />
-              </Col>
-              <Col span={12}>
-                <RateLimitUp2to3 dateRange={searchParams.dateRange} />
-              </Col>
-              <Col span={12}>
-                <CountLimitUpAbove4 dateRange={searchParams.dateRange} />
-              </Col>
-              <Col span={12} />
-              <Col span={12}>
-                <AmountLimitUp dateRange={searchParams.dateRange} />
-              </Col>
-              <Col span={12}>
-                <AmountUpgradeLimitUp dateRange={searchParams.dateRange} />
-              </Col>
-            </Row>
-          ) : (
-            <Spin className="w-full h-320 !leading-[320px]" size="large" />
-          )}
-        </div>
-      </div>
-    </Layout>
+    <MarketShell title="连板分析" path="/analysis/chains">
+      <p className="market-note">按数据源非ST样本统计。晋级率按昨日同一批股票跟踪；分母为昨日对应高度全部股票，停牌视为未晋级。高位指昨日四板及以上。</p>
+      <Tabs items={[
+        {
+          key: 'ladder',
+          label: '当日梯队',
+          children: (
+            <>
+              <DataState loading={series.loading} error={series.error} empty={!series.data?.snapshot}>
+                <Row gutter={[16, 16]} className="market-metrics">
+                  {series.data?.snapshot?.upgrades.map((r) => (
+                    <Col span={6} key={r.from}>
+                      <Card size="small" title={r.from === 4 ? '高位晋级' : `${r.from}进${r.from + 1}`}>
+                        <strong>
+                          {numberText(r.rate)}
+                          {r.rate == null ? '' : '%'}
+                        </strong>
+                        <div>
+                          {r.numerator}
+                          {' '}
+                          /
+                          {' '}
+                          {r.denominator}
+                          {' '}
+                          只
+                        </div>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+              </DataState>
+              <DataState loading={ladder.loading} error={ladder.error} empty={!ladder.data?.ready}>
+                {!heights.length && <p>当日无涨停记录</p>}
+                {heights.map((height) => (
+                  <Card key={height} className="market-chart" title={`${height === 1 ? '首板' : `${height}连板`} · ${ladder.data!.items.filter((r) => r.limitTimes === height).length}只`}>
+                    <Table
+                      pagination={false}
+                      size="small"
+                      rowKey="tsCode"
+                      dataSource={ladder.data!.items.filter((r) => r.limitTimes === height)}
+                      columns={[
+                        { title: '代码', dataIndex: 'tsCode' }, { title: '名称', dataIndex: 'name' }, { title: '行业', dataIndex: 'industry' },
+                        { title: '首次封板', dataIndex: 'firstTime', render: (v) => v || '—' }, { title: '开板次数', dataIndex: 'openTimes', render: (v) => v ?? '—' },
+                        { title: '成交额(亿元)', dataIndex: 'amount', render: (v) => numberText(v == null ? null : Number(v) / 100000000) },
+                      ]}
+                    />
+                  </Card>
+                ))}
+                <Card title="昨日连板股去向">
+                  <Table
+                    rowKey="tsCode"
+                    size="small"
+                    dataSource={ladder.data?.transitions}
+                    pagination={{ pageSize: 30 }}
+                    columns={[
+                      { title: '代码', dataIndex: 'tsCode' }, { title: '名称', dataIndex: 'name' }, { title: '昨日高度', dataIndex: 'previousHeight' },
+                      { title: '今日高度', dataIndex: 'height' }, { title: '今日涨跌幅(%)', dataIndex: 'pctChg', render: (v) => numberText(v) },
+                      { title: '结果', dataIndex: 'state', render: (v) => <Tag color={v === '晋级' ? 'red' : 'default'}>{v}</Tag> },
+                    ]}
+                  />
+                </Card>
+              </DataState>
+            </>
+          ),
+        },
+        {
+          key: 'history',
+          label: '历史统计',
+          children: (
+            <DataState loading={series.loading} error={series.error} empty={!series.data?.snapshot}>
+              {series.data && (
+              <>
+                <Trend title="连板数量" data={series.data} fields={[1, 2, 3, 4].map((n) => ({ label: n === 4 ? '四板及以上' : `${n}板`, value: (s) => s.counts[n - 1] }))} />
+                <Trend title="连板晋级率" data={series.data} percent fields={[1, 2, 3, 4].map((n) => ({ label: n === 4 ? '高位晋级' : `${n}进${n + 1}`, value: (s) => s.upgrades[n - 1].rate }))} />
+                <Trend title="涨停与连板成交额（亿元）" data={series.data} fields={[{ label: '涨停成交额', value: (s) => s.limitAmount }, { label: '连板成交额', value: (s) => s.chainAmount }]} />
+              </>
+              )}
+            </DataState>
+          ),
+        },
+      ]}
+      />
+    </MarketShell>
   );
 }
 
-export default AnalysisChainsPage;
+export default function Page() {
+  return <MarketCompatibility legacy={<LegacyPage />}><ChainsPage /></MarketCompatibility>;
+}

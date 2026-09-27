@@ -1,9 +1,24 @@
 import { TushareService } from '@/shared/tushare/tushare.service';
 import * as dayjs from 'dayjs';
 import { StockEntity } from '../source/stock/stock.entity';
-import { readSnapshot, SyncSourceService } from './sync-source.service';
+import {
+  readSnapshot,
+  SyncSourceService,
+  marketCoverage,
+} from './sync-source.service';
 
 describe('同步数据校验', () => {
+  it('拒绝整座交易所缺失的行情，但不要求尚未上市的历史市场', () => {
+    const stocks = Array.from({ length: 20 }, (_, n) => ({
+      tsCode: `${830000 + n}.BJ`,
+      listDate: '2024-01-01',
+    }));
+    expect(marketCoverage(['000001.SZ'], stocks, '2026-09-24')).toBe(false);
+    expect(
+      marketCoverage(['000001.SZ', '830000.BJ'], stocks, '2026-09-24'),
+    ).toBe(true);
+    expect(marketCoverage(['000001.SZ'], stocks, '2023-12-29')).toBe(true);
+  });
   it('错误码、字段缺失、行截断和空必需快照均报错', () => {
     expect(() =>
       readSnapshot({ code: -1, message: '权限不足' }, ['ts_code']),

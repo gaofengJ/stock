@@ -30,6 +30,25 @@ describe('Tushare 请求失败处理', () => {
     expect(request).toHaveBeenCalledTimes(1);
   });
 
+  it('达到分页上限继续获取，重复页拒绝发布', async () => {
+    request
+      .mockResolvedValueOnce({
+        data: { code: 0, data: { fields: ['ts_code'], items: [['a'], ['b']] } },
+      })
+      .mockResolvedValueOnce({
+        data: { code: 0, data: { fields: ['ts_code'], items: [['c']] } },
+      });
+    const result = await service.queryData('daily', {}, undefined, 2);
+    expect(result.data?.items).toEqual([['a'], ['b'], ['c']]);
+    expect(request.mock.calls[1][0].data.params.offset).toBe(2);
+    request.mockReset().mockResolvedValue({
+      data: { code: 0, data: { fields: ['ts_code'], items: [['a'], ['b']] } },
+    });
+    await expect(service.queryData('daily', {}, undefined, 2)).rejects.toThrow(
+      '分页重复',
+    );
+  });
+
   it('限流最多尝试三次，失败不会假装成功', async () => {
     request.mockResolvedValue({
       data: { code: -2001, msg: '每分钟访问次数超限' },

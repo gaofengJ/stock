@@ -59,8 +59,9 @@ export function eveningSlot(now: Date): string | undefined {
     minute: '2-digit',
     hourCycle: 'h23',
   }).format(now);
-  if (time < '20:30' || time > '21:30') return undefined;
-  return ['20:30', '20:45', '21:00', '21:15', '21:30']
+  if (time === '07:30') return '0730';
+  if (time < '20:30' || time > '22:00') return undefined;
+  return ['20:30', '20:45', '21:00', '21:15', '21:30', '21:45', '22:00']
     .filter((slot) => slot <= time)
     .pop()
     ?.replace(':', '');

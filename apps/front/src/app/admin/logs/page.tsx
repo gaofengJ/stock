@@ -1,5 +1,6 @@
 'use client';
 
+import { errorMessage } from '@/api/errors';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
@@ -46,7 +47,7 @@ export default function Page() {
         ),
       );
     } catch (e) {
-      message.error((e as Error).message);
+      message.error(errorMessage(e));
     } finally {
       setLoading(false);
     }

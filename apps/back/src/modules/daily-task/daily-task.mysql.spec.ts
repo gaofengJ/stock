@@ -742,6 +742,7 @@ mysqlDescribe('MySQL 同步事务与迁移回归', () => {
         'SyncSafety1790380800001',
         'Accounts1790467200000',
         'AccountAvatars1790467200001',
+        'MarketAnalysis1790553600000',
       ]);
       expect(before.counts.t_source_daily).toEqual({ rows: 2, duplicates: 1 });
       expect(await probeDb.manager.count(DailyEntity)).toBe(2);

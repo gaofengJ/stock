@@ -1,5 +1,6 @@
 'use client';
 
+import { errorMessage } from '@/api/errors';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Button,
@@ -18,7 +19,7 @@ import { TeamOutlined } from '@ant-design/icons';
 import PageHeading from '@/auth/PageHeading';
 import AccountAvatar from '@/auth/AccountAvatar';
 
-const fail = (e: unknown) => message.error((e as Error).message);
+const fail = (e: unknown) => message.error(errorMessage(e));
 export default function Page() {
   const [rows, setRows] = useState<any[]>([]);
   const [total, setTotal] = useState(0);

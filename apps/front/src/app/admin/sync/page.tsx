@@ -1,5 +1,6 @@
 'use client';
 
+import { errorMessage } from '@/api/errors';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
@@ -8,6 +9,7 @@ import {
   Descriptions,
   Drawer,
   Form,
+  Select,
   Space,
   Table,
   Tag,
@@ -35,7 +37,7 @@ export default function Page() {
   const [detail, setDetail] = useState<any>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
-  const fail = (e: unknown) => message.error((e as Error).message);
+  const fail = (e: unknown) => message.error(errorMessage(e));
   const load = useCallback(async () => {
     const r = await api(`/admin/sync-jobs?page=${page}`);
     setRows(r.items);
@@ -55,10 +57,10 @@ export default function Page() {
     const t = setInterval(read, 5000);
     return () => clearInterval(t);
   }, [selected]);
-  const submit = async (startDate: string, endDate: string) => {
+  const submit = async (startDate: string, endDate: string, mode = 'missing') => {
     setBusy(true);
     try {
-      const job = await api('/admin/sync-jobs', 'POST', { startDate, endDate });
+      const job = await api('/admin/sync-jobs', 'POST', { startDate, endDate, mode });
       message.success(`任务已提交：${job.id}`);
       setSelected(job.id);
       await load();
@@ -82,7 +84,8 @@ export default function Page() {
           className="account-toolbar"
           layout="inline"
           style={{ marginBottom: 20 }}
-          onFinish={({ dates }) => submit(dates[0].format('YYYY-MM-DD'), dates[1].format('YYYY-MM-DD'))}
+          initialValues={{ mode: 'missing' }}
+          onFinish={({ dates, mode }) => submit(dates[0].format('YYYY-MM-DD'), dates[1].format('YYYY-MM-DD'), mode)}
         >
           <Form.Item
             name="dates"
@@ -93,6 +96,7 @@ export default function Page() {
           >
             <DatePicker.RangePicker allowClear />
           </Form.Item>
+          <Form.Item name="mode" label="方式"><Select style={{ width: 160 }} options={[{ value: 'missing', label: '仅补缺失数据' }, { value: 'refresh', label: '重新采集并计算' }]} /></Form.Item>
           <Button type="primary" loading={busy} htmlType="submit">
             提交同步任务
           </Button>
@@ -152,7 +156,7 @@ export default function Page() {
                   && ['failed', 'pending', 'interrupted'].includes(r.status) && (
                     <Button
                       loading={busy}
-                      onClick={() => submit(r.startDate, r.endDate)}
+                      onClick={() => submit(r.startDate, r.endDate, r.mode)}
                     >
                       重新提交
                     </Button>
@@ -194,7 +198,7 @@ export default function Page() {
                 {
                   key: 'error',
                   label: '错误摘要',
-                  children: detail.error || '无',
+                  children: detail.error ? errorMessage(detail.error, '同步失败，请查看服务日志') : '无',
                 },
               ]}
             />
@@ -207,6 +211,7 @@ export default function Page() {
               dataSource={detail.dates}
               columns={[
                 { title: '日期', dataIndex: 'tradeDate' },
+                { title: '阶段', dataIndex: 'task', render: (v) => ({ daily: '个股行情', 'market-index': '指数日线', market: '市场汇总' }[v as string] || v) },
                 {
                   title: '状态',
                   dataIndex: 'status',
@@ -215,7 +220,7 @@ export default function Page() {
                 { title: '行情条数', dataIndex: 'dailyCount' },
                 { title: '涨跌停条数', dataIndex: 'limitCount' },
                 { title: '情绪条数', dataIndex: 'sentiCount' },
-                { title: '说明', dataIndex: 'error' },
+                { title: '说明', dataIndex: 'error', render: (v) => (v ? errorMessage(v, '同步失败，请查看服务日志') : '—') },
               ]}
             />
           </>

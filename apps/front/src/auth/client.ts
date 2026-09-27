@@ -1,3 +1,5 @@
+import { readApiResponse, userError } from '@/api/errors';
+
 export interface Permission {
   code: string;
   name: string;
@@ -28,11 +30,12 @@ export async function csrfToken(): Promise<string> {
       cache: 'no-store',
     })
       .then(async (r) => {
-        const b = await r.json();
-        if (!r.ok) throw new Error(b.message || '无法建立安全会话');
+        const b = await readApiResponse(r);
+        if (typeof b.data?.csrfToken !== 'string' || !b.data.csrfToken) throw new Error('无法建立安全会话，请刷新页面后重试');
         csrf = b.data.csrfToken;
         return csrf!;
       })
+      .catch((error: unknown) => { throw userError(error); })
       .finally(() => {
         pending = undefined;
       });
@@ -54,20 +57,21 @@ export async function api<T = any>(
 ): Promise<T> {
   const headers: Record<string, string> = body === undefined ? {} : { 'Content-Type': 'application/json' };
   if (!['GET', 'HEAD'].includes(method)) headers['X-CSRF-Token'] = await csrfToken();
-  const r = await fetch(`/api${url}`, {
-    method,
-    credentials: 'include',
-    cache: 'no-store',
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const b = await r.json();
-  if (!r.ok || b.code !== 0) {
-    if (notify) authFailure(r.status);
-    throw new Error(b.message || '请求失败');
+  try {
+    const r = await fetch(`/api${url}`, {
+      method,
+      credentials: 'include',
+      cache: 'no-store',
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (notify && !r.ok) authFailure(r.status);
+    const b = await readApiResponse(r);
+    if (b.data?.csrfToken) csrf = b.data.csrfToken;
+    return b.data;
+  } catch (error) {
+    throw userError(error);
   }
-  if (b.data?.csrfToken) csrf = b.data.csrfToken;
-  return b.data;
 }
 export function allowedPath(user: Account | null, path: string): boolean {
   const p = path.replace(/\/$/, '') || '/';

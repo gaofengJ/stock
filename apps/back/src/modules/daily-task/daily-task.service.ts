@@ -1,4 +1,15 @@
-import { ConflictException, Injectable, Logger } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  Optional,
+} from '@nestjs/common';
+import { MarketSyncService } from '@/modules/analysis/market/market-sync.service';
+import {
+  MarketDailyEntity,
+  IndexDailyEntity,
+  BseMappingEntity,
+} from '@/modules/analysis/market/market.entity';
 import {
   Between,
   DataSource,
@@ -16,7 +27,7 @@ import { StockEntity } from '../source/stock/stock.entity';
 import { TradeCalEntity } from '../source/trade-cal/trade-cal.entity';
 import { ActiveFundsEntity } from '../source/active-funds/active-funds.entity';
 import { SentiEntity } from '../processed/senti/senti.entity';
-import { SyncRunEntity } from './sync-run.entity';
+import { SyncRunEntity, SyncStatus } from './sync-run.entity';
 import { SyncSourceService } from './sync-source.service';
 import {
   errorMessage,
@@ -29,12 +40,17 @@ import {
 
 @Injectable()
 export class DailyTaskService {
+  get marketEnabled() {
+    return !!this.market;
+  }
+
   private readonly logger = new Logger(DailyTaskService.name);
 
   constructor(
     private readonly dataSource: DataSource,
     private readonly source: SyncSourceService,
     private readonly writes: SyncWriteService,
+    @Optional() private readonly market?: MarketSyncService,
   ) {}
 
   private withLock<T>(
@@ -55,6 +71,7 @@ export class DailyTaskService {
         status: 'running',
         attempts: (previous?.attempts || 0) + 1,
         error: null,
+        updatedAt: new Date(),
       }),
     );
   }
@@ -67,6 +84,7 @@ export class DailyTaskService {
     await manager.update(SyncRunEntity, run.id, {
       status: 'failed',
       error: errorMessage(error).slice(0, 4000),
+      updatedAt: new Date(),
     });
   }
 
@@ -98,7 +116,11 @@ export class DailyTaskService {
     });
   }
 
-  private async refreshSources(manager: EntityManager, manual = false) {
+  private async refreshSources(
+    manager: EntityManager,
+    manual = false,
+    auxiliary = true,
+  ) {
     const date = shanghaiDate();
     await this.replaceSnapshot(manager, TradeCalEntity, () =>
       this.source.calendar(Number(date.slice(0, 4))),
@@ -106,10 +128,20 @@ export class DailyTaskService {
     await this.replaceSnapshot(manager, StockEntity, () =>
       this.source.stocks(),
     );
+    if (!auxiliary) return;
+    await this.refreshAuxiliary(manager, date, manual);
+  }
+
+  private async refreshAuxiliary(
+    manager: EntityManager,
+    date: string,
+    manual = false,
+  ) {
     const previous = await manager.findOneBy(SyncRunEntity, {
       task: 'active-funds',
       tradeDate: date,
     });
+    if (!manual && previous?.status === 'success') return;
     if (
       !manual &&
       previous?.status === 'failed' &&
@@ -163,6 +195,7 @@ export class DailyTaskService {
     date: string,
     includePrevious = true,
     manual = false,
+    force = false,
   ) {
     if (!manual && (await this.writes.excluded(manager, date))) return;
     const calendar = await manager.findOneBy(TradeCalEntity, {
@@ -197,7 +230,12 @@ export class DailyTaskService {
       task: 'daily',
       tradeDate: date,
     });
-    if (!manual && existingRun && (await this.rawReady(manager, date))) {
+    if (
+      !manual &&
+      !force &&
+      existingRun &&
+      (await this.rawReady(manager, date))
+    ) {
       await manager.transaction(async (tx) => {
         const ready = await this.writeMood(tx, date);
         await tx.update(SyncRunEntity, existingRun.id, {
@@ -219,6 +257,7 @@ export class DailyTaskService {
       if (!daily.length || (oldCount > 0 && daily.length < oldCount * 0.8))
         throw new Error('日线快照数量异常，保留原数据');
       await manager.transaction(async (tx) => {
+        if (this.market) await this.market.invalidate(tx, date);
         if (manual) await tx.delete(SyncDayPolicyEntity, { tradeDate: date });
         await tx.delete(DailyEntity, { tradeDate: date });
         await tx.delete(LimitEntity, { tradeDate: date });
@@ -281,6 +320,7 @@ export class DailyTaskService {
 
   // 启动补同步与每日北京时间 20:30 共用入口。
   async catchUp(now = new Date(), scheduled = false) {
+    if (this.market) return this.catchUpMarket(now, scheduled);
     return this.withLock(async (manager) => {
       const slot = eveningSlot(now);
       if (scheduled && !slot) return 'skipped';
@@ -413,6 +453,263 @@ export class DailyTaskService {
     }, true);
   }
 
+  /** 所有入口复用同一批处理流程；每批最多三个交易日，释放写锁后续跑。 */
+  async marketBatch(
+    start: string,
+    end: string,
+    force = false,
+    excludedDates: string[] = [],
+    now = new Date(),
+  ) {
+    if (!this.market) throw new Error('市场分析模块未启用');
+    this.checkRange(start, end);
+    return this.writes.withLock(
+      async (manager) => {
+        const today = shanghaiDate(now);
+        const reference = await manager.findOneBy(SyncRunEntity, {
+          task: 'market-reference',
+          tradeDate: today,
+          status: 'success',
+        });
+        if (!reference) {
+          await this.market!.stage(
+            manager,
+            'market-reference',
+            today,
+            async () => {
+              await this.refreshSources(manager, false, false);
+              await this.market!.mapping(manager, today);
+            },
+          );
+        }
+        const expected = await manager.findOne(TradeCalEntity, {
+          where: { isOpen: 1 },
+          order: { calDate: 'DESC' },
+        });
+        // 截止日期由交易日历和盘后窗口共同决定，不允许任务读取未来行情。
+        const days = (
+          await manager.find(TradeCalEntity, {
+            where: { isOpen: 1, calDate: Between(start, end) },
+            order: { calDate: 'ASC' },
+          })
+        ).filter((d) => d.calDate <= latestSyncDate(now));
+        const protections = new Set(
+          (await manager.find(SyncDayPolicyEntity)).map((r) => r.tradeDate),
+        );
+        const success = new Set(
+          (
+            await manager.findBy(SyncRunEntity, {
+              task: 'market',
+              status: 'success',
+              tradeDate: Between(start, end),
+            })
+          ).map((r) => r.tradeDate),
+        );
+        const pending = days.filter(
+          (d) =>
+            !protections.has(d.calDate) &&
+            !(excludedDates.includes(d.calDate) && success.has(d.calDate)) &&
+            (force || !success.has(d.calDate)),
+        );
+        const latest = (
+          await manager.find(TradeCalEntity, {
+            where: { isOpen: 1 },
+            order: { calDate: 'DESC' },
+          })
+        ).find((d) => d.calDate <= latestSyncDate(now));
+        const priority =
+          latest &&
+          !protections.has(latest.calDate) &&
+          !(await this.market!.complete(manager, latest.calDate))
+            ? latest
+            : undefined;
+        const selected = [
+          ...(priority ? [priority] : []),
+          ...pending.filter((r) => r.calDate !== priority?.calDate),
+        ].slice(0, 3);
+        const completed: string[] = [];
+        const failures: string[] = [];
+        // eslint-disable-next-line no-restricted-syntax
+        for (const day of selected) {
+          try {
+            // eslint-disable-next-line no-await-in-loop
+            await this.ensureMarketDay(
+              manager,
+              day.calDate,
+              force && day.calDate >= start && day.calDate <= end,
+            );
+            completed.push(day.calDate);
+          } catch (error) {
+            failures.push(`${day.calDate}: ${errorMessage(error)}`);
+            if (permanentSyncError(error)) break;
+          }
+        }
+        // 游资名录等独立刷新不阻塞核心数据；失败后原有机制保留旧快照。
+        await this.refreshAuxiliary(manager, today);
+        const remaining = pending.filter(
+          (r) => !completed.includes(r.calDate),
+        ).length;
+        return {
+          completed,
+          remaining,
+          failures,
+          protectedDates: days
+            .filter((d) => protections.has(d.calDate))
+            .map((d) => d.calDate),
+          calendarReady: !!expected,
+        };
+      },
+      true,
+      true,
+    );
+  }
+
+  private async ensureMarketDay(
+    manager: EntityManager,
+    date: string,
+    refresh: boolean,
+  ) {
+    const paused = await manager.findBy(SyncRunEntity, {
+      tradeDate: date,
+      status: 'failed',
+    });
+    const blocked = paused.find(
+      (r) =>
+        ['daily', 'market-index'].includes(r.task) &&
+        permanentSyncError(r.error || '') &&
+        shanghaiDate(r.updatedAt) === shanghaiDate(),
+    );
+    if (blocked) throw new Error(blocked.error || '数据源权限或配额错误');
+    const cal = await manager.findOneBy(TradeCalEntity, {
+      calDate: date,
+      isOpen: 1,
+    });
+    if (!cal) throw new Error('非交易日');
+    if (await this.writes.excluded(manager, cal.preTradeDate))
+      throw new Error('前一交易日受主动删除保护');
+    if (!(await this.rawReady(manager, cal.preTradeDate)))
+      await this.importDay(manager, cal.preTradeDate, false);
+    if (refresh || !(await this.rawReady(manager, date)))
+      await this.importDay(manager, date, false, false, refresh);
+    else {
+      const ready = await this.writeMood(manager, date);
+      const existing = await manager.findOneBy(SyncRunEntity, {
+        task: 'daily',
+        tradeDate: date,
+      });
+      await manager.save(SyncRunEntity, {
+        ...existing,
+        task: 'daily',
+        tradeDate: date,
+        status: ready ? 'success' : 'pending',
+        dailyCount: await manager.countBy(DailyEntity, { tradeDate: date }),
+        limitCount: await manager.countBy(LimitEntity, { tradeDate: date }),
+        sentiCount: ready ? 1 : 0,
+        error: null,
+      });
+    }
+    // 在指数刷新和汇总提交前，先撤下该日旧的可用标记。
+    await manager.update(
+      SyncRunEntity,
+      { task: 'market', tradeDate: date },
+      { status: 'pending', error: null },
+    );
+    await this.market!.indexes(manager, date, refresh);
+    await this.market!.aggregate(manager, date);
+    const next = await manager.findOneBy(TradeCalEntity, {
+      preTradeDate: date,
+      isOpen: 1,
+    });
+    if (
+      next &&
+      (await this.rawReady(manager, next.calDate)) &&
+      (await manager.findOneBy(SyncRunEntity, {
+        task: 'market-index',
+        tradeDate: next.calDate,
+        status: 'success',
+      }))
+    ) {
+      await this.market!.aggregate(manager, next.calDate);
+    }
+  }
+
+  private async catchUpMarket(now: Date, scheduled: boolean) {
+    const slot = eveningSlot(now);
+    if (scheduled && !slot) return 'skipped';
+    const cutoff = latestSyncDate(now);
+    // 基础资料可能尚未初始化，先在同一锁内准备，网络请求仍在事务之外。
+    await this.writes.withLock(
+      async (manager) => {
+        if (!(await manager.count(TradeCalEntity)))
+          await this.refreshSources(manager, false, false);
+        const days = await manager.find(TradeCalEntity, {
+          where: { isOpen: 1 },
+          order: { calDate: 'DESC' },
+        });
+        const last = days.find((d) => d.calDate <= cutoff);
+        if (last) await this.market!.enqueueBackfill(manager, last.calDate);
+      },
+      true,
+      true,
+    );
+    const dateRows = await this.dataSource.manager.find(TradeCalEntity, {
+      where: { isOpen: 1 },
+      order: { calDate: 'DESC' },
+    });
+    const last = dateRows.find((d) => d.calDate <= cutoff);
+    if (!last) return 'pending';
+    const refresh = slot === '2200' || slot === '0730';
+    const task = `market-auto-${slot || 'startup'}`;
+    const old = await this.dataSource.manager.findOneBy(SyncRunEntity, {
+      task,
+      tradeDate: shanghaiDate(now),
+    });
+    if (old?.status === 'success') return 'skipped';
+    if (refresh) {
+      // 核对任务先落库，避免恰逢历史批次持锁而错过22:00/07:30入口。
+      await this.dataSource.query(
+        "INSERT INTO t_admin_job(actor_id,actor_name,start_date,end_date,status,active_key,mode,stage) VALUES(NULL,'系统核对',?,?,'queued',?,'refresh','等待核对最近交易日') ON DUPLICATE KEY UPDATE id=id",
+        [
+          last.calDate,
+          last.calDate,
+          `market-check-${shanghaiDate(now)}-${slot}`,
+        ],
+      );
+      await this.dataSource.manager.save(SyncRunEntity, {
+        ...old,
+        task,
+        tradeDate: shanghaiDate(now),
+        status: 'success',
+        attempts: (old?.attempts || 0) + 1,
+        error: null,
+        updatedAt: new Date(),
+      });
+      return 'pending';
+    }
+    const result = await this.marketBatch(
+      last.calDate,
+      last.calDate,
+      refresh,
+      [],
+      now,
+    );
+    if (!result) return 'skipped';
+    let status: SyncStatus = result.remaining ? 'pending' : 'success';
+    if (result.failures.length) status = 'failed';
+    await this.dataSource.manager.upsert(
+      SyncRunEntity,
+      {
+        task,
+        tradeDate: shanghaiDate(now),
+        status,
+        attempts: (old?.attempts || 0) + 1,
+        error: result.failures.join('\n') || null,
+      },
+      ['task', 'tradeDate'],
+    );
+    return status;
+  }
+
   private async completeDates(
     manager: EntityManager,
     start: string,
@@ -468,6 +765,7 @@ export class DailyTaskService {
 
   private async deleteDay(manager: EntityManager, date: string) {
     await manager.transaction(async (tx) => {
+      if (this.market) await this.market.invalidate(tx, date);
       await this.writes.exclude(tx, [date]);
       await tx.delete(DailyEntity, { tradeDate: date });
       await tx.delete(LimitEntity, { tradeDate: date });
@@ -522,6 +820,11 @@ export class DailyTaskService {
   async clear() {
     await this.withLock((manager) =>
       manager.transaction(async (tx) => {
+        if (this.market) {
+          await tx.delete(MarketDailyEntity, {});
+          await tx.delete(IndexDailyEntity, {});
+          await tx.delete(BseMappingEntity, {});
+        }
         const dates = await tx.query(
           'SELECT trade_date AS date FROM t_source_daily UNION SELECT trade_date FROM t_source_limit UNION SELECT trade_date FROM t_processed_senti UNION SELECT cal_date FROM t_source_trade_cal WHERE is_open=1 AND cal_date<=CURDATE()',
         );

@@ -135,6 +135,9 @@ async function main() {
       process.stdout.write(JSON.stringify({ phase: 'after', ...after }) + '\n');
     } else if (action === 'verify') {
       await checkSyncSchema(ds);
+      await require('../../dist/modules/analysis/market/market-schema').checkMarketSchema(
+        ds,
+      );
       const [bootstrap] = await ds.query(
         "SELECT name FROM t_auth_meta WHERE name='bootstrap-v1'",
       );
@@ -143,7 +146,33 @@ async function main() {
         JSON.stringify({ status: 'verified', database: ds.options.database }) +
           '\n',
       );
-    } else throw new Error('Expected preflight, migrate or verify');
+    } else if (action === 'enqueue-market') {
+      await require('../../dist/modules/analysis/market/market-schema').checkMarketSchema(
+        ds,
+      );
+      const [{ latest_date: end }] = await ds.query(
+        'SELECT MAX(trade_date) latest_date FROM t_source_daily',
+      );
+      if (!end)
+        throw new Error(
+          'No raw data available for the initial market backfill',
+        );
+      const endDate =
+        typeof end === 'string'
+          ? end.slice(0, 10)
+          : require('dayjs')(end).format('YYYY-MM-DD');
+      const start = require('dayjs')(endDate)
+        .subtract(2, 'year')
+        .format('YYYY-MM-DD');
+      await ds.query(
+        "INSERT INTO t_admin_job(actor_id,actor_name,start_date,end_date,status,active_key,mode,stage) VALUES (NULL,'系统补齐',?,?,'queued','market-two-years','missing','发布后补齐最近两年') ON DUPLICATE KEY UPDATE end_date=GREATEST(end_date,VALUES(end_date))",
+        [start, endDate],
+      );
+      process.stdout.write(
+        JSON.stringify({ status: 'queued', start, end: endDate }) + '\n',
+      );
+    } else
+      throw new Error('Expected preflight, migrate, verify or enqueue-market');
   } finally {
     await ds.destroy();
   }

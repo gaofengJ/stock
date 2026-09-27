@@ -35,6 +35,13 @@ function validateConfig(settings) {
 }
 
 async function refresh(settings, previous = {}, force = false) {
+  if (settings.years === 2) {
+    const history =
+      typeof historyRefresh !== 'undefined'
+        ? historyRefresh
+        : require('./history-refresh.cjs');
+    return history.refreshHistory(settings, previous, force);
+  }
   validateConfig(settings);
   const mysql = require('mysql2/promise');
   const connection = {

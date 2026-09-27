@@ -10,6 +10,18 @@ import { TradeCalEntity } from '../source/trade-cal/trade-cal.entity';
 import { ActiveFundsEntity } from '../source/active-funds/active-funds.entity';
 import { normalizeDate } from './sync.utils';
 
+export function marketCoverage(
+  codes: string[],
+  stocks: Pick<StockEntity, 'tsCode' | 'listDate'>[],
+  date: string,
+) {
+  return ['.SH', '.SZ', '.BJ'].every(
+    (exchange) =>
+      stocks.filter((s) => s.tsCode.endsWith(exchange) && s.listDate <= date)
+        .length < 20 || codes.some((code) => code.endsWith(exchange)),
+  );
+}
+
 // 接口字段变化、空快照与错误码必须在任何删除操作之前被发现。
 export function readSnapshot(
   response: IBaseRes<ITushareData>,
@@ -163,6 +175,14 @@ export class SyncSourceService {
       uniqueRows(rows, (row) => row.tsCode);
     });
     const stockByCode = keyBy(stocks, 'tsCode');
+    if (
+      !marketCoverage(
+        daily.map((r) => r.tsCode),
+        stocks,
+        date,
+      )
+    )
+      throw new Error('沪深京交易所覆盖不完整，等待补齐');
     const rows = mixinDailyParams(daily, limits, basic);
     if (!rows.length) throw new Error('合并后的日线数据为空');
     const basicCodes = new Set(basic.map((row) => row.tsCode));

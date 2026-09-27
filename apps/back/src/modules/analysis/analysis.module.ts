@@ -5,8 +5,9 @@ import { RouterModule } from '@nestjs/core';
 import { ChainsModule } from './chains/chains.module';
 import { LimitsModule } from './limits/limits.module';
 import { SentiModule } from './senti/senti.module';
+import { MarketModule } from './market/market.module';
 
-const modules = [ChainsModule, LimitsModule, SentiModule];
+const modules = [ChainsModule, LimitsModule, SentiModule, MarketModule];
 
 @Module({
   imports: [

@@ -69,6 +69,7 @@ flock /var/lock/stock-test-refresh.lock true
 cp -p /opt/stock-test/refresh.cjs "$RUN/previous-refresh.cjs"
 cp -p /opt/stock-test/refresh.py "$RUN/previous-refresh.py"
 install -m 600 "$PACKAGE/test-db/refresh.cjs" /opt/stock-test/refresh.cjs
+install -m 600 "$PACKAGE/test-db/history-refresh.cjs" /opt/stock-test/history-refresh.cjs
 install -m 700 "$PACKAGE/test-db/refresh.py" /opt/stock-test/refresh.py
 stopped=1
 docker stop -t 60 "$old_id"
@@ -94,6 +95,7 @@ for attempt in $(seq 1 30); do
   sleep 2
 done
 [[ "$healthy" == 1 ]] || { echo 'New application failed API checks'; false; }
+db enqueue-market > "$RUN/backfill.json"
 restore_refresh
 printf 'success\n' > "$RUN/phase"
 echo "Deployment verified: $RELEASE_SHA; backup and recovery data: $RUN"

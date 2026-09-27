@@ -21,6 +21,9 @@ import { TradeCalEntity } from '../source/trade-cal/trade-cal.entity';
 import { SyncRunEntity } from './sync-run.entity';
 import { SyncDayPolicyEntity } from './sync-day-policy.entity';
 import { calculateMood, normalizeDate, shanghaiDate } from './sync.utils';
+import { MarketDailyEntity } from '../analysis/market/market.entity';
+import { StockEntity } from '../source/stock/stock.entity';
+import { marketCoverage } from './sync-source.service';
 
 const keys: Record<string, string[]> = {
   t_source_daily: ['tsCode', 'tradeDate'],
@@ -140,6 +143,21 @@ export class SyncWriteService {
     if (await this.excluded(manager, date)) return false;
     const dailyCount = await manager.countBy(DailyEntity, { tradeDate: date });
     if (!dailyCount) return false;
+    const codes = await manager.find(DailyEntity, {
+      where: { tradeDate: date },
+      select: { tsCode: true },
+    });
+    const stocks = await manager.find(StockEntity, {
+      select: { tsCode: true, listDate: true },
+    });
+    if (
+      !marketCoverage(
+        codes.map((r) => r.tsCode),
+        stocks,
+        date,
+      )
+    )
+      return false;
     const limitCount = await manager.countBy(LimitEntity, { tradeDate: date });
     const run = await manager.findOneBy(SyncRunEntity, {
       task: 'daily',
@@ -205,6 +223,14 @@ export class SyncWriteService {
       }
     }
     for (const date of [...affected].sort()) {
+      if (manager.connection.hasMetadata(MarketDailyEntity)) {
+        await manager.delete(MarketDailyEntity, { tradeDate: date });
+        await manager.update(
+          SyncRunEntity,
+          { task: 'market', tradeDate: date },
+          { status: 'pending', error: '数据已修改，等待市场汇总重算' },
+        );
+      }
       if (rawChanged) await manager.delete(SentiEntity, { tradeDate: date });
       const ready = rawChanged
         ? (await this.rawReady(manager, date)) &&

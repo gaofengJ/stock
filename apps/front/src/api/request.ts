@@ -6,6 +6,7 @@ import { message } from 'antd';
 import { defaultConfig, errorConfig } from './config';
 import interceptors from './interceptors';
 import { IResData, RequestConfig } from './types';
+import { errorMessage } from './errors';
 
 /**
  * BaseAxios 类，用于创建和管理 Axios 实例
@@ -168,11 +169,12 @@ export class BaseAxios {
    * @param msg - 错误信息
    */
   showErrorMessage(msg: string) {
+    const content = errorMessage(msg);
     if (this.errorMessage) {
-      this.errorMessage(msg);
+      this.errorMessage(content);
       return;
     }
-    message.error({ content: msg, key: msg });
+    message.error({ content, key: content });
   }
 
   /**
