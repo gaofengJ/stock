@@ -66,7 +66,10 @@ async function refreshHistory(settings, previous = {}, force = false) {
       const name =
         'stock-sync:' +
         createHash('sha256').update(database).digest('hex').slice(0, 40);
-      const [lock] = await query('SELECT GET_LOCK(?,0) acquired', [name]);
+      const [lock] = await query('SELECT GET_LOCK(?,?) acquired', [
+        name,
+        database === settings.source ? 2 : 0,
+      ]);
       if (Number(lock.acquired) !== 1) return { status: 'busy' };
       locks.push(name);
     }
@@ -143,16 +146,6 @@ async function refreshHistory(settings, previous = {}, force = false) {
       }
     }
     const versions = Object.fromEntries(dates.map((date) => [date, {}]));
-    for (const table of dated) {
-      const rows = await query(
-        'SELECT trade_date date,COUNT(*) n,MAX(id) id,MAX(updated_at) updated FROM ' +
-          src(table) +
-          ' WHERE trade_date BETWEEN ? AND ? GROUP BY trade_date',
-        [dates[0], last.date],
-      );
-      for (const row of rows)
-        if (versions[row.date]) versions[row.date][table] = row;
-    }
     const stages = await query(
       'SELECT task,trade_date,status,updated_at,daily_count,limit_count FROM ' +
         src('t_sync_run') +
@@ -167,38 +160,56 @@ async function refreshHistory(settings, previous = {}, force = false) {
       settings.port || 3306,
       settings.source,
       settings.target,
-      2,
+      'bounded-v2',
     ]);
     const copied = previous.identity === identity ? { ...previous.copied } : {};
     const copiedRaw =
       previous.identity === identity ? { ...previous.copiedRaw } : {};
-    const signatures = Object.fromEntries(
+    const copiedRevision =
+      previous.identity === identity ? { ...previous.copiedRevision } : {};
+    const revisions = Object.fromEntries(
       dates.map((date) => [date, hash(versions[date])]),
     );
     const blocked = {};
+    const blockedRevision =
+      previous.identity === identity ? { ...previous.blockedRevision } : {};
     for (const date of dates) {
       const v = versions[date];
       if (excluded.has(date)) blocked[date] = '主动删除保护';
-      else if (!v.t_source_daily?.n) blocked[date] = '生产日线缺失';
       else if (v.daily && v.daily.status !== 'success')
         blocked[date] = '生产日线阶段尚未成功';
-      else if (!v.t_source_limit?.n && v.daily?.status !== 'success')
-        blocked[date] = '空事件日缺少成功记录';
       else if (
-        v.daily &&
-        (Number(v.daily.daily_count) !== Number(v.t_source_daily.n) ||
-          Number(v.daily.limit_count) !== Number(v.t_source_limit?.n || 0))
+        !force &&
+        previous.blocked?.[date] &&
+        blockedRevision[date] === revisions[date]
       )
-        blocked[date] = '生产阶段记录与行数不一致';
+        blocked[date] = previous.blocked[date];
     }
     const pending = dates.filter(
-      (d) => !blocked[d] && (force || copied[d] !== signatures[d]),
+      (d) =>
+        !blocked[d] &&
+        (force || !copied[d] || copiedRevision[d] !== revisions[d]),
     );
     // Newest first; then fill oldest gaps. State is updated only after COMMIT.
     const selected = [
       ...(pending.includes(last.date) ? [last.date] : []),
       ...pending.filter((d) => d !== last.date),
     ].slice(0, 3);
+    // Once caught up, probe the latest date plus a rotating pair of old dates.
+    // Normal revisions are detected immediately through per-day stage records;
+    // this bounded audit also detects changes made outside the application.
+    let reviewCursor =
+      previous.identity === identity ? previous.reviewCursor || 0 : 0;
+    if (!selected.length) {
+      for (const date of [
+        last.date,
+        dates[reviewCursor % dates.length],
+        dates[(reviewCursor + 1) % dates.length],
+      ])
+        if (!excluded.has(date) && !selected.includes(date))
+          selected.push(date);
+      reviewCursor = (reviewCursor + 2) % dates.length;
+    }
     const merge = async (table, where = '', params = []) => {
       const names = columns[table].map(q).join(',');
       await query(
@@ -262,6 +273,39 @@ async function refreshHistory(settings, previous = {}, force = false) {
     const processed = [];
     for (const date of selected) {
       const v = versions[date];
+      // Equality predicates use the date index and read only this batch. A
+      // GROUP BY over the two-year range caused a full 10M-row index scan on 5.7.
+      for (const table of dated) {
+        [v[table]] = await query(
+          'SELECT ? date,COUNT(*) n,MAX(id) id,MAX(updated_at) updated FROM ' +
+            src(table) +
+            ' WHERE trade_date=?',
+          [date, date],
+        );
+      }
+      let reason =
+        v.daily && v.daily.status !== 'success' ? '生产日线阶段尚未成功' : null;
+      if (!Number(v.t_source_daily.n)) reason = '生产日线缺失';
+      else if (!Number(v.t_source_limit.n) && v.daily?.status !== 'success')
+        reason = '空事件日缺少成功记录';
+      else if (
+        v.daily &&
+        (Number(v.daily.daily_count) !== Number(v.t_source_daily.n) ||
+          Number(v.daily.limit_count) !== Number(v.t_source_limit.n))
+      )
+        reason = '生产阶段记录与行数不一致';
+      if (reason) {
+        blocked[date] = reason;
+        blockedRevision[date] = revisions[date];
+        continue;
+      }
+      delete blocked[date];
+      delete blockedRevision[date];
+      const signature = hash(v);
+      if (!force && copied[date] === signature) {
+        copiedRevision[date] = revisions[date];
+        continue;
+      }
       const rawSignature = hash(RAW.map((table) => v[table]));
       const rawChanged = force || copiedRaw[date] !== rawSignature;
       await query('START TRANSACTION');
@@ -351,7 +395,8 @@ async function refreshHistory(settings, previous = {}, force = false) {
       }
       await query('COMMIT');
       transaction = false;
-      copied[date] = signatures[date];
+      copied[date] = signature;
+      copiedRevision[date] = revisions[date];
       copiedRaw[date] = rawSignature;
       processed.push(date);
       // A corrected predecessor invalidates the next summary; revisit that date
@@ -359,14 +404,17 @@ async function refreshHistory(settings, previous = {}, force = false) {
       if (rawChanged && next && !selected.includes(next)) delete copied[next];
     }
     const remaining = dates.filter(
-      (d) => !blocked[d] && copied[d] !== signatures[d],
+      (d) => !blocked[d] && (!copied[d] || copiedRevision[d] !== revisions[d]),
     ).length;
     return {
-      status: processed.length ? 'copied' : 'unchanged',
+      status: processed.length ? 'copied' : remaining ? 'checked' : 'unchanged',
       identity,
       references,
       copied,
       copiedRaw,
+      copiedRevision,
+      blockedRevision,
+      reviewCursor,
       processed,
       remaining,
       blocked,

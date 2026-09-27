@@ -41,9 +41,12 @@ try:
         os.chmod(temporary, 0o600)
         os.replace(temporary, ROOT + '/state.json')
         if output['status'] not in ('unchanged', 'busy'):
-            print(datetime.datetime.now().isoformat(), json.dumps({key: value for key, value in output.items() if key not in ('copied', 'identity', 'references') and 'Fingerprint' not in key}), flush=True)
+            print(datetime.datetime.now().isoformat(), json.dumps({key: value for key, value in output.items() if key in ('status', 'processed', 'remaining', 'blocked', 'window')}), flush=True)
         first = False
-        if output['status'] != 'copied' or not output.get('remaining'):
+        if output['status'] == 'busy':
+            time.sleep(2)
+            continue
+        if output['status'] not in ('copied', 'checked') or not output.get('remaining'):
             break
         time.sleep(1)
 except Exception as error:
