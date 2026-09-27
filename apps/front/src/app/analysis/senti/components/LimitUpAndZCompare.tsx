@@ -1,3 +1,4 @@
+import { numberText } from '@/utils/format';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import dayjs from 'dayjs';
@@ -69,7 +70,7 @@ const LimitUpAndZCompare = ({ dateRange }: IProps) => {
         textStyle: {
           color: EThemeColors.colorPinkRed78,
           fontWeight: 'bold',
-          fontSize: 20,
+          fontSize: 16,
         },
       },
       xAxis: {
@@ -82,7 +83,7 @@ const LimitUpAndZCompare = ({ dateRange }: IProps) => {
           rotate: 30, // 倾斜度 -90 至 90 默认为0
           margin: 20, // 标签距离刻度距离
         },
-        data: sourceData.map((item) => dayjs(item.tradeDate).format('MM-DD')),
+        data: sourceData.map((item) => dayjs(item.tradeDate).format('YYYY-MM-DD')),
       },
       yAxis: [
         {
@@ -103,7 +104,7 @@ const LimitUpAndZCompare = ({ dateRange }: IProps) => {
       ],
       tooltip: {
         trigger: 'axis',
-        valueFormatter: (val: string) => (Number.isInteger(val) ? val : `${val}%`),
+        valueFormatter: (val: unknown) => numberText(val),
       },
       toolbox: {
         feature: {
@@ -128,6 +129,7 @@ const LimitUpAndZCompare = ({ dateRange }: IProps) => {
       series: [
         {
           type: 'line',
+          tooltip: { valueFormatter: (val: unknown) => `${numberText(val, 0)}只` },
           yAxisIndex: 0, // 这个系列使用第一个y轴
           itemStyle: {
             color: EThemeColors.colorPinkRed,
@@ -135,13 +137,14 @@ const LimitUpAndZCompare = ({ dateRange }: IProps) => {
           label: {
             show: true,
             position: 'top',
-            formatter: '{c}',
+            formatter: (p: { value: unknown }) => numberText(p.value, 0),
             color: EThemeColors.colorPinkRed,
           },
           data: sourceData.map((item) => +item.sentiA),
         },
         {
           type: 'line',
+          tooltip: { valueFormatter: (val: unknown) => `${numberText(val)}%` },
           yAxisIndex: 1, // 这个系列使用第二个y轴
           itemStyle: {
             color: EThemeColors.colorLimeGreen,
@@ -149,7 +152,7 @@ const LimitUpAndZCompare = ({ dateRange }: IProps) => {
           label: {
             show: true,
             position: 'top',
-            formatter: '{c}%',
+            formatter: (p: { value: unknown }) => `${numberText(p.value)}%`,
             color: EThemeColors.colorLimeGreen,
           },
           data: sourceData.map((item) => item.sentiD),

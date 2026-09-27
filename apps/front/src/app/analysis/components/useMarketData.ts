@@ -1,5 +1,5 @@
 import { errorMessage } from '@/api/errors';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { marketRequest } from '@/api/market';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { useMarket } from './MarketContext';
@@ -9,11 +9,15 @@ export default function useMarketData<T>(endpoint: string, extra: Record<string,
     date, scope, days, status,
   } = useMarket();
   const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => setAttempt((v) => v + 1), []);
   const [error, setError] = useState('');
   const { requestConfig, runLatestRequest } = useLatestRequest(`market-${endpoint}`);
   const extraKey = JSON.stringify(extra);
   const revision = status?.revision;
+  const requestKey = JSON.stringify([endpoint, date, scope, days, extraKey, revision, attempt]);
+  const [loadedKey, setLoadedKey] = useState('');
   useEffect(() => {
     if (!date) return;
     runLatestRequest({
@@ -23,8 +27,13 @@ export default function useMarketData<T>(endpoint: string, extra: Record<string,
       onStart: () => { setLoading(true); setData(null); setError(''); },
       onSuccess: (r) => setData(r.data),
       onError: (e) => setError(errorMessage(e, '数据加载失败')),
-      onFinally: () => setLoading(false),
+      onFinally: () => { setLoadedKey(requestKey); setLoading(false); },
     });
-  }, [endpoint, date, scope, days, extraKey, revision, requestConfig, runLatestRequest]);
-  return { data, loading, error };
+  }, [requestKey, attempt, endpoint, date, scope, days, extraKey, revision, requestConfig, runLatestRequest]);
+  return {
+    data: loadedKey === requestKey ? data : null,
+    loading: loading || loadedKey !== requestKey,
+    error: loadedKey === requestKey ? error : '',
+    retry,
+  };
 }

@@ -54,7 +54,7 @@ function SingleDateSection() {
 
       <div>
         {dateReady ? (
-          <Row align="middle" gutter={[32, 64]} justify="space-around">
+          <Row align="middle" gutter={[16, 24]} justify="space-around">
             <Col span={12}>
               <DistributionTatistics tradeDate={searchParams.tradeDate} />
             </Col>

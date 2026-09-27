@@ -1,3 +1,4 @@
+import { numberText } from '@/utils/format';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import dayjs from 'dayjs';
@@ -66,7 +67,7 @@ const UpCount = ({ dateRange }: IProps) => {
         textStyle: {
           color: EThemeColors.colorPinkRed78,
           fontWeight: 'bold',
-          fontSize: 20,
+          fontSize: 16,
         },
       },
       xAxis: {
@@ -79,7 +80,7 @@ const UpCount = ({ dateRange }: IProps) => {
           rotate: 30, // 倾斜度 -90 至 90 默认为0
           margin: 20, // 标签距离刻度距离
         },
-        data: sourceData.map((item) => dayjs(item.tradeDate).format('MM-DD')),
+        data: sourceData.map((item) => dayjs(item.tradeDate).format('YYYY-MM-DD')),
       },
       yAxis: {
         type: 'value',
@@ -88,7 +89,7 @@ const UpCount = ({ dateRange }: IProps) => {
         interval,
       },
       tooltip: {
-        trigger: 'axis',
+        trigger: 'axis', valueFormatter: (v: unknown) => `${numberText(v, 0)}只`,
       },
       toolbox: {
         feature: {
@@ -119,7 +120,7 @@ const UpCount = ({ dateRange }: IProps) => {
           label: {
             show: true,
             position: 'top',
-            formatter: '{c}',
+            formatter: (p: { value: unknown }) => numberText(p.value, 0),
             color: EThemeColors.colorPinkRed78,
           },
           data: sourceData.map((item) => item.upCount),

@@ -1,11 +1,10 @@
+import { numberText, scaledNumber, changeClass } from '@/utils/format';
 import type { ColumnsType } from 'antd/es/table/interface';
 
 /**
  * 设置默认值
  */
-const renderEmptyField = (val: any) => (
-  val === null || val === undefined || val === '' ? '-' : val
-);
+const renderEmptyField = (val: unknown) => numberText(val);
 
 export const dailyColumns: ColumnsType = [
   {
@@ -26,72 +25,84 @@ export const dailyColumns: ColumnsType = [
     title: '涨停价(元)',
     dataIndex: 'upLimit',
     key: 'upLimit',
+    align: 'right',
     render: renderEmptyField,
   },
   {
     title: '跌停价(元)',
     dataIndex: 'downLimit',
     key: 'downLimit',
+    align: 'right',
     render: renderEmptyField,
   },
   {
     title: '开盘价(元)',
     dataIndex: 'open',
     key: 'open',
+    align: 'right',
     render: renderEmptyField,
   },
   {
     title: '最高价(元)',
     dataIndex: 'high',
     key: 'high',
+    align: 'right',
     render: renderEmptyField,
   },
   {
     title: '最低价(元)',
     dataIndex: 'low',
     key: 'low',
+    align: 'right',
     render: renderEmptyField,
   },
   {
     title: '收盘价(元)',
     dataIndex: 'close',
     key: 'close',
+    align: 'right',
     render: renderEmptyField,
   },
   {
     title: '昨收价(元)',
     dataIndex: 'preClose',
     key: 'preClose',
+    align: 'right',
     render: renderEmptyField,
   },
   {
     title: '涨跌额(元)',
     dataIndex: 'change',
     key: 'change',
-    render: renderEmptyField,
+    align: 'right',
+    render: (val) => <span className={changeClass(val)}>{numberText(val, 2, true)}</span>,
   },
   {
     title: '涨跌幅(%)',
     dataIndex: 'pctChg',
     key: 'pctChg',
-    render: renderEmptyField,
+    align: 'right',
+    render: (val) => <span className={changeClass(val)}>{numberText(val, 2, true)}</span>,
   },
   {
     title: '成交量(手)',
     dataIndex: 'vol',
     key: 'vol',
+    align: 'right',
     render: renderEmptyField,
   },
   {
     title: '成交额(万元)',
     dataIndex: 'amount',
     key: 'amount',
-    render: (val) => ((val / 10).toFixed(2)),
+    align: 'right',
+    render: (val) => scaledNumber(val, 10),
   },
   {
     title: '换手率(%)',
     dataIndex: 'turnoverRate',
     key: 'turnoverRate',
+    align: 'right',
     render: renderEmptyField,
   },
   {
@@ -99,12 +110,14 @@ export const dailyColumns: ColumnsType = [
     dataIndex: 'turnoverRateF',
     key: 'turnoverRateF',
     ellipsis: true,
+    align: 'right',
     render: renderEmptyField,
   },
   {
     title: '量比',
     dataIndex: 'volumeRatio',
     key: 'volumeRatio',
+    align: 'right',
     render: renderEmptyField,
   },
   {
@@ -112,12 +125,14 @@ export const dailyColumns: ColumnsType = [
     dataIndex: 'pe',
     key: 'pe',
     ellipsis: true,
+    align: 'right',
     render: renderEmptyField,
   },
   {
     title: '市盈率(TTM)',
     dataIndex: 'peTtm',
     key: 'peTtm',
+    align: 'right',
     render: renderEmptyField,
   },
   {
@@ -125,24 +140,28 @@ export const dailyColumns: ColumnsType = [
     dataIndex: 'pb',
     key: 'pb',
     ellipsis: true,
+    align: 'right',
     render: renderEmptyField,
   },
   {
     title: '市销率',
     dataIndex: 'ps',
     key: 'ps',
+    align: 'right',
     render: renderEmptyField,
   },
   {
     title: '市销率(TTM)',
     dataIndex: 'psTtm',
     key: 'psTtm',
+    align: 'right',
     render: renderEmptyField,
   },
   {
     title: '股息率(%)',
     dataIndex: 'dvRatio',
     key: 'dvRatio',
+    align: 'right',
     render: renderEmptyField,
   },
   {
@@ -150,18 +169,21 @@ export const dailyColumns: ColumnsType = [
     dataIndex: 'dvTtm',
     key: 'dvTtm',
     ellipsis: true,
+    align: 'right',
     render: renderEmptyField,
   },
   {
     title: '总股本(万股)',
     dataIndex: 'totalShare',
     key: 'totalShare',
+    align: 'right',
     render: renderEmptyField,
   },
   {
     title: '流通股本(万股)',
     dataIndex: 'floatShare',
     key: 'floatShare',
+    align: 'right',
     render: renderEmptyField,
   },
   {
@@ -169,18 +191,21 @@ export const dailyColumns: ColumnsType = [
     dataIndex: 'freeShare',
     key: 'freeShare',
     ellipsis: true,
+    align: 'right',
     render: renderEmptyField,
   },
   {
     title: '总市值(亿元)',
     dataIndex: 'totalMv',
     key: 'totalMv',
-    render: (val) => (val / 10000).toFixed(2),
+    align: 'right',
+    render: (val) => scaledNumber(val, 10000),
   },
   {
     title: '流通市值(亿元)',
     dataIndex: 'circMv',
     key: 'circMv',
-    render: (val) => (val / 10000).toFixed(2),
+    align: 'right',
+    render: (val) => scaledNumber(val, 10000),
   },
 ];

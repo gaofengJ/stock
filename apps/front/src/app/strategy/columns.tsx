@@ -1,11 +1,10 @@
+import { numberText, scaledNumber } from '@/utils/format';
 import type { ColumnsType } from 'antd/es/table/interface';
 
 /**
  * 设置默认值
  */
-const renderEmptyField = (val: any) => (
-  val === null || val === undefined || val === '' ? '-' : val
-);
+const renderEmptyField = (val: unknown) => numberText(val);
 
 export const strategyColumns: ColumnsType = [
   {
@@ -27,6 +26,7 @@ export const strategyColumns: ColumnsType = [
     dataIndex: 'open',
     key: 'open',
     width: 80,
+    align: 'right',
     render: renderEmptyField,
   },
   {
@@ -34,6 +34,7 @@ export const strategyColumns: ColumnsType = [
     dataIndex: 'close',
     key: 'close',
     width: 80,
+    align: 'right',
     render: renderEmptyField,
   },
   {
@@ -41,6 +42,7 @@ export const strategyColumns: ColumnsType = [
     dataIndex: 'high',
     key: 'high',
     width: 80,
+    align: 'right',
     render: renderEmptyField,
   },
   {
@@ -48,6 +50,7 @@ export const strategyColumns: ColumnsType = [
     dataIndex: 'low',
     key: 'low',
     width: 80,
+    align: 'right',
     render: renderEmptyField,
   },
   {
@@ -55,13 +58,15 @@ export const strategyColumns: ColumnsType = [
     dataIndex: 'amount',
     key: 'amount',
     width: 96,
-    render: (val) => (val / 100000).toFixed(2),
+    align: 'right',
+    render: (val) => scaledNumber(val, 100000),
   },
   {
     title: '自由流通换手率(%)',
     dataIndex: 'turnoverRateF',
     key: 'turnoverRateF',
     width: 136,
+    align: 'right',
     render: renderEmptyField,
   },
   {
@@ -69,6 +74,7 @@ export const strategyColumns: ColumnsType = [
     dataIndex: 'volumeRatio',
     key: 'volumeRatio',
     width: 80,
+    align: 'right',
     render: renderEmptyField,
   },
   {
@@ -76,6 +82,7 @@ export const strategyColumns: ColumnsType = [
     dataIndex: 'peTtm',
     key: 'peTtm',
     width: 80,
+    align: 'right',
     render: renderEmptyField,
   },
   {
@@ -83,13 +90,15 @@ export const strategyColumns: ColumnsType = [
     dataIndex: 'totalMv',
     key: 'totalMv',
     width: 104,
-    render: (val) => (val / 10000).toFixed(2),
+    align: 'right',
+    render: (val) => scaledNumber(val, 10000),
   },
   {
     title: '流通市值(亿元)',
     dataIndex: 'circMv',
     key: 'circMv',
     width: 104,
-    render: (val) => (val / 10000).toFixed(2),
+    align: 'right',
+    render: (val) => scaledNumber(val, 10000),
   },
 ];

@@ -1,6 +1,9 @@
 'use client';
 
-import { PaginationProps, Table } from 'antd';
+import { errorMessage } from '@/api/errors';
+import {
+  Alert, Button, PaginationProps, Table,
+} from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import { basicSiderMenuItems } from '@/components/Layout/config';
@@ -27,7 +30,8 @@ function BasicStockPage() {
   };
   const [searchParams, setSearchParams] = useState<Partial<NSGetBasicStockList.IParams>>(initialSearchParams);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const { requestConfig, runLatestRequest } = useLatestRequest('basic-stock-list');
 
   const stockColumns = useStockColumns();
@@ -53,7 +57,7 @@ function BasicStockPage() {
    * 切换每页数量
    */
   const onShowSizeChange: PaginationProps['onShowSizeChange'] = (_, size) => {
-    setSearchParams((state) => ({ ...state, pageSize: size }));
+    setSearchParams((state) => ({ ...state, pageSize: size, pageNum: 1 }));
   };
 
   /**
@@ -64,7 +68,7 @@ function BasicStockPage() {
       searchParams as NSGetBasicStockList.IParams,
       requestConfig,
     ),
-    onStart: () => setLoading(true),
+    onStart: () => { setLoading(true); setLoadError(''); },
     onSuccess: ({ data: { items, meta: { totalItems } } }) => {
       setStockData((state) => ({
         ...state,
@@ -77,7 +81,7 @@ function BasicStockPage() {
       }));
     },
     onError: (error) => {
-      console.error('e', error);
+      setLoadError(errorMessage(error, '数据加载失败，请重试'));
       setStockData({ items: [], totalItems: 0 });
     },
     onFinally: () => setLoading(false),
@@ -94,19 +98,23 @@ function BasicStockPage() {
       asideMenuActive={EBasicAsideMenuKey.basicStock}
     >
       <div className="p-16 rounded-[6px] bg-bg-white">
+        <h1 className="page-heading">个股基本信息</h1>
+        {loadError && <Alert type="error" message={loadError} showIcon action={<Button size="small" onClick={getStocks}>重试</Button>} />}
         <div className="mb-16">
           <CSearchForm
             configs={stockFilterConfigs}
             searchParams={searchParams}
-            setSearchParams={setSearchParams}
+            setSearchParams={(value) => setSearchParams((old) => ({ ...old, ...value, pageNum: 1 }))}
           />
         </div>
         <Table
+          locale={{ emptyText: loading ? '正在加载数据…' : (loadError || '没有符合条件的数据') }}
           dataSource={stockData.items}
           columns={stockColumns}
-          scroll={{ x: 2000, y: 'calc(100vh - 296px)' }}
+          scroll={{ x: 2000, y: 'max(240px, calc(100dvh - 320px))' }}
           loading={loading}
           pagination={{
+            current: searchParams.pageNum,
             pageSize: searchParams.pageSize,
             total: stockData.totalItems,
             showSizeChanger: true,

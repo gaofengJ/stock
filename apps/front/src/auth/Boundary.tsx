@@ -15,6 +15,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   Button, ConfigProvider, Result, Spin,
 } from 'antd';
+import { themeConfig } from '@/theme';
 import zhCN from 'antd/locale/zh_CN';
 import { clearTradeDateCache } from '@/hooks/useDefaultTradeDate';
 import { useOptionsState } from '@/store/useOptionsStore';
@@ -119,7 +120,8 @@ export default function AccountBoundary({
   ) {
     content = (
       <div style={{ padding: 100, textAlign: 'center' }}>
-        <Spin size="large" tip={publicPage && user ? '已登录，正在跳转' : '正在恢复登录状态'} />
+        <Spin size="large" />
+        <p>{publicPage && user ? '已登录，正在跳转' : '正在恢复登录状态'}</p>
       </div>
     );
   } else if (!publicPage && (!allowedPath(user, path) || error)) {
@@ -143,6 +145,7 @@ export default function AccountBoundary({
   }
   return (
     <ConfigProvider
+      theme={themeConfig}
       locale={zhCN}
       form={{
         validateMessages: {

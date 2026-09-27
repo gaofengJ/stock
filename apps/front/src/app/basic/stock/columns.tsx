@@ -5,7 +5,7 @@ import { useOptionsState } from '@/store/useOptionsStore';
  * 设置默认值
  */
 const renderEmptyField = (val: any) => (
-  val === null || val === undefined || val === '' ? '-' : val
+  val === null || val === undefined || val === '' ? '—' : val
 );
 
 export const useStockColumns = (): ColumnsType => {

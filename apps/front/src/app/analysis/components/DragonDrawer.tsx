@@ -3,7 +3,7 @@
 import { errorMessage } from '@/api/errors';
 import { useEffect, useState } from 'react';
 import {
-  Alert, Collapse, Descriptions, Drawer, Empty, Spin, Table, Typography,
+  Alert, Button, Collapse, Descriptions, Drawer, Empty, Spin, Table, Typography,
 } from 'antd';
 import { DragonData, marketRequest } from '@/api/market';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
@@ -12,6 +12,7 @@ import { numberText } from './MarketCharts';
 export default function DragonDrawer({ stock, date, close }: { stock: { tsCode: string; name: string } | null; date: string; close: () => void }) {
   const [data, setData] = useState<DragonData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState('');
   const { runLatestRequest, requestConfig } = useLatestRequest('market-dragon');
   useEffect(() => {
@@ -23,13 +24,13 @@ export default function DragonDrawer({ stock, date, close }: { stock: { tsCode: 
       onError: (e) => setError(errorMessage(e, '龙虎榜查询失败')),
       onFinally: () => setLoading(false),
     });
-  }, [stock, date, runLatestRequest, requestConfig]);
+  }, [attempt, stock, date, runLatestRequest, requestConfig]);
   const reasons = Array.from(new Set([...(data?.summary.map((r) => r.reason) || []), ...(data?.seats.map((r) => r.reason) || [])]));
   return (
     <Drawer title={`${stock?.name || ''} ${date} 龙虎榜`} width={880} open={!!stock} onClose={close}>
       <Typography.Paragraph type="secondary">按上榜原因分别展示。不同原因及买卖榜可能包含重复席位，不跨榜累计净买入额。</Typography.Paragraph>
       {loading && <Spin />}
-      {error && <Alert message={error} type="error" showIcon />}
+      {error && <Alert message={error} type="error" showIcon action={<Button size="small" onClick={() => setAttempt((v) => v + 1)}>重试</Button>} />}
       {!loading && !error && data && !reasons.length && <Empty description="Tushare暂无返回记录，可能未上榜或数据尚未更新" />}
       <Collapse items={reasons.map((reason) => ({
         key: reason,
@@ -49,13 +50,16 @@ export default function DragonDrawer({ stock, date, close }: { stock: { tsCode: 
             ))}
             <Table
               size="small"
+              scroll={{ x: 680 }}
               pagination={false}
               rowKey={(r) => `${r.side}:${r.exalter}`}
               dataSource={data?.seats.filter((r) => r.reason === reason)}
               columns={[
                 { title: '榜单', dataIndex: 'side', render: (v) => (String(v) === '0' ? '买入榜' : '卖出榜') },
                 { title: '营业部', dataIndex: 'exalter' },
-                ...[{ key: 'buy', title: '买入' }, { key: 'sell', title: '卖出' }, { key: 'netBuy', title: '净买入' }].map((r) => ({ title: `${r.title}（万元）`, dataIndex: r.key, render: (v: number | null) => numberText(v == null ? null : v / 10000) })),
+                ...[{ key: 'buy', title: '买入' }, { key: 'sell', title: '卖出' }, { key: 'netBuy', title: '净买入' }].map((r) => ({
+                  title: `${r.title}（万元）`, dataIndex: r.key, align: 'right' as const, render: (v: number | null) => numberText(v == null ? null : v / 10000),
+                })),
               ]}
             />
           </>

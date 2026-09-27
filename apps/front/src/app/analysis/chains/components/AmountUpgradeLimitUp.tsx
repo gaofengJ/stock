@@ -1,3 +1,4 @@
+import { numberText } from '@/utils/format';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import dayjs from 'dayjs';
@@ -66,7 +67,7 @@ const AmountUpgradeLimitUp = ({ dateRange }: IProps) => {
         textStyle: {
           color: EThemeColors.colorPinkRed78,
           fontWeight: 'bold',
-          fontSize: 20,
+          fontSize: 16,
         },
       },
       xAxis: {
@@ -79,7 +80,7 @@ const AmountUpgradeLimitUp = ({ dateRange }: IProps) => {
           rotate: 30, // 倾斜度 -90 至 90 默认为0
           margin: 20, // 标签距离刻度距离
         },
-        data: sourceData.map((item) => dayjs(item.tradeDate).format('MM-DD')),
+        data: sourceData.map((item) => dayjs(item.tradeDate).format('YYYY-MM-DD')),
       },
       yAxis: {
         type: 'value',
@@ -92,7 +93,7 @@ const AmountUpgradeLimitUp = ({ dateRange }: IProps) => {
       },
       tooltip: {
         trigger: 'axis',
-        valueFormatter: (val: string) => `${val}亿`,
+        valueFormatter: (val: unknown) => `${numberText(val)}亿元`,
       },
       toolbox: {
         feature: {
@@ -123,10 +124,10 @@ const AmountUpgradeLimitUp = ({ dateRange }: IProps) => {
           label: {
             show: true,
             position: 'top',
-            formatter: '{c}亿',
+            formatter: (p: { value: unknown }) => `${numberText(p.value)}亿元`,
             color: EThemeColors.colorPinkRed78,
           },
-          data: sourceData.map((item) => (item.totalAmount / 100000000).toFixed(0)),
+          data: sourceData.map((item) => item.totalAmount / 100000000),
         },
       ],
     };

@@ -5,8 +5,10 @@
     align-items: center
     gap: 16px
     margin-bottom: 16px
-    h4
+    h1
       margin: 0
+      font-size: 20px
+      font-weight: 600
   .market-status
     margin: 12px 0 16px
   .ant-alert
@@ -19,9 +21,49 @@
     display: block
     padding: 120px 0
   .market-note
-    color: #888
     margin: 12px 0 20px
   .market-index
     cursor: pointer
-    &.active
-      outline: 1px solid var(--ant-color-primary, #d36b83)
+  .market-note
+    font-size: 12px
+    color: var(--text-secondary)
+    line-height: 1.7
+  .market-status
+    font-size: 12px
+  .metric-card
+    height: 100%
+  .metric-label
+    color: var(--text-secondary)
+    margin-bottom: 8px
+    line-height: 1.5
+  .metric-help
+    margin-left: 6px
+    font-size: 12px
+  .market-index
+    width: 100%
+    border: 1px solid #eceef1
+    border-radius: 6px
+    background: white
+    padding: 16px
+    text-align: left
+    font: inherit
+    transition: border-color .15s, background .15s
+    &.active, &:focus-visible
+      outline: 2px solid var(--color-pink-red)
+      outline-offset: -2px
+      background: #fff7f9
+    &:hover
+      border-color: var(--color-pink-red)
+  .market-index-name
+    color: var(--text-secondary)
+    margin-bottom: 8px
+  .market-index .metric-value
+    font-size: 24px
+  .market-index-change
+    display: block
+    margin-top: 4px
+    font-weight: 600
+  .market-heading
+    flex-wrap: wrap
+  .market-loading
+    text-align: center

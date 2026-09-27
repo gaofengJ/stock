@@ -1,7 +1,8 @@
-import { MenuProps, theme, ThemeConfig } from 'antd';
+import { MenuProps } from 'antd';
 import React from 'react';
-
-import { EThemeColors } from '@/types/common.enum';
+import {
+  DashboardOutlined, AreaChartOutlined, ThunderboltOutlined, BranchesOutlined, TableOutlined, ProfileOutlined, CalendarOutlined, TeamOutlined,
+} from '@ant-design/icons';
 
 import {
   EAnalysisAsideMenuKey,
@@ -10,21 +11,7 @@ import {
   EHeaderMenuKey,
 } from './enum';
 
-export const themeConfig: ThemeConfig = {
-  token: {
-    colorPrimary: EThemeColors.colorPinkRed,
-  },
-  components: {
-    Layout: {
-      headerBg: EThemeColors.colorWhite,
-      headerPadding: '0 16px',
-      siderBg: EThemeColors.colorWhite,
-      triggerBg: EThemeColors.colorWhite,
-      triggerColor: EThemeColors.colorPinkRed,
-    },
-  },
-  algorithm: theme.defaultAlgorithm,
-};
+export { themeConfig } from '@/theme';
 
 /**
  * 顶部菜单 Items
@@ -78,18 +65,21 @@ export const avatarDropdownItems: MenuProps['items'] = [
  * 数据分析 侧边栏 items
  */
 export const analysisSiderMenuItems: MenuProps['items'] = [
-  { key: '/analysis/overview', label: '大盘概览' },
+  { key: '/analysis/overview', label: '大盘概览', icon: <DashboardOutlined /> },
   {
     key: EAnalysisAsideMenuKey.analysisSenti,
     label: '市场情绪',
+    icon: <AreaChartOutlined />,
   },
   {
     key: EAnalysisAsideMenuKey.analysisLimits,
     label: '涨停复盘',
+    icon: <ThunderboltOutlined />,
   },
   {
     key: EAnalysisAsideMenuKey.analysisChains,
     label: '连板分析',
+    icon: <BranchesOutlined />,
   },
 ];
 
@@ -100,17 +90,21 @@ export const basicSiderMenuItems: MenuProps['items'] = [
   {
     key: EBasicAsideMenuKey.basicDaily,
     label: '每日交易数据',
+    icon: <TableOutlined />,
   },
   {
     key: EBasicAsideMenuKey.basicStock,
     label: '个股基本信息',
+    icon: <ProfileOutlined />,
   },
   {
     key: EBasicAsideMenuKey.basicTradeCal,
     label: '交易日历',
+    icon: <CalendarOutlined />,
   },
   {
     key: EBasicAsideMenuKey.basicActiveFunds,
     label: '游资名录',
+    icon: <TeamOutlined />,
   },
 ];

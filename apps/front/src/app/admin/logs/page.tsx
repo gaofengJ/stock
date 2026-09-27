@@ -1,5 +1,6 @@
 'use client';
 
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { errorMessage } from '@/api/errors';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -14,7 +15,6 @@ import {
   Table,
   Tabs,
   Typography,
-  message,
 } from 'antd';
 import dayjs from 'dayjs';
 import { api } from '@/auth/client';
@@ -28,30 +28,21 @@ export default function Page() {
   const [data, setData] = useState<any>({ items: [] });
   const [stats, setStats] = useState<any>(null);
   const [detail, setDetail] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const q = new URLSearchParams({
-        ...query,
-        page: String(page),
-        pageSize: '20',
-      });
-      setData(await api(`/admin/${tab}?${q}`));
-      setStats(
-        await api(
-          `/admin/stats?${new URLSearchParams({
-            startDate: query.startDate || dayjs().format('YYYY-MM-DD'),
-            endDate: query.endDate || dayjs().format('YYYY-MM-DD'),
-          })}`,
-        ),
-      );
-    } catch (e) {
-      message.error(errorMessage(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [tab, query, page]);
+  const { runLatestRequest } = useLatestRequest('admin-logs');
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const load = useCallback(() => runLatestRequest({
+    request: async () => {
+      const q = new URLSearchParams({ ...query, page: String(page), pageSize: '20' });
+      const result = await api(`/admin/${tab}?${q}`);
+      const summary = await api(`/admin/stats?${new URLSearchParams({ startDate: query.startDate || dayjs().format('YYYY-MM-DD'), endDate: query.endDate || dayjs().format('YYYY-MM-DD') })}`);
+      return { result, summary };
+    },
+    onStart: () => { setLoading(true); setLoadError(''); },
+    onSuccess: ({ result, summary }) => { setData(result); setStats(summary); },
+    onError: (e) => setLoadError(errorMessage(e)),
+    onFinally: () => setLoading(false),
+  }), [tab, query, page, runLatestRequest]);
   useEffect(() => {
     load();
   }, [load]);
@@ -187,7 +178,9 @@ export default function Page() {
           { key: 'audit-logs', label: '操作审计' },
         ]}
       />
+      {loadError && <Alert type="error" message={loadError} showIcon action={<Button size="small" onClick={load}>重试</Button>} />}
       <Table
+        locale={{ emptyText: loading ? '正在加载数据…' : (loadError || '没有符合条件的日志') }}
         loading={loading}
         size="middle"
         scroll={{ x: 900 }}

@@ -28,36 +28,6 @@ const CSearchForm: FC<IProps> = ({
     setSearchParams(allValues);
   };
 
-  /**
-   * 渲染 Label
-   */
-  const renderLabell = (config: IFormItemProps) => {
-    if (!searchParams[config.name]) {
-      // 筛选值为空
-      return null;
-    }
-    return <span>{config.label}</span>;
-  };
-  /**
-   * 渲染 Content
-   */
-  const renderContent = (config: IFormItemProps) => {
-    // 搜索内容存在时，通过添加类名 has-value 的方式将左侧 border-radius 设置为 0
-    if (searchParams[config.name]) {
-      config.attrs = {
-        ...(config.attrs || {}),
-        rootClassName: 'has-value',
-      };
-    } else {
-      config.attrs = {
-        ...(config.attrs || {}),
-        rootClassName: '',
-      };
-    }
-    return (config.component
-      ? React.cloneElement(config.component, config.attrs)
-      : null);
-  };
   return (
     <Form
       form={form}
@@ -71,11 +41,11 @@ const CSearchForm: FC<IProps> = ({
         <Form.Item
           key={config.name}
           name={config.name}
-          label={renderLabell(config)}
+          label={config.label}
           rules={config.rules}
           colon={false}
         >
-          {renderContent(config)}
+          {config.component ? React.cloneElement(config.component, config.attrs) : null}
         </Form.Item>
       ))}
     </Form>

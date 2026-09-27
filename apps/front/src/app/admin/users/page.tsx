@@ -1,8 +1,10 @@
 'use client';
 
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { errorMessage } from '@/api/errors';
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   Button,
   Form,
   Input,
@@ -21,6 +23,9 @@ import AccountAvatar from '@/auth/AccountAvatar';
 
 const fail = (e: unknown) => message.error(errorMessage(e));
 export default function Page() {
+  const { runLatestRequest } = useLatestRequest('admin-users');
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [rows, setRows] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -41,10 +46,14 @@ export default function Page() {
       keyword,
     });
     if (active !== undefined) q.set('active', String(active));
-    const data = await api(`/admin/users?${q}`);
-    setRows(data.items);
-    setTotal(data.total);
-  }, [page, keyword, active]);
+    await runLatestRequest({
+      request: () => api(`/admin/users?${q}`),
+      onStart: () => { setLoading(true); setLoadError(''); },
+      onSuccess: (data) => { setRows(data.items); setTotal(data.total); },
+      onError: (e) => setLoadError(errorMessage(e)),
+      onFinally: () => setLoading(false),
+    });
+  }, [page, keyword, active, runLatestRequest]);
   useEffect(() => {
     load().catch(fail);
   }, [load]);
@@ -106,7 +115,10 @@ export default function Page() {
         </Button>
         <Button onClick={() => load().catch(fail)}>刷新</Button>
       </div>
+      {loadError && <Alert type="error" message={loadError} showIcon action={<Button size="small" onClick={() => load()}>重试</Button>} />}
       <Table
+        loading={loading}
+        locale={{ emptyText: loading ? '正在加载数据…' : (loadError || '没有符合条件的记录') }}
         size="middle"
         scroll={{ x: 900 }}
         rowKey="id"

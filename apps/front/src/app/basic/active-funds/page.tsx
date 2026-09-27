@@ -1,6 +1,7 @@
 'use client';
 
-import { Table } from 'antd';
+import { errorMessage } from '@/api/errors';
+import { Alert, Button, Table } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import { basicSiderMenuItems } from '@/components/Layout/config';
@@ -14,7 +15,8 @@ import { useActiveFundsColumns } from './columns';
 import './limits.sass';
 
 function BasicActiveFundsPage() {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const { requestConfig, runLatestRequest } = useLatestRequest('basic-active-funds');
 
   const activeFundsColumns = useActiveFundsColumns();
@@ -35,7 +37,7 @@ function BasicActiveFundsPage() {
   const getActiveFunds = useCallback(
     () => runLatestRequest({
       request: () => getBasicActiveFundsList(requestConfig),
-      onStart: () => setLoading(true),
+      onStart: () => { setLoading(true); setLoadError(''); },
       onSuccess: ({ data }) => {
         setActiveFundsData((state) => ({
           ...state,
@@ -43,7 +45,7 @@ function BasicActiveFundsPage() {
         }));
       },
       onError: (error) => {
-        console.error('e', error);
+        setLoadError(errorMessage(error, '数据加载失败，请重试'));
         setActiveFundsData({ items: [] });
       },
       onFinally: () => setLoading(false),
@@ -62,12 +64,15 @@ function BasicActiveFundsPage() {
       asideMenuActive={EBasicAsideMenuKey.basicActiveFunds}
     >
       <div className="p-16 rounded-[6px] bg-bg-white">
+        <h1 className="page-heading">游资名录</h1>
+        {loadError && <Alert type="error" message={loadError} showIcon action={<Button size="small" onClick={getActiveFunds}>重试</Button>} />}
         <Table
+          locale={{ emptyText: loading ? '正在加载数据…' : (loadError || '没有符合条件的数据') }}
           rootClassName="active-funds-table"
           rowKey="name"
           dataSource={activeFundsData.items}
           columns={activeFundsColumns}
-          scroll={{ y: 'calc(100vh - 232px)' }}
+          scroll={{ x: 900, y: 'calc(100dvh - 260px)' }}
           loading={loading}
           pagination={{
             defaultPageSize: 20,

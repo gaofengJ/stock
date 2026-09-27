@@ -1,8 +1,10 @@
 'use client';
 
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { errorMessage } from '@/api/errors';
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Alert,
   Button,
   Checkbox,
   Form,
@@ -22,17 +24,21 @@ import PageHeading from '@/auth/PageHeading';
 
 export default function Page() {
   const { user } = useAccount();
+  const { runLatestRequest } = useLatestRequest('admin-roles');
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [rows, setRows] = useState<any[]>([]);
   const [editing, setEditing] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [form] = Form.useForm();
   const fail = (e: unknown) => message.error(errorMessage(e));
-  const load = useCallback(
-    () => api('/admin/roles')
-      .then(setRows)
-      .catch((e) => message.error(errorMessage(e))),
-    [],
-  );
+  const load = useCallback(() => runLatestRequest({
+    request: () => api('/admin/roles'),
+    onStart: () => { setLoading(true); setLoadError(''); },
+    onSuccess: setRows,
+    onError: (e) => setLoadError(errorMessage(e)),
+    onFinally: () => setLoading(false),
+  }), [runLatestRequest]);
   useEffect(() => {
     load();
   }, [load]);
@@ -56,7 +62,10 @@ export default function Page() {
       >
         创建角色
       </Button>
+      {loadError && <Alert type="error" message={loadError} showIcon action={<Button size="small" onClick={() => load()}>重试</Button>} />}
       <Table
+        loading={loading}
+        locale={{ emptyText: loading ? '正在加载数据…' : (loadError || '没有符合条件的记录') }}
         size="middle"
         scroll={{ x: 900 }}
         rowKey="id"

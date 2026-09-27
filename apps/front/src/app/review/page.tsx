@@ -1,19 +1,7 @@
 'use client';
 
-import Layout from '@/components/Layout';
-import { } from '@/components/Layout/config';
-import { EHeaderMenuKey } from '@/components/Layout/enum';
-// import styles from './index.module.less';
+import PreparedPage from '@/components/PreparedPage';
 
-function ReviewPage() {
-  return (
-    <Layout
-      showAsideMenu={false}
-      headerMenuActive={EHeaderMenuKey.review}
-    >
-      <div>Review</div>
-    </Layout>
-  );
+export default function Page() {
+  return <PreparedPage title="每日复盘" menu="/review" />;
 }
-
-export default ReviewPage;

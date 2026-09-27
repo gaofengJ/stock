@@ -69,7 +69,7 @@ const TradeCalendarGrid = ({ items, year }: IProps) => {
   return (
     <Row gutter={[16, 16]}>
       {monthArr.map((month) => (
-        <Col span={6} key={month}>
+        <Col xs={24} md={12} xl={8} xxl={6} key={month}>
           <div className="relative">
             <div className="trade-cal-calendar-month">{month + 1}</div>
             <Calendar

@@ -1,19 +1,7 @@
 'use client';
 
-import Layout from '@/components/Layout';
-import { } from '@/components/Layout/config';
-import { EHeaderMenuKey } from '@/components/Layout/enum';
-// import styles from './index.module.less';
+import PreparedPage from '@/components/PreparedPage';
 
-function TrendsPage() {
-  return (
-    <Layout
-      showAsideMenu={false}
-      headerMenuActive={EHeaderMenuKey.trends}
-    >
-      <div>Trends</div>
-    </Layout>
-  );
+export default function Page() {
+  return <PreparedPage title="市场行情" menu="/trends" />;
 }
-
-export default TrendsPage;

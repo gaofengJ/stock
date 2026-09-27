@@ -12,6 +12,7 @@ export interface MarketStats {
 }
 export interface MarketStatus {
   revision: string;
+  dateUpdates?: Record<string, string>;
   latestDate: string | null; expectedDate: string | null; dates: string[];
   stages: { task: string; status: string; updatedAt: string; error: string | null }[];
   backfill: { id: number; status: string; stage: string; error: string | null } | null;

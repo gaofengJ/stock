@@ -8,6 +8,7 @@ import { marketRequest, MarketScope, MarketStatus } from '@/api/market';
 
 interface MarketSelection {
   date: string; scope: MarketScope; days: number; status: MarketStatus | null; error: string;
+  retry: () => void;
   select: (value: { date?: string; scope?: MarketScope; days?: number }) => void;
 }
 const Context = createContext<MarketSelection | null>(null);
@@ -15,6 +16,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const [selection, setSelection] = useState({ date: '', scope: 'all' as MarketScope, days: 20 });
   const [status, setStatus] = useState<MarketStatus | null>(null);
   const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
   const latest = useRef<string | null>(null);
   useEffect(() => {
     let active = true;
@@ -31,9 +33,9 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     refresh();
     const timer = setInterval(() => { if (!document.hidden) refresh(); }, 60000);
     return () => { active = false; clearInterval(timer); };
-  }, []);
+  }, [attempt]);
   const value = useMemo(() => ({
-    ...selection, status, error, select: (change: Partial<typeof selection>) => setSelection((old) => ({ ...old, ...change })),
+    ...selection, status, error, retry: () => setAttempt((v) => v + 1), select: (change: Partial<typeof selection>) => setSelection((old) => ({ ...old, ...change })),
   }), [selection, status, error]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

@@ -1,8 +1,9 @@
 'use client';
 
+import { errorMessage } from '@/api/errors';
+import { Alert, Button, Spin } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
-import { Spin } from 'antd';
 import dynamic from 'next/dynamic';
 import Layout from '@/components/Layout';
 import { basicSiderMenuItems } from '@/components/Layout/config';
@@ -30,7 +31,8 @@ function BasicTradeCalPage() {
   };
   const [searchParams, setSearchParams] = useState<NSGetBasicTradeCalList.IParams>(initialSearchParams);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const { requestConfig, runLatestRequest } = useLatestRequest(
     'basic-trade-calendar',
   );
@@ -50,7 +52,7 @@ function BasicTradeCalPage() {
     () => runLatestRequest({
       request: () => getBasicTradeCalList(searchParams, requestConfig),
       onStart: () => {
-        setLoading(true);
+        setLoading(true); setLoadError('');
         setTradeCalData({ items: [] });
       },
       onSuccess: ({ data }) => {
@@ -59,7 +61,7 @@ function BasicTradeCalPage() {
           items: data,
         }));
       },
-      onError: (error) => console.error('e', error),
+      onError: (error) => setLoadError(errorMessage(error, '数据加载失败，请重试')),
       onFinally: () => setLoading(false),
     }),
     [requestConfig, runLatestRequest, searchParams],
@@ -78,6 +80,7 @@ function BasicTradeCalPage() {
     setSearchParams((state) => ({
       ...state,
       ...val,
+      pageNum: 1,
       year: val.year.format('YYYY'),
     }));
   };
@@ -89,6 +92,8 @@ function BasicTradeCalPage() {
       asideMenuActive={EBasicAsideMenuKey.basicTradeCal}
     >
       <div className="p-16 rounded-[6px] bg-bg-white">
+        <h1 className="page-heading">交易日历</h1>
+        {loadError && <Alert type="error" message={loadError} showIcon action={<Button size="small" onClick={getTradeCal}>重试</Button>} />}
         <div className="mb-16">
           <CSearchForm
             configs={tradeCalConfigs}
@@ -100,14 +105,14 @@ function BasicTradeCalPage() {
           />
         </div>
         <div className="h-[calc(100vh-176px)] overflow-y-auto overflow-x-hidden">
-          {loading ? (
+          {!loadError && (loading ? (
             <Spin className="w-full h-320 !leading-[320px]" size="large" />
           ) : (
             <TradeCalendarGrid
               items={tradeCalData.items}
               year={searchParams.year}
             />
-          )}
+          ))}
         </div>
       </div>
     </Layout>

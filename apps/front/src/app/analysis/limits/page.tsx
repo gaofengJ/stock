@@ -4,6 +4,7 @@ import { useState } from 'react';
 import {
   Button, Input, Select, Space, Table, Tabs,
 } from 'antd';
+import { changeClass, scaledNumber } from '@/utils/format';
 import { LimitRow } from '@/api/market';
 import LegacyPage from './LegacyPage';
 import MarketCompatibility from '../components/MarketCompatibility';
@@ -18,19 +19,23 @@ function LimitsPage() {
   const [height, setHeight] = useState<number | undefined>();
   const [stock, setStock] = useState<LimitRow | null>(null);
   const { date } = useMarket();
-  const { data, loading, error } = useMarketData<{ ready: boolean; items: LimitRow[] }>('limits', { type, keyword, height });
+  const {
+    data, loading, error, retry,
+  } = useMarketData<{ ready: boolean; items: LimitRow[] }>('limits', { type, keyword, height });
   const raw = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : String(v));
-  const amount = (v: string | null) => numberText(v == null ? null : Number(v) / 100000000);
+  const amount = (v: string | null) => scaledNumber(v, 100000000);
   return (
     <MarketShell title="涨停复盘" path="/analysis/limits" trend={false}>
       <Tabs activeKey={type} onChange={setType} items={[{ key: 'U', label: '涨停' }, { key: 'Z', label: '炸板' }, { key: 'D', label: '跌停' }]} />
-      <Space className="mb-16">
+      <Space className="mb-16" wrap>
         <Input.Search allowClear placeholder="股票名称／代码" onSearch={setKeyword} style={{ width: 260 }} />
         <Select allowClear placeholder="连板数" value={height} onChange={setHeight} style={{ width: 140 }} options={[{ value: 1, label: '首板' }, { value: 2, label: '二板' }, { value: 3, label: '三板' }, { value: 4, label: '四板及以上' }]} />
       </Space>
       <p className="market-note">非ST样本；涨停与炸板按收盘状态区分。缺失封板信息显示“—”。</p>
-      <DataState loading={loading} error={error} empty={!data?.ready}>
+      <DataState loading={loading} error={error} retry={retry} empty={!data?.ready}>
         <Table<LimitRow>
+          key={`${date}-${type}-${height}-${keyword}`}
+          locale={{ emptyText: keyword || height ? '没有符合筛选条件的股票' : '该范围当日无此类事件' }}
           rowKey="tsCode"
           dataSource={data?.items}
           size="middle"
@@ -44,19 +49,29 @@ function LimitsPage() {
               title: '名称', dataIndex: 'name', fixed: 'left', width: 105,
             },
             { title: '行业', dataIndex: 'industry', render: raw }, {
-              title: '涨跌幅(%)', dataIndex: 'pctChg', render: (v) => numberText(v), sorter: (a, b) => Number(a.pctChg) - Number(b.pctChg),
+              title: '涨跌幅(%)', dataIndex: 'pctChg', align: 'right', render: (v) => <span className={changeClass(v)}>{numberText(v, 2, true)}</span>, sorter: (a, b) => Number(a.pctChg) - Number(b.pctChg),
             },
-            { title: '收盘价', dataIndex: 'close', render: (v) => numberText(v) },
             {
-              title: '连板数', dataIndex: 'limitTimes', render: raw, sorter: (a, b) => a.limitTimes - b.limitTimes,
+              title: '收盘价(元)', dataIndex: 'close', align: 'right', render: (v) => numberText(v),
             },
-            { title: '涨停统计', dataIndex: 'upStat', render: (v: string | null) => (v?.includes('/') ? `${v.split('/')[1]}天${v.split('/')[0]}板` : raw(v)) },
+            {
+              title: '连板数', dataIndex: 'limitTimes', align: 'right', render: raw, sorter: (a, b) => a.limitTimes - b.limitTimes,
+            },
+            { title: '近N日涨停情况', dataIndex: 'upStat', render: (v: string | null) => (v?.includes('/') ? `${v.split('/')[1]}天${v.split('/')[0]}板` : raw(v)) },
             { title: '首次封板', dataIndex: 'firstTime', render: raw }, { title: '最后封板', dataIndex: 'lastTime', render: raw },
-            { title: '开板次数', dataIndex: 'openTimes', render: raw }, { title: '换手率(%)', dataIndex: 'turnoverRatio', render: (v) => numberText(v) },
             {
-              title: '成交额(亿元)', dataIndex: 'amount', render: amount, sorter: (a, b) => Number(a.amount) - Number(b.amount),
+              title: '开板次数', dataIndex: 'openTimes', align: 'right', render: raw,
+            }, {
+              title: '换手率(%)', dataIndex: 'turnoverRatio', align: 'right', render: (v) => numberText(v),
             },
-            { title: '封单额(亿元)', dataIndex: 'fdAmount', render: amount }, { title: '流通市值(亿元)', dataIndex: 'floatMv', render: amount },
+            {
+              title: '成交额(亿元)', dataIndex: 'amount', align: 'right', render: amount, sorter: (a, b) => Number(a.amount) - Number(b.amount),
+            },
+            {
+              title: '封单额(亿元)', dataIndex: 'fdAmount', align: 'right', render: amount,
+            }, {
+              title: '流通市值(亿元)', dataIndex: 'floatMv', align: 'right', render: amount,
+            },
             {
               title: '详情', key: 'action', fixed: 'right', width: 90, render: (_, r) => <Button type="link" onClick={() => setStock(r)}>龙虎榜</Button>,
             },

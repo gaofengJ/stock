@@ -1,10 +1,11 @@
+import { numberText, scaledNumber, changeClass } from '@/utils/format';
 import type { ColumnsType } from 'antd/es/table/interface';
 
 /**
  * 设置默认值
  */
 const renderEmptyField = (val: any) => (
-  val === null || val === undefined || val === '' ? '-' : val
+  val === null || val === undefined || val === '' ? '—' : val
 );
 
 export const limitsColumns: ColumnsType = [
@@ -33,35 +34,40 @@ export const limitsColumns: ColumnsType = [
     dataIndex: 'pctChg',
     key: 'pctChg',
     width: 80,
-    render: renderEmptyField,
+    align: 'right',
+    render: (val) => <span className={changeClass(val)}>{numberText(val, 2, true)}</span>,
   },
   {
     title: '收盘价(元)',
     dataIndex: 'close',
     key: 'close',
     width: 80,
-    render: renderEmptyField,
+    align: 'right',
+    render: (val) => numberText(val),
   },
   {
     title: '成交额(亿元)',
     dataIndex: 'amount',
     key: 'amount',
     width: 96,
-    render: (val) => (val / 100000000).toFixed(2),
+    align: 'right',
+    render: (val) => scaledNumber(val, 100000000),
   },
   {
     title: '流通市值(亿元)',
     dataIndex: 'floatMv',
     key: 'floatMv',
     width: 104,
-    render: (val) => (val / 100000000).toFixed(2),
+    align: 'right',
+    render: (val) => scaledNumber(val, 100000000),
   },
   {
     title: '换手率(%)',
     dataIndex: 'turnoverRatio',
     key: 'turnoverRatio',
     width: 80,
-    render: renderEmptyField,
+    align: 'right',
+    render: (val) => numberText(val),
   },
   {
     title: '最后封板时间',
@@ -90,6 +96,7 @@ export const limitsColumns: ColumnsType = [
     key: 'upStat',
     width: 80,
     render: (val) => {
+      if (!val) return '—';
       const [limits, days] = val.split('/');
       return `${days}天${limits}板`;
     },

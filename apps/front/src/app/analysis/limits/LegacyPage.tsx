@@ -2,7 +2,7 @@
 
 import dayjs from 'dayjs';
 import { useCallback, useEffect, useState } from 'react';
-import { Table } from 'antd';
+import { Table, Alert, Button } from 'antd';
 import CSearchForm from '@/components/common/CSearchForm';
 import Layout from '@/components/Layout';
 import { analysisSiderMenuItems } from '@/components/Layout/config';
@@ -23,7 +23,9 @@ import './limits.sass';
 
 function AnalysisLimitsPage() {
   const limitsFilterConfigs = useLimitsFilterConfigs();
-  const { candidate, ready, tradeDate } = useDefaultTradeDate();
+  const {
+    candidate, ready, tradeDate, error: dateError, retry: retryDate,
+  } = useDefaultTradeDate();
 
   // searchParams 的初始值
   const initialSearchParams: Partial<NSGetAnalysisLimitsLimitUpList.IParams> = {
@@ -104,6 +106,7 @@ function AnalysisLimitsPage() {
       asideMenuActive={EAnalysisAsideMenuKey.analysisLimits}
     >
       <div className="p-16 rounded-[6px] bg-bg-white">
+        {dateError && <Alert type="error" message={dateError} showIcon action={<Button size="small" onClick={retryDate}>重试</Button>} />}
         <LegacyNotice />
         <div className="mb-16">
           <CSearchForm
@@ -124,7 +127,7 @@ function AnalysisLimitsPage() {
             emptyText: (<div className="min-h-240 leading-[240px]">当前日期暂无数据</div>),
           }}
           scroll={{ y: 'calc(100vh - 232px)' }}
-          loading={loading}
+          loading={!dateError && (!dateReady || loading)}
           pagination={false}
         />
       </div>

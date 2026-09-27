@@ -1,5 +1,7 @@
 'use client';
 
+import { fontFamily } from '@/theme';
+import { numberText } from '@/utils/format';
 import { useEffect, useRef } from 'react';
 import ReactEChartsCore from 'echarts-for-react/lib/core';
 import * as echarts from 'echarts/core';
@@ -44,12 +46,14 @@ const EChart = ({ genOptions }: IEchartsProps) => {
     return () => resizeObserver.disconnect();
   }, []);
 
+  const options = genOptions();
+  const tooltip = options.tooltip && !Array.isArray(options.tooltip) ? options.tooltip : {};
   return (
     <div ref={containerRef} className="w-full h-360">
       <ReactEChartsCore
         ref={chartRef}
         echarts={echarts}
-        option={genOptions()}
+        option={{ ...options, textStyle: { fontFamily, fontSize: 12, ...options.textStyle }, tooltip: { confine: true, valueFormatter: (v: unknown) => numberText(v), ...tooltip } }}
         lazyUpdate
         style={{ width: '100%', height: '360px' }}
         opts={{ renderer: 'canvas' }}

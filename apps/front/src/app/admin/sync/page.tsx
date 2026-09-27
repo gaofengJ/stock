@@ -1,5 +1,6 @@
 'use client';
 
+import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { errorMessage } from '@/api/errors';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -31,6 +32,9 @@ const labels: Record<string, string> = {
 };
 export default function Page() {
   const { user } = useAccount();
+  const { runLatestRequest } = useLatestRequest('admin-sync');
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [rows, setRows] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -39,10 +43,14 @@ export default function Page() {
   const [busy, setBusy] = useState(false);
   const fail = (e: unknown) => message.error(errorMessage(e));
   const load = useCallback(async () => {
-    const r = await api(`/admin/sync-jobs?page=${page}`);
-    setRows(r.items);
-    setTotal(r.total);
-  }, [page]);
+    await runLatestRequest({
+      request: () => api(`/admin/sync-jobs?page=${page}`),
+      onStart: () => { setLoading(true); setLoadError(''); },
+      onSuccess: (r) => { setRows(r.items); setTotal(r.total); },
+      onError: (e) => setLoadError(errorMessage(e)),
+      onFinally: () => setLoading(false),
+    });
+  }, [page, runLatestRequest]);
   useEffect(() => {
     load().catch(fail);
     const t = setInterval(() => {
@@ -102,7 +110,10 @@ export default function Page() {
           </Button>
         </Form>
       )}
+      {loadError && <Alert type="error" message={loadError} showIcon action={<Button size="small" onClick={() => load()}>重试</Button>} />}
       <Table
+        loading={loading}
+        locale={{ emptyText: loading ? '正在加载数据…' : (loadError || '没有符合条件的记录') }}
         size="middle"
         scroll={{ x: 900 }}
         rowKey="id"

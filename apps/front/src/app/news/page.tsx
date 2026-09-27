@@ -1,18 +1,7 @@
 'use client';
 
-import Layout from '@/components/Layout';
-import { EHeaderMenuKey } from '@/components/Layout/enum';
-// import styles from './index.module.less';
+import PreparedPage from '@/components/PreparedPage';
 
-function NewsPage() {
-  return (
-    <Layout
-      showAsideMenu={false}
-      headerMenuActive={EHeaderMenuKey.news}
-    >
-      <div>News</div>
-    </Layout>
-  );
+export default function Page() {
+  return <PreparedPage title="实时资讯" menu="/news" />;
 }
-
-export default NewsPage;

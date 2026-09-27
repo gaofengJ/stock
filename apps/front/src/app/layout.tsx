@@ -1,12 +1,9 @@
 import AccountBoundary from '@/auth/Boundary';
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 import { Watermark } from 'antd';
 import './global.css';
 import '@/auth/account.css';
-
-const inter = Inter({ subsets: ['latin'] }); // 仅加载 Inter 字体的拉丁字母子集。这有助于减少字体文件的大小，从而提高页面加载速度
 
 export const metadata: Metadata = {
   title: '木风同学的投资小站',
@@ -21,8 +18,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <body className={inter.className}>
+      <body>
         <Watermark
+          font={{ color: 'rgba(37, 42, 52, 0.035)', fontSize: 12 }}
+          gap={[180, 160]}
           height={40}
           width={160}
           content="木风同学的投资小站"

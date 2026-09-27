@@ -1,6 +1,9 @@
 'use client';
 
-import { PaginationProps, Table } from 'antd';
+import { errorMessage } from '@/api/errors';
+import {
+  Alert, Button, PaginationProps, Table,
+} from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import Layout from '@/components/Layout';
@@ -19,7 +22,9 @@ import { dailyColumns } from './columns';
 
 function BasicDailyPage() {
   const stockFilterConfigs = useStockFilterConfigs();
-  const { candidate, ready, tradeDate } = useDefaultTradeDate();
+  const {
+    candidate, ready, tradeDate, error: dateError, retry: retryDate,
+  } = useDefaultTradeDate();
 
   // searchParams 的初始值
   const initialSearchParams: Partial<NSGetBasicDailyList.IParams> = {
@@ -31,7 +36,8 @@ function BasicDailyPage() {
     Partial<NSGetBasicDailyList.IParams>>(initialSearchParams);
   const [dateReady, setDateReady] = useState(false);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const { requestConfig, runLatestRequest } = useLatestRequest('basic-daily-list');
 
   /**
@@ -41,6 +47,7 @@ function BasicDailyPage() {
     setSearchParams((state) => ({
       ...state,
       ...val,
+      pageNum: 1,
       tradeDate: val.tradeDate.format('YYYY-MM-DD'),
     }));
   };
@@ -76,7 +83,7 @@ function BasicDailyPage() {
    * 切换每页数量
    */
   const onShowSizeChange: PaginationProps['onShowSizeChange'] = (_, size) => {
-    setSearchParams((state) => ({ ...state, pageSize: size }));
+    setSearchParams((state) => ({ ...state, pageSize: size, pageNum: 1 }));
   };
 
   /**
@@ -89,7 +96,7 @@ function BasicDailyPage() {
         searchParams as NSGetBasicDailyList.IParams,
         requestConfig,
       ),
-      onStart: () => setLoading(true),
+      onStart: () => { setLoading(true); setLoadError(''); },
       onSuccess: ({ data: { items, meta: { totalItems } } }) => {
         setDailyData((state) => ({
           ...state,
@@ -101,7 +108,7 @@ function BasicDailyPage() {
         }));
       },
       onError: (error) => {
-        console.error('e', error);
+        setLoadError(errorMessage(error, '数据加载失败，请重试'));
         setDailyData({ items: [], totalItems: 0 });
       },
       onFinally: () => setLoading(false),
@@ -119,6 +126,9 @@ function BasicDailyPage() {
       asideMenuActive={EBasicAsideMenuKey.basicDaily}
     >
       <div className="p-16 rounded-[6px] bg-bg-white">
+        <h1 className="page-heading">每日交易数据</h1>
+        {dateError && <Alert type="error" message={dateError} showIcon action={<Button size="small" onClick={retryDate}>重试</Button>} />}
+        {loadError && <Alert type="error" message={loadError} showIcon action={<Button size="small" onClick={getDailys}>重试</Button>} />}
         <div className="mb-16">
           <CSearchForm
             configs={stockFilterConfigs}
@@ -133,11 +143,12 @@ function BasicDailyPage() {
           dataSource={dailyData.items}
           columns={dailyColumns}
           locale={{
-            emptyText: (<div className="min-h-240 leading-[240px]">当前日期暂无数据</div>),
+            emptyText: (<div className="min-h-240 leading-[240px]">{loading ? '正在加载数据…' : (loadError || '当前日期与筛选条件下暂无数据')}</div>),
           }}
-          scroll={{ x: 4000, y: 'calc(100vh - 296px)' }}
-          loading={loading}
+          scroll={{ x: 4000, y: 'max(240px, calc(100dvh - 320px))' }}
+          loading={!dateError && (!dateReady || loading)}
           pagination={{
+            current: searchParams.pageNum,
             pageSize: searchParams.pageSize,
             total: dailyData.totalItems,
             showSizeChanger: true,

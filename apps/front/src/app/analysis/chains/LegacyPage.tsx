@@ -1,6 +1,8 @@
 'use client';
 
-import { Col, Row, Spin } from 'antd';
+import {
+  Col, Row, Spin, Alert, Button,
+} from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
@@ -24,7 +26,9 @@ import AmountLimitUp from './components/AmountLimitUp';
 import AmountUpgradeLimitUp from './components/AmountUpgradeLimitUp';
 
 function AnalysisChainsPage() {
-  const { candidate, ready, tradeDate } = useDefaultTradeDate();
+  const {
+    candidate, ready, tradeDate, error: dateError, retry: retryDate,
+  } = useDefaultTradeDate();
   // searchParams 的初始值
   const initialSearchParams = {
     // 默认时间: [当前时间一个月, 当前时间]
@@ -103,6 +107,7 @@ function AnalysisChainsPage() {
       asideMenuActive={EAnalysisAsideMenuKey.analysisChains}
     >
       <div className="p-16 rounded-[6px] bg-bg-white">
+        {dateError && <Alert type="error" message={dateError} showIcon action={<Button size="small" onClick={retryDate}>重试</Button>} />}
         <LegacyNotice />
         <div className="mb-16">
           <CSearchForm
@@ -116,7 +121,7 @@ function AnalysisChainsPage() {
         </div>
         <div className="max-h-[calc(100vh-184px)] overflow-x-hidden overflow-y-auto">
           {dateReady ? (
-            <Row align="middle" gutter={[32, 64]} justify="space-around">
+            <Row align="middle" gutter={[16, 24]} justify="space-around">
               <Col span={12}>
                 <CountLimitUp1 dateRange={searchParams.dateRange} />
               </Col>

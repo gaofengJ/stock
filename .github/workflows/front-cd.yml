@@ -54,6 +54,9 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Verify display formatting and request compatibility
+        run: node --test apps/front/scripts/test-display.cjs apps/front/scripts/test-errors.cjs apps/front/scripts/test-market-compatibility.cjs
+
       # 6. 打包项目
       - name: Build Project
         run: pnpm run build:front

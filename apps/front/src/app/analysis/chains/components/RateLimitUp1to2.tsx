@@ -1,3 +1,4 @@
+import { numberText } from '@/utils/format';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import dayjs from 'dayjs';
@@ -72,7 +73,7 @@ const RateLimitUp1to2 = ({ dateRange }: IProps) => {
         textStyle: {
           color: EThemeColors.colorPinkRed78,
           fontWeight: 'bold',
-          fontSize: 20,
+          fontSize: 16,
         },
       },
       xAxis: {
@@ -85,7 +86,7 @@ const RateLimitUp1to2 = ({ dateRange }: IProps) => {
           rotate: 30, // 倾斜度 -90 至 90 默认为0
           margin: 20, // 标签距离刻度距离
         },
-        data: sourceData.map((item) => dayjs(item.tradeDate).format('MM-DD')),
+        data: sourceData.map((item) => dayjs(item.tradeDate).format('YYYY-MM-DD')),
       },
       yAxis: {
         type: 'value',
@@ -98,7 +99,7 @@ const RateLimitUp1to2 = ({ dateRange }: IProps) => {
       },
       tooltip: {
         trigger: 'axis',
-        valueFormatter: (val: string) => `${val}%`,
+        valueFormatter: (val: unknown) => `${numberText(val)}%`,
       },
       toolbox: {
         feature: {
@@ -129,7 +130,7 @@ const RateLimitUp1to2 = ({ dateRange }: IProps) => {
           label: {
             show: true,
             position: 'top',
-            formatter: '{c}%',
+            formatter: (p: { value: unknown }) => `${numberText(p.value)}%`,
             color: EThemeColors.colorPinkRed78,
           },
           data: sourceData.map((item) => item.rate),

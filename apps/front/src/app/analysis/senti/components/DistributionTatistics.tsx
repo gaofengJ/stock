@@ -1,3 +1,4 @@
+import { numberText } from '@/utils/format';
 import { useCallback, useEffect, useState } from 'react';
 import { Spin } from 'antd';
 import { NSGetAnalysisSentiDistributionTatistics } from '@/api/services.types';
@@ -103,7 +104,7 @@ const DistributionTatistics = ({ tradeDate }: IProps) => {
         textStyle: {
           color: EThemeColors.colorPinkRed78,
           fontWeight: 'bold',
-          fontSize: 20,
+          fontSize: 16,
         },
       },
       xAxis: {
@@ -170,7 +171,7 @@ const DistributionTatistics = ({ tradeDate }: IProps) => {
           label: {
             show: true,
             position: 'top',
-            formatter: '{c}',
+            formatter: (p: { value: unknown }) => numberText(p.value, 0),
             color: EThemeColors.colorBlack78,
           },
           data: sourceData.map((item) => item.count),
