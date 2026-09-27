@@ -48,7 +48,9 @@ try:
             continue
         if output['status'] not in ('copied', 'checked') or not output.get('remaining'):
             break
-        time.sleep(1)
+        # JobsService polls every 5 seconds. Yield longer than one tick so a
+        # waiting production batch can acquire the lock before the next copy.
+        time.sleep(6)
 except Exception as error:
     print(datetime.datetime.now().isoformat(), 'refresh failed:', str(error))
     sys.exit(1)
