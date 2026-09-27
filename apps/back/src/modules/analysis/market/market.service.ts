@@ -51,6 +51,9 @@ export class MarketService {
     return {
       latestDate: rows[0]?.date || null,
       dates: rows.map((r) => r.date),
+      dateUpdates: Object.fromEntries(
+        rows.map((r) => [r.date, r.updatedAt.toISOString()]),
+      ),
       revision: createHash('sha256').update(JSON.stringify(rows)).digest('hex'),
       expectedDate: expected?.calDate || null,
       stages: stages.map((r) => ({
