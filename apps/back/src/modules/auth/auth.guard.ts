@@ -91,7 +91,7 @@ export class AuthGuard implements CanActivate {
           Buffer.from(session.csrf_hash, 'hex'),
         )
       )
-        throw new ForbiddenException('CSRF 验证失败，请刷新页面');
+        throw new ForbiddenException('安全校验失败，请刷新页面后重试');
     }
     if (rule.public) return true;
     if (!session?.user_id) throw new UnauthorizedException('请先登录');

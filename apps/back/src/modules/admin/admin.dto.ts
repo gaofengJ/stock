@@ -11,6 +11,9 @@ export class SyncJobDto {
   @IsDateString() startDate: string;
 
   @IsDateString() endDate: string;
+
+  @IsOptional() @IsIn(['missing', 'refresh']) mode: 'missing' | 'refresh' =
+    'missing';
 }
 export class LogsQueryDto extends PageDto {
   @IsOptional() @IsString() startDate?: string;

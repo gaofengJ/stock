@@ -1,5 +1,7 @@
 'use client';
 
+/* eslint-disable no-template-curly-in-string -- Ant Design 在运行时替换校验文案中的占位符。 */
+
 import React, {
   createContext,
   useCallback,
@@ -7,9 +9,13 @@ import React, {
   useEffect,
   useState,
   useMemo,
+  useRef,
 } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Button, Result, Spin } from 'antd';
+import {
+  Button, ConfigProvider, Result, Spin,
+} from 'antd';
+import zhCN from 'antd/locale/zh_CN';
 import { clearTradeDateCache } from '@/hooks/useDefaultTradeDate';
 import { useOptionsState } from '@/store/useOptionsStore';
 import {
@@ -32,18 +38,25 @@ export default function AccountBoundary({
   const [user, setUser] = useState<Account | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
+  const authRequest = useRef(0);
   const publicPage = ['/login', '/register'].includes(path);
   const refresh = useCallback(async () => {
+    authRequest.current += 1;
+    const request = authRequest.current;
     try {
-      setUser(await api<Account>('/auth/me', 'GET', undefined, false));
+      const account = await api<Account>('/auth/me', 'GET', undefined, false);
+      if (request !== authRequest.current) return;
+      setUser(account);
       setError('');
     } catch {
-      setUser(null);
+      if (request === authRequest.current) setUser(null);
     } finally {
-      setReady(true);
+      if (request === authRequest.current) setReady(true);
     }
   }, []);
   const clear = useCallback(() => {
+    // 已退出或会话失效后，较早的登录态请求不能恢复旧用户。
+    authRequest.current += 1;
     setUser(null);
     clearCredential();
     clearTradeDateCache();
@@ -57,7 +70,7 @@ export default function AccountBoundary({
   }, [clear]);
   useEffect(() => {
     refresh();
-  }, [refresh]);
+  }, [refresh, path]);
   useEffect(() => {
     const changed = (event: Event) => {
       if ((event as CustomEvent).detail === 401) {
@@ -73,10 +86,14 @@ export default function AccountBoundary({
     };
     window.addEventListener('account-http-error', changed);
     window.addEventListener('focus', focus);
+    window.addEventListener('pageshow', focus);
+    document.addEventListener('visibilitychange', focus);
     const timer = window.setInterval(focus, 60000);
     return () => {
       window.removeEventListener('account-http-error', changed);
       window.removeEventListener('focus', focus);
+      window.removeEventListener('pageshow', focus);
+      document.removeEventListener('visibilitychange', focus);
       clearInterval(timer);
     };
   }, [clear, refresh, router]);
@@ -96,12 +113,13 @@ export default function AccountBoundary({
   let content = children;
   if (
     !ready
+    || (publicPage && !!user)
     || (!publicPage && !user)
     || (user?.mustChangePassword && path !== '/profile')
   ) {
     content = (
       <div style={{ padding: 100, textAlign: 'center' }}>
-        <Spin size="large" tip="正在恢复登录状态" />
+        <Spin size="large" tip={publicPage && user ? '已登录，正在跳转' : '正在恢复登录状态'} />
       </div>
     );
   } else if (!publicPage && (!allowedPath(user, path) || error)) {
@@ -123,5 +141,31 @@ export default function AccountBoundary({
       />
     );
   }
-  return <Context.Provider value={context}>{content}</Context.Provider>;
+  return (
+    <ConfigProvider
+      locale={zhCN}
+      form={{
+        validateMessages: {
+          types: {
+            string: '${label}必须为文本',
+            method: '${label}格式不正确',
+            array: '${label}必须为列表',
+            object: '${label}格式不正确',
+            number: '${label}必须为数字',
+            date: '${label}必须为有效日期',
+            boolean: '${label}必须为是或否',
+            integer: '${label}必须为整数',
+            float: '${label}必须为数字',
+            regexp: '${label}格式不正确',
+            email: '${label}必须为有效邮箱',
+            url: '${label}必须为有效网址',
+            hex: '${label}必须为十六进制数值',
+          },
+          pattern: { mismatch: '${label}格式不正确' },
+        },
+      }}
+    >
+      <Context.Provider value={context}>{content}</Context.Provider>
+    </ConfigProvider>
+  );
 }

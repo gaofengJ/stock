@@ -17,6 +17,7 @@ import { LoggerService } from '@/shared/logger/logger.service';
 import { IAppConfig } from '@/configs';
 import { initSwagger } from '@/swagger';
 import { isDev } from '@/utils';
+import { validationMessage } from '@/filters/error-message';
 
 /**
  * @description 初始化应用
@@ -53,9 +54,8 @@ const bootstrap = async () => {
   app.setGlobalPrefix(globalPrefix); // 设置全局前缀
   app.useStaticAssets({ root: path.join(__dirname, '..', 'public') });
 
-  if (!isDev) {
-    app.enableShutdownHooks(); // 在生产环境中启用应用程序的关机钩子，以确保在应用关闭时能正确地执行清理任务
-  }
+  // 开发环境正常退出时也要关闭 TypeORM 连接池，释放共享测试账号的连接。
+  app.enableShutdownHooks();
 
   // 设置全局管道
   app.useGlobalPipes(
@@ -70,13 +70,7 @@ const bootstrap = async () => {
       // 自定义异常工厂，用于生成验证错误时抛出的异常
       exceptionFactory: (errors) =>
         // 创建一个 UnprocessableEntityException 异常，并返回第一个验证错误的消息
-        new UnprocessableEntityException(
-          errors.map((e) => {
-            const rule = Object.keys(e.constraints!)[0]; // 获取第一个验证规则
-            const msg = e.constraints![rule]; // 获取该规则对应的错误消息
-            return msg;
-          })[0], // 只返回第一个错误消息
-        ),
+        new UnprocessableEntityException(validationMessage(errors)),
     }),
   );
 

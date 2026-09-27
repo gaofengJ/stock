@@ -21,6 +21,45 @@ class TushareRequestError extends Error {
 export class TushareService {
   constructor(private readonly httpService: HttpService) {}
 
+  /** 分页读取并拒绝重复页，防止接口静默截断后误发布完整数据。 */
+  async queryData(
+    api: string,
+    params: Record<string, unknown>,
+    fields?: string,
+    pageSize = 6000,
+    timeout = 60000,
+  ): Promise<IBaseRes<ITushareData>> {
+    let output: ITushareData | undefined;
+    const signatures = new Set<string>();
+    for (let offset = 0; offset < 100000; offset += pageSize) {
+      // eslint-disable-next-line no-await-in-loop
+      const response = await this.request({
+        timeout,
+        data: {
+          api_name: api,
+          params: { ...params, limit: pageSize, offset },
+          ...(fields && { fields }),
+        },
+      });
+      const data = response.data as ITushareData;
+      if (!Array.isArray(data?.fields) || !Array.isArray(data.items))
+        throw new Error(`${api} 返回结构异常`);
+      if (!output) output = { fields: data.fields, items: [] };
+      if (JSON.stringify(output.fields) !== JSON.stringify(data.fields))
+        throw new Error(`${api} 分页字段不一致`);
+      if (data.items.length) {
+        const signature = JSON.stringify(data.items);
+        if (signatures.has(signature))
+          throw new Error(`${api} 分页重复，拒绝不完整快照`);
+        signatures.add(signature);
+      }
+      output.items.push(...data.items);
+      if (data.items.length < pageSize)
+        return { code: 0, message: 'success', data: output };
+    }
+    throw new Error(`${api} 超出单次同步安全上限`);
+  }
+
   private async request(config: AxiosRequestConfig) {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
@@ -58,7 +97,7 @@ export class TushareService {
   private async requestOnce(config: AxiosRequestConfig) {
     const response = await this.httpService.axiosRef.request({
       method: 'post',
-      baseURL: 'http://api.waditu.com',
+      baseURL: 'https://api.tushare.pro',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -145,12 +184,7 @@ export class TushareService {
    * @returns Promise<IBaseRes>
    */
   getDaily(date: string): Promise<IBaseRes<ITushareData>> {
-    return this.request({
-      data: {
-        api_name: 'daily',
-        params: { trade_date: date },
-      },
-    });
+    return this.queryData('daily', { trade_date: date });
   }
 
   /**
@@ -159,12 +193,7 @@ export class TushareService {
    * @returns Promise<IBaseRes>
    */
   getDailyLimit(date: string): Promise<IBaseRes<ITushareData>> {
-    return this.request({
-      data: {
-        api_name: 'stk_limit',
-        params: { trade_date: date },
-      },
-    });
+    return this.queryData('stk_limit', { trade_date: date }, undefined, 5800);
   }
 
   /**
@@ -173,12 +202,7 @@ export class TushareService {
    * @returns Promise<IBaseRes>
    */
   getDailyBasic(date: string): Promise<IBaseRes<ITushareData>> {
-    return this.request({
-      data: {
-        api_name: 'daily_basic',
-        params: { trade_date: date },
-      },
-    });
+    return this.queryData('daily_basic', { trade_date: date });
   }
 
   /**
@@ -187,12 +211,12 @@ export class TushareService {
    * @returns Promise<IBaseRes>
    */
   getLimitList(date: string): Promise<IBaseRes<ITushareData>> {
-    return this.request({
-      data: {
-        api_name: 'limit_list_d',
-        params: { trade_date: date },
-      },
-    });
+    return this.queryData(
+      'limit_list_d',
+      { trade_date: date },
+      undefined,
+      2500,
+    );
   }
 
   /**

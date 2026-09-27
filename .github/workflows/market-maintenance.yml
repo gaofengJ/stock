@@ -1,0 +1,47 @@
+name: Market data maintenance
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: '检查状态或恢复已部署的两年测试库同步'
+        type: choice
+        required: true
+        default: status
+        options: [status, resume-test-refresh]
+permissions:
+  contents: read
+concurrency:
+  group: stock-market-maintenance
+  cancel-in-progress: false
+jobs:
+  maintenance:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run installed maintenance scripts
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          OPERATION: ${{ inputs.operation }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: 22
+          command_timeout: 15m
+          envs: OPERATION
+          script: |
+            set -eu
+            if [ "$OPERATION" = resume-test-refresh ]; then
+              test -s /opt/stock-test/history-refresh.cjs
+              rm -f /opt/stock-test/PAUSED
+              flock -w 300 /var/lock/stock-test-refresh.lock python3 /opt/stock-test/refresh.py
+            fi
+            if [ -f /opt/stock-test/PAUSED ]; then echo 'Test refresh: paused'; else echo 'Test refresh: enabled'; fi
+            docker exec stock-back node ops/release/data-status.cjs
+            python3 - <<'PY'
+            import json, os
+            path = '/opt/stock-test/state.json'
+            if os.path.exists(path):
+                data = json.load(open(path))
+                print(json.dumps({k: data.get(k) for k in ('status','processed','remaining','blocked','window')}, ensure_ascii=False))
+            PY

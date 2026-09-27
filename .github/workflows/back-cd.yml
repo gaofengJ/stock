@@ -63,6 +63,7 @@ jobs:
           AUTH_TEST_DATABASE=stock_auth_test_ci node test/accounts.integration.cjs
           AUTH_TEST_DATABASE=stock_auth_test_legacy_ci node test/migration-legacy.cjs
       - run: pnpm -C apps/front run lint
+      - run: node apps/front/scripts/test-errors.cjs && node apps/front/scripts/test-market-compatibility.cjs
       - run: pnpm -C apps/front run build
       - name: Verify production image and native Argon2 runtime
         run: docker build -f apps/back/dockerfile -t stock-back-verify .

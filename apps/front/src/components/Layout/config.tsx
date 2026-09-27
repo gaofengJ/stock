@@ -32,7 +32,7 @@ export const themeConfig: ThemeConfig = {
 export const headerMenuItems: MenuProps['items'] = [
   {
     key: EHeaderMenuKey.analysis,
-    label: '数据分析',
+    label: '市场分析',
   },
   {
     key: EHeaderMenuKey.trends,
@@ -78,17 +78,18 @@ export const avatarDropdownItems: MenuProps['items'] = [
  * 数据分析 侧边栏 items
  */
 export const analysisSiderMenuItems: MenuProps['items'] = [
+  { key: '/analysis/overview', label: '大盘概览' },
   {
     key: EAnalysisAsideMenuKey.analysisSenti,
-    label: '情绪指标',
-  },
-  {
-    key: EAnalysisAsideMenuKey.analysisChains,
-    label: '连板统计',
+    label: '市场情绪',
   },
   {
     key: EAnalysisAsideMenuKey.analysisLimits,
-    label: '涨停板复盘',
+    label: '涨停复盘',
+  },
+  {
+    key: EAnalysisAsideMenuKey.analysisChains,
+    label: '连板分析',
   },
 ];
 

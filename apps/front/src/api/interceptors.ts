@@ -1,12 +1,11 @@
 import { csrfToken, authFailure } from '@/auth/client';
 import {
-  Axios, AxiosError, InternalAxiosRequestConfig, isCancel,
+  Axios, AxiosError, isCancel,
 } from 'axios';
 import qs from 'qs';
-import { parseJSON } from '@/utils';
-import { IResData } from './types';
 import { BaseAxios } from './request';
 import { EBizError, RESPONSE_SUCCESS_CODE } from './config';
+import { errorMessage, userError } from './errors';
 
 /**
  * 注册请求拦截器
@@ -57,61 +56,29 @@ const registerResponseInterceptor = (ctx: BaseAxios, axios: Axios) => {
         ctx.requestMap.delete(urlKey);
       }
 
-      // 处理 Blob 类型响应
-      if (data instanceof Blob) {
-        if (response.config.responseType === 'blob' && data.type === 'application/json') {
-          const { code, message } = await parseJSON<IResData>(data);
-
-          // 处理未登录错误
-          if (code === EBizError.UN_LOGIN) {
-            ctx.handleUnLogin(message);
-            // eslint-disable-next-line prefer-promise-reject-errors
-            return Promise.reject({ code, config });
-          }
-
-          // 处理业务错误
-          if (ctx.isBizError(code)) {
-            ctx.showBizError(message, config);
-            return Promise.reject(code);
-          }
-
-          // 处理其他非成功响应代码
-          if (code !== RESPONSE_SUCCESS_CODE) {
-            ctx.showBizError(message, config);
-            return Promise.reject(code);
-          }
+      try {
+        let body = data;
+        if (data instanceof Blob) {
+          if (!/json|html/i.test(data.type)) return response;
+          body = JSON.parse(await data.text());
+        }
+        if (!body || typeof body !== 'object' || Array.isArray(body) || typeof body.code !== 'number' || !('data' in body)) {
+          throw new Error('服务返回的数据格式异常，请稍后重试');
+        }
+        if (body.code !== RESPONSE_SUCCESS_CODE) {
+          if (body.code === EBizError.UN_LOGIN) authFailure(401);
+          throw Object.assign(userError(body.message, body.code === EBizError.UN_LOGIN ? 401 : undefined), { code: body.code });
         }
         return response;
+      } catch (error) {
+        const localized = Object.assign(userError(error), { config, code: (error as { code?: number })?.code });
+        ctx.showBizError(localized.message, config);
+        throw localized;
       }
-
-      const { code, message } = data;
-
-      // 处理未登录错误
-      if (code === EBizError.UN_LOGIN) {
-        ctx.handleUnLogin(message);
-        // eslint-disable-next-line prefer-promise-reject-errors
-        return Promise.reject({ code, config });
-      }
-
-      // 处理业务错误
-      if (ctx.isBizError(code)) {
-        ctx.showBizError(message, config);
-        return Promise.reject(code);
-      }
-
-      // 处理其他非成功响应代码
-      if (code !== RESPONSE_SUCCESS_CODE) {
-        ctx.showBizError(message, config);
-        return Promise.reject(code);
-      }
-      return response;
     },
     async (error: AxiosError) => {
-      const { message, config } = error;
+      const { config } = error;
       authFailure(error.response?.status || 0);
-      const isTimeout = error.code === 'ECONNABORTED';
-      const responseMessage = (error.response?.data as { message?: string })
-        ?.message;
       const configuredMessage = error.response?.status
         ? ctx.errorMessageMap?.[error.response.status]
         : undefined;
@@ -126,14 +93,11 @@ const registerResponseInterceptor = (ctx: BaseAxios, axios: Axios) => {
       const mappedMessage = typeof configuredMessage === 'function'
         ? configuredMessage()
         : configuredMessage;
-      const errorMessage = isTimeout
-        ? '请求超时，请稍后重试'
-        : responseMessage || mappedMessage || message;
-      ctx.showBizError(
-        errorMessage,
-        config as InternalAxiosRequestConfig,
-      );
-      return Promise.reject(error);
+      // 不仅提示框使用中文，调用页面接收到的异常也必须使用中文。
+      const localized = error as AxiosError;
+      localized.message = errorMessage(error, errorMessage(mappedMessage));
+      ctx.showBizError(localized.message, config);
+      return Promise.reject(localized);
     },
   );
 };

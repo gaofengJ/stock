@@ -1,5 +1,6 @@
 'use client';
 
+import { errorMessage } from '@/api/errors';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Button,
@@ -25,11 +26,11 @@ export default function Page() {
   const [editing, setEditing] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [form] = Form.useForm();
-  const fail = (e: unknown) => message.error((e as Error).message);
+  const fail = (e: unknown) => message.error(errorMessage(e));
   const load = useCallback(
     () => api('/admin/roles')
       .then(setRows)
-      .catch((e) => message.error(e.message)),
+      .catch((e) => message.error(errorMessage(e))),
     [],
   );
   useEffect(() => {

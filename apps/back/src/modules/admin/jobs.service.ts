@@ -9,6 +9,8 @@ import {
 import { Interval } from '@nestjs/schedule';
 import { DataSource } from 'typeorm';
 import { createHash } from 'crypto';
+import * as dayjs from 'dayjs';
+import { permanentSyncError } from '../daily-task/sync.utils';
 import { redact } from '../auth/redact';
 import { DailyTaskService } from '../daily-task/daily-task.service';
 import { AuthService, CurrentUser } from '../auth/auth.service';
@@ -23,8 +25,11 @@ export function validRange(start: string, end: string) {
       new Date(d).toISOString().slice(0, 10) !== d
     )
       throw new BadRequestException('日期必须是有效的 YYYY-MM-DD');
-  if (start > end || Date.parse(end) - Date.parse(start) > 366 * 86400000)
-    throw new BadRequestException('日期范围必须正序且不超过366天');
+  if (
+    start > end ||
+    start < dayjs(end).subtract(2, 'year').format('YYYY-MM-DD')
+  )
+    throw new BadRequestException('日期范围必须正序且不超过两个自然年');
 }
 @Injectable()
 export class JobsService implements OnApplicationBootstrap {
@@ -40,6 +45,18 @@ export class JobsService implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap() {
+    if (this.daily.marketEnabled) {
+      try {
+        await this.locks.run(() =>
+          this.db.query(
+            "UPDATE t_admin_job SET status='queued',stage='服务重启，从已记录进度继续' WHERE status='running'",
+          ),
+        );
+      } catch (e) {
+        if (e.status !== 409) throw e;
+      }
+      return;
+    }
     try {
       await this.locks.run(async () => {
         const interrupted = await this.db.query(
@@ -61,13 +78,20 @@ export class JobsService implements OnApplicationBootstrap {
     }
   }
 
-  async create(actor: CurrentUser, start: string, end: string) {
+  async create(
+    actor: CurrentUser,
+    start: string,
+    end: string,
+    mode: 'missing' | 'refresh' = 'missing',
+  ) {
     validRange(start, end);
-    const key = createHash('sha256').update(`${start}:${end}`).digest('hex');
+    const key = createHash('sha256')
+      .update(`${mode}:${start}:${end}`)
+      .digest('hex');
     return this.db.transaction(async (m) => {
       await m.query(
-        'INSERT INTO t_admin_job(actor_id,actor_name,start_date,end_date,status,active_key,created_at,updated_at) VALUES (?,?,?,?,?,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6)) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)',
-        [actor.id, actor.username, start, end, 'queued', key],
+        'INSERT INTO t_admin_job(actor_id,actor_name,start_date,end_date,status,active_key,mode,created_at,updated_at) VALUES (?,?,?,?,?,?,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6)) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)',
+        [actor.id, actor.username, start, end, 'queued', key, mode],
       );
       const [job] = await m.query(
         'SELECT id,status FROM t_admin_job WHERE active_key=?',
@@ -90,7 +114,7 @@ export class JobsService implements OnApplicationBootstrap {
       'SELECT COUNT(*) total FROM t_admin_job',
     );
     const items = await this.db.query(
-      'SELECT id,actor_name actorName,DATE_FORMAT(start_date,"%Y-%m-%d") startDate,DATE_FORMAT(end_date,"%Y-%m-%d") endDate,status,stage,started_at startedAt,finished_at finishedAt,created_at createdAt,error FROM t_admin_job ORDER BY id DESC LIMIT ? OFFSET ?',
+      'SELECT id,mode,actor_name actorName,DATE_FORMAT(start_date,"%Y-%m-%d") startDate,DATE_FORMAT(end_date,"%Y-%m-%d") endDate,status,stage,started_at startedAt,finished_at finishedAt,created_at createdAt,error FROM t_admin_job ORDER BY id DESC LIMIT ? OFFSET ?',
       [q.pageSize, (q.page - 1) * q.pageSize],
     );
     return { items, total: Number(total) };
@@ -103,7 +127,7 @@ export class JobsService implements OnApplicationBootstrap {
     );
     if (!job) throw new NotFoundException('任务不存在');
     const dates = await this.db.query(
-      'SELECT task,DATE_FORMAT(trade_date,"%Y-%m-%d") tradeDate,status,daily_count dailyCount,limit_count limitCount,senti_count sentiCount,error,updated_at updatedAt FROM t_sync_run WHERE task="daily" AND trade_date BETWEEN ? AND ? ORDER BY trade_date',
+      "SELECT task,DATE_FORMAT(trade_date,'%Y-%m-%d') tradeDate,status,daily_count dailyCount,limit_count limitCount,senti_count sentiCount,error,updated_at updatedAt FROM t_sync_run WHERE task IN ('daily','market-index','market') AND trade_date BETWEEN ? AND ? ORDER BY trade_date,task",
       [job.startDate, job.endDate],
     );
     return { ...job, dates };
@@ -114,6 +138,10 @@ export class JobsService implements OnApplicationBootstrap {
     if (this.busy || process.env.ADMIN_JOBS_ENABLED === 'false') return;
     this.busy = true;
     try {
+      if (this.daily.marketEnabled) {
+        await this.tickMarket();
+        return;
+      }
       await this.locks.run(async () => {
         const [job] = await this.db.query(
           "SELECT *,DATE_FORMAT(start_date,'%Y-%m-%d') startDate,DATE_FORMAT(end_date,'%Y-%m-%d') endDate FROM t_admin_job WHERE status='queued' ORDER BY id LIMIT 1",
@@ -194,5 +222,103 @@ export class JobsService implements OnApplicationBootstrap {
     } finally {
       this.busy = false;
     }
+  }
+
+  private async tickMarket() {
+    await this.locks.run(async () => {
+      const [job] = await this.db.query(
+        "SELECT *,DATE_FORMAT(start_date,'%Y-%m-%d') startDate,DATE_FORMAT(end_date,'%Y-%m-%d') endDate FROM t_admin_job WHERE status IN ('queued','running') OR (status='pending' AND active_key IS NOT NULL AND updated_at<DATE_SUB(UTC_TIMESTAMP(6),INTERVAL 5 MINUTE)) ORDER BY (actor_id IS NULL AND mode='refresh') DESC,id LIMIT 1",
+      );
+      if (!job) return;
+      if (job.actor_id !== null) {
+        try {
+          const user = await this.auth.current(job.actor_id);
+          if (!user.permissions.includes('sync:run') || user.mustChangePassword)
+            throw new Error('提交者已失去同步权限');
+        } catch {
+          await this.db.query(
+            "UPDATE t_admin_job SET status='failed',active_key=NULL,error='提交者已失去同步权限',finished_at=UTC_TIMESTAMP(6) WHERE id=?",
+            [job.id],
+          );
+          return;
+        }
+      }
+      const completed: string[] =
+        typeof job.completed_dates === 'string'
+          ? JSON.parse(job.completed_dates)
+          : job.completed_dates || [];
+      await this.db.query(
+        "UPDATE t_admin_job SET status='running',started_at=COALESCE(started_at,UTC_TIMESTAMP(6)),stage='校验并补齐下一批，最多3个交易日' WHERE id=?",
+        [job.id],
+      );
+      try {
+        const result = await this.daily.marketBatch(
+          job.startDate,
+          job.endDate,
+          job.mode === 'refresh',
+          completed,
+        );
+        if (!result) return;
+        const done = [
+          ...new Set([
+            ...completed,
+            ...result.completed.filter(
+              (d) => d >= job.startDate && d <= job.endDate,
+            ),
+          ]),
+        ];
+        const permanent = result.failures.some(permanentSyncError);
+        const blocked =
+          result.protectedDates.length > 0 && result.remaining === 0;
+        let status = result.remaining ? 'queued' : 'success';
+        if (result.failures.length) status = 'pending';
+        if (permanent || blocked) status = 'failed';
+        const terminal = status === 'success' || status === 'failed';
+        const error =
+          [
+            ...result.failures,
+            ...(blocked
+              ? [`主动删除保护：${result.protectedDates.join('、')}`]
+              : []),
+          ].join('\n') || null;
+        await this.db.query(
+          'UPDATE t_admin_job SET status=?,stage=?,completed_dates=?,error=?,active_key=?,finished_at=?,updated_at=UTC_TIMESTAMP(6) WHERE id=?',
+          [
+            status,
+            `已处理 ${done.length} 日，待补 ${result.remaining} 日${
+              result.protectedDates.length
+                ? `，保护 ${result.protectedDates.length} 日`
+                : ''
+            }`,
+            JSON.stringify(done),
+            error,
+            terminal ? null : job.active_key,
+            terminal ? new Date() : null,
+            job.id,
+          ],
+        );
+        if (terminal)
+          await this.auth.audit(
+            job.actor_id === null
+              ? null
+              : { id: job.actor_id, username: job.actor_name },
+            'sync.complete',
+            job.id,
+            status,
+            { error },
+          );
+      } catch (e) {
+        const permanent = permanentSyncError(e);
+        await this.db.query(
+          'UPDATE t_admin_job SET status=?,error=?,active_key=?,updated_at=UTC_TIMESTAMP(6) WHERE id=?',
+          [
+            permanent ? 'failed' : 'pending',
+            String(redact(e.message)).slice(0, 2000),
+            permanent ? null : job.active_key,
+            job.id,
+          ],
+        );
+      }
+    });
   }
 }

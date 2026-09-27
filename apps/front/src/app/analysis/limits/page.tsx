@@ -1,133 +1,73 @@
 'use client';
 
-import dayjs from 'dayjs';
-import { useCallback, useEffect, useState } from 'react';
-import { Table } from 'antd';
-import CSearchForm from '@/components/common/CSearchForm';
-import Layout from '@/components/Layout';
-import { analysisSiderMenuItems } from '@/components/Layout/config';
+import { useState } from 'react';
 import {
-  EAnalysisAsideMenuKey,
-  EHeaderMenuKey,
-} from '@/components/Layout/enum';
+  Button, Input, Select, Space, Table, Tabs,
+} from 'antd';
+import { LimitRow } from '@/api/market';
+import LegacyPage from './LegacyPage';
+import MarketCompatibility from '../components/MarketCompatibility';
+import MarketShell from '../components/MarketShell';
+import useMarketData from '../components/useMarketData';
+import { DataState, numberText } from '../components/MarketCharts';
+import DragonDrawer from '../components/DragonDrawer';
+import { useMarket } from '../components/MarketContext';
 
-import { getAnalysisLimitsLimitUpList } from '@/api/services';
-import { NSGetAnalysisLimitsLimitUpList } from '@/api/services.types';
-import { useLatestRequest } from '@/hooks/useLatestRequest';
-import { useDefaultTradeDate } from '@/hooks/useDefaultTradeDate';
-
-import { useLimitsFilterConfigs } from './form-configs';
-import { limitsColumns } from './columns';
-import './limits.sass';
-
-function AnalysisLimitsPage() {
-  const limitsFilterConfigs = useLimitsFilterConfigs();
-  const { candidate, ready, tradeDate } = useDefaultTradeDate();
-
-  // searchParams 的初始值
-  const initialSearchParams: Partial<NSGetAnalysisLimitsLimitUpList.IParams> = {
-    date: candidate,
-  };
-  const [searchParams, setSearchParams] = useState<Partial<NSGetAnalysisLimitsLimitUpList.IParams>>(
-    initialSearchParams,
-  );
-  const [dateReady, setDateReady] = useState(false);
-
-  const [loading, setLoading] = useState(false);
-  const { requestConfig, runLatestRequest } = useLatestRequest('analysis-limit-up-list');
-
-  /**
-   * 更新 searchParams 的值
-   */
-  const handleSetSearchParams = (val: any) => {
-    setSearchParams((state) => ({
-      ...state,
-      ...val,
-      date: val.date.format('YYYY-MM-DD'),
-    }));
-  };
-
-  // limitsData 的初始值
-  const initialLimitsData: {
-    items: NSGetAnalysisLimitsLimitUpList.IRes;
-  } = {
-    items: [],
-  };
-  const [limitsData, setLimitsData] = useState(initialLimitsData);
-
-  useEffect(() => {
-    if (!ready) return;
-    setSearchParams((state) => (
-      state.date === candidate ? { ...state, date: tradeDate } : state
-    ));
-    setDateReady(true);
-  }, [candidate, ready, tradeDate]);
-
-  /**
-   * 获取 list
-   */
-  const getLimits = useCallback(() => {
-    if (!dateReady) return;
-    runLatestRequest({
-      request: () => getAnalysisLimitsLimitUpList(
-        searchParams as NSGetAnalysisLimitsLimitUpList.IParams,
-        requestConfig,
-      ),
-      onStart: () => setLoading(true),
-      onSuccess: ({ data: items }) => {
-        setLimitsData((state) => ({
-          ...state,
-          items: items.map((i) => ({
-            // 为 items 的每一项添加 key
-            ...i,
-            key: i.tsCode,
-          })),
-        }));
-      },
-      onError: (error) => {
-        console.error('e', error);
-        setLimitsData({ items: [] });
-      },
-      onFinally: () => setLoading(false),
-    });
-  }, [dateReady, requestConfig, runLatestRequest, searchParams]);
-
-  useEffect(() => {
-    getLimits();
-  }, [getLimits]);
-
+function LimitsPage() {
+  const [type, setType] = useState('U'); const [keyword, setKeyword] = useState('');
+  const [height, setHeight] = useState<number | undefined>();
+  const [stock, setStock] = useState<LimitRow | null>(null);
+  const { date } = useMarket();
+  const { data, loading, error } = useMarketData<{ ready: boolean; items: LimitRow[] }>('limits', { type, keyword, height });
+  const raw = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : String(v));
+  const amount = (v: string | null) => numberText(v == null ? null : Number(v) / 100000000);
   return (
-    <Layout
-      asideMenuItems={analysisSiderMenuItems}
-      headerMenuActive={EHeaderMenuKey.analysis}
-      asideMenuActive={EAnalysisAsideMenuKey.analysisLimits}
-    >
-      <div className="p-16 rounded-[6px] bg-bg-white">
-        <div className="mb-16">
-          <CSearchForm
-            configs={limitsFilterConfigs}
-            searchParams={{
-              ...searchParams,
-              date: dayjs(searchParams.date),
-            }}
-            setSearchParams={handleSetSearchParams}
-          />
-        </div>
-        <Table
-          rootClassName="analysis-limits-table"
-          dataSource={limitsData.items}
-          columns={limitsColumns}
+    <MarketShell title="涨停复盘" path="/analysis/limits" trend={false}>
+      <Tabs activeKey={type} onChange={setType} items={[{ key: 'U', label: '涨停' }, { key: 'Z', label: '炸板' }, { key: 'D', label: '跌停' }]} />
+      <Space className="mb-16">
+        <Input.Search allowClear placeholder="股票名称／代码" onSearch={setKeyword} style={{ width: 260 }} />
+        <Select allowClear placeholder="连板数" value={height} onChange={setHeight} style={{ width: 140 }} options={[{ value: 1, label: '首板' }, { value: 2, label: '二板' }, { value: 3, label: '三板' }, { value: 4, label: '四板及以上' }]} />
+      </Space>
+      <p className="market-note">非ST样本；涨停与炸板按收盘状态区分。缺失封板信息显示“—”。</p>
+      <DataState loading={loading} error={error} empty={!data?.ready}>
+        <Table<LimitRow>
+          rowKey="tsCode"
+          dataSource={data?.items}
+          size="middle"
           bordered
-          locale={{
-            emptyText: (<div className="min-h-240 leading-[240px]">当前日期暂无数据</div>),
-          }}
-          scroll={{ y: 'calc(100vh - 232px)' }}
-          loading={loading}
-          pagination={false}
+          scroll={{ x: 1800 }}
+          pagination={{ pageSize: 50, showSizeChanger: false }}
+          columns={[
+            {
+              title: '代码', dataIndex: 'tsCode', fixed: 'left', width: 115,
+            }, {
+              title: '名称', dataIndex: 'name', fixed: 'left', width: 105,
+            },
+            { title: '行业', dataIndex: 'industry', render: raw }, {
+              title: '涨跌幅(%)', dataIndex: 'pctChg', render: (v) => numberText(v), sorter: (a, b) => Number(a.pctChg) - Number(b.pctChg),
+            },
+            { title: '收盘价', dataIndex: 'close', render: (v) => numberText(v) },
+            {
+              title: '连板数', dataIndex: 'limitTimes', render: raw, sorter: (a, b) => a.limitTimes - b.limitTimes,
+            },
+            { title: '涨停统计', dataIndex: 'upStat', render: (v: string | null) => (v?.includes('/') ? `${v.split('/')[1]}天${v.split('/')[0]}板` : raw(v)) },
+            { title: '首次封板', dataIndex: 'firstTime', render: raw }, { title: '最后封板', dataIndex: 'lastTime', render: raw },
+            { title: '开板次数', dataIndex: 'openTimes', render: raw }, { title: '换手率(%)', dataIndex: 'turnoverRatio', render: (v) => numberText(v) },
+            {
+              title: '成交额(亿元)', dataIndex: 'amount', render: amount, sorter: (a, b) => Number(a.amount) - Number(b.amount),
+            },
+            { title: '封单额(亿元)', dataIndex: 'fdAmount', render: amount }, { title: '流通市值(亿元)', dataIndex: 'floatMv', render: amount },
+            {
+              title: '详情', key: 'action', fixed: 'right', width: 90, render: (_, r) => <Button type="link" onClick={() => setStock(r)}>龙虎榜</Button>,
+            },
+          ]}
         />
-      </div>
-    </Layout>
+      </DataState>
+      <DragonDrawer stock={stock} date={date} close={() => setStock(null)} />
+    </MarketShell>
   );
 }
 
-export default AnalysisLimitsPage;
+export default function Page() {
+  return <MarketCompatibility legacy={<LegacyPage />}><LimitsPage /></MarketCompatibility>;
+}

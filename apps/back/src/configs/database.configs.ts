@@ -23,6 +23,11 @@ const dataSourceOptions: DataSourceOptions = {
   synchronize: false,
   extra: {
     connectionLimit: getEnvConfigNumber('DB_CONNECTION_LIMIT', 20),
+    // mysql2 3.10 仅在 maxIdle < connectionLimit 时启用空闲回收。
+    // 默认回收所有超时空闲连接，避免共享测试账号被闲置连接池长期占满。
+    maxIdle: getEnvConfigNumber('DB_MAX_IDLE', 0),
+    idleTimeout: getEnvConfigNumber('DB_IDLE_TIMEOUT_MS', 60_000),
+    waitForConnections: true,
   },
   // 解决通过 pnpm migration:run 初始化数据时，遇到的 SET FOREIGN_KEY_CHECKS = 0; 等语句报错问题, 仅在执行数据迁移操作时设为 true
   multipleStatements: currentScript === 'typeorm', // 是否允许在单个查询中执行多个 SQL 语句

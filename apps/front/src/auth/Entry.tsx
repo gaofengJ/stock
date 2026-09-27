@@ -1,5 +1,6 @@
 'use client';
 
+import { errorMessage } from '@/api/errors';
 import { useState } from 'react';
 import Link from 'next/link';
 import {
@@ -85,7 +86,7 @@ export default function Entry({ register = false }: { register?: boolean }) {
                     router.replace('/');
                   }
                 } catch (e) {
-                  setError((e as Error).message);
+                  setError(errorMessage(e));
                 } finally {
                   setBusy(false);
                 }

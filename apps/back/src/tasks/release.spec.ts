@@ -25,6 +25,7 @@ shellDescribe('发布脚本故障恢复', () => {
     );
     ['test-db', 'stock-test'].forEach((name) => {
       writeFileSync(join(dir, name, 'refresh.cjs'), 'fixture');
+      writeFileSync(join(dir, name, 'history-refresh.cjs'), 'fixture');
       writeFileSync(join(dir, name, 'refresh.py'), 'fixture');
     });
     if (paused) writeFileSync(join(dir, 'stock-test', 'PAUSED'), '');

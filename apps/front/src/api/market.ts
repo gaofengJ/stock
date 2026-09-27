@@ -1,0 +1,41 @@
+import axios from './request';
+import type { RequestConfig } from './types';
+
+export type MarketScope = 'all' | 'hs' | 'main' | 'gem' | 'star' | 'bj';
+export interface MarketStats {
+  amount: number; up: number; down: number; flat: number; total: number; upRatio: number | null;
+  distribution: number[]; limitUp: number; limitDown: number; broken: number; maxHeight: number;
+  sealRate: number | null; brokenRate: number | null; previousSample: number;
+  highOpenRate: number | null; riseRate: number | null; averageChange: number | null;
+  counts: number[]; limitAmount: number; chainAmount: number;
+  upgrades: { from: number; numerator: number; denominator: number; rate: number | null }[];
+}
+export interface MarketStatus {
+  revision: string;
+  latestDate: string | null; expectedDate: string | null; dates: string[];
+  stages: { task: string; status: string; updatedAt: string; error: string | null }[];
+  backfill: { id: number; status: string; stage: string; error: string | null } | null;
+}
+export interface MarketSeries {
+  status: MarketStatus; date: string | null; snapshot: MarketStats | null;
+  previousAmount?: number | null; fiveDayAmount?: number | null; updatedAt?: string;
+  series: { date: string; data: MarketStats | null }[];
+  indexes: { code: string; name: string; series: { date: string; close: number; pctChg: number; amount: number }[] }[];
+  markets: (MarketStats & { scope: string })[];
+}
+export interface LimitRow {
+  tsCode: string; name: string; industry: string | null; close: string; pctChg: string;
+  amount: string | null; floatMv: string | null; turnoverRatio: string | null;
+  fdAmount: string | null; firstTime: string | null; lastTime: string | null;
+  openTimes: number | null; limitTimes: number; upStat: string | null;
+}
+export interface Ladder {
+  ready: boolean; items: LimitRow[];
+  transitions: { tsCode: string; name: string; previousHeight: number; height: number; state: string; pctChg: number | null }[];
+}
+export interface DragonData {
+  summary: { reason: string; lBuy: number; lSell: number; netAmount: number }[];
+  seats: { reason: string; exalter: string; side: string; buy: number; sell: number; netBuy: number }[];
+  queriedAt: string;
+}
+export const marketRequest = <T>(endpoint: string, params: Record<string, unknown> = {}, config: RequestConfig = {}) => axios.get<T>(`/analysis/market/${endpoint}`, { params, ...config });

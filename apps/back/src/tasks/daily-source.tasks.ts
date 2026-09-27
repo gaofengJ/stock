@@ -22,7 +22,7 @@ export class DailySourceTask implements OnApplicationBootstrap {
     if (process.env.SCHEDULE_ENABLED === 'false') return;
     // 不阻塞 HTTP 服务启动；停机期间缺失的交易日在后台补齐。
     if (getEnvConfigBoolean('SYNC_ON_STARTUP', false)) {
-      setImmediate(() => this.runSync(true));
+      setImmediate(() => this.runSync(false));
     }
   }
 
@@ -46,8 +46,18 @@ export class DailySourceTask implements OnApplicationBootstrap {
     await this.handleCorn();
   }
 
-  @Cron('0 0,15,30 21 * * *', { timeZone: 'Asia/Shanghai' })
+  @Cron('0 0,15,30,45 21 * * *', { timeZone: 'Asia/Shanghai' })
   async handleLateRetry() {
+    await this.handleCorn();
+  }
+
+  @Cron('0 0 22 * * *', { timeZone: 'Asia/Shanghai' })
+  async handleReconcile() {
+    await this.handleCorn();
+  }
+
+  @Cron('0 30 7 * * *', { timeZone: 'Asia/Shanghai' })
+  async handleMorning() {
     await this.handleCorn();
   }
 

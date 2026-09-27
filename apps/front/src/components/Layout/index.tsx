@@ -1,5 +1,6 @@
 'use client';
 
+import { errorMessage } from '@/api/errors';
 import { useAccount } from '@/auth/Boundary';
 import { allowedPath, homePath } from '@/auth/client';
 
@@ -114,7 +115,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
               <span className="ml-4 mr-16 text-12">联系作者</span>
             </div>
           </Popover>
-          <Tooltip title="北京时间每日 20:30 开始同步；未完整时于 20:45、21:00、21:15、21:30 自动补试，完成时间以数据源为准。">
+          <Tooltip title="北京时间每日 20:30 开始同步，每15分钟补试至22:00；22:00核对，次日07:30补缺。完成时间以数据源校验结果为准。">
             <span className="sync-schedule">
               每日
               <strong>20:30</strong>
@@ -126,7 +127,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
             menu={{
               items: [{ key: 'profile', label: '个人中心' }, { key: 'logout', label: '退出登录' }],
               onClick: ({ key }) => {
-                if (key === 'profile') router.push('/profile'); else logout().catch((e) => message.error(e.message));
+                if (key === 'profile') router.push('/profile'); else logout().catch((e) => message.error(errorMessage(e)));
               },
             }}
             placement="bottomLeft"

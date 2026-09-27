@@ -11,6 +11,7 @@ const { AuthService, COOKIE, digest } = require('../dist/modules/auth/auth.servi
 const { AuthGuard } = require('../dist/modules/auth/auth.guard');
 const { Accounts1790467200000 } = require('../dist/migrations/1790467200000-Accounts');
 const { AccountAvatars1790467200001 } = require('../dist/migrations/1790467200001-AccountAvatars');
+const { MarketAnalysis1790553600000 } = require('../dist/migrations/1790553600000-MarketAnalysis');
 const { TransformInterceptor } = require('../dist/interceptors/transform.interceptor');
 const { hashPassword } = require('../dist/modules/auth/password');
 const { ActiveFundsEntity } = require('../dist/modules/source/active-funds/active-funds.entity');
@@ -41,6 +42,7 @@ async function main() {
     await migration.up(q);
     const avatars = new AccountAvatars1790467200001();
     await avatars.up(q);
+    await new MarketAnalysis1790553600000().up(q);
     const [portrait] = await db.query("SELECT avatar FROM t_user WHERE username='mufeng'");
     assert.match(portrait.avatar, /^animal-[1-8]$/);
     await avatars.up(q);

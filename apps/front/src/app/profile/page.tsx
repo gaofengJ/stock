@@ -1,5 +1,6 @@
 'use client';
 
+import { errorMessage } from '@/api/errors';
 import {
   Alert,
   Button,
@@ -21,7 +22,7 @@ export default function Page() {
   const { user, refresh, logout } = useAccount();
   const [saving, setSaving] = useState(false);
   const [changing, setChanging] = useState(false);
-  const report = (e: unknown) => message.error((e as Error).message);
+  const report = (e: unknown) => message.error(errorMessage(e));
   if (!user) return null;
   return (
     <CommonLayout headerMenuActive="" asideMenuActive="/profile" asideMenuItems={[{ key: '/profile', icon: <UserOutlined />, label: '个人中心' }]}>

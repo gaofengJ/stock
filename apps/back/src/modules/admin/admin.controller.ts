@@ -36,7 +36,12 @@ export class AdminController {
   @Post('sync-jobs')
   @HttpCode(202)
   create(@Req() req: AuthRequest, @Body() dto: SyncJobDto) {
-    return this.jobs.create(req.authUser!, dto.startDate, dto.endDate);
+    return this.jobs.create(
+      req.authUser!,
+      dto.startDate,
+      dto.endDate,
+      dto.mode,
+    );
   }
 
   @Permit('sync:read')

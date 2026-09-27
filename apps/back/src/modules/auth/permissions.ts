@@ -14,21 +14,27 @@ export const Permit = (...any: string[]) => SetMetadata(ACCESS, { any });
 
 export const PERMISSIONS = [
   {
+    code: 'analysis:overview',
+    name: '大盘概览',
+    group: '市场分析',
+    route: '/analysis/overview',
+  },
+  {
     code: 'analysis:senti',
-    name: '情绪指标',
-    group: '数据分析',
+    name: '市场情绪',
+    group: '市场分析',
     route: '/analysis/senti',
   },
   {
     code: 'analysis:chains',
-    name: '连板统计',
-    group: '数据分析',
+    name: '连板分析',
+    group: '市场分析',
     route: '/analysis/chains',
   },
   {
     code: 'analysis:limits',
-    name: '涨停板复盘',
-    group: '数据分析',
+    name: '涨停复盘',
+    group: '市场分析',
     route: '/analysis/limits',
   },
   {
