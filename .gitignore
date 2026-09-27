@@ -91,3 +91,7 @@ next-env.d.ts
 __pycache__/
 
 # --- front end ---
+
+# Article style release staging
+.blog-style-release/
+blog-style.tgz
