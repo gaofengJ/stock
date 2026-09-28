@@ -743,6 +743,7 @@ mysqlDescribe('MySQL 同步事务与迁移回归', () => {
         'Accounts1790467200000',
         'AccountAvatars1790467200001',
         'MarketAnalysis1790553600000',
+        'LoginActivity1790640000000',
       ]);
       expect(before.counts.t_source_daily).toEqual({ rows: 2, duplicates: 1 });
       expect(await probeDb.manager.count(DailyEntity)).toBe(2);
@@ -756,6 +757,22 @@ mysqlDescribe('MySQL 同步事务与迁移回归', () => {
         database: probe,
       });
       expect(cli('migrate')[0].pending).toEqual([]);
+      expect(
+        await probeDb.query('SHOW COLUMNS FROM t_auth_activity_read'),
+      ).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ Field: 'user_id', Key: 'PRI' }),
+          expect.objectContaining({ Field: 'last_read_id', Default: '0' }),
+        ]),
+      );
+      const activityIndex = await probeDb.query<
+        { Seq_in_index: number; Column_name: string }[]
+      >("SHOW INDEX FROM t_auth_audit WHERE Key_name='ix_audit_action_id'");
+      expect(
+        activityIndex
+          .sort((a, b) => a.Seq_in_index - b.Seq_in_index)
+          .map((column) => column.Column_name),
+      ).toEqual(['action', 'id']);
     } finally {
       if (probeDb.isInitialized) await probeDb.destroy();
       await admin.query(`DROP DATABASE ${probe}`);

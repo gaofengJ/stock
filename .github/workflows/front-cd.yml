@@ -9,6 +9,9 @@ on:
       - master
     paths:
       - 'apps/front/**'
+      # 后端修复重新发布时，也重新部署此前被联动检查阻止的前端。
+      - 'apps/back/**'
+      - '.github/workflows/back-cd.yml'
       - 'pnpm-lock.yaml'
       - '.github/workflows/front-cd.yml'
 
