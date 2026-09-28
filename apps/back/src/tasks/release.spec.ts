@@ -44,7 +44,7 @@ docker() {
   echo "docker $*" >> "$TEST_LOG"
   case "$*" in
     "pull "*) [[ "$FAIL" != pull ]] || return 1 ;;
-    *" preflight") echo '{"requiredFreeBytes":1,"database":"stock"}' ;;
+    *" preflight") echo '{"requiredFreeBytes":100,"database":"stock","spaceBudget":{"migrationBytes":0,"reserveBytes":100}}' ;;
     *" client-config") echo '[client]' ;;
     *" migrate") [[ "$FAIL" != migration ]] || return 1 ;;
     *"smoke.cjs") [[ "$FAIL" != smoke ]] || return 1 ;;
@@ -53,10 +53,20 @@ docker() {
   esac
   return 0
 }
-python3() { if [[ "$*" == *requiredFreeBytes* ]]; then echo 1; else echo stock; fi; }
+python3() {
+  case "$*" in
+    *requiredFreeBytes*|*migrationBytes*) echo 100 ;;
+    *spaceBudget*) echo '{"migrationBytes":0,"reserveBytes":100}' ;;
+    *) echo stock ;;
+  esac
+}
 flock() { return 0; }
-df() { printf 'header\\nvolume 999999999999 0 999999999999 0 path\\n'; }
-mysqldump() { echo 'backup'; [[ "$FAIL" != backup ]]; }
+df() {
+  available=999999999999
+  if [[ "$FAIL" == space-before ]] || { [[ "$FAIL" == space-after ]] && [[ -f "$TEST_BACKUP_DONE" ]]; }; then available=0; fi
+  printf 'header\\nvolume 999999999999 0 %s 0 path\\n' "$available"
+}
+mysqldump() { echo 'backup'; touch "$TEST_BACKUP_DONE"; [[ "$FAIL" != backup ]]; }
 sleep() { return 0; }
 export -f docker python3 flock df mysqldump sleep
 `,
@@ -68,6 +78,7 @@ export -f docker python3 flock df mysqldump sleep
         RELEASE_SHA: 'a'.repeat(40),
         FAIL: fail,
         TEST_LOG: `${unix}/commands.log`,
+        TEST_BACKUP_DONE: `${unix}/backup-done`,
         DOCKER_PASSWORD: '',
       },
       encoding: 'utf8',
@@ -93,6 +104,25 @@ export -f docker python3 flock df mysqldump sleep
     expect(result.log).not.toContain('database.cjs migrate');
     expect(result.paused).toBe(false);
   });
+  it('预检空间不足时保留运行中的旧服务', () => {
+    const result = run('space-before');
+    expect(result.status).not.toBe(0);
+    expect(result.log).not.toContain('docker stop');
+    expect(result.log).not.toContain('database.cjs migrate');
+  });
+  it.each([false, true])(
+    '备份后空间不足恢复旧服务和原先暂停状态 %s',
+    (paused) => {
+      const result = run('space-after', paused);
+      expect(result.status).not.toBe(0);
+      expect(result.log).toContain('docker start old-id');
+      expect(result.log).not.toContain('database.cjs migrate');
+      expect(result.paused).toBe(paused);
+      expect(result.stdout).toContain(
+        'Insufficient migration space after backup',
+      );
+    },
+  );
   it('迁移中断保留现场，不自动降级，保持刷新暂停', () => {
     const result = run('migration');
     expect(result.status).not.toBe(0);
