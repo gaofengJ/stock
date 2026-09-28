@@ -17,15 +17,17 @@ import { checkPassword, hashPassword } from './password';
 import {
   LoginDto,
   PageDto,
+  ProfileDto,
   RegisterDto,
   RoleDto,
   UserQueryDto,
   UserUpdateDto,
 } from './auth.dto';
 import { redact } from './redact';
-import { randomAvatar } from './avatar';
+import { randomAvatar, AVATARS } from './avatar';
 
 export const COOKIE = 'stock_session';
+export const TRIAL_COOKIE = 'stock_trial';
 export const digest = (value: string) =>
   createHash('sha256').update(value).digest('hex');
 export interface CurrentUser {
@@ -167,7 +169,139 @@ export class AuthService implements OnModuleInit {
     return { csrfToken: token };
   }
 
-  async register(dto: RegisterDto, actor: CurrentUser | null = null) {
+  // A separate long-lived browser marker keeps logout and CSRF rotation from
+  // restarting the trial. Expired/cleaned-up rows remain expired for that marker.
+  async trial(req: FastifyRequest, reply?: FastifyReply, start = false) {
+    let token = req.cookies?.[TRIAL_COOKIE];
+    if (!token && start && reply) {
+      token = randomBytes(32).toString('hex');
+      await this.db.query(
+        'INSERT INTO t_auth_session(user_id,token_hash,csrf_hash,last_seen_at,expires_at) VALUES (NULL,?,?,UTC_TIMESTAMP(6),DATE_ADD(UTC_TIMESTAMP(6),INTERVAL 5 MINUTE))',
+        [digest(token), digest(`trial:${token}`)],
+      );
+      reply.setCookie(TRIAL_COOKIE, token, {
+        ...this.cookieOptions(),
+        maxAge: 365 * 86400,
+      });
+    }
+    if (!token) return null;
+    if (!/^[a-f0-9]{64}$/.test(token)) return { remainingMs: 0 };
+    const [row] = await this.db.query(
+      'SELECT GREATEST(0,TIMESTAMPDIFF(MICROSECOND,UTC_TIMESTAMP(6),expires_at) DIV 1000) remainingMs FROM t_auth_session WHERE token_hash=? AND csrf_hash=? AND user_id IS NULL AND revoked_at IS NULL',
+      [digest(token), digest(`trial:${token}`)],
+    );
+    return { remainingMs: Math.min(300000, Number(row?.remainingMs || 0)) };
+  }
+
+  async access(req: AuthRequest, reply: FastifyReply, start: boolean) {
+    if (req.authSession?.user_id) {
+      try {
+        return {
+          user: await this.current(req.authSession.user_id),
+          trial: null,
+        };
+      } catch (error) {
+        if (error instanceof UnauthorizedException)
+          return { user: null, trial: null };
+        throw error;
+      }
+    }
+    // A stale signed-in session must return to login, rather than silently
+    // downgrading to a fresh guest trial after revocation or account disablement.
+    const trial = await this.trial(
+      req,
+      reply,
+      start && (!req.cookies?.[COOKIE] || !!req.authSession),
+    );
+    const viewer =
+      trial && trial.remainingMs > 0
+        ? {
+            id: 0,
+            username: 'guest',
+            nickname: '游客',
+            guest: true,
+            mustChangePassword: false,
+            roles: [],
+            permissions: DEFAULT_PERMISSIONS,
+            catalog: PERMISSIONS.filter((p) =>
+              DEFAULT_PERMISSIONS.includes(p.code),
+            ),
+          }
+        : null;
+    return { user: viewer, trial };
+  }
+
+  async memberLogin(
+    user: CurrentUser,
+    manager: EntityManager,
+    registered = false,
+  ) {
+    if (!user.roles.some((role) => role.code === 'admin'))
+      await this.audit(
+        user,
+        'auth.member-login',
+        user.id,
+        'success',
+        { registered },
+        manager,
+      );
+  }
+
+  async loginActivity(actor: CurrentUser) {
+    const [cursor] = await this.db.query(
+      'SELECT last_read_id FROM t_auth_activity_read WHERE user_id=?',
+      [actor.id],
+    );
+    const lastRead = Number(cursor?.last_read_id || 0);
+    const [summary] = await this.db.query(
+      "SELECT COALESCE(MAX(id),0) latestId,COALESCE(SUM(id>?),0) unread FROM t_auth_audit WHERE action='auth.member-login' AND result='success'",
+      [lastRead],
+    );
+    const items = await this.db.query(
+      "SELECT a.id,a.actor_name username,u.nickname,a.detail,DATE_FORMAT(a.created_at,'%Y-%m-%dT%H:%i:%s.%fZ') createdAt FROM t_auth_audit a LEFT JOIN t_user u ON u.id=a.actor_id WHERE a.action='auth.member-login' AND a.result='success' ORDER BY a.id DESC LIMIT 50",
+    );
+    return {
+      unread: Number(summary.unread),
+      latestId: Number(summary.latestId),
+      items: items.map(
+        (item: {
+          id: number;
+          username: string;
+          nickname: string;
+          createdAt: string;
+          detail: string;
+        }) => ({
+          id: item.id,
+          username: item.username,
+          nickname: item.nickname,
+          createdAt: item.createdAt,
+          registered: JSON.parse(item.detail || '{}').registered === true,
+          unread: item.id > lastRead,
+        }),
+      ),
+    };
+  }
+
+  async readLoginActivity(actor: CurrentUser, throughId: number) {
+    // Clamp to a real event; marking a displayed snapshot does not consume
+    // events that arrived while its drawer was open.
+    const [row] = await this.db.query(
+      "SELECT COALESCE(MAX(id),0) id FROM t_auth_audit WHERE action='auth.member-login' AND result='success' AND id<=?",
+      [throughId],
+    );
+    await this.db.query(
+      'INSERT INTO t_auth_activity_read(user_id,last_read_id) VALUES (?,?) ON DUPLICATE KEY UPDATE last_read_id=GREATEST(last_read_id,VALUES(last_read_id))',
+      [actor.id, Number(row.id)],
+    );
+    return { success: true };
+  }
+
+  async register(
+    dto: RegisterDto,
+    actor?: CurrentUser | null,
+    req?: AuthRequest,
+    reply?: FastifyReply,
+  ) {
     if (dto.username === 'mufeng') throw new ConflictException('用户名不可用');
     const encoded = await hashPassword(dto.password);
     try {
@@ -194,6 +328,28 @@ export class AuthService implements OnModuleInit {
           undefined,
           m,
         );
+        if (!actor && req && reply) {
+          if (req.authSession)
+            await m.query('DELETE FROM t_auth_session WHERE id=?', [
+              req.authSession.id,
+            ]);
+          const csrfToken = await this.issue(reply, result.insertId, m);
+          await m.query(
+            'UPDATE t_user SET last_login=UTC_TIMESTAMP() WHERE id=?',
+            [result.insertId],
+          );
+          const user = await this.current(result.insertId, m);
+          await this.audit(
+            user,
+            'auth.login',
+            user.id,
+            'success',
+            undefined,
+            m,
+          );
+          await this.memberLogin(user, m, true);
+          return { id: result.insertId, user, csrfToken };
+        }
         return { id: result.insertId };
       });
     } catch (e) {
@@ -243,6 +399,7 @@ export class AuthService implements OnModuleInit {
       ]);
       const user = await this.current(found.id, m);
       await this.audit(user, 'auth.login', found.id, 'success', undefined, m);
+      await this.memberLogin(user, m);
       return { user, csrfToken };
     });
   }
@@ -277,18 +434,29 @@ export class AuthService implements OnModuleInit {
     });
   }
 
-  async profile(user: CurrentUser, nickname: string) {
+  async profile(user: CurrentUser, dto: ProfileDto) {
+    const { nickname, avatar } = dto;
+    if (nickname === undefined && avatar === undefined)
+      throw new BadRequestException('请填写昵称或选择头像');
+    if (avatar !== undefined && !AVATARS.includes(avatar))
+      throw new BadRequestException('请选择有效的小牛头像');
     return this.db.transaction(async (m) => {
-      await m.query('UPDATE t_user SET nickname=? WHERE id=?', [
-        nickname,
-        user.id,
-      ]);
+      if (nickname !== undefined)
+        await m.query('UPDATE t_user SET nickname=? WHERE id=?', [
+          nickname,
+          user.id,
+        ]);
+      if (avatar !== undefined)
+        await m.query('UPDATE t_user SET avatar=? WHERE id=?', [
+          avatar,
+          user.id,
+        ]);
       await this.audit(
         user,
         'user.profile',
         user.id,
         'success',
-        { nickname },
+        { nickname, avatar },
         m,
       );
       return this.current(user.id, m);

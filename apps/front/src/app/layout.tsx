@@ -1,7 +1,6 @@
 import AccountBoundary from '@/auth/Boundary';
 import type { Metadata } from 'next';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
-import { Watermark } from 'antd';
 import './global.css';
 import '@/auth/account.css';
 
@@ -19,15 +18,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body>
-        <Watermark
-          font={{ color: 'rgba(37, 42, 52, 0.035)', fontSize: 12 }}
-          gap={[180, 160]}
-          height={40}
-          width={160}
-          content="木风同学的投资小站"
-        >
-          <AntdRegistry><AccountBoundary>{children}</AccountBoundary></AntdRegistry>
-        </Watermark>
+        <AntdRegistry><AccountBoundary>{children}</AccountBoundary></AntdRegistry>
       </body>
     </html>
   );

@@ -13,6 +13,25 @@ function load(file, imports = {}) {
   return exports;
 }
 const format = load('utils/format.ts');
+const avatars = load('auth/avatars.ts');
+test('all users share 28 choices and explicit choices override role defaults', () => {
+  const admin = [{ code: 'admin' }];
+  assert.equal(avatars.avatarId('bull-admin-heart', admin), 'bull-red-heart');
+  assert.equal(avatars.avatarId('animal-5', admin), 'bull-red-star');
+  assert.equal(avatars.avatarId('animal-5', [{ code: 'user' }]), 'animal-5');
+  assert.equal(avatars.avatarId('bull-admin-heart', [{ code: 'user' }]), 'bull-red-heart');
+  assert.equal(avatars.avatarId('../invalid'), 'bull-pink-star');
+  assert.equal(avatars.avatarId('auto-bull-blue-flower', admin), 'bull-red-star');
+  assert.equal(avatars.avatarId('auto-bull-blue-flower', []), 'bull-blue-flower');
+  assert.equal(avatars.avatarId(undefined, admin), 'bull-red-star');
+  assert.equal(avatars.avatarOptions().length, 28);
+  for (const option of avatars.avatarOptions()) {
+    assert.equal(avatars.avatarId(option.id, admin), option.id);
+    assert.equal(avatars.avatarId(option.id, []), option.id);
+    assert.ok(fs.existsSync(path.join(__dirname, '../public/avatars', `${option.id}.svg`)));
+  }
+  for (const color of avatars.avatarColors) assert.equal(avatars.avatarOptions().filter(x => x.color === color.id).length, 4);
+});
 test('missing and non-finite values remain distinct from real zero', () => {
   for (const value of [null, undefined, '', ' ', NaN, Infinity, -Infinity, true, {}, 'unknown']) assert.equal(format.numberText(value), '—');
   assert.equal(format.numberText(0), '0.00');

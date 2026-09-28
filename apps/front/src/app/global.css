@@ -55,11 +55,19 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "P
 .quote-down { color: var(--quote-down); }
 .quote-flat { color: var(--text-secondary); }
 .platform-layout { height: 100dvh; min-width: 0; }
-.platform-header { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #eceef1; flex-shrink: 0; }
-.platform-brand { display: flex; align-items: center; gap: 8px; white-space: nowrap; flex-shrink: 0; font-size: 18px; font-weight: 600; }
+.platform-header { display: flex; align-items: center; gap: 16px; border-bottom: 1px solid #eceef1; flex-shrink: 0; }
+.platform-brand { display: flex; align-items: center; gap: 8px; white-space: nowrap; flex-shrink: 0; font-size: 18px; font-weight: 600; color: #252a34; text-decoration: none; }
+.platform-brand:focus-visible { outline: 2px solid #ff2e63; outline-offset: 4px; border-radius: 4px; }
+.platform-header .platform-brand:hover { color: #ff2e63; }
+.platform-market-label { color: #697386; font-size: 12px; white-space: nowrap; line-height: 20px; padding-left: 16px; border-left: 1px solid #e5e7eb; }
+.platform-nav { font-size: 14px; }
+.platform-nav .ant-menu-item-selected { font-weight: 600; }
+.drawer-section-label { margin: 20px 16px 8px; color: #697386; font-size: 12px; }
 .platform-body, .platform-content, .platform-content-inner { min-width: 0; min-height: 0; }
 .platform-content { overflow: auto; overscroll-behavior: contain; }
-.platform-content-inner > .bg-bg-white { min-height: 100%; }
+/* Watermark clips overflow internally, so its height must grow with the page. */
+.platform-watermark { min-height: 100%; min-width: 0; }
+.platform-watermark > .bg-bg-white { min-height: 100%; }
 .page-heading { margin: 0 0 16px; font-size: 20px; font-weight: 600; line-height: 1.4; }
 .section-heading { margin: 24px 0 12px; font-size: 16px; font-weight: 600; }
 .section-heading:first-child { margin-top: 0; }
@@ -81,14 +89,19 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "P
 .market-breadth { display: flex; height: 8px; overflow: hidden; border-radius: 4px; margin: 0 0 16px; }
 .market-breadth > span { min-width: 0; }
 .prepared-page { padding: 24px; background: #fff; border-radius: 6px; min-height: 100%; }
-@media (max-width: 1199px) { .platform-header .header-contact, .platform-header .sync-schedule { display: none; } }
+@media (max-width: 1599px) { .platform-market-label { display: none; } }
+@media (max-width: 1199px) {
+  .platform-header .header-contact, .platform-header .sync-schedule { display: none; }
+  .platform-header { gap: 12px; }
+}
 @media (max-width: 767px) {
-  .platform-header { padding: 0 8px !important; gap: 4px; }
-  .platform-brand { font-size: 14px; gap: 4px; }
+  .platform-header { padding: 0 12px !important; gap: 8px; }
+  .platform-brand { font-size: 16px; gap: 4px; }
   .platform-brand img { width: 24px; height: 24px; }
-  .platform-header .header-account { margin-left: 0; }
+  .platform-header .header-account { padding: 4px; gap: 4px; }
+  .header-account-name { display: none; }
   .platform-content.p-16 { padding: 8px; }
-  .platform-content-inner > .bg-bg-white { padding: 12px; }
+  .platform-watermark > .bg-bg-white { padding: 12px; }
   .platform-content .ant-card-body { padding: 12px; }
   .platform-content .ant-card-head { padding: 0 12px; }
   .platform-content .ant-card-head-title { white-space: normal; }

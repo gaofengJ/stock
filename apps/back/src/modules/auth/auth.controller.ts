@@ -24,6 +24,7 @@ import {
   RoleDto,
   UserQueryDto,
   UserUpdateDto,
+  ReadActivityDto,
 } from './auth.dto';
 import { Permit, PERMISSIONS, Public, SignedIn } from './permissions';
 
@@ -48,8 +49,22 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  register(@Body() dto: RegisterDto) {
-    return this.auth.register(dto);
+  register(
+    @Body() dto: RegisterDto,
+    @Req() req: AuthRequest,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    return this.auth.register(dto, null, req, reply);
+  }
+
+  @Public()
+  @Get('access')
+  access(
+    @Req() req: AuthRequest,
+    @Query('startTrial') startTrial: string,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    return this.auth.access(req, reply, startTrial === '1');
   }
 
   @Public()
@@ -100,13 +115,25 @@ export class ProfileController {
   @SignedIn()
   @Patch('me')
   profile(@Req() req: AuthRequest, @Body() dto: ProfileDto) {
-    return this.auth.profile(req.authUser!, dto.nickname);
+    return this.auth.profile(req.authUser!, dto);
   }
 }
 @Controller('admin')
 @UsePipes(strict)
 export class AccountsController {
   constructor(private auth: AuthService) {}
+
+  @Permit('users:manage')
+  @Get('login-activity')
+  activity(@Req() req: AuthRequest) {
+    return this.auth.loginActivity(req.authUser!);
+  }
+
+  @Permit('users:manage')
+  @Post('login-activity/read')
+  readActivity(@Req() req: AuthRequest, @Body() dto: ReadActivityDto) {
+    return this.auth.readLoginActivity(req.authUser!, dto.throughId);
+  }
 
   @Permit('users:manage')
   @Get('users')

@@ -1,1 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="牛主题头像"><rect width="100" height="100" rx="50" fill="#f6efff"/><path d="M31 39C13 36 12 20 21 14c-2 12 7 15 17 15M69 39c18-3 19-19 10-25 2 12-7 15-17 15" fill="#f5dfad" stroke="#ad8952" stroke-width="2"/><ellipse cx="25" cy="44" rx="12" ry="9" transform="rotate(25 25 44)" fill="#89709e"/><ellipse cx="75" cy="44" rx="12" ry="9" transform="rotate(-25 75 44)" fill="#89709e"/><ellipse cx="50" cy="55" rx="27" ry="30" fill="#89709e"/><path d="M41 30q7-17 15-5l-4 9" fill="#89709e"/><ellipse cx="40" cy="49" rx="3" ry="4" fill="#252a34"/><ellipse cx="60" cy="49" rx="3" ry="4" fill="#252a34"/><circle cx="41" cy="48" r="1" fill="white"/><circle cx="61" cy="48" r="1" fill="white"/><ellipse cx="50" cy="69" rx="23" ry="16" fill="#d7c2e6"/><ellipse cx="40" cy="66" rx="3" ry="4" fill="#785751"/><ellipse cx="60" cy="66" rx="3" ry="4" fill="#785751"/><path d="M44 76q6 4 12 0" fill="none" stroke="#785751" stroke-width="2" stroke-linecap="round"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="可爱小牛头像">
+  <circle cx="50" cy="50" r="50" fill="#FFF8DE"/>
+  <circle cx="15" cy="23" r="2" fill="#F3D485" opacity=".45"/><circle cx="85" cy="77" r="3" fill="#F3D485" opacity=".35"/>
+  <path d="M31 34C19 31 18 20 25 15c-1 9 6 11 12 11M69 34c12-3 13-14 6-19 1 9-6 11-12 11" fill="#FFE9BF" stroke="#D5AE78" stroke-width="1.5" stroke-linejoin="round"/>
+  <ellipse cx="21" cy="44" rx="13" ry="10" transform="rotate(25 21 44)" fill="#F3D485"/>
+  <ellipse cx="79" cy="44" rx="13" ry="10" transform="rotate(-25 79 44)" fill="#F3D485"/>
+  <ellipse cx="21" cy="45" rx="7" ry="5" transform="rotate(25 21 45)" fill="#FFE5CB"/>
+  <ellipse cx="79" cy="45" rx="7" ry="5" transform="rotate(-25 79 45)" fill="#FFE5CB"/>
+  <path d="M19 56c0-23 12-33 31-33s31 10 31 33c0 21-12 32-31 32S19 77 19 56" fill="#F3D485"/>
+  <g fill="#FFF6E4"><circle cx="49" cy="21" r="5"/><circle cx="44" cy="26" r="5"/><circle cx="54" cy="26" r="5"/><circle cx="49" cy="31" r="5"/></g><circle cx="49" cy="26" r="4" fill="#E9AD65"/>
+  <ellipse cx="37" cy="51" rx="5" ry="6.5" fill="#49323B"/><ellipse cx="63" cy="51" rx="5" ry="6.5" fill="#49323B"/>
+  <circle cx="35.5" cy="49" r="2" fill="#fff"/><circle cx="61.5" cy="49" r="2" fill="#fff"/>
+  <circle cx="39" cy="54" r="1" fill="#fff" opacity=".75"/><circle cx="65" cy="54" r="1" fill="#fff" opacity=".75"/>
+  <ellipse cx="28" cy="62" rx="6" ry="3.5" fill="#F4869C" opacity=".7"/><ellipse cx="72" cy="62" rx="6" ry="3.5" fill="#F4869C" opacity=".7"/>
+  <rect x="28" y="60" width="44" height="23" rx="11.5" fill="#FFE5CB"/>
+  <ellipse cx="40" cy="68" rx="2.3" ry="2.8" fill="#C2A055"/><ellipse cx="60" cy="68" rx="2.3" ry="2.8" fill="#C2A055"/>
+  <path d="M45 75q5 5 10 0" fill="none" stroke="#85505A" stroke-width="1.8" stroke-linecap="round"/>
+</svg>

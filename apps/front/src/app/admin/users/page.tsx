@@ -136,7 +136,7 @@ export default function Page() {
             width: 220,
             render: (_, r) => (
               <div className="account-identity">
-                <AccountAvatar avatar={r.avatar} />
+                <AccountAvatar avatar={r.avatar} roles={r.roles} />
                 <div>
                   <strong>{r.nickname || r.username}</strong>
                   <small>

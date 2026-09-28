@@ -12,13 +12,10 @@ import { SentiUpDownCountEntity } from '@/modules/analysis/senti/senti.entity';
 import { DailyEntity } from './daily.entity';
 import { DailyDto, DailyQueryDto, DailyUpdateDto } from './daily.dto';
 import {
-  matchesContinuousGap,
-  matchesGapThreeHighTurnover,
-  matchesGapThreeUp,
-  matchesGapTwoUp,
-  matchesShadowWrap,
-  matchesThreeDaysHighVol,
-} from './strategy-rules';
+  hasValidStrategySequence,
+  hasUpperShadowAboveThreePercent,
+  meetsCommonStrategyConditions,
+} from './strategy-validation';
 
 @Injectable()
 export class DailyService {
@@ -168,7 +165,7 @@ export class DailyService {
   }
 
   /**
-   * 策略：向上跳空未回补后三连阳
+   * 策略：向上跳空缺口后三连阳
    * @param dates [date4(最新), date3, date2, date1(最早)]
    */
   async findGapThreeUp(dates: string[]): Promise<DailyEntity[]> {
@@ -184,7 +181,17 @@ export class DailyService {
 
       if (!d1 || !d2 || !d3 || !d4) return;
 
-      if (matchesGapThreeUp(d1, d2, d3, d4)) {
+      if (!hasValidStrategySequence([d1, d2, d3, d4])) return;
+      if (!meetsCommonStrategyConditions([d2, d3, d4])) return;
+
+      if (
+        +d1.high < +d2.low && // 缺口
+        +d3.low > +d1.high && // 允许部分回补，但最低价不能触及或跌破D1最高价
+        +d4.low > +d1.high &&
+        +d2.close > +d2.open && // d2 阳线
+        +d3.close > +d3.open && // d3 阳线
+        +d4.close > +d4.open // d4 阳线，不要求三天收盘逐日上涨
+      ) {
         result.push(d4);
       }
     });
@@ -193,7 +200,7 @@ export class DailyService {
   }
 
   /**
-   * 策略：向上跳空未回补后二连阳
+   * 策略：向上跳空缺口后二连阳
    * @param dates [date3(最新), date2, date1(最早)]
    */
   async findGapTwoUp(dates: string[]): Promise<DailyEntity[]> {
@@ -208,7 +215,15 @@ export class DailyService {
 
       if (!d1 || !d2 || !d3) return;
 
-      if (matchesGapTwoUp(d1, d2, d3)) {
+      if (!hasValidStrategySequence([d1, d2, d3])) return;
+      if (!meetsCommonStrategyConditions([d2, d3])) return;
+
+      if (
+        +d1.high < +d2.low && // 缺口
+        +d3.low > +d1.high && // 允许部分回补，但最低价不能触及或跌破D1最高价
+        +d2.close > +d2.open && // d2 阳线
+        +d3.close > +d3.open // d3 阳线，不要求两天收盘逐日上涨
+      ) {
         result.push(d3);
       }
     });
@@ -217,7 +232,7 @@ export class DailyService {
   }
 
   /**
-   * 策略：向上跳空后三日高换手
+   * 策略：向上跳空缺口后连续三日高换手率
    * @param dates [date4(最新), date3, date2, date1(最早)]
    */
   async findGapThreeHighTurnover(dates: string[]): Promise<DailyEntity[]> {
@@ -233,7 +248,20 @@ export class DailyService {
 
       if (!d1 || !d2 || !d3 || !d4) return;
 
-      if (matchesGapThreeHighTurnover(d1, d2, d3, d4)) {
+      if (!hasValidStrategySequence([d1, d2, d3, d4])) return;
+      if (!meetsCommonStrategyConditions([d2, d3, d4])) return;
+
+      if (
+        +d1.high < +d2.low && // 缺口
+        +d3.low > +d1.high && // 允许部分回补，但最低价不能触及或跌破D1最高价
+        +d4.low > +d1.high &&
+        +d2.amount > +d1.amount && // 仅跳空日成交额需高于基准日
+        [d2, d3, d4].every(
+          (day) =>
+            +(day.turnoverRateF || 0) > 5 &&
+            Number(day.turnoverRateF) > Number(d1.turnoverRateF),
+        ) // 不要求收盘递增或D4收阳
+      ) {
         result.push(d4);
       }
     });
@@ -241,7 +269,9 @@ export class DailyService {
   }
 
   /**
-   * 策略：连续三日放量不萎缩
+   * 策略：连续三日放量收阳
+   * 沿用原量比目标3.0、2.1、1.7各下调10%的门槛，且三天均收阳。
+   * 仅量比门槛逐日降低，不要求实际量比递减、成交量不下降或收盘逐日上涨。
    * @param dates [date3(最新), date2, date1(最早)]
    */
   async findThreeDaysHighVol(dates: string[]): Promise<DailyEntity[]> {
@@ -256,7 +286,17 @@ export class DailyService {
 
       if (!d1 || !d2 || !d3) return;
 
-      if (matchesThreeDaysHighVol(d1, d2, d3)) {
+      if (!hasValidStrategySequence([d1, d2, d3])) return;
+      if (!meetsCommonStrategyConditions([d1, d2, d3])) return;
+
+      if (
+        +(d1.volumeRatio || 0) > 2.7 &&
+        +(d2.volumeRatio || 0) > 1.89 &&
+        +(d3.volumeRatio || 0) > 1.53 &&
+        +d1.close > +d1.open &&
+        +d2.close > +d2.open &&
+        +d3.close > +d3.open
+      ) {
         result.push(d3);
       }
     });
@@ -265,6 +305,7 @@ export class DailyService {
 
   /**
    * 策略：连续两次向上缺口
+   * 两次完整向上缺口，不要求收阳；同样适用统一成交额、收盘位置及涨停条件。
    * @param dates [date3(最新), date2, date1(最早)]
    */
   async findContinuousGap(dates: string[]): Promise<DailyEntity[]> {
@@ -279,7 +320,13 @@ export class DailyService {
 
       if (!d1 || !d2 || !d3) return;
 
-      if (matchesContinuousGap(d1, d2, d3)) {
+      if (!hasValidStrategySequence([d1, d2, d3])) return;
+      if (!meetsCommonStrategyConditions([d2, d3])) return;
+
+      if (
+        +d2.low > +d1.high && // 昨天最低价高于前天最高价，形成第一个向上缺口
+        +d3.low > +d2.high // 今天最低价高于昨天最高价，形成第二个向上缺口
+      ) {
         // 返回今天的数据，便于策略页直接展示最新交易日结果
         result.push(d3);
       }
@@ -289,7 +336,8 @@ export class DailyService {
   }
 
   /**
-   * 策略：向上跳空长上影反包
+   * 策略：向上跳空上影反包
+   * 保留上影幅度>3%的定义，不限制D3相对D2的成交量。
    * @param dates [date3(最新), date2, date1(最早)]
    */
   async findShadowWrap(dates: string[]): Promise<DailyEntity[]> {
@@ -304,7 +352,16 @@ export class DailyService {
 
       if (!d1 || !d2 || !d3) return;
 
-      if (matchesShadowWrap(d1, d2, d3)) {
+      if (!hasValidStrategySequence([d1, d2, d3])) return;
+      if (!meetsCommonStrategyConditions([d2, d3])) return;
+
+      if (
+        +d2.low > +d1.high && // 第一天形成向上跳空缺口，且当日未回补
+        hasUpperShadowAboveThreePercent(d2) && // 整数分精确判断上影幅度严格大于3%
+        +d3.close > +d2.high && // 第二天收盘价必须高于第一天最高价
+        +d3.low > +d1.high && // 允许部分回补，但最低价不能触及或跌破D1最高价
+        +d3.close > +d3.open // 反包日必须收阳
+      ) {
         // 返回第二日数据，便于策略页直接展示最新交易日结果
         result.push(d3);
       }

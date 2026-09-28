@@ -11,7 +11,9 @@ import {
   Matches,
   Max,
   Min,
+  ValidateIf,
 } from 'class-validator';
+import { AVATARS } from './avatar';
 
 // Preserve raw body types even when the existing global pipe enables implicit conversion.
 const StrictValue = () =>
@@ -54,7 +56,16 @@ export class PasswordDto {
   @StrictValue() @IsString() @Length(10, 128) newPassword: string;
 }
 export class ProfileDto {
-  @StrictValue() @IsString() @Length(1, 40) nickname: string;
+  @ValidateIf((_, value) => value !== undefined)
+  @StrictValue()
+  @IsString()
+  @Length(1, 40)
+  nickname?: string;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @StrictValue()
+  @IsIn(AVATARS, { message: '请选择有效的小牛头像' })
+  avatar?: string;
 }
 export class PageDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) page = 1;
@@ -65,6 +76,13 @@ export class PageDto {
 }
 export class UserQueryDto extends PageDto {
   @IsOptional() @Type(() => Number) @IsIn([0, 1]) active?: number;
+}
+export class ReadActivityDto {
+  @StrictValue()
+  @IsInt({ message: '请选择有效的登录记录' })
+  @Min(0)
+  @Max(2147483647)
+  throughId: number;
 }
 export class UserUpdateDto {
   @IsOptional() @StrictValue() @IsString() @Length(1, 40) nickname?: string;

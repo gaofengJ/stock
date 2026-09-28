@@ -6,6 +6,7 @@ import { SyncSafety1790380800001 } from './migrations/1790380800001-SyncSafety';
 import { Accounts1790467200000 } from './migrations/1790467200000-Accounts';
 import { AccountAvatars1790467200001 } from './migrations/1790467200001-AccountAvatars';
 import { MarketAnalysis1790553600000 } from './migrations/1790553600000-MarketAnalysis';
+import { LoginActivity1790640000000 } from './migrations/1790640000000-LoginActivity';
 
 dotenv.config({
   path:
@@ -27,6 +28,7 @@ export default new DataSource({
     Accounts1790467200000,
     AccountAvatars1790467200001,
     MarketAnalysis1790553600000,
+    LoginActivity1790640000000,
   ],
   migrationsTransactionMode: 'none',
   logging: false,

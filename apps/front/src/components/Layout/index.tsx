@@ -16,13 +16,19 @@ import {
   message,
   MenuProps,
   Popover,
+  Watermark,
+  Badge,
 } from 'antd';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 import AccountAvatar from '@/auth/AccountAvatar';
-import { MenuOutlined, WechatOutlined } from '@ant-design/icons';
+import LoginActivity, { useLoginActivity } from '@/auth/LoginActivity';
+import {
+  MenuOutlined, WechatOutlined, DownOutlined, UserOutlined, LogoutOutlined, ClockCircleOutlined,
+} from '@ant-design/icons';
 import ImgFengye from '@/assets/imgs/fengye.png';
 import ImgAuthorAvatar from '@/assets/imgs/author-avatar.png';
 import { useOptionsState } from '@/store/useOptionsStore';
@@ -44,6 +50,24 @@ interface ILayoutProps {
   contentClassName?: string;
 }
 
+function AccountMenuPanel({ menu }: { menu: React.ReactNode }) {
+  const { user } = useAccount();
+  return (
+    <div className="header-account-panel">
+      <div className="header-account-summary">
+        <AccountAvatar avatar={user?.avatar} roles={user?.roles} size={40} />
+        <div>
+          <strong>{user?.nickname || user?.username}</strong>
+          <span>{`@${user?.username || ''}`}</span>
+        </div>
+      </div>
+      {menu}
+    </div>
+  );
+}
+
+const renderAccountMenu = (menu: React.ReactNode) => <AccountMenuPanel menu={menu} />;
+
 const CommonLayout: React.FC<ILayoutProps> = ({
   children,
   showAsideMenu = true,
@@ -57,8 +81,18 @@ const CommonLayout: React.FC<ILayoutProps> = ({
   const screens = Grid.useBreakpoint();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const mobile = !screens.md;
-  const { user, logout } = useAccount();
+  const { user, logout, trialRemaining } = useAccount();
+  const canReadActivity = !!user?.permissions.includes('users:manage');
+  const activity = useLoginActivity(canReadActivity);
+  const adminLabel = (
+    <span>
+      管理后台
+      {canReadActivity && <Badge count={activity.data.unread} overflowCount={99} size="small" />}
+    </span>
+  );
+  const accountName = user?.nickname || user?.username || '我的账户';
   const visible = (items: MenuProps['items']) => items?.filter((item) => item && allowedPath(user, String(item.key)));
 
   const { getAllOptions } = useOptionsState();
@@ -68,6 +102,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
    */
   const handleHeaderMenuSelect = (row: { key: string }) => {
     router.push(homePath(user, row.key));
+    setDrawerOpen(false);
   };
 
   /**
@@ -89,61 +124,95 @@ const CommonLayout: React.FC<ILayoutProps> = ({
         className="platform-header"
         style={{ backgroundColor: 'white' }}
       >
-        {mobile && showAsideMenu && <Button type="text" icon={<MenuOutlined />} aria-label="打开栏目导航" onClick={() => setDrawerOpen(true)} />}
-        <div className="platform-brand">
+        {mobile && <Button type="text" icon={<MenuOutlined />} aria-label="打开栏目导航" onClick={() => setDrawerOpen(true)} />}
+        <Link href={homePath(user)} className="platform-brand" aria-label="木风同学，返回首页">
           <img src={ImgFengye.src} alt="" width={28} height={28} />
           <span>木风同学</span>
-        </div>
+        </Link>
+        <span className="platform-market-label">A股 · 盘后复盘</span>
+        {!mobile && (
         <Menu
           mode="horizontal"
           selectedKeys={[headerMenuActive]}
-          items={visible([...(headerMenuItems || []), { key: '/admin', label: '管理后台' }])}
+          items={visible([...(headerMenuItems || []), { key: '/admin', label: adminLabel }])}
           onSelect={handleHeaderMenuSelect}
           className="platform-nav"
-          style={{ borderBottom: 'none', minWidth: 0, flex: 1 }}
+          style={{ borderBottom: 'none', minWidth: 0, flex: '1 1 auto' }}
         />
-        <Popover
-          content={(
-            <div>
-              <img
-                src={ImgAuthorAvatar.src}
-                alt="fengye"
-                className="w-200 h-200"
-              />
-            </div>
+        )}
+        <div className="header-tools">
+          <Popover
+            trigger="click"
+            placement="bottomRight"
+            content={(
+              <div>
+                <img
+                  src={ImgAuthorAvatar.src}
+                  alt="作者联系方式"
+                  className="w-200 h-200"
+                />
+              </div>
             )}
-        >
-          <div className="header-contact flex items-center cursor-pointer">
-            <WechatOutlined
-              style={{
-                color: EThemeColors.colorLimeGreen,
+          >
+            <button type="button" className="header-contact">
+              <WechatOutlined
+                style={{
+                  color: EThemeColors.colorLimeGreen,
+                }}
+              />
+              <span>联系作者</span>
+            </button>
+          </Popover>
+          <Tooltip trigger={['hover', 'focus', 'click']} title="这是盘后数据的同步计划，不代表当前同步状态。北京时间每日20:30开始，每15分钟补试至22:00；22:00核对，次日07:30补缺。实际数据日期与完成状态请查看页面提示。">
+            <button type="button" className="sync-schedule" aria-label="查看盘后数据同步计划">
+              <ClockCircleOutlined />
+              <span>
+                盘后数据 ·
+                <strong>20:30</strong>
+                起同步
+              </span>
+            </button>
+          </Tooltip>
+          {canReadActivity && headerMenuActive === '/admin' && <LoginActivity activity={activity} />}
+          {user?.guest ? (
+            <div className="guest-account-tools">
+              <span className="guest-countdown" role="timer" aria-label="游客体验剩余时间">
+                体验
+                {Math.floor(trialRemaining / 60)}
+                :
+                {String(trialRemaining % 60).padStart(2, '0')}
+              </span>
+              <Link href="/login">登录</Link>
+              <Link href="/register" className="guest-register">免费注册</Link>
+            </div>
+          ) : (
+            <Dropdown
+              trigger={['click']}
+              open={accountOpen}
+              onOpenChange={setAccountOpen}
+              overlayClassName="header-account-popup"
+              dropdownRender={renderAccountMenu}
+              menu={{
+                items: [
+                  { key: 'profile', label: '个人中心', icon: <UserOutlined /> },
+                  { type: 'divider' },
+                  { key: 'logout', label: '退出登录', icon: <LogoutOutlined /> },
+                ],
+                onClick: ({ key }) => {
+                  setAccountOpen(false);
+                  if (key === 'profile') router.push('/profile'); else logout().catch((e) => message.error(errorMessage(e)));
+                },
               }}
-            />
-            <span className="ml-4 mr-16 text-12">联系作者</span>
-          </div>
-        </Popover>
-        <Tooltip title="北京时间每日 20:30 开始同步，每15分钟补试至22:00；22:00核对，次日07:30补缺。完成时间以数据源校验结果为准。">
-          <span className="sync-schedule">
-            每日
-            <strong>20:30</strong>
-            {' '}
-            开始同步
-          </span>
-        </Tooltip>
-        <Dropdown
-          menu={{
-            items: [{ key: 'profile', label: '个人中心' }, { key: 'logout', label: '退出登录' }],
-            onClick: ({ key }) => {
-              if (key === 'profile') router.push('/profile'); else logout().catch((e) => message.error(errorMessage(e)));
-            },
-          }}
-          placement="bottomLeft"
-          arrow
-        >
-          <button type="button" className="header-account" aria-label="打开账户菜单">
-            <AccountAvatar avatar={user?.avatar} />
-          </button>
-        </Dropdown>
+              placement="bottomRight"
+            >
+              <button type="button" className="header-account" aria-label={`${accountName}，账户菜单`} aria-haspopup="menu" aria-expanded={accountOpen}>
+                <AccountAvatar avatar={user?.avatar} roles={user?.roles} />
+                <span className="header-account-name">{accountName}</span>
+                <DownOutlined className="header-account-chevron" />
+              </button>
+            </Dropdown>
+          )}
+        </div>
       </Header>
       <Layout className="platform-body">
         {showAsideMenu && !mobile ? (
@@ -159,9 +228,23 @@ const CommonLayout: React.FC<ILayoutProps> = ({
             />
           </Sider>
         ) : null}
-        {showAsideMenu && mobile && <Drawer title="栏目导航" placement="left" width={240} open={drawerOpen} onClose={() => setDrawerOpen(false)}><Menu mode="inline" selectedKeys={[asideMenuActive]} items={visible(asideMenuItems)} onSelect={handleAsideMenuSelect} /></Drawer>}
+        {mobile && (
+          <Drawer title="栏目导航" placement="left" width={280} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+            <Menu mode="inline" selectedKeys={[headerMenuActive]} items={visible([...(headerMenuItems || []), { key: '/admin', label: adminLabel }])} onClick={handleHeaderMenuSelect} />
+            {showAsideMenu && !!asideMenuItems?.length && (
+              <>
+                <p className="drawer-section-label">当前栏目</p>
+                <Menu mode="inline" selectedKeys={[asideMenuActive]} items={visible(asideMenuItems)} onClick={handleAsideMenuSelect} />
+              </>
+            )}
+          </Drawer>
+        )}
         <Layout className={`platform-content ${contentClassName}`}>
-          <Content className="platform-content-inner">{children}</Content>
+          <Content className="platform-content-inner">
+            <Watermark className="platform-watermark" font={{ color: 'rgba(37, 42, 52, 0.035)', fontSize: 12 }} gap={[180, 160]} height={40} width={160} content="木风同学的投资小站">
+              {children}
+            </Watermark>
+          </Content>
         </Layout>
       </Layout>
     </Layout>

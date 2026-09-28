@@ -13,6 +13,7 @@ import {
 import { UserOutlined, SafetyCertificateOutlined, LogoutOutlined } from '@ant-design/icons';
 import CommonLayout from '@/components/Layout';
 import AccountAvatar from '@/auth/AccountAvatar';
+import AvatarPicker from '@/auth/AvatarPicker';
 import PageHeading from '@/auth/PageHeading';
 import { useAccount } from '@/auth/Boundary';
 import { api, clearCredential } from '@/auth/client';
@@ -38,7 +39,8 @@ export default function Page() {
         )}
         <div className="profile-grid">
           <aside className="account-surface profile-summary">
-            <AccountAvatar avatar={user.avatar} size={88} />
+            <AccountAvatar avatar={user.avatar} roles={user.roles} size={88} />
+            <AvatarPicker />
             <h2>{user.nickname || user.username}</h2>
             <p>
               @
@@ -46,7 +48,7 @@ export default function Page() {
             </p>
             <div>{user.roles.map((r) => <Tag key={r.id} color="pink">{r.name}</Tag>)}</div>
             <div className="profile-note">
-              默认头像已为你分配
+              7种颜色 · 4种款式 · 自由选择
               <br />
               让每次相遇都有熟悉的模样
             </div>

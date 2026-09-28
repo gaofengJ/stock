@@ -3,19 +3,19 @@
  */
 export enum EStrategyType {
   /**
-   * 向上跳空未回补后三连阳
+   * 向上跳空缺口后三连阳
    */
   gapThreeUp = 'gapThreeUp',
   /**
-   * 向上跳空未回补后二连阳
+   * 向上跳空缺口后二连阳
    */
   gapTwoUp = 'gapTwoUp',
   /**
-   * 向上跳空后三日高换手
+   * 向上跳空缺口后连续三日高换手率
    */
   gapThreeHighTurnover = 'gapThreeHighTurnover',
   /**
-   * 连续三日放量不萎缩
+   * 连续三日放量收阳
    */
   threeDaysHighVol = 'threeDaysHighVol',
   /**
@@ -23,7 +23,7 @@ export enum EStrategyType {
    */
   continuousGap = 'continuousGap',
   /**
-   * 向上跳空长上影反包
+   * 向上跳空上影反包
    */
   shadowWrap = 'shadowWrap',
 }

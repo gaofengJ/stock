@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test:guest-access": "node --test scripts/test-guest-access.cjs",
     "test:market-compatibility": "node --test scripts/test-market-compatibility.cjs",
     "test:display": "node --test scripts/test-display.cjs",
     "test:errors": "node --test scripts/test-errors.cjs",

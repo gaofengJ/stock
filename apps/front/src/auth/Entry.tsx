@@ -19,7 +19,9 @@ export default function Entry({ register = false }: { register?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
-  const { refresh } = useAccount();
+  const {
+    refresh, user, trialRemaining, trialExpired,
+  } = useAccount();
   return (
     <ConfigProvider theme={themeConfig}>
       <main className="entry-page">
@@ -55,9 +57,10 @@ export default function Entry({ register = false }: { register?: boolean }) {
             <h2>{register ? '创建你的账户' : '欢迎回来'}</h2>
             <Typography.Paragraph type="secondary">
               {register
-                ? '无需邀请码，注册后即可开始浏览。'
+                ? '无需邀请码，注册成功后自动登录。'
                 : '登录账户，继续关注市场的每一天。'}
             </Typography.Paragraph>
+            {!register && (trialExpired ? <Alert type="info" showIcon message="5分钟游客体验已结束，登录或免费注册后即可继续浏览。" style={{ marginBottom: 16 }} /> : <Typography.Paragraph type="secondary">{user?.guest && trialRemaining > 0 ? <Link href="/analysis/overview">继续游客体验</Link> : '游客可体验5分钟；体验结束后，登录或免费注册即可继续。'}</Typography.Paragraph>)}
             {error && (
             <Alert
               type="error"
@@ -78,13 +81,9 @@ export default function Entry({ register = false }: { register?: boolean }) {
                     values,
                     false,
                   );
-                  if (register) {
-                    message.success('注册成功，请登录');
-                    router.push('/login');
-                  } else {
-                    await refresh();
-                    router.replace('/');
-                  }
+                  if (register) message.success('注册成功，已自动登录');
+                  await refresh();
+                  router.replace('/');
                 } catch (e) {
                   setError(errorMessage(e));
                 } finally {

@@ -6,11 +6,14 @@ export type AccessRule = {
   login?: boolean;
   any?: string[];
   allowPasswordChange?: boolean;
+  guestRead?: boolean;
 };
 export const Public = () => SetMetadata(ACCESS, { public: true });
 export const SignedIn = (allowPasswordChange = false) =>
   SetMetadata(ACCESS, { login: true, allowPasswordChange });
 export const Permit = (...any: string[]) => SetMetadata(ACCESS, { any });
+export const GuestRead = () =>
+  SetMetadata(ACCESS, { login: true, guestRead: true });
 
 export const PERMISSIONS = [
   {

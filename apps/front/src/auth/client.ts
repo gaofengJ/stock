@@ -7,6 +7,7 @@ export interface Permission {
   route: string;
 }
 export interface Account {
+  guest?: boolean;
   id: number;
   username: string;
   nickname: string;
@@ -16,11 +17,14 @@ export interface Account {
   permissions: string[];
   catalog: Permission[];
 }
+export interface AccessState { user: Account | null; trial: { remainingMs: number } | null }
+let accessPending: Promise<AccessState> | undefined;
 let csrf: string | undefined;
 let pending: Promise<string> | undefined;
 export function clearCredential() {
   csrf = undefined;
   pending = undefined;
+  accessPending = undefined;
 }
 export async function csrfToken(): Promise<string> {
   if (csrf) return csrf;
@@ -67,7 +71,7 @@ export async function api<T = any>(
     });
     if (notify && !r.ok) authFailure(r.status);
     const b = await readApiResponse(r);
-    if (b.data?.csrfToken) csrf = b.data.csrfToken;
+    if (b.data?.csrfToken) { csrf = b.data.csrfToken; accessPending = undefined; }
     return b.data;
   } catch (error) {
     throw userError(error);
@@ -75,7 +79,8 @@ export async function api<T = any>(
 }
 export function allowedPath(user: Account | null, path: string): boolean {
   const p = path.replace(/\/$/, '') || '/';
-  if (['/', '/profile'].includes(p)) return !!user;
+  if (p === '/') return !!user;
+  if (p === '/profile') return !!user && !user.guest;
   return !!user?.catalog.some(
     (x) => x.route
       && user.permissions.includes(x.code)
@@ -83,6 +88,15 @@ export function allowedPath(user: Account | null, path: string): boolean {
         || x.route.startsWith(`${p}/`)
         || p.startsWith(`${x.route}/`)),
   );
+}
+
+export function getAccess(startTrial: boolean): Promise<AccessState> {
+  if (!accessPending) {
+    const request = api<AccessState>(`/auth/access?startTrial=${startTrial ? '1' : '0'}`, 'GET', undefined, false)
+      .finally(() => { if (accessPending === request) accessPending = undefined; });
+    accessPending = request;
+  }
+  return accessPending;
 }
 export function homePath(user: Account | null, prefix = '') {
   return (

@@ -9,8 +9,8 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { timingSafeEqual } from 'crypto';
-import { ACCESS, AccessRule } from './permissions';
-import { AuthRequest, AuthService, digest } from './auth.service';
+import { ACCESS, AccessRule, DEFAULT_PERMISSIONS } from './permissions';
+import { AuthRequest, AuthService, digest, TRIAL_COOKIE } from './auth.service';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -53,11 +53,12 @@ export class AuthGuard implements CanActivate {
     )
       throw new ForbiddenException('生产环境禁止通过通用接口删除行情数据');
     const url = req.routeOptions?.url || req.url.split('?')[0];
-    if (/\/auth\/(login|register|csrf)$/.test(url)) {
+    if (/\/auth\/(login|register|csrf|access)$/.test(url)) {
       const registration = url.endsWith('/register');
+      const normalLimit = url.endsWith('/access') ? 600 : 60;
       this.limit(
         `${url}:ip:${req.ip}`,
-        registration ? 10 : 60,
+        registration ? 10 : normalLimit,
         registration ? 3600000 : 900000,
       );
       if (url.endsWith('/login')) {
@@ -69,8 +70,19 @@ export class AuthGuard implements CanActivate {
     }
     const session = await this.auth.session(req);
     req.authSession = session;
-    if (!rule.public && !session?.user_id)
-      throw new UnauthorizedException('请先登录');
+    if (!rule.public && !session?.user_id) {
+      const guestRead =
+        req.method === 'GET' &&
+        (rule.guestRead ||
+          rule.any?.some((p) => DEFAULT_PERMISSIONS.includes(p)));
+      if (guestRead && ((await this.auth.trial(req))?.remainingMs || 0) > 0)
+        return true;
+      throw new UnauthorizedException(
+        req.cookies?.[TRIAL_COOKIE]
+          ? '游客体验已结束，请登录后继续浏览'
+          : '请先登录',
+      );
+    }
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
       const { origin } = req.headers;
       const allowed = (

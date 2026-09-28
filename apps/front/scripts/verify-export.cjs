@@ -6,6 +6,8 @@ const routes = ['login', 'register', 'profile', 'admin/users', 'admin/roles', 'a
 const files = [
   ...routes.map((route) => `${route}/index.html`),
   ...Array.from({ length: 8 }, (_, index) => `avatars/animal-${index + 1}.svg`),
+  ...['bull-admin', 'bull-admin-heart', 'bull-admin-flower', 'bull-admin-bow'].map((id) => `avatars/${id}.svg`),
+  ...['red', 'pink', 'gold', 'green', 'blue', 'purple', 'coffee'].flatMap((color) => ['star', 'heart', 'flower', 'bow'].map((style) => `avatars/bull-${color}-${style}.svg`)),
 ];
 const missing = files.filter((file) => !existsSync(join(__dirname, '../out', file)));
 if (missing.length) {
