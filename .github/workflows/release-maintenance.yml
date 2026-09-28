@@ -39,12 +39,14 @@ jobs:
             esac
             df -B1 / /opt
             docker system df
+            docker images --format '{{.ID}} {{.Repository}}:{{.Tag}} {{.Size}}'
             docker ps -a --format '{{.Names}} {{.Status}} {{.Image}}'
-            du -xhd1 /opt /var/lib/docker
+            du -xhd1 /opt /var /home /opt/stock-release /opt/stock-blog-style
             python3 - <<'PY'
             import glob, json
             reports = sorted(glob.glob('/opt/stock-release/runs/*/preflight.json'))
             if reports:
                 report = json.load(open(reports[-1]))
                 print(json.dumps({k: report.get(k) for k in ('database', 'totalBytes', 'requiredFreeBytes', 'pending')}))
+                print(json.dumps([table for table in report.get('tables', []) if table['name'].startswith('t_auth')]))
             PY
