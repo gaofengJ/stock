@@ -746,12 +746,16 @@ mysqlDescribe('MySQL 同步事务与迁移回归', () => {
         'LoginActivity1790640000000',
       ]);
       expect(before.counts.t_source_daily).toEqual({ rows: 2, duplicates: 1 });
+      expect(before.requiredFreeBytes).toBe(before.totalBytes * 4 + 1024 ** 3);
       expect(await probeDb.manager.count(DailyEntity)).toBe(2);
       const migrated = cli('migrate');
       expect(migrated[1].counts.t_source_daily).toEqual({
         rows: 1,
         duplicates: 0,
       });
+      expect(migrated[1].requiredFreeBytes).toBe(
+        migrated[1].totalBytes * 2 + 1024 ** 3,
+      );
       expect(cli('verify')[0]).toMatchObject({
         status: 'verified',
         database: probe,

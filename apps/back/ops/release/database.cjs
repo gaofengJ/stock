@@ -1,5 +1,6 @@
 /* Deployment-only CLI. Never starts Nest or imports business environment defaults. */
 const ds = require('../../dist/migration-data-source').default;
+const { planReleaseSpace } = require('../../dist/shared/database/release-space');
 const {
   syncIndexes,
   schemaIndexes,
@@ -76,17 +77,14 @@ async function report() {
     }
     counts[key.table] = { rows: Number(count), duplicates };
   }
-  const totalBytes = tables.reduce((sum, t) => sum + Number(t.bytes), 0);
+  const pending = ds.migrations
+    .filter((m) => !history.some((h) => h.name === (m.name || m.constructor.name)))
+    .map((m) => m.name || m.constructor.name);
   return {
     database: server.name,
     version: server.version,
-    totalBytes,
-    requiredFreeBytes: totalBytes * 4 + 1073741824,
-    pending: ds.migrations
-      .filter(
-        (m) => !history.some((h) => h.name === (m.name || m.constructor.name)),
-      )
-      .map((m) => m.name || m.constructor.name),
+    ...planReleaseSpace(tables, pending),
+    pending,
     tables,
     counts,
   };

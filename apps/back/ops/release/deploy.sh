@@ -62,6 +62,8 @@ required=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["requ
 database=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["database"])' "$RUN/preflight.json")
 [[ "$database" == stock ]] || { echo 'Unexpected production database'; false; }
 free=$(df -PB1 "$RUN" | awk 'NR==2 {print $4}')
+printf 'Release disk budget: available=%s required=%s bytes\n' "$free" "$required"
+python3 -c 'import json,sys; print(json.dumps(json.load(open(sys.argv[1]))["spaceBudget"]))' "$RUN/preflight.json"
 [[ "$free" -ge "$required" ]] || { echo 'Insufficient backup/migration disk space'; false; }
 
 if [[ ! -f /opt/stock-test/PAUSED ]]; then touch /opt/stock-test/PAUSED; paused_by_release=1; fi
@@ -79,6 +81,9 @@ gzip -t "$RUN/stock.sql.gz"
 test -s "$RUN/stock.sql.gz"
 sha256sum "$RUN/stock.sql.gz" > "$RUN/stock.sql.gz.sha256"
 rm -f "$client"
+remaining_required=$(python3 -c 'import json,sys; b=json.load(open(sys.argv[1]))["spaceBudget"]; print(b["migrationBytes"]+b["reserveBytes"])' "$RUN/preflight.json")
+free=$(df -PB1 "$RUN" | awk 'NR==2 {print $4}')
+[[ "$free" -ge "$remaining_required" ]] || { echo 'Insufficient migration space after backup'; false; }
 old_name="stock-back-previous-${RELEASE_SHA:0:12}-$(date +%s)"
 docker rename stock-back "$old_name"
 printf '%s\n' "$old_name" > "$RUN/old-container-name"
