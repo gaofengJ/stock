@@ -24,6 +24,14 @@ test('guest routes expose business pages but never profile or administration', (
   assert.equal(auth.allowedPath({ ...user, guest: false }, '/profile'), true);
 });
 
+test('login activity belongs to user management and is unavailable to other module administrators', () => {
+  const auth = client();
+  const catalog = [{ code: 'users:manage', route: '/admin/users' }, { code: 'roles:manage', route: '/admin/roles' }];
+  assert.equal(auth.allowedPath({ permissions: ['users:manage'], catalog }, '/admin/users/activity/'), true);
+  assert.equal(auth.allowedPath({ permissions: ['roles:manage'], catalog }, '/admin/users/activity/'), false);
+  assert.equal(auth.allowedPath({ permissions: [], catalog }, '/admin/users/activity/'), false);
+});
+
 test('concurrent access checks share one request, avoiding duplicate trial starts', async () => {
   const original = global.fetch;
   let finish; let calls = 0;

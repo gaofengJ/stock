@@ -25,7 +25,7 @@ import Link from 'next/link';
 
 import AccountAvatar from '@/auth/AccountAvatar';
 import HelpTooltip from '@/components/HelpTooltip';
-import LoginActivity, { useLoginActivity } from '@/auth/LoginActivity';
+import { LoginActivityContext, useLoginActivity } from '@/auth/LoginActivity';
 import {
   MenuOutlined, WechatOutlined, UserOutlined, LogoutOutlined,
 } from '@ant-design/icons';
@@ -87,10 +87,9 @@ const CommonLayout: React.FC<ILayoutProps> = ({
   const canReadActivity = !!user?.permissions.includes('users:manage');
   const activity = useLoginActivity(canReadActivity);
   const adminLabel = (
-    <span>
-      管理后台
-      {canReadActivity && <Badge count={activity.data.unread} overflowCount={99} size="small" />}
-    </span>
+    <Badge className="header-admin-badge" count={canReadActivity ? activity.data.unread : 0} overflowCount={100} size="small" offset={[8, -2]}>
+      <span className="header-nav-label">管理后台</span>
+    </Badge>
   );
   const accountName = user?.nickname || user?.username || '我的账户';
   const visible = (items: MenuProps['items']) => items?.filter((item) => item && allowedPath(user, String(item.key)));
@@ -101,7 +100,8 @@ const CommonLayout: React.FC<ILayoutProps> = ({
    * 顶部菜单选择
    */
   const handleHeaderMenuSelect = (row: { key: string }) => {
-    router.push(homePath(user, row.key));
+    router.push(row.key === '/admin' && canReadActivity && activity.data.unread > 0
+      ? '/admin/users/activity' : homePath(user, row.key));
     setDrawerOpen(false);
   };
 
@@ -134,22 +134,23 @@ const CommonLayout: React.FC<ILayoutProps> = ({
           mode="horizontal"
           selectedKeys={[headerMenuActive]}
           items={visible([...(headerMenuItems || []), { key: '/admin', label: adminLabel }])}
-          onSelect={handleHeaderMenuSelect}
+          onClick={handleHeaderMenuSelect}
           className="platform-nav"
           style={{ borderBottom: 'none', minWidth: 0, flex: '1 1 auto' }}
         />
         )}
         <div className="header-tools">
           <Popover
-            trigger="click"
+            trigger={['hover', 'focus', 'click']}
             placement="bottomRight"
             content={(
-              <div>
+              <div className="header-contact-content">
                 <img
                   src={ImgAuthorAvatar.src}
-                  alt="作者联系方式"
+                  alt="作者微信二维码"
                   className="w-200 h-200"
                 />
+                <span>微信扫码联系作者</span>
               </div>
             )}
           >
@@ -163,14 +164,13 @@ const CommonLayout: React.FC<ILayoutProps> = ({
             </button>
           </Popover>
           <span className="sync-schedule">
-            <span>
+            <span className="sync-schedule-label">
               盘后数据 ·
               <strong>20:30</strong>
               起同步
             </span>
             <HelpTooltip label="盘后数据同步" title="每日北京时间 20:30 开始同步，次日早间补齐遗漏。实际更新情况以页面的数据日期为准。" />
           </span>
-          {canReadActivity && headerMenuActive === '/admin' && <LoginActivity activity={activity} />}
           {user?.guest ? (
             <div className="guest-account-tools">
               <span className="guest-countdown" role="timer" aria-label="游客体验剩余时间">
@@ -241,7 +241,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
         <Layout className={`platform-content ${contentClassName}`}>
           <Content className="platform-content-inner">
             <Watermark className="platform-watermark" font={{ color: 'rgba(37, 42, 52, 0.035)', fontSize: 12 }} gap={[180, 160]} height={40} width={160} content="木风同学的投资小站">
-              {children}
+              <LoginActivityContext.Provider value={activity}>{children}</LoginActivityContext.Provider>
             </Watermark>
           </Content>
         </Layout>

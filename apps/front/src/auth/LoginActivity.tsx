@@ -1,12 +1,11 @@
 'use client';
 
 import {
-  useCallback, useEffect, useRef, useState,
+  createContext, useCallback, useContext, useEffect, useRef, useState,
 } from 'react';
 import {
-  Alert, Badge, Button, Drawer, Empty, List, Space, Spin, Tag, message,
+  Alert, Badge, Button, Empty, List, Space, Spin, Tag, message,
 } from 'antd';
-import { BellOutlined } from '@ant-design/icons';
 import { errorMessage } from '@/api/errors';
 import { api } from './client';
 
@@ -48,65 +47,64 @@ export function useLoginActivity(enabled: boolean) {
   };
 }
 
-export default function LoginActivity({ activity }: { activity: ReturnType<typeof useLoginActivity> }) {
-  const [open, setOpen] = useState(false);
+export const LoginActivityContext = createContext<ReturnType<typeof useLoginActivity> | null>(null);
+
+export default function LoginActivity() {
+  const activity = useContext(LoginActivityContext);
   const [saving, setSaving] = useState(false);
+  if (!activity) return null;
   const {
     data, error, loading, refresh,
   } = activity;
   return (
-    <>
-      <Badge count={data.unread} overflowCount={99} size="small">
-        <Button icon={<BellOutlined />} onClick={() => { setOpen(true); refresh(); }} aria-label={`用户登录动态，${data.unread}条未读`}>登录动态</Button>
-      </Badge>
-      <Drawer title="用户登录动态" open={open} onClose={() => setOpen(false)} width={440}>
-        <p className="text-secondary">普通用户登录及注册后自动登录都会记录，管理员登录不提醒。每30秒更新，保留最近90天，展示最近50条。</p>
-        <Space style={{ marginBottom: 16 }}>
-          <Button loading={loading} onClick={() => refresh()}>刷新</Button>
-          <Button
-            disabled={!data.unread || !!error}
-            loading={saving}
-            onClick={async () => {
-              setSaving(true);
-              try {
-                await api('/admin/login-activity/read', 'POST', { throughId: data.latestId });
-                await refresh();
-              } catch (e) { message.error(errorMessage(e)); } finally { setSaving(false); }
-            }}
-          >
-            全部标为已读
-          </Button>
-        </Space>
-        {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
-        <Spin spinning={loading && !data.items.length}>
-          <List
-            dataSource={data.items}
-            locale={{ emptyText: <Empty description="暂无用户登录动态" /> }}
-            renderItem={(item) => (
-              <List.Item key={item.id}>
-                <List.Item.Meta
-                  title={(
-                    <Space>
-                      <Badge status={item.unread ? 'error' : 'default'} />
-                      <span>
-                        {item.nickname || item.username}
-                        {item.nickname ? `（${item.username}）` : ''}
-                      </span>
-                    </Space>
+    <section className="login-activity" aria-label="用户登录动态">
+      <p className="text-secondary">普通用户登录及注册后自动登录都会记录，管理员登录不提醒。每30秒更新，保留最近90天，展示最近50条。</p>
+      <Space style={{ marginBottom: 16 }}>
+        <span role="status">{`未读 ${data.unread} 条`}</span>
+        <Button loading={loading} onClick={() => refresh()}>刷新</Button>
+        <Button
+          disabled={!data.unread || !!error}
+          loading={saving}
+          onClick={async () => {
+            setSaving(true);
+            try {
+              await api('/admin/login-activity/read', 'POST', { throughId: data.latestId });
+              await refresh();
+            } catch (e) { message.error(errorMessage(e)); } finally { setSaving(false); }
+          }}
+        >
+          全部标为已读
+        </Button>
+      </Space>
+      {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
+      <Spin spinning={loading && !data.items.length}>
+        <List
+          dataSource={data.items}
+          locale={{ emptyText: <Empty description="暂无用户登录动态" /> }}
+          renderItem={(item) => (
+            <List.Item key={item.id}>
+              <List.Item.Meta
+                title={(
+                  <Space>
+                    <Badge status={item.unread ? 'error' : 'default'} />
+                    <span>
+                      {item.nickname || item.username}
+                      {item.nickname ? `（${item.username}）` : ''}
+                    </span>
+                  </Space>
 )}
-                  description={(
-                    <>
-                      <Tag color={item.registered ? 'pink' : undefined}>{item.registered ? '注册并登录' : '登录成功'}</Tag>
-                      <span>{new Date(item.createdAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}</span>
-                    </>
+                description={(
+                  <>
+                    <Tag color={item.registered ? 'pink' : undefined}>{item.registered ? '注册并登录' : '登录成功'}</Tag>
+                    <span>{new Date(item.createdAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}</span>
+                  </>
 )}
-                />
-              </List.Item>
-            )}
-          />
-        </Spin>
-        <p className="text-secondary">已读状态仅影响当前管理员；标记后新到的登录记录仍会保留提醒。</p>
-      </Drawer>
-    </>
+              />
+            </List.Item>
+          )}
+        />
+      </Spin>
+      <p className="text-secondary">已读状态仅影响当前管理员；标记后新到的登录记录仍会保留提醒。</p>
+    </section>
   );
 }
