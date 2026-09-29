@@ -123,7 +123,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
   return (
     <Layout className="platform-layout">
       <Header
-        className="platform-header"
+        className={`platform-header${user?.guest ? ' is-guest' : ''}`}
         style={{ backgroundColor: colors.surface }}
       >
         {mobile && <Button type="text" icon={<MenuOutlined />} aria-label="打开栏目导航" onClick={() => setDrawerOpen(true)} />}
