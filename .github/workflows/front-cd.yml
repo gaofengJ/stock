@@ -64,6 +64,11 @@ jobs:
       - name: Build Project
         run: pnpm run build:front
 
+      - name: Set up BuildKit
+        uses: docker/setup-buildx-action@v4
+        with:
+          driver: docker-container
+
       # 7. 登录阿里云镜像容器服务 (使用官方 Action)
       - name: Login to Aliyun Registry
         uses: docker/login-action@v3
@@ -74,11 +79,15 @@ jobs:
 
       # 8. 构建并推送镜像 (使用官方 Action，支持缓存)
       - name: Build and Push Docker Image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: apps/front
+          platforms: linux/amd64
           push: true
           tags: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-front:latest
+          cache-from: type=gha,version=2,scope=stock-front
+          cache-to: type=gha,version=2,scope=stock-front,mode=max
+          provenance: false
 
       - name: Wait for matching backend release when both apps changed
         uses: actions/github-script@v7
