@@ -23,7 +23,10 @@ const renderStaticTheme = (dark: boolean) => function StaticTheme(content: React
 export default function SiteTheme({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<Mode>('light');
   useEffect(() => {
-    setMode(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
+    let saved: Mode = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+    try { saved = localStorage.getItem(storageKey) === 'dark' ? 'dark' : 'light'; } catch { /* Keep the current theme if storage is unavailable. */ }
+    document.documentElement.dataset.theme = saved;
+    setMode(saved);
     const sync = (event: StorageEvent) => {
       if (event.key === storageKey || event.key === null) {
         const next = event.newValue === 'dark' ? 'dark' : 'light';

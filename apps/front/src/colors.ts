@@ -39,9 +39,6 @@ export const chartColors = {
 // Reference screenshot: MA5 / MA10 / MA20 / MA30 / MA60 / MA120 / MA250.
 export const movingAverageColors = ['#d6d6d6', '#d942a6', '#edc14a', '#339bd0', '#a65326', '#319878', '#df6288'];
 export const lightMovingAverageColors = ['#697386', '#c73591', '#ac810a', '#2587b6', '#a65326', '#278166', '#cc4d75'];
-export const candlePanelColors = {
-  background: '#111111', text: '#cccccc', muted: '#929292', grid: '#2b2b2b', axis: '#555555', selection: '#414141',
-};
 export const chartPalette = [uiColors.primary, chartColors.blue, chartColors.purple,
   chartColors.orange, chartColors.teal, chartColors.pink, chartColors.gold, chartColors.slate];
 
@@ -77,6 +74,14 @@ export const darkUiColors = {
   surfaceMuted: '#232730',
   border: '#353b47',
   borderLight: '#2c313c',
+};
+
+export const candlePanelColors = {
+  text: darkUiColors.text,
+  muted: darkUiColors.muted,
+  grid: darkUiColors.borderLight,
+  axis: darkUiColors.disabled,
+  selection: darkUiColors.border,
 };
 
 function variablesFor(colors: typeof uiColors) {

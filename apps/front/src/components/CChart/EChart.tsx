@@ -3,7 +3,7 @@
 import { fontFamily } from '@/theme';
 import { useSiteTheme } from '@/components/SiteTheme';
 import {
-  chartColors, chartPalette, quoteColors, uiColors, candlePanelColors,
+  chartColors, chartPalette, quoteColors, uiColors, darkUiColors, candlePanelColors,
 } from '@/colors';
 import { numberText } from '@/utils/format';
 import { useEffect, useMemo, useRef } from 'react';
@@ -46,7 +46,7 @@ const axisTheme = {
   splitLine: { lineStyle: { color: chartColors.grid } },
 };
 echarts.registerTheme('stock', {
-  backgroundColor: uiColors.surface,
+  backgroundColor: 'transparent',
   color: chartPalette,
   textStyle: { color: uiColors.text, fontFamily },
   title: { textStyle: { color: uiColors.text }, subtextStyle: { color: uiColors.secondary } },
@@ -71,13 +71,13 @@ const darkAxis = {
 echarts.registerTheme('stock-dark', {
   color: chartPalette,
   title: { textStyle: { color: candlePanelColors.text }, subtextStyle: { color: candlePanelColors.muted } },
-  backgroundColor: candlePanelColors.background,
+  backgroundColor: 'transparent',
   textStyle: { color: candlePanelColors.text, fontFamily },
   legend: { textStyle: { color: candlePanelColors.text }, inactiveColor: candlePanelColors.axis },
   categoryAxis: darkAxis,
   valueAxis: darkAxis,
   timeAxis: darkAxis,
-  tooltip: { backgroundColor: candlePanelColors.background, borderColor: candlePanelColors.axis, textStyle: { color: candlePanelColors.text } },
+  tooltip: { backgroundColor: darkUiColors.surfaceMuted, borderColor: darkUiColors.border, textStyle: { color: darkUiColors.text } },
 });
 
 interface IEchartsProps {
