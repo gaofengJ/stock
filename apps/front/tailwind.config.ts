@@ -1,11 +1,15 @@
 import type { Config } from 'tailwindcss';
 import { EThemeColors } from './src/types/common.enum';
+import { quoteColors } from './src/colors';
 
 interface Spacing {
   [key: string]: string;
 }
 
 const colorsConfig = {
+  'quote-up': quoteColors.up,
+  'quote-down': quoteColors.down,
+  'quote-flat': quoteColors.flat,
   'primary-default': EThemeColors.colorPinkRed,
   'bg-base': EThemeColors.colorGrey,
   'bg-white': EThemeColors.colorWhite,

@@ -139,11 +139,11 @@ export default function Page() {
                 color={
                   (
                     {
-                      success: 'green',
-                      failed: 'red',
-                      interrupted: 'red',
+                      success: 'success',
+                      failed: 'error',
+                      interrupted: 'error',
                     } as Record<string, string>
-                  )[r.status] || 'blue'
+                  )[r.status] || 'processing'
                 }
               >
                 {labels[r.status] || r.status}

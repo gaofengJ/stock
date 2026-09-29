@@ -107,7 +107,7 @@ export default function OverviewPage() {
             {snapshot.total > 0 && (
             <div className="market-breadth" role="img" aria-label={`上涨${snapshot.up}只，下跌${snapshot.down}只，平盘${snapshot.flat}只`}>
               <span style={{ flexGrow: snapshot.up, background: 'var(--quote-up)' }} />
-              <span style={{ flexGrow: snapshot.flat, background: '#bac1cb' }} />
+              <span style={{ flexGrow: snapshot.flat, background: 'var(--text-disabled)' }} />
               <span style={{ flexGrow: snapshot.down, background: 'var(--quote-down)' }} />
             </div>
             )}

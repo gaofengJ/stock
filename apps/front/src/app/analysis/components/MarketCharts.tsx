@@ -7,8 +7,10 @@ import { memo } from 'react';
 import { LoadingOutlined } from '@ant-design/icons';
 import CChart from '@/components/CChart';
 import HelpTooltip from '@/components/HelpTooltip';
-import { quoteColors } from '@/theme';
-import { numberText } from '@/utils/format';
+import {
+  quoteColors, chartColors, chartPalette, uiColors,
+} from '@/colors';
+import { numberText, changeClass } from '@/utils/format';
 import { MarketSeries, MarketStats } from '@/api/market';
 import { useMarket } from './MarketContext';
 import { amountReferenceLevels } from './market-display';
@@ -67,7 +69,7 @@ export function Metrics({ items }: { items: Metric[] }) {
               {i.title}
               {i.description && <HelpTooltip title={i.description} label={i.title} />}
             </div>
-            <div className={`metric-value ${i.className || ''}`}>
+            <div className={`metric-value ${i.className || (i.signed ? changeClass(i.value) : '')}`}>
               {i.display ?? numberText(i.value, i.digits ?? 0, i.signed)}
               {i.value != null && i.suffix && <span className="metric-unit">{i.suffix}</span>}
             </div>
@@ -80,9 +82,10 @@ export function Metrics({ items }: { items: Metric[] }) {
 }
 const seriesColor = (label: string, index: number) => {
   if (/炸板/.test(label)) return quoteColors.warning;
+  if (/高开/.test(label)) return chartColors.blue;
   if (/跌|下跌/.test(label)) return quoteColors.down;
   if (/涨停|上涨/.test(label)) return quoteColors.up;
-  return ['#ff2e63', '#477ac2', '#8a65b5', '#bd780a'][index % 4];
+  return chartPalette[index % chartPalette.length];
 };
 function TrendChart({
   title, data, fields, percent = false, unit = '', digits = 0, type = 'line', controls = false,
@@ -117,8 +120,8 @@ function TrendChart({
           markLine: index === 0 ? {
             silent: true,
             symbol: 'none',
-            lineStyle: { type: 'dashed', color: '#8b95a5', width: 1 },
-            label: { position: 'insideEndTop', formatter: '{b}', color: '#697386' },
+            lineStyle: { type: 'dashed', color: chartColors.reference, width: 1 },
+            label: { position: 'insideEndTop', formatter: '{b}', color: uiColors.secondary },
             data: references.map((value) => ({ name: `${value / 10000}万亿`, yAxis: value })),
           } : undefined,
         })),

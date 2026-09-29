@@ -7,7 +7,7 @@ import { getAnalysisChainsUpgradeLimitUpRates } from '@/api/services';
 import { NSGetAnalysisChainsUpgradeLimitUpRates } from '@/api/services.types';
 
 import CChart from '@/components/CChart';
-import { EThemeColors } from '@/types/common.enum';
+import { quoteColors, uiColors } from '@/colors';
 import { getRoundedMax, getRoundedMin } from '@/utils';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 
@@ -71,7 +71,7 @@ const RateLimitUp0to1 = ({ dateRange }: IProps) => {
         top: 0,
         left: 8,
         textStyle: {
-          color: EThemeColors.colorPinkRed78,
+          color: uiColors.secondary,
           fontWeight: 'bold',
           fontSize: 16,
         },
@@ -106,14 +106,14 @@ const RateLimitUp0to1 = ({ dateRange }: IProps) => {
           saveAsImage: {
             title: '保存为图片',
             iconStyle: {
-              color: EThemeColors.colorTransparent,
-              borderColor: EThemeColors.colorPinkRed78,
+              color: 'transparent',
+              borderColor: uiColors.secondary,
             },
             emphasis: { // hover样式
               iconStyle: {
-                color: EThemeColors.colorTransparent,
-                borderColor: EThemeColors.colorPinkRed78,
-                textFill: EThemeColors.colorPinkRed78,
+                color: 'transparent',
+                borderColor: uiColors.secondary,
+                textFill: uiColors.secondary,
               },
             },
           },
@@ -125,13 +125,13 @@ const RateLimitUp0to1 = ({ dateRange }: IProps) => {
         {
           type: 'line',
           itemStyle: {
-            color: EThemeColors.colorPinkRed78,
+            color: quoteColors.up,
           },
           label: {
             show: true,
             position: 'top',
             formatter: (p: { value: unknown }) => `${numberText(p.value)}%`,
-            color: EThemeColors.colorPinkRed78,
+            color: quoteColors.up,
           },
           data: sourceData.map((item) => item.rate),
         },

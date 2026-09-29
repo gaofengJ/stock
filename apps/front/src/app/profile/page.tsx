@@ -46,7 +46,7 @@ export default function Page() {
               @
               {user.username}
             </p>
-            <div>{user.roles.map((r) => <Tag key={r.id} color="pink">{r.name}</Tag>)}</div>
+            <div>{user.roles.map((r) => <Tag key={r.id} className="brand-tag">{r.name}</Tag>)}</div>
             <div className="profile-note">
               7种颜色 · 4种款式 · 自由选择
               <br />

@@ -8,6 +8,7 @@ import CChart from '@/components/CChart';
 import HelpTooltip from '@/components/HelpTooltip';
 import { MarketSeries } from '@/api/market';
 import { numberText } from '@/utils/format';
+import { movingAverageColors, quoteColors, withAlpha } from '@/colors';
 import {
   CandlePeriod, indexCandles, movingAverage, averagePeriods, unfilledGaps,
 } from './market-display';
@@ -20,7 +21,6 @@ function IndexChart({ index, dates }: { index: MarketSeries['indexes'][number] |
   const offset = all.length - candles.length;
   const averages = averagePeriods.map((n) => ({ name: `MA${n}`, values: movingAverage(all, n).slice(offset) }));
   const gaps = unfilledGaps(all);
-  const colors = ['#cf8500', '#477ac2', '#9254b8', '#db658f', '#169d98', '#767b33', '#63758a'];
   const periodName = { day: '个交易日', week: '周', month: '月' }[period];
   const ranges = { day: [20, 60, 120, 0], week: [12, 26, 52, 0], month: [6, 12, 0] }[period];
   return (
@@ -66,7 +66,7 @@ function IndexChart({ index, dates }: { index: MarketSeries['indexes'][number] |
             type: 'candlestick',
             name: index?.name,
             itemStyle: {
-              color: '#d92d53', color0: '#16835b', borderColor: '#d92d53', borderColor0: '#16835b',
+              color: quoteColors.up, color0: quoteColors.down, borderColor: quoteColors.up, borderColor0: quoteColors.down,
             },
             data: candles.map((c) => c.value || ['-', '-', '-', '-']),
             markArea: {
@@ -77,7 +77,7 @@ function IndexChart({ index, dates }: { index: MarketSeries['indexes'][number] |
                 xAxis: gap.start < candles[0].date ? candles[0].date : gap.start,
                 yAxis: gap.low,
                 itemStyle: {
-                  color: gap.direction === 'up' ? 'rgba(217,45,83,.10)' : 'rgba(22,131,91,.10)', borderColor: gap.direction === 'up' ? '#d92d53' : '#16835b', borderWidth: 1, borderType: 'dashed',
+                  color: withAlpha(quoteColors[gap.direction], 0.1), borderColor: quoteColors[gap.direction], borderWidth: 1, borderType: 'dashed',
                 },
               }, { xAxis: candles[candles.length - 1].date, yAxis: gap.high }]),
             },
@@ -87,8 +87,8 @@ function IndexChart({ index, dates }: { index: MarketSeries['indexes'][number] |
             data: a.values,
             showSymbol: false,
             connectNulls: false,
-            lineStyle: { width: 1, color: colors[i] },
-            itemStyle: { color: colors[i] },
+            lineStyle: { width: 1.25, color: movingAverageColors[i] },
+            itemStyle: { color: movingAverageColors[i] },
           }))],
         })}
         />

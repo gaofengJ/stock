@@ -86,7 +86,7 @@ function ChainsPage() {
                       { title: '今日高度', dataIndex: 'height' }, {
                         title: '今日涨跌幅(%)', dataIndex: 'pctChg', align: 'right', render: (v) => <span className={changeClass(v)}>{numberText(v, 2, true)}</span>,
                       },
-                      { title: '结果', dataIndex: 'state', render: (v) => <Tag color={v === '晋级' ? 'red' : 'default'}>{v}</Tag> },
+                      { title: '结果', dataIndex: 'state', render: (v) => <Tag className={v === '晋级' ? 'quote-up-tag' : undefined}>{v}</Tag> },
                     ]}
                   />
                 </Card>

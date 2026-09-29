@@ -95,7 +95,7 @@ export default function LoginActivity() {
 )}
                 description={(
                   <>
-                    <Tag color={item.registered ? 'pink' : undefined}>{item.registered ? '注册并登录' : '登录成功'}</Tag>
+                    <Tag className={item.registered ? 'brand-tag' : undefined}>{item.registered ? '注册并登录' : '登录成功'}</Tag>
                     <span>{new Date(item.createdAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}</span>
                   </>
 )}

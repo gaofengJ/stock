@@ -9,5 +9,5 @@ export default function AccountAvatar({ avatar, roles, size = 36 }: {
   size?: number;
 }) {
   const src = `/avatars/${avatarId(avatar, roles)}.svg`;
-  return <Avatar size={size} src={src} alt="小牛头像" style={{ flexShrink: 0, background: '#fff0f4' }} />;
+  return <Avatar size={size} src={src} alt="小牛头像" style={{ flexShrink: 0, background: 'var(--color-primary-soft)' }} />;
 }

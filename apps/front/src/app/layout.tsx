@@ -1,5 +1,7 @@
 import AccountBoundary from '@/auth/Boundary';
 import type { Metadata } from 'next';
+import type { CSSProperties } from 'react';
+import { colorVariables } from '@/colors';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 import './global.css';
 import '@/auth/account.css';
@@ -16,7 +18,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" style={colorVariables as CSSProperties}>
       <body>
         <AntdRegistry><AccountBoundary>{children}</AccountBoundary></AntdRegistry>
       </body>

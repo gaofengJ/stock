@@ -154,7 +154,7 @@ export default function Page() {
           {
             title: '状态',
             render: (_, r) => (
-              <Tag color={r.active ? 'green' : 'red'}>
+              <Tag color={r.active ? 'success' : 'error'}>
                 {r.active ? '正常' : '已禁用'}
               </Tag>
             ),

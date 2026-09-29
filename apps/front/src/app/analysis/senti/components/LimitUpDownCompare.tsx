@@ -7,7 +7,7 @@ import { getAnalysisSentiLimitUpDownCount } from '@/api/services';
 import { NSGetAnalysisSentiLimitUpDownCount } from '@/api/services.types';
 
 import CChart from '@/components/CChart';
-import { EThemeColors } from '@/types/common.enum';
+import { quoteColors, uiColors } from '@/colors';
 import { getRoundedMax, getRoundedMin } from '@/utils';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 
@@ -69,7 +69,7 @@ const LimitUpDownCompare = ({ dateRange }: IProps) => {
         top: 0,
         left: 8,
         textStyle: {
-          color: EThemeColors.colorPinkRed78,
+          color: uiColors.secondary,
           fontWeight: 'bold',
           fontSize: 16,
         },
@@ -100,14 +100,14 @@ const LimitUpDownCompare = ({ dateRange }: IProps) => {
           saveAsImage: {
             title: '保存为图片',
             iconStyle: {
-              color: EThemeColors.colorTransparent,
-              borderColor: EThemeColors.colorPinkRed78,
+              color: 'transparent',
+              borderColor: uiColors.secondary,
             },
             emphasis: { // hover样式
               iconStyle: {
-                color: EThemeColors.colorTransparent,
-                borderColor: EThemeColors.colorPinkRed78,
-                textFill: EThemeColors.colorPinkRed78,
+                color: 'transparent',
+                borderColor: uiColors.secondary,
+                textFill: uiColors.secondary,
               },
             },
           },
@@ -119,26 +119,26 @@ const LimitUpDownCompare = ({ dateRange }: IProps) => {
         {
           type: 'line',
           itemStyle: {
-            color: EThemeColors.colorPinkRed,
+            color: quoteColors.up,
           },
           label: {
             show: true,
             position: 'top',
             formatter: (p: { value: unknown }) => numberText(p.value, 0),
-            color: EThemeColors.colorPinkRed,
+            color: quoteColors.up,
           },
           data: sourceData.map((item) => item.limitUCount),
         },
         {
           type: 'line',
           itemStyle: {
-            color: EThemeColors.colorLimeGreen,
+            color: quoteColors.down,
           },
           label: {
             show: true,
             position: 'top',
             formatter: (p: { value: unknown }) => numberText(p.value, 0),
-            color: EThemeColors.colorLimeGreen,
+            color: quoteColors.down,
           },
           data: sourceData.map((item) => item.limitDCount),
         },

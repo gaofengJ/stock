@@ -4,6 +4,7 @@ import { Card, Col, Row } from 'antd';
 import CChart from '@/components/CChart';
 import HelpTooltip from '@/components/HelpTooltip';
 import { MarketSeries } from '@/api/market';
+import { quoteColors } from '@/colors';
 import LegacyPage from './LegacyPage';
 import MarketCompatibility from '../components/MarketCompatibility';
 import MarketShell from '../components/MarketShell';
@@ -57,7 +58,7 @@ function SentimentPage() {
               },
               xAxis: { type: 'category', data: bins, axisLabel: { rotate: 40 } },
               yAxis: { type: 'value', name: '只', minInterval: 1 },
-              series: [{ type: 'bar', data: s.distribution.map((value, i) => ({ value, itemStyle: { color: ['#16835b', '#697386', '#d92d53'][Math.sign(i - 10) + 1] } })) }],
+              series: [{ type: 'bar', data: s.distribution.map((value, i) => ({ value, itemStyle: { color: [quoteColors.down, quoteColors.flat, quoteColors.up][Math.sign(i - 10) + 1] } })) }],
             })}
             />
           </Card>

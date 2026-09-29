@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Spin } from 'antd';
 import { NSGetAnalysisSentiDistributionTatistics } from '@/api/services.types';
 import { getAnalysisSentiDistributionTatistics } from '@/api/services';
-import { EThemeColors } from '@/types/common.enum';
+import { quoteColors, uiColors } from '@/colors';
 import CChart from '@/components/CChart';
 import { getRoundedMax, getRoundedMin } from '@/utils';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
@@ -102,7 +102,7 @@ const DistributionTatistics = ({ tradeDate }: IProps) => {
         top: 0,
         left: 8,
         textStyle: {
-          color: EThemeColors.colorPinkRed78,
+          color: uiColors.secondary,
           fontWeight: 'bold',
           fontSize: 16,
         },
@@ -137,15 +137,15 @@ const DistributionTatistics = ({ tradeDate }: IProps) => {
           saveAsImage: {
             title: '保存为图片',
             iconStyle: {
-              color: EThemeColors.colorTransparent,
-              borderColor: EThemeColors.colorPinkRed78,
+              color: 'transparent',
+              borderColor: uiColors.secondary,
             },
             emphasis: {
               // hover样式
               iconStyle: {
-                color: EThemeColors.colorTransparent,
-                borderColor: EThemeColors.colorPinkRed78,
-                textFill: EThemeColors.colorPinkRed78,
+                color: 'transparent',
+                borderColor: uiColors.secondary,
+                textFill: uiColors.secondary,
               },
             },
           },
@@ -160,19 +160,19 @@ const DistributionTatistics = ({ tradeDate }: IProps) => {
             color(params: any) {
               const { dataIndex } = params; // 获取当前数据点的索引
               if (dataIndex > 10) {
-                return EThemeColors.colorPinkRed; // 红色
+                return quoteColors.up; // 红色
               }
               if (dataIndex < 10) {
-                return EThemeColors.colorLimeGreen; // 绿色
+                return quoteColors.down; // 绿色
               }
-              return EThemeColors.colorGrey; // 灰色
+              return quoteColors.flat; // 灰色
             },
           },
           label: {
             show: true,
             position: 'top',
             formatter: (p: { value: unknown }) => numberText(p.value, 0),
-            color: EThemeColors.colorBlack78,
+            color: uiColors.secondary,
           },
           data: sourceData.map((item) => item.count),
         },
@@ -183,11 +183,11 @@ const DistributionTatistics = ({ tradeDate }: IProps) => {
   return (
     <div className="relative">
       <div className="absolute flex items-center top-4 right-60">
-        <span className="inline-block w-8 h-8 rounded-[4px] bg-bg-lime-green" />
+        <span className="inline-block w-8 h-8 rounded-[4px] bg-quote-down" />
         <span className="ml-8 text-16 text-text-black78">{totalData.countPositive}</span>
-        <span className="inline-block ml-16 w-8 h-8 rounded-[4px] bg-bg-grey" />
+        <span className="inline-block ml-16 w-8 h-8 rounded-[4px] bg-quote-flat" />
         <span className="ml-8 text-16 text-text-black78">{totalData.countZero}</span>
-        <span className="inline-block ml-16 w-8 h-8 rounded-[4px] bg-bg-pink-red" />
+        <span className="inline-block ml-16 w-8 h-8 rounded-[4px] bg-quote-up" />
         <span className="ml-8 text-16 text-text-black78">{totalData.countNegative}</span>
       </div>
       {loading ? (

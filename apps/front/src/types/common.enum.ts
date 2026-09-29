@@ -1,44 +1,37 @@
-export enum EThemeColors {
-  colorTeal = 'rgba(63, 193, 201, 1)',
-  colorTeal78 = 'rgba(63, 193, 201, 0.78)',
-  colorTeal56 = 'rgba(63, 193, 201, 0.56)',
+import { utilityColors, uiColors, withAlpha } from '../colors';
 
-  colorLightBlue = 'rgba(134, 199, 243, 1)',
-  colorLightBlue78 = 'rgba(134, 199, 243, 0.78)',
-  colorLightBlue56 = 'rgba(134, 199, 243, 0.56)',
-
-  colorViolet = 'rgba(238, 130, 238, 1)',
-  colorViolet78 = 'rgba(238, 130, 238, 0.78)',
-  colorViolet56 = 'rgba(238, 130, 238, 0.56)',
-
-  colorPinkRed = 'rgba(255, 46, 99, 1)',
-  colorPinkRed78 = 'rgba(255, 46, 99, 0.78)',
-  colorPinkRed56 = 'rgba(255, 46, 99, 0.56)',
-
-  colorOrange = 'rgba(255, 183, 77, 1)',
-  colorOrange78 = 'rgba(255, 183, 77, 0.78)',
-  colorOrange56 = 'rgba(255, 183, 77, 0.56)',
-
-  colorYellow = 'rgba(255, 249, 160, 1)',
-  colorYellow78 = 'rgba(255, 249, 160, 0.78)',
-  colorYellow56 = 'rgba(255, 249, 160, 0.56)',
-
-  colorLightGreen = 'rgba(199, 244, 100, 1)',
-  colorLightGreen78 = 'rgba(199, 244, 100, 0.78)',
-  colorLightGreen56 = 'rgba(199, 244, 100, 0.56)',
-
-  colorLimeGreen = 'rgba(50, 205, 50, 1)',
-  colorLimeGreen78 = 'rgba(50, 205, 50, 0.78)',
-  colorLimeGreen56 = 'rgba(50, 205, 50, 0.56)',
-
-  colorGrey = 'rgba(245, 245, 245, 1)',
-  colorGrey78 = 'rgba(245, 245, 245, 0.78)',
-  colorGrey56 = 'rgba(245, 245, 245, 0.56)',
-
-  colorBlack = 'rgba(37, 42, 52, 1)',
-  colorBlack78 = 'rgba(37, 42, 52, 0.78)',
-  colorBlack56 = 'rgba(37, 42, 52, 0.56)',
-
-  colorWhite = 'rgba(255, 255, 255)',
-  colorTransparent = 'transparent',
-}
+// Compatibility aliases for existing Tailwind utility names.
+export const EThemeColors = {
+  colorTeal: utilityColors.teal,
+  colorTeal78: withAlpha(utilityColors.teal, 0.78),
+  colorTeal56: withAlpha(utilityColors.teal, 0.56),
+  colorLightBlue: utilityColors['light-blue'],
+  colorLightBlue78: withAlpha(utilityColors['light-blue'], 0.78),
+  colorLightBlue56: withAlpha(utilityColors['light-blue'], 0.56),
+  colorViolet: utilityColors.violet,
+  colorViolet78: withAlpha(utilityColors.violet, 0.78),
+  colorViolet56: withAlpha(utilityColors.violet, 0.56),
+  colorPinkRed: utilityColors['pink-red'],
+  colorPinkRed78: withAlpha(utilityColors['pink-red'], 0.78),
+  colorPinkRed56: withAlpha(utilityColors['pink-red'], 0.56),
+  colorOrange: utilityColors.orange,
+  colorOrange78: withAlpha(utilityColors.orange, 0.78),
+  colorOrange56: withAlpha(utilityColors.orange, 0.56),
+  colorYellow: utilityColors.yellow,
+  colorYellow78: withAlpha(utilityColors.yellow, 0.78),
+  colorYellow56: withAlpha(utilityColors.yellow, 0.56),
+  colorLightGreen: utilityColors['light-green'],
+  colorLightGreen78: withAlpha(utilityColors['light-green'], 0.78),
+  colorLightGreen56: withAlpha(utilityColors['light-green'], 0.56),
+  colorLimeGreen: utilityColors['lime-green'],
+  colorLimeGreen78: withAlpha(utilityColors['lime-green'], 0.78),
+  colorLimeGreen56: withAlpha(utilityColors['lime-green'], 0.56),
+  colorGrey: utilityColors.grey,
+  colorGrey78: withAlpha(utilityColors.grey, 0.78),
+  colorGrey56: withAlpha(utilityColors.grey, 0.56),
+  colorBlack: utilityColors.black,
+  colorBlack78: withAlpha(utilityColors.black, 0.78),
+  colorBlack56: withAlpha(utilityColors.black, 0.56),
+  colorWhite: uiColors.surface,
+  colorTransparent: 'transparent',
+};

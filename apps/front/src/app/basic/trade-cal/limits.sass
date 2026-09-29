@@ -7,7 +7,7 @@
 
 .trade-cal-calendar
   .ant-picker-calendar-header
-    color: red
+    color: var(--color-primary)
     display: none !important
   /* 禁用日历中的所有日期点击行为 */
   .ant-picker-cell
@@ -15,7 +15,7 @@
     cursor: default !important
     .date-cell
       .date-cell-weekend
-        color: rgba(0, 0, 0, 0.25)
+        color: var(--text-disabled)
       .date-cell-text-lunar
         font-size: 12px
     &.ant-picker-cell-in-view
@@ -29,7 +29,7 @@
           background-color: var(--color-pink-red-78)
           text-align: center
           line-height: 24px
-          color: #FFFFFF !important
+          color: var(--color-surface) !important
         .today
           .date-cell-text-number
             background-color: var(--color-pink-red)

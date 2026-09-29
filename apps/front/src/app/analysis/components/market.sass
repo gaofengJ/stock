@@ -43,9 +43,9 @@
     line-height: 1.5
   .market-index
     width: 100%
-    border: 1px solid #eceef1
+    border: 1px solid var(--color-border)
     border-radius: 6px
-    background: white
+    background: var(--color-surface)
     padding: 16px
     text-align: left
     font: inherit
@@ -53,7 +53,7 @@
     &.active, &:focus-visible
       outline: 2px solid var(--color-pink-red)
       outline-offset: -2px
-      background: #fff7f9
+      background: var(--color-primary-subtle)
     &:hover
       border-color: var(--color-pink-red)
   .market-index-name
@@ -87,7 +87,7 @@
     z-index: 5
     padding-top: 32px
     text-align: center
-    background: rgba(255, 255, 255, .3)
+    background: var(--loading-overlay)
     > span
       position: sticky
       top: 24px
@@ -95,12 +95,12 @@
       align-items: center
       gap: 10px
       padding: 10px 16px
-      border: 1px solid #eceef1
+      border: 1px solid var(--color-border)
       border-radius: 6px
       color: var(--text-secondary)
       font-size: 13px
       line-height: 20px
-      background: white
+      background: var(--color-surface)
   .market-section-title
     display: flex
     align-items: center

@@ -106,7 +106,7 @@ export default function Entry({ register = false }: { register?: boolean }) {
                     : []),
                 ]}
               >
-                <Input size="large" prefix={<UserOutlined style={{ color: '#b1b5bd' }} />} placeholder={register ? '设置用户名' : '请输入用户名'} autoComplete="username" maxLength={32} />
+                <Input size="large" prefix={<UserOutlined style={{ color: 'var(--text-disabled)' }} />} placeholder={register ? '设置用户名' : '请输入用户名'} autoComplete="username" maxLength={32} />
               </Form.Item>
               {register && (
               <Form.Item name="nickname" label="昵称" rules={[{ max: 40 }]}>
@@ -125,7 +125,7 @@ export default function Entry({ register = false }: { register?: boolean }) {
               >
                 <Input.Password
                   size="large"
-                  prefix={<LockOutlined style={{ color: '#b1b5bd' }} />}
+                  prefix={<LockOutlined style={{ color: 'var(--text-disabled)' }} />}
                   placeholder={register ? '设置密码，至少 10 位' : '请输入密码'}
                   autoComplete={register ? 'new-password' : 'current-password'}
                   maxLength={128}
@@ -136,7 +136,7 @@ export default function Entry({ register = false }: { register?: boolean }) {
               </Button>
             </Form>
             <div className="entry-switch">
-              <span style={{ color: '#9095a0' }}>
+              <span style={{ color: 'var(--text-muted)' }}>
                 {register ? '已有账户？' : '还没有账户？'}
                 {' '}
               </span>
