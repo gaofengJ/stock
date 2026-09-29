@@ -55,12 +55,14 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "P
 .quote-down { color: var(--quote-down); }
 .quote-flat { color: var(--text-secondary); }
 .platform-layout { height: 100dvh; min-width: 0; }
-.platform-header { display: flex; align-items: center; gap: 16px; border-bottom: 1px solid #eceef1; flex-shrink: 0; }
+.platform-header.ant-layout-header { display: flex; align-items: center; height: 56px; line-height: normal; gap: 16px; border-bottom: 1px solid #eceef1; flex-shrink: 0; }
 .platform-brand { display: flex; align-items: center; gap: 8px; white-space: nowrap; flex-shrink: 0; font-size: 18px; font-weight: 600; color: #252a34; text-decoration: none; }
 .platform-brand:focus-visible { outline: 2px solid #ff2e63; outline-offset: 4px; border-radius: 4px; }
 .platform-header .platform-brand:hover { color: #ff2e63; }
-.platform-market-label { color: #697386; font-size: 12px; white-space: nowrap; line-height: 20px; padding-left: 16px; border-left: 1px solid #e5e7eb; }
-.platform-nav { font-size: 14px; }
+.platform-brand { line-height: 24px; }
+.platform-brand img { display: block; }
+.platform-header .platform-nav { align-self: stretch; display: flex; align-items: center; font-size: 14px; line-height: normal; }
+.platform-header .platform-nav > .ant-menu-item, .platform-header .platform-nav > .ant-menu-submenu { display: inline-flex; align-items: center; height: 100%; top: 0; }
 .platform-nav .ant-menu-item-selected { font-weight: 600; }
 .drawer-section-label { margin: 20px 16px 8px; color: #697386; font-size: 12px; }
 .platform-body, .platform-content, .platform-content-inner { min-width: 0; min-height: 0; }
@@ -86,16 +88,18 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "P
 .metric-value { font-size: 26px; font-weight: 600; line-height: 1.45; white-space: nowrap; }
 .metric-unit { font-size: 13px; font-weight: 400; margin-left: 4px; }
 .metric-note { font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
+.help-tooltip-trigger { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 18px; height: 20px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--text-secondary); font-size: 13px; line-height: 1; cursor: help; }
+.help-tooltip-trigger:hover { color: #252a34; }
+.help-tooltip-trigger:focus-visible { outline: 2px solid #ff2e63; outline-offset: 2px; }
 .market-breadth { display: flex; height: 8px; overflow: hidden; border-radius: 4px; margin: 0 0 16px; }
 .market-breadth > span { min-width: 0; }
 .prepared-page { padding: 24px; background: #fff; border-radius: 6px; min-height: 100%; }
-@media (max-width: 1599px) { .platform-market-label { display: none; } }
 @media (max-width: 1199px) {
   .platform-header .header-contact, .platform-header .sync-schedule { display: none; }
-  .platform-header { gap: 12px; }
+  .platform-header.ant-layout-header { gap: 12px; }
 }
 @media (max-width: 767px) {
-  .platform-header { padding: 0 12px !important; gap: 8px; }
+  .platform-header.ant-layout-header { padding: 0 12px; gap: 8px; }
   .platform-brand { font-size: 16px; gap: 4px; }
   .platform-brand img { width: 24px; height: 24px; }
   .platform-header .header-account { padding: 4px; gap: 4px; }

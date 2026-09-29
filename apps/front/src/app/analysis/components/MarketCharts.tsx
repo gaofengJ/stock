@@ -1,9 +1,10 @@
 'use client';
 
 import {
-  Alert, Button, Card, Col, Empty, Row, Spin, Tooltip,
+  Alert, Button, Card, Col, Empty, Row, Spin,
 } from 'antd';
 import CChart from '@/components/CChart';
+import HelpTooltip from '@/components/HelpTooltip';
 import { quoteColors } from '@/theme';
 import { numberText } from '@/utils/format';
 import { MarketSeries, MarketStats } from '@/api/market';
@@ -36,12 +37,10 @@ export function Metrics({ items }: { items: Metric[] }) {
       {items.map((i) => (
         <Col key={i.title} xs={24} sm={12} xl={6}>
           <Card size="small" className="metric-card">
-            <Tooltip title={i.description}>
-              <div className="metric-label">
-                {i.title}
-                {i.description && <span className="metric-help" aria-label={i.description}>ⓘ</span>}
-              </div>
-            </Tooltip>
+            <div className="metric-label">
+              {i.title}
+              {i.description && <HelpTooltip title={i.description} label={i.title} />}
+            </div>
             <div className={`metric-value ${i.className || ''}`}>
               {i.display ?? numberText(i.value, i.digits ?? 0, i.signed)}
               {i.value != null && i.suffix && <span className="metric-unit">{i.suffix}</span>}

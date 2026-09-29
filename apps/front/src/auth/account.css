@@ -68,17 +68,20 @@
 .entry-switch { text-align: center; margin-top: 24px; font-size: 14px; }
 .entry-footnote { text-align: center; font-size: 12px; color: #697386; margin-top: 24px; }
 .header-tools { display: flex; align-items: center; gap: 16px; flex-shrink: 0; margin-left: auto; line-height: 1.5; }
-.header-contact, .sync-schedule, .header-account { display: inline-flex; align-items: center; gap: 8px; border: 0; background: transparent; border-radius: 6px; cursor: pointer; font: inherit; color: #252a34; white-space: nowrap; }
+.header-contact, .sync-schedule, .header-account { display: inline-flex; align-items: center; justify-content: center; height: 36px; gap: 8px; border: 0; background: transparent; border-radius: 6px; cursor: pointer; font: inherit; line-height: 20px; color: #252a34; white-space: nowrap; }
 .header-contact { padding: 6px 0; font-size: 14px; }
 .header-contact .anticon { font-size: 16px; }
-.sync-schedule { padding: 6px 8px; font-size: 12px; color: #697386; background: #f7f8fa; }
+.sync-schedule { padding: 0; gap: 4px; font-size: 12px; color: #697386; cursor: default; }
 .sync-schedule strong { color: #252a34; font-weight: 500; margin-right: 4px; }
 .header-account { padding: 4px 8px; font-size: 14px; }
-.header-account:hover, .header-account[aria-expanded="true"], .header-contact:hover { background: #fff0f4; }
-.header-account:focus-visible, .header-contact:focus-visible, .sync-schedule:focus-visible { outline: 2px solid #ff2e63; outline-offset: 2px; }
+.header-account, .header-contact { transition: color .18s ease; }
+.header-account:hover, .header-account[aria-expanded="true"], .header-contact:hover { color: #4b5563; }
+.header-account:focus-visible, .header-contact:focus-visible { outline: 2px solid #ff2e63; outline-offset: 2px; }
 .header-account-name { max-width: 112px; overflow: hidden; text-overflow: ellipsis; }
-.header-account-chevron { color: #697386; font-size: 10px; transition: transform .15s; }
+.header-account-chevron { display: block; flex-shrink: 0; color: #697386; transition: transform .2s ease; }
 .header-account[aria-expanded="true"] .header-account-chevron { transform: rotate(180deg); }
+@media (hover: hover) { .header-account:hover .header-account-chevron { transform: rotate(180deg); } }
+@media (prefers-reduced-motion: reduce) { .header-account-chevron { transition: none; } }
 .header-account-panel { width: 232px; max-width: calc(100vw - 32px); padding: 8px; background: #fff; border: 1px solid #eceef1; border-radius: 8px; box-shadow: 0 6px 24px #252a3414; }
 .header-account-summary { display: flex; align-items: center; gap: 12px; padding: 8px 8px 16px; margin-bottom: 4px; border-bottom: 1px solid #eceef1; }
 .header-account-summary > div { min-width: 0; }

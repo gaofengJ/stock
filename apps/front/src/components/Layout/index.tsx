@@ -12,7 +12,6 @@ import {
   Grid,
   Menu,
   Dropdown,
-  Tooltip,
   message,
   MenuProps,
   Popover,
@@ -25,9 +24,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 import AccountAvatar from '@/auth/AccountAvatar';
+import HelpTooltip from '@/components/HelpTooltip';
 import LoginActivity, { useLoginActivity } from '@/auth/LoginActivity';
 import {
-  MenuOutlined, WechatOutlined, DownOutlined, UserOutlined, LogoutOutlined, ClockCircleOutlined,
+  MenuOutlined, WechatOutlined, UserOutlined, LogoutOutlined,
 } from '@ant-design/icons';
 import ImgFengye from '@/assets/imgs/fengye.png';
 import ImgAuthorAvatar from '@/assets/imgs/author-avatar.png';
@@ -129,7 +129,6 @@ const CommonLayout: React.FC<ILayoutProps> = ({
           <img src={ImgFengye.src} alt="" width={28} height={28} />
           <span>木风同学</span>
         </Link>
-        <span className="platform-market-label">A股 · 盘后复盘</span>
         {!mobile && (
         <Menu
           mode="horizontal"
@@ -163,16 +162,14 @@ const CommonLayout: React.FC<ILayoutProps> = ({
               <span>联系作者</span>
             </button>
           </Popover>
-          <Tooltip trigger={['hover', 'focus', 'click']} title="这是盘后数据的同步计划，不代表当前同步状态。北京时间每日20:30开始，每15分钟补试至22:00；22:00核对，次日07:30补缺。实际数据日期与完成状态请查看页面提示。">
-            <button type="button" className="sync-schedule" aria-label="查看盘后数据同步计划">
-              <ClockCircleOutlined />
-              <span>
-                盘后数据 ·
-                <strong>20:30</strong>
-                起同步
-              </span>
-            </button>
-          </Tooltip>
+          <span className="sync-schedule">
+            <span>
+              盘后数据 ·
+              <strong>20:30</strong>
+              起同步
+            </span>
+            <HelpTooltip label="盘后数据同步" title="每日北京时间 20:30 开始同步，次日早间补齐遗漏。实际更新情况以页面的数据日期为准。" />
+          </span>
           {canReadActivity && headerMenuActive === '/admin' && <LoginActivity activity={activity} />}
           {user?.guest ? (
             <div className="guest-account-tools">
@@ -187,7 +184,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
             </div>
           ) : (
             <Dropdown
-              trigger={['click']}
+              trigger={mobile ? ['click'] : ['hover', 'click']}
               open={accountOpen}
               onOpenChange={setAccountOpen}
               overlayClassName="header-account-popup"
@@ -206,9 +203,11 @@ const CommonLayout: React.FC<ILayoutProps> = ({
               placement="bottomRight"
             >
               <button type="button" className="header-account" aria-label={`${accountName}，账户菜单`} aria-haspopup="menu" aria-expanded={accountOpen}>
-                <AccountAvatar avatar={user?.avatar} roles={user?.roles} />
+                <AccountAvatar avatar={user?.avatar} roles={user?.roles} size={28} />
                 <span className="header-account-name">{accountName}</span>
-                <DownOutlined className="header-account-chevron" />
+                <svg className="header-account-chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="m4 6 4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </button>
             </Dropdown>
           )}
