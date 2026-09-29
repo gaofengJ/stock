@@ -5,6 +5,8 @@
 .tmp
 apps/back/.env.development
 apps/back/.env.server-test
+apps/back/.env.production
+**/runtime.env
 
 node_modules
 **/node_modules

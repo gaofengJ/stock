@@ -1,45 +1,94 @@
-# actions 名称
-name: Docker Stock Back
-
-# 执行时机
+name: Stock CI and release
 on:
   pull_request:
-    branches: [master]
+    branches:
+      - master
     paths:
-      - 'apps/back/**'
-      - 'apps/front/**'
-      - 'pnpm-lock.yaml'
-      - '.github/workflows/**'
-  # 监听 push 操作
+      - apps/back/**
+      - apps/front/**
+      - .github/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .npmrc
+      - .dockerignore
   push:
     branches:
       - master
     paths:
-      - 'apps/back/**'
-      - '.github/workflows/back-cd.yml'
-      - 'pnpm-lock.yaml'
-
+      - apps/back/**
+      - apps/front/**
+      - .github/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .npmrc
+      - .dockerignore
+  workflow_dispatch:
+    inputs:
+      publish_images:
+        description: Publish validation images without deploying production
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      publish_images:
+        description: Publish validation images without deploying production
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
 concurrency:
   group: stock-back-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
-
-# 任务
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.scope.outputs.backend }}
+      frontend: ${{ steps.scope.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+      - run: node --test .github/scripts/test-release-tools.cjs
+      - uses: actions/github-script@v7
+        id: scope
+        with:
+          script: |-
+            const { releaseScope } = require(process.env.GITHUB_WORKSPACE + '/.github/scripts/release-scope.cjs');
+            let files = [], complete = false;
+            if (context.eventName === 'pull_request') {
+              const result = await github.paginate(github.rest.pulls.listFiles, {...context.repo, pull_number: context.issue.number, per_page: 100});
+              files = result.flatMap(f => [f.filename, f.previous_filename].filter(Boolean));
+              complete = result.length < 3000;
+            } else if (context.eventName === 'push' && !/^0+$/.test(context.payload.before)) {
+              const {data} = await github.rest.repos.compareCommits({...context.repo, base: context.payload.before, head: context.sha});
+              files = (data.files || []).flatMap(f => [f.filename, f.previous_filename].filter(Boolean));
+              complete = (data.files || []).length < 300;
+            }
+            for (const [key, value] of Object.entries(releaseScope(files, complete))) core.setOutput(key, String(value));
   verify:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     services:
       mysql:
         image: mysql:5.7.33
         env:
           MYSQL_ROOT_PASSWORD: ci-local-only
-          MYSQL_ROOT_HOST: '%'
+          MYSQL_ROOT_HOST: "%"
         ports:
           - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci-local-only"
-          --health-interval=10s --health-timeout=5s --health-retries=12
+        options: --health-cmd="mysqladmin ping -h 127.0.0.1 -pci-local-only" --health-interval=10s --health-timeout=5s --health-retries=12
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |-
+            apps/back
+            .github
       - uses: pnpm/action-setup@v4
         with:
           version: 9.15.9
@@ -47,7 +96,7 @@ jobs:
         with:
           node-version: 18
           cache: pnpm
-      - run: pnpm install --filter back --filter front --frozen-lockfile
+      - run: pnpm install --filter back --frozen-lockfile
       - run: pnpm -C apps/back run lint
       - run: pnpm -C apps/back run build
       - run: pnpm -C apps/back run test --runInBand
@@ -62,14 +111,20 @@ jobs:
         run: |
           AUTH_TEST_DATABASE=stock_auth_test_ci node test/accounts.integration.cjs
           AUTH_TEST_DATABASE=stock_auth_test_legacy_ci node test/migration-legacy.cjs
-      - run: pnpm -C apps/front run lint
-      - run: node apps/front/scripts/test-errors.cjs && node apps/front/scripts/test-market-compatibility.cjs
-      - run: pnpm -C apps/front run build
+  image:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |-
+            apps/back
+            .github
       - name: Set up BuildKit
         uses: docker/setup-buildx-action@v4
         with:
           driver: docker-container
-      # 这里只构建仓库内的配置模板，不注入生产凭据；缓存供发布任务复用。
       - name: Verify production image and native Argon2 runtime
         uses: docker/build-push-action@v7
         with:
@@ -78,56 +133,44 @@ jobs:
           platforms: linux/amd64
           load: true
           tags: stock-back-verify
-          cache-from: type=gha,version=2,scope=stock-back-verify
-          cache-to: type=gha,version=2,scope=stock-back-verify,mode=max
+          cache-from: |-
+            type=gha,version=2,scope=stock-back-runtime-v2
+            type=gha,version=2,scope=stock-back-verify
+          cache-to: type=gha,version=2,scope=stock-back-runtime-v2,mode=max
           provenance: false
-      - name: Check native Argon2 in the exported image
-        run: docker run --rm stock-back-verify node scripts/check-argon2.cjs
-  build:
-    if: github.event_name == 'push'
-    needs: verify
+      - name: Verify native dependencies and runtime configuration
+        run: |-
+          docker image inspect stock-back-verify --format 'Runtime image bytes: {{.Size}}'
+          docker run --rm stock-back-verify node scripts/check-argon2.cjs
+          docker run --rm stock-back-verify node scripts/check-image.cjs
+          printf 'DB_HOST=runtime-config.invalid\nDB_DATABASE=stock_ci\nDB_PASSWORD="quoted # value"\n' > "$RUNNER_TEMP/runtime.env"
+          docker run --rm --mount "type=bind,src=$RUNNER_TEMP/runtime.env,dst=/run/stock/runtime.env,readonly" -e APP_ENV_FILE=/run/stock/runtime.env stock-back-verify node scripts/check-image.cjs
+  front:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    uses: ./.github/workflows/front-cd.yml
+  publish-back:
+    needs:
+      - changes
+      - verify
+      - image
+      - front
+    if: needs.changes.outputs.backend == 'true' && ((github.event_name == 'push' && github.ref == 'refs/heads/master') || inputs.publish_images == true)
     runs-on: ubuntu-latest
     steps:
-      # 1. 拉取代码 (升级到 v4)
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: apps/back
       - name: Set up BuildKit
         uses: docker/setup-buildx-action@v4
         with:
           driver: docker-container
-
-      - name: Prepare production environment without logging credentials
-        env:
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_DATABASE: ${{ secrets.DB_DATABASE }}
-          DB_USERNAME: ${{ secrets.DB_USERNAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          TUSHARE_CONF_TOKEN: ${{ secrets.TUSHARE_CONF_TOKEN }}
-        run: |
-          python3 - <<'PY'
-          import os
-          from pathlib import Path
-          path = Path('apps/back/.env.production')
-          content = path.read_text()
-          for name in ('DB_HOST', 'DB_PORT', 'DB_DATABASE', 'DB_USERNAME', 'DB_PASSWORD', 'TUSHARE_CONF_TOKEN'):
-              value = os.environ[name]
-              if not value or any(c in value for c in ('\n', '\r', '"')):
-                  raise SystemExit('Missing or unsupported environment value: ' + name)
-              content = content.replace('__' + name + '__', '"' + value + '"')
-          path.write_text(content)
-          PY
-
-      # 3. 登录阿里云镜像容器服务 (使用官方 Action)
       - name: Login to Aliyun Registry
         uses: docker/login-action@v3
         with:
           registry: registry.cn-hangzhou.aliyuncs.com
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
-      # 直接由 BuildKit 推送；含生产凭据的镜像不导出到 GitHub 缓存或构建记录。
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v7
         env:
@@ -138,9 +181,65 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-back:${{ github.sha }}
-          cache-from: type=gha,version=2,scope=stock-back-verify
+          cache-from: type=gha,version=2,scope=stock-back-runtime-v2
           provenance: false
-
+      - name: Report compressed runtime image size
+        env:
+          IMAGE: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-back:${{ github.sha }}
+        run: docker buildx imagetools inspect "$IMAGE" --raw | python3 -c 'import json,sys; m=json.load(sys.stdin); print("Compressed runtime image bytes:", sum(layer["size"] for layer in m["layers"]))'
+  publish-front:
+    needs:
+      - changes
+      - front
+    if: needs.changes.outputs.frontend == 'true' && ((github.event_name == 'push' && github.ref == 'refs/heads/master') || inputs.publish_images == true)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: apps/front
+      - uses: actions/download-artifact@v4
+        with:
+          name: stock-front-${{ github.sha }}
+          path: apps/front/out
+      - name: Set up BuildKit
+        uses: docker/setup-buildx-action@v4
+        with:
+          driver: docker-container
+      - name: Login to Aliyun Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v7
+        with:
+          context: apps/front
+          platforms: linux/amd64
+          push: true
+          tags: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-front:${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && 'latest' || format('ci-{0}', github.sha) }}
+          cache-from: type=gha,version=2,scope=stock-front
+          cache-to: type=gha,version=2,scope=stock-front,mode=max
+          provenance: false
+  deploy-back:
+    needs: publish-back
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |-
+            apps/back
+            .github
+      - name: Prepare production environment without logging credentials
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          TUSHARE_CONF_TOKEN: ${{ secrets.TUSHARE_CONF_TOKEN }}
+        run: node .github/scripts/render-runtime-env.cjs apps/back/.env.production apps/back/ops/release/runtime.env
       - name: Upload versioned release scripts
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -150,8 +249,6 @@ jobs:
           source: apps/back/ops/release,apps/back/ops/test-db
           target: /opt/stock-release/packages/${{ github.sha }}
           strip_components: 3
-
-      # 5. 远程部署 (使用环境变量传递 Secrets，更安全)
       - name: Deploy to Server
         uses: appleboy/ssh-action@v1.2.0
         env:
@@ -162,8 +259,25 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
-          # 将敏感信息注入环境变量
           envs: DOCKER_USERNAME,DOCKER_PASSWORD,RELEASE_SHA
           command_timeout: 120m
-          # 脚本中不再显式传递参数，而是需要在脚本内读取环境变量
           script: bash /opt/stock-release/packages/${{ github.sha }}/release/deploy.sh
+  deploy-front:
+    needs:
+      - changes
+      - publish-front
+      - deploy-back
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.publish-front.result == 'success' && (needs.changes.outputs.backend != 'true' || needs.deploy-back.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          envs: DOCKER_USERNAME,DOCKER_PASSWORD
+          script: cd /home && sh stock-front-deploy.sh
