@@ -47,7 +47,7 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
               const date = candle.start === candle.end ? candle.date : `${candle.start} 至 ${candle.end}`;
               const values = Array.isArray(params) ? params : [params];
               const lines = values.filter((p: any) => p.seriesType === 'line').map((p: any) => `${p.seriesName}  ${numberText(p.value)}`).join('\n');
-              return candle.value ? `${date}\n开盘  ${numberText(candle.value[0])}\n收盘  ${numberText(candle.value[1])}\n最高  ${numberText(candle.value[3])}\n最低  ${numberText(candle.value[2])}\n成交量  ${numberText(candle.volume)} 万手${lines ? `\n${lines}` : ''}` : `${date}\n价格数据不完整\n成交量  ${numberText(candle.volume)} 万手`;
+              return candle.value ? `${date}\n开盘  ${numberText(candle.value[0])}\n收盘  ${numberText(candle.value[1])}\n最高  ${numberText(candle.value[3])}\n最低  ${numberText(candle.value[2])}${lines ? `\n${lines}` : ''}\n成交量  ${numberText(candle.volume)} 万手` : `${date}\n价格数据不完整\n成交量  ${numberText(candle.volume)} 万手`;
             },
           },
           axisPointer: { link: [{ xAxisIndex: 'all' }], label: { backgroundColor: panel.selection, color: panel.text } },
