@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  Alert, Button, Drawer, Empty, Table, Tabs, Tag,
+  Alert, Button, Drawer, Empty, Tabs, Tag,
 } from 'antd';
+import Table from '@/components/DataTable';
 import Loading from '@/components/Loading';
 import HelpTooltip from '@/components/HelpTooltip';
 import { errorMessage } from '@/api/errors';

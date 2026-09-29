@@ -1,8 +1,9 @@
 'use client';
 
 import {
-  Card, Col, Row, Table, Tabs, Tag,
+  Card, Col, Row, Tabs, Tag,
 } from 'antd';
+import Table from '@/components/DataTable';
 import { changeClass } from '@/utils/format';
 import { Ladder, MarketSeries } from '@/api/market';
 import Link from 'next/link';

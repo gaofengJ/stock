@@ -1,9 +1,8 @@
 'use client';
 
 import { errorMessage } from '@/api/errors';
-import {
-  Alert, Button, PaginationProps, Table,
-} from 'antd';
+import { Alert, Button, PaginationProps } from 'antd';
+import Table from '@/components/DataTable';
 import { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import Layout from '@/components/Layout';
@@ -140,12 +139,13 @@ function BasicDailyPage() {
           />
         </div>
         <Table
+          rowKey="tsCode"
           dataSource={dailyData.items}
           columns={dailyColumns}
           locale={{
             emptyText: (<div className="min-h-240 leading-[240px]">{loading ? '加载中…' : (loadError || '当前日期与筛选条件下暂无数据')}</div>),
           }}
-          scroll={{ x: 4000, y: 'max(240px, calc(100dvh - 320px))' }}
+          scroll={{ x: 4000 }}
           loading={!dateError && (!dateReady || loading)}
           pagination={{
             current: searchParams.pageNum,

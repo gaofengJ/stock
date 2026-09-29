@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { errorMessage } from '@/api/errors';
 import {
-  Alert, Button, Grid, Table, Tabs,
+  Alert, Button, Grid, Tabs,
 } from 'antd';
+import Table from '@/components/DataTable';
 import dayjs from 'dayjs';
 import Layout from '@/components/Layout';
 import { EHeaderMenuKey } from '@/components/Layout/enum';
@@ -196,7 +197,7 @@ function StrategyPage() {
                 </div>
               ),
             }}
-            scroll={{ x: 1048, y: 'max(240px, calc(100dvh - 320px))' }}
+            scroll={{ x: 1048 }}
             loading={!dateError && (!dateReady || tableLoading)}
             pagination={false}
           />

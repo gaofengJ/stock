@@ -1,0 +1,6 @@
+.data-table { position: relative; min-width: 0; }
+.data-table .ant-table-body { overscroll-behavior: contain; scrollbar-gutter: stable; }
+.data-table.is-loading > .data-table-content { opacity: .35; pointer-events: none; user-select: none; }
+.data-table.is-loading .ant-table-body { min-height: min(320px, var(--table-body-height)); }
+.data-table-loading-space { height: min(280px, calc(var(--table-body-height) - 34px)); }
+.data-table > .loading-overlay { border-radius: 8px; }

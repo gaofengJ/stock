@@ -4,8 +4,9 @@ import {
   createContext, useCallback, useContext, useEffect, useRef, useState,
 } from 'react';
 import {
-  Alert, Badge, Button, Empty, List, Space, Spin, Tag, message,
+  Alert, Badge, Button, Empty, List, Space, Tag, message,
 } from 'antd';
+import Loading from '@/components/Loading';
 import { errorMessage } from '@/api/errors';
 import { api } from './client';
 
@@ -77,7 +78,7 @@ export default function LoginActivity() {
         </Button>
       </Space>
       {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
-      <Spin spinning={loading && !data.items.length}>
+      {loading && !data.items.length ? <Loading /> : (
         <List
           dataSource={data.items}
           locale={{ emptyText: <Empty description="暂无用户登录动态" /> }}
@@ -103,7 +104,7 @@ export default function LoginActivity() {
             </List.Item>
           )}
         />
-      </Spin>
+      )}
       <p className="text-secondary">已读状态仅影响当前管理员；标记后新到的登录记录仍会保留提醒。</p>
     </section>
   );

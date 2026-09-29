@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
-  Button, Input, Select, Space, Table, Tabs,
+  Button, Input, Select, Space, Tabs,
 } from 'antd';
+import Table from '@/components/DataTable';
 import { changeClass, scaledNumber } from '@/utils/format';
 import { LimitRow } from '@/api/market';
 import LegacyPage from './LegacyPage';

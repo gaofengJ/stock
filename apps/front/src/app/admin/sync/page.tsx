@@ -4,19 +4,9 @@ import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { errorMessage } from '@/api/errors';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
-  Button,
-  DatePicker,
-  Descriptions,
-  Drawer,
-  Form,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Typography,
-  message,
+  Alert, Button, DatePicker, Descriptions, Drawer, Form, Select, Space, Tag, Typography, message,
 } from 'antd';
+import Table from '@/components/DataTable';
 import { useAccount } from '@/auth/Boundary';
 import { api } from '@/auth/client';
 import { SyncOutlined } from '@ant-design/icons';
@@ -217,7 +207,7 @@ export default function Page() {
               下表为该日期范围的最新数据状态，可能包含后续任务补齐的结果。
             </Typography.Paragraph>
             <Table
-              rowKey={(r) => r.task + r.tradeDate}
+              rowKey={(r: { task: string; tradeDate: string }) => r.task + r.tradeDate}
               size="small"
               dataSource={detail.dates}
               columns={[

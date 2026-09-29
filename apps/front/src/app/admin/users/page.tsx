@@ -4,18 +4,9 @@ import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { errorMessage } from '@/api/errors';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
-  Button,
-  Form,
-  Input,
-  Modal,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Typography,
-  message,
+  Alert, Button, Form, Input, Modal, Select, Space, Tag, Typography, message,
 } from 'antd';
+import Table from '@/components/DataTable';
 import { api } from '@/auth/client';
 import { TeamOutlined } from '@ant-design/icons';
 import PageHeading from '@/auth/PageHeading';

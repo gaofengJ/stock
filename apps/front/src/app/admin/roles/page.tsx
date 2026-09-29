@@ -4,19 +4,9 @@ import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { errorMessage } from '@/api/errors';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
-  Button,
-  Checkbox,
-  Form,
-  Input,
-  Modal,
-  Popconfirm,
-  Space,
-  Table,
-  Tag,
-  Typography,
-  message,
+  Alert, Button, Checkbox, Form, Input, Modal, Popconfirm, Space, Tag, Typography, message,
 } from 'antd';
+import Table from '@/components/DataTable';
 import { useAccount } from '@/auth/Boundary';
 import { api } from '@/auth/client';
 import { SafetyCertificateOutlined } from '@ant-design/icons';

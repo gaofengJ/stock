@@ -1,9 +1,8 @@
 'use client';
 
 import { errorMessage } from '@/api/errors';
-import {
-  Alert, Button, PaginationProps, Table,
-} from 'antd';
+import { Alert, Button, PaginationProps } from 'antd';
+import Table from '@/components/DataTable';
 import { useCallback, useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import { basicSiderMenuItems } from '@/components/Layout/config';
@@ -108,10 +107,11 @@ function BasicStockPage() {
           />
         </div>
         <Table
+          rowKey="tsCode"
           locale={{ emptyText: loading ? '加载中…' : (loadError || '没有符合条件的数据') }}
           dataSource={stockData.items}
           columns={stockColumns}
-          scroll={{ x: 2000, y: 'max(240px, calc(100dvh - 320px))' }}
+          scroll={{ x: 2000 }}
           loading={loading}
           pagination={{
             current: searchParams.pageNum,

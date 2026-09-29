@@ -1,9 +1,8 @@
 'use client';
 
 import { errorMessage } from '@/api/errors';
-import {
-  Alert, Button, Input, Table,
-} from 'antd';
+import { Alert, Button, Input } from 'antd';
+import Table from '@/components/DataTable';
 import {
   Suspense, useCallback, useEffect, useState,
 } from 'react';
@@ -93,7 +92,7 @@ function BasicActiveFundsPage() {
           rowKey="name"
           dataSource={filtered}
           columns={activeFundsColumns}
-          scroll={{ x: 900, y: 'calc(100dvh - 260px)' }}
+          scroll={{ x: 900 }}
           loading={loading}
           pagination={{
             defaultPageSize: 20,

@@ -2,7 +2,8 @@
 
 import dayjs from 'dayjs';
 import { useCallback, useEffect, useState } from 'react';
-import { Table, Alert, Button } from 'antd';
+import { Alert, Button } from 'antd';
+import Table from '@/components/DataTable';
 import CSearchForm from '@/components/common/CSearchForm';
 import Layout from '@/components/Layout';
 import { analysisSiderMenuItems } from '@/components/Layout/config';
@@ -126,7 +127,6 @@ function AnalysisLimitsPage() {
           locale={{
             emptyText: (<div className="min-h-240 leading-[240px]">当前日期暂无数据</div>),
           }}
-          scroll={{ y: 'calc(100vh - 232px)' }}
           loading={!dateError && (!dateReady || loading)}
           pagination={false}
         />

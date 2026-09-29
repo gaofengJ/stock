@@ -4,18 +4,9 @@ import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { errorMessage } from '@/api/errors';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
-  Button,
-  Card,
-  DatePicker,
-  Drawer,
-  Form,
-  Input,
-  Select,
-  Table,
-  Tabs,
-  Typography,
+  Alert, Button, Card, DatePicker, Drawer, Form, Input, Select, Tabs, Typography,
 } from 'antd';
+import Table from '@/components/DataTable';
 import dayjs from 'dayjs';
 import { api } from '@/auth/client';
 import { FileSearchOutlined } from '@ant-design/icons';
