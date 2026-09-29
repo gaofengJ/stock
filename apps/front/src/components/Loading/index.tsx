@@ -6,7 +6,7 @@ import { useEffect, useRef } from 'react';
 export default function Loading({ height = 320 }: { height?: number | string }) {
   return (
     <div className="loading-placeholder" style={{ minHeight: height }} role="status" aria-live="polite">
-      <Spin size="large" />
+      <span className="loading-icon" aria-hidden="true"><Spin size="large" /></span>
       <span>加载中…</span>
     </div>
   );
