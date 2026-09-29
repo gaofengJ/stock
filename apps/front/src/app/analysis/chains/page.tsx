@@ -5,6 +5,11 @@ import {
 } from 'antd';
 import { changeClass } from '@/utils/format';
 import { Ladder, MarketSeries } from '@/api/market';
+import Link from 'next/link';
+import { useAccount } from '@/auth/Boundary';
+import { allowedPath } from '@/auth/client';
+import { useMarket } from '../components/MarketContext';
+import { marketHref } from '../components/market-navigation';
 import MarketCompatibility from '../components/MarketCompatibility';
 import LegacyPage from './LegacyPage';
 
@@ -15,6 +20,8 @@ import {
 } from '../components/MarketCharts';
 
 function ChainsPage() {
+  const { date, scope } = useMarket();
+  const { user } = useAccount();
   const series = useMarketData<MarketSeries>('chains', { days: 730 });
   const ladder = useMarketData<Ladder>('ladder');
   const heights = Array.from(new Set(ladder.data?.items.map((r) => r.limitTimes) || [])).sort((a, b) => b - a);
@@ -56,22 +63,23 @@ function ChainsPage() {
                 {!heights.length && <p>当日无涨停记录</p>}
                 {heights.map((height) => (
                   <Card key={height} className="market-chart" title={`${height === 1 ? '首板' : `${height}连板`} - ${ladder.data!.items.filter((r) => r.limitTimes === height).length}只`}>
-                    <Table
-                      scroll={{ x: 760 }}
-                      pagination={false}
-                      size="small"
-                      rowKey="tsCode"
-                      dataSource={ladder.data!.items.filter((r) => r.limitTimes === height)}
-                      columns={[
-                        { title: '代码', dataIndex: 'tsCode' }, { title: '名称', dataIndex: 'name' }, { title: '行业', dataIndex: 'industry' },
-                        { title: '首次封板', dataIndex: 'firstTime', render: (v) => v || '—' }, {
-                          title: '开板次数', dataIndex: 'openTimes', align: 'right', render: (v) => v ?? '—',
-                        },
-                        {
-                          title: '成交额(亿元)', dataIndex: 'amount', align: 'right', render: (v) => numberText(v == null ? null : Number(v) / 100000000),
-                        },
-                      ]}
-                    />
+                    <div className="market-ladder-stocks">
+                      {ladder.data!.items.filter((r) => r.limitTimes === height).map((r) => (
+                        allowedPath(user, '/analysis/limits')
+                          ? (
+                            <Link key={r.tsCode} className="market-ladder-stock" href={marketHref('/analysis/limits', { date, scope }, { keyword: r.tsCode })} title={`查看${r.name}涨停明细`}>
+                              {r.name}
+                              <span>{r.tsCode}</span>
+                            </Link>
+                          )
+                          : (
+                            <span key={r.tsCode} className="market-ladder-stock">
+                              {r.name}
+                              <span>{r.tsCode}</span>
+                            </span>
+                          )
+                      ))}
+                    </div>
                   </Card>
                 ))}
                 <Card title="昨日连板股去向">
@@ -103,13 +111,14 @@ function ChainsPage() {
                 <SectionTitle title="历史走势" />
                 <TrendRange />
               </div>
-              <DataState loading={series.loading} error={series.error} empty={!series.data?.snapshot}>
+              <DataState loading={series.loading} error={series.error} retry={series.retry} empty={!series.data?.snapshot}>
                 {series.data && (
-                <>
-                  <Trend title="涨停梯队数量（含首板）" unit="只" data={series.data} fields={[1, 2, 3, 4].map((n) => ({ label: n === 4 ? '四板及以上' : `${n}板`, value: (s) => s.counts[n - 1] }))} />
-                  <Trend title="连板晋级率" data={series.data} percent fields={[1, 2, 3, 4].map((n) => ({ label: n === 4 ? '高位晋级' : `${n}进${n + 1}`, value: (s) => s.upgrades[n - 1].rate }))} />
-                  <Trend title="涨停与连板成交额" unit="亿元" digits={2} type="bar" data={series.data} fields={[{ label: '涨停成交额', value: (s) => s.limitAmount }, { label: '连板成交额', value: (s) => s.chainAmount }]} />
-                </>
+                <Row gutter={20}>
+                  <Col xs={24} lg={12}><Trend title="最高连板" unit="板" data={series.data} fields={[{ label: '连板高度', value: (s) => s.maxHeight }]} /></Col>
+                  <Col xs={24} lg={12}><Trend title="涨停梯队数量（含首板）" unit="只" data={series.data} fields={[1, 2, 3, 4].map((n) => ({ label: n === 4 ? '四板及以上' : `${n}板`, value: (s) => s.counts[n - 1] }))} /></Col>
+                  <Col xs={24} lg={12}><Trend title="连板晋级率" data={series.data} percent fields={[1, 2, 3, 4].map((n) => ({ label: n === 4 ? '高位晋级' : `${n}进${n + 1}`, value: (s) => s.upgrades[n - 1].rate }))} /></Col>
+                  <Col xs={24} lg={12}><Trend title="涨停与连板成交额" unit="亿元" digits={2} type="bar" data={series.data} fields={[{ label: '涨停成交额', value: (s) => s.limitAmount }, { label: '连板成交额', value: (s) => s.chainAmount }]} /></Col>
+                </Row>
                 )}
               </DataState>
             </>

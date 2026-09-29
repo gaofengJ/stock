@@ -5,6 +5,10 @@ import CChart from '@/components/CChart';
 import HelpTooltip from '@/components/HelpTooltip';
 import { MarketSeries } from '@/api/market';
 import { quoteColors } from '@/colors';
+import { useAccount } from '@/auth/Boundary';
+import { allowedPath } from '@/auth/client';
+import { useMarket } from '../components/MarketContext';
+import { marketHref } from '../components/market-navigation';
 import LegacyPage from './LegacyPage';
 import MarketCompatibility from '../components/MarketCompatibility';
 import MarketShell from '../components/MarketShell';
@@ -14,6 +18,8 @@ import {
 } from '../components/MarketCharts';
 
 function SentimentPage() {
+  const { date, scope } = useMarket();
+  const { user } = useAccount();
   const {
     data, loading, error, retry,
   } = useMarketData<MarketSeries>('sentiment', { days: 730 });
@@ -26,11 +32,16 @@ function SentimentPage() {
         <>
           <SectionTitle title="当日情绪" description="涨跌停、炸板为数据源非ST样本。封板率＝涨停／触板，炸板率＝炸板／触板。昨日涨停表现剔除昨日一字板、ST、新股、退市整理及当日无成交样本；该比例不是实际交易胜率。" />
           <Metrics items={[
-            { title: '涨停家数', className: 'quote-up', value: s.limitUp }, { title: '跌停家数', className: 'quote-down', value: s.limitDown }, { title: '炸板家数', value: s.broken }, { title: '最高连板', value: s.maxHeight, suffix: '板' },
+            { title: '涨停家数', className: 'quote-up', value: s.limitUp }, { title: '跌停家数', className: 'quote-down', value: s.limitDown }, { title: '炸板家数', value: s.broken },
             {
-              title: '封板率', value: s.sealRate, suffix: '%', digits: 2,
-            }, {
-              title: '炸板率', value: s.brokenRate, suffix: '%', digits: 2,
+              title: '最高连板', value: s.maxHeight, suffix: '板', href: allowedPath(user, '/analysis/chains') ? marketHref('/analysis/chains', { date, scope }) : undefined,
+            },
+            {
+              title: '封板率 / 炸板率',
+              value: s.sealRate,
+              display: `${numberText(s.sealRate)}${s.sealRate == null ? '' : '%'} / ${numberText(s.brokenRate)}${s.brokenRate == null ? '' : '%'}`,
+              description: '两者以触板家数为同一分母，合计为100%；无触板样本时显示“—”。',
+              note: `触板样本 ${s.limitUp + s.broken} 只`,
             },
             {
               title: '昨日涨停股今日高开率', value: s.highOpenRate, suffix: '%', digits: 2,
@@ -38,8 +49,8 @@ function SentimentPage() {
               title: '昨日涨停股今日上涨率', value: s.riseRate, suffix: '%', digits: 2,
             },
             {
-              title: '昨日涨停股今日平均涨幅', signed: true, value: s.averageChange, suffix: '%', digits: 2,
-            }, { title: '昨日涨停表现有效样本', value: s.previousSample, suffix: '只' },
+              title: '昨日涨停股今日平均涨幅', signed: true, value: s.averageChange, suffix: '%', digits: 2, note: `昨日涨停表现有效样本 ${s.previousSample} 只`,
+            },
           ]}
           />
           <Card
@@ -68,10 +79,9 @@ function SentimentPage() {
           </div>
           <Row gutter={20}>
             <Col xs={24} lg={12}><Trend title="涨停、跌停与炸板" unit="只" data={data} fields={[{ label: '涨停', value: (v) => v.limitUp }, { label: '跌停', value: (v) => v.limitDown }, { label: '炸板', value: (v) => v.broken }]} /></Col>
-            <Col xs={24} lg={12}><Trend title="封板率与炸板率" data={data} percent fields={[{ label: '封板率', value: (v) => v.sealRate }, { label: '炸板率', value: (v) => v.brokenRate }]} /></Col>
+            <Col xs={24} lg={12}><Trend title="封板率" data={data} percent fields={[{ label: '封板率', value: (v) => v.sealRate }]} /></Col>
             <Col xs={24} lg={12}><Trend title="昨日涨停股今日表现" data={data} percent fields={[{ label: '高开率', value: (v) => v.highOpenRate }, { label: '上涨率', value: (v) => v.riseRate }]} /></Col>
             <Col xs={24} lg={12}><Trend title="昨日涨停股今日平均涨幅" data={data} percent fields={[{ label: '平均涨幅', value: (v) => v.averageChange }]} /></Col>
-            <Col xs={24} lg={12}><Trend title="最高连板" unit="板" data={data} fields={[{ label: '连板高度', value: (v) => v.maxHeight }]} /></Col>
             <Col xs={24} lg={12}><Trend title="上涨与下跌家数" unit="只" data={data} fields={[{ label: '上涨', value: (v) => v.up }, { label: '下跌', value: (v) => v.down }]} /></Col>
           </Row>
         </>

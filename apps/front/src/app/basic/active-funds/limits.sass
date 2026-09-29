@@ -1,2 +1,24 @@
 .active-funds-table
   min-width: 0
+
+.active-funds-org
+  display: inline-block
+  padding: 4px 10px
+  margin: 8px 8px 0 0
+  line-height: 1.6
+  border: 1px solid var(--color-border)
+  border-radius: 6px
+  background: var(--color-surface-muted)
+  overflow-wrap: anywhere
+  &.is-selected
+    color: var(--color-primary-text)
+    border-color: var(--color-primary)
+    background: var(--color-primary-soft)
+
+.active-funds-context
+  display: flex
+  align-items: center
+  flex-wrap: wrap
+  gap: 8px
+  margin-bottom: 16px
+  color: var(--text-secondary)

@@ -5,7 +5,10 @@ import { Button, Col, Row } from 'antd';
 import Link from 'next/link';
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import { MarketSeries } from '@/api/market';
+import { useAccount } from '@/auth/Boundary';
+import { allowedPath } from '@/auth/client';
 import { changeClass, numberText } from '@/utils/format';
+import { marketHref } from '../components/market-navigation';
 import MarketShell, { scopes } from '../components/MarketShell';
 import useMarketData from '../components/useMarketData';
 import { useMarket } from '../components/MarketContext';
@@ -21,7 +24,8 @@ export default function OverviewPage() {
   const {
     data, loading, error, retry,
   } = useMarketData<MarketSeries>('overview', { days: 730 });
-  const { scope } = useMarket();
+  const { scope, date } = useMarket();
+  const { user } = useAccount();
   const [index, setIndex] = useState<string | null>(null);
   const [window, setWindow] = useState<ChartWindow>({ period: 'day', count: 60 });
   useEffect(() => { setIndex(null); }, [scope]);
@@ -38,7 +42,7 @@ export default function OverviewPage() {
           <>
             <div className="market-section-toolbar market-breadth-heading">
               <SectionTitle title="市场概况" description="与市场情绪的涨跌分布使用相同日期和范围，包含ST、排除无成交股票。这里看涨跌家数摘要，市场情绪查看幅度分布、历史走势及非ST样本的涨跌停表现。" />
-              <Link href="/analysis/senti/" className="market-detail-link">查看市场情绪与涨跌分布 →</Link>
+              {allowedPath(user, '/analysis/senti') && <Link href={marketHref('/analysis/senti', { date, scope })} className="market-detail-link">查看市场情绪与涨跌分布 →</Link>}
             </div>
             <Metrics items={[
               {

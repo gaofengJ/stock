@@ -39,8 +39,8 @@ export interface Ladder {
   transitions: { tsCode: string; name: string; previousHeight: number; height: number; state: string; pctChg: number | null }[];
 }
 export interface DragonData {
-  summary: { reason: string; lBuy: number; lSell: number; netAmount: number }[];
-  seats: { reason: string; exalter: string; side: string; buy: number; sell: number; netBuy: number }[];
+  summary: { reason: string; lBuy: number | null; lSell: number | null; netAmount: number | null }[];
+  seats: { reason: string; exalter: string; side: string; buy: number | null; sell: number | null; netBuy: number | null }[];
   queriedAt: string;
 }
 export const marketRequest = <T>(endpoint: string, params: Record<string, unknown> = {}, config: RequestConfig = {}) => axios.get<T>(`/analysis/market/${endpoint}`, { params, ...config });

@@ -2,9 +2,11 @@
 
 import { errorMessage } from '@/api/errors';
 import {
-  createContext, useContext, useEffect, useMemo, useState, useRef,
+  createContext, useContext, useEffect, useMemo, useState,
 } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { marketRequest, MarketScope, MarketStatus } from '@/api/market';
+import { defaultSelection, linkedSelection, Selection } from './market-navigation';
 
 interface MarketSelection {
   date: string; scope: MarketScope; days: number; status: MarketStatus | null; error: string;
@@ -13,11 +15,23 @@ interface MarketSelection {
 }
 const Context = createContext<MarketSelection | null>(null);
 export function MarketProvider({ children }: { children: React.ReactNode }) {
-  const [selection, setSelection] = useState({ date: '', scope: 'all' as MarketScope, days: 20 });
+  const path = usePathname();
+  const query = useSearchParams().toString();
+  const [selections, setSelections] = useState<Record<string, Selection & { query?: string }>>({});
+  const saved = selections[path] || defaultSelection;
+  const selection = useMemo(() => (query && (!('query' in saved) || saved.query !== query)
+    ? { ...saved, ...linkedSelection(query), query } : saved), [query, saved]);
+  useEffect(() => {
+    if (query) {
+      setSelections((old) => ({
+        ...old,
+        [path]: { ...(old[path] || defaultSelection), ...linkedSelection(query), query },
+      }));
+    }
+  }, [path, query]);
   const [status, setStatus] = useState<MarketStatus | null>(null);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
-  const latest = useRef<string | null>(null);
   useEffect(() => {
     let active = true;
     const refresh = async () => {
@@ -25,9 +39,6 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
         const { data } = await marketRequest<MarketStatus>('status');
         if (!active) return;
         setStatus(data); setError('');
-        const previousLatest = latest.current;
-        latest.current = data.latestDate;
-        setSelection((old) => ({ ...old, date: (!old.date || old.date === previousLatest) ? data.latestDate || old.date : old.date }));
       } catch (e) { if (active) setError(errorMessage(e, '同步状态加载失败')); }
     };
     refresh();
@@ -35,8 +46,13 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     return () => { active = false; clearInterval(timer); };
   }, [attempt]);
   const value = useMemo(() => ({
-    ...selection, status, error, retry: () => setAttempt((v) => v + 1), select: (change: Partial<typeof selection>) => setSelection((old) => ({ ...old, ...change })),
-  }), [selection, status, error]);
+    ...selection,
+    date: selection.date || status?.latestDate || '',
+    status,
+    error,
+    retry: () => setAttempt((v) => v + 1),
+    select: (change: Partial<Selection>) => setSelections((old) => ({ ...old, [path]: { ...selection, ...change } })),
+  }), [selection, status, error, path]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 export function useMarket() {

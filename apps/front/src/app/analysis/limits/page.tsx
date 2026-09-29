@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Button, Input, Select, Space, Table, Tabs,
 } from 'antd';
@@ -15,10 +16,15 @@ import DragonDrawer from '../components/DragonDrawer';
 import { useMarket } from '../components/MarketContext';
 
 function LimitsPage() {
-  const [type, setType] = useState('U'); const [keyword, setKeyword] = useState('');
+  const linkedKeyword = useSearchParams().get('keyword') || '';
+  const [type, setType] = useState('U'); const [keyword, setKeyword] = useState(linkedKeyword);
+  const [search, setSearch] = useState(linkedKeyword);
   const [height, setHeight] = useState<number | undefined>();
   const [stock, setStock] = useState<LimitRow | null>(null);
   const { date } = useMarket();
+  useEffect(() => {
+    setKeyword(linkedKeyword); setSearch(linkedKeyword); setType('U'); setHeight(undefined);
+  }, [linkedKeyword]);
   const {
     data, loading, error, retry,
   } = useMarketData<{ ready: boolean; items: LimitRow[] }>('limits', { type, keyword, height });
@@ -28,7 +34,7 @@ function LimitsPage() {
     <MarketShell title="涨停复盘" path="/analysis/limits">
       <Tabs activeKey={type} onChange={setType} items={[{ key: 'U', label: '涨停' }, { key: 'Z', label: '炸板' }, { key: 'D', label: '跌停' }]} />
       <Space className="mb-16" wrap>
-        <Input.Search allowClear placeholder="股票名称／代码" onSearch={setKeyword} style={{ width: 260 }} />
+        <Input.Search allowClear placeholder="股票名称／代码" value={search} onChange={(e) => { setSearch(e.target.value); if (!e.target.value) setKeyword(''); }} onSearch={setKeyword} style={{ width: 260 }} />
         <Select allowClear placeholder="连板数" value={height} onChange={setHeight} style={{ width: 140 }} options={[{ value: 1, label: '首板' }, { value: 2, label: '二板' }, { value: 3, label: '三板' }, { value: 4, label: '四板及以上' }]} />
       </Space>
       <SectionTitle title="股票列表" description="非ST样本；涨停与炸板按收盘状态区分。缺失封板信息显示“—”。" />

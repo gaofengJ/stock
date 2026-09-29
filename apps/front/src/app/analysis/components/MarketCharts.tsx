@@ -4,6 +4,7 @@ import {
   Alert, Button, Card, Col, Empty, Row, Select,
 } from 'antd';
 import { memo } from 'react';
+import Link from 'next/link';
 import { LoadingOverlay } from '@/components/Loading';
 import CChart from '@/components/CChart';
 import { useSiteTheme } from '@/components/SiteTheme';
@@ -52,6 +53,7 @@ export function DataState({
 interface Metric {
   title: string; value: number | null | undefined; suffix?: string; digits?: number;
   signed?: boolean; className?: string; description?: string; display?: string; note?: string;
+  href?: string;
 }
 export function Metrics({ items }: { items: Metric[] }) {
   return (
@@ -60,7 +62,13 @@ export function Metrics({ items }: { items: Metric[] }) {
         <Col key={i.title} xs={24} sm={12} xl={6}>
           <Card size="small" className="metric-card">
             <div className="metric-label">
-              {i.title}
+              {i.href ? (
+                <Link href={i.href}>
+                  {i.title}
+                  {' '}
+                  →
+                </Link>
+              ) : i.title}
               {i.description && <HelpTooltip title={i.description} label={i.title} />}
             </div>
             <div className={`metric-value ${i.className || (i.signed ? changeClass(i.value) : '')}`}>

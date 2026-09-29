@@ -163,6 +163,29 @@
   justify-content: space-between
   gap: 16px
 
+.market-ladder-stocks
+  display: flex
+  flex-wrap: wrap
+  gap: 12px
+
+.market-ladder-stock
+  display: inline-flex
+  flex-direction: column
+  gap: 4px
+  min-width: 140px
+  padding: 10px 14px
+  border: 1px solid var(--color-border)
+  border-radius: 6px
+  color: var(--color-black)
+  background: var(--color-surface-muted)
+  span
+    color: var(--text-secondary)
+    font-size: 12px
+
+a.market-ladder-stock:hover, a.market-ladder-stock:focus-visible
+  border-color: var(--color-primary)
+  color: var(--color-primary)
+
 @media (max-width: 767px)
   .platform-watermark > .market-page
     min-height: calc(100dvh - 72px)

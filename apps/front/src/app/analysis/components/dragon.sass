@@ -1,0 +1,132 @@
+.dragon-drawer
+  .ant-drawer-body
+    background: var(--color-surface)
+  .dragon-title
+    display: flex
+    align-items: baseline
+    flex-wrap: wrap
+    gap: 8px 20px
+    strong
+      font-size: 18px
+    span
+      font-size: 13px
+      font-weight: 400
+      color: var(--text-secondary)
+  .dragon-intro
+    display: flex
+    align-items: center
+    gap: 6px
+    color: var(--text-secondary)
+    font-size: 13px
+  .dragon-reason
+    border-left: 3px solid var(--color-primary)
+    background: var(--color-surface-muted)
+    padding: 12px 16px
+    margin-bottom: 20px
+    line-height: 1.7
+  .dragon-totals
+    display: grid
+    grid-template-columns: repeat(3, minmax(0, 1fr))
+    gap: 16px
+    margin: 20px 0 28px
+    > div
+      display: flex
+      flex-direction: column
+      gap: 8px
+    span
+      color: var(--text-secondary)
+      font-size: 13px
+    strong
+      font-size: 24px
+      font-variant-numeric: tabular-nums
+  .dragon-seat-section
+    margin: 24px 0
+    .ant-table-cell
+      font-size: 13px
+  .dragon-seat-heading
+    display: flex
+    align-items: baseline
+    justify-content: space-between
+    gap: 12px
+    margin-bottom: 12px
+    strong
+      font-size: 16px
+    span
+      color: var(--text-secondary)
+      font-size: 12px
+  .is-buy .dragon-seat-heading strong
+    color: var(--quote-up)
+  .is-sell .dragon-seat-heading strong
+    color: var(--quote-down)
+  .dragon-rank
+    color: var(--text-secondary)
+    font-variant-numeric: tabular-nums
+  .dragon-org
+    line-height: 1.6
+    overflow-wrap: anywhere
+    a
+      color: var(--color-black)
+      text-decoration: underline
+      text-decoration-color: var(--color-border)
+      text-underline-offset: 4px
+      &:hover
+        color: var(--color-primary)
+    .ant-tag
+      margin-top: 5px
+      font-size: 11px
+  .dragon-amount
+    display: block
+    position: relative
+    padding: 4px 0
+    font-variant-numeric: tabular-nums
+    white-space: nowrap
+    > span:last-child
+      position: relative
+  .dragon-amount-bar
+    position: absolute
+    right: 0
+    top: 0
+    height: 100%
+    background: currentColor
+    opacity: .08
+    border-radius: 3px
+  .dragon-mobile-seats
+    display: none
+
+@media (max-width: 600px)
+  .dragon-drawer
+    .dragon-desktop-table
+      display: none
+    .dragon-mobile-seats
+      display: block
+    .dragon-mobile-seat
+      border-top: 1px solid var(--color-border)
+      padding: 16px 0
+    .dragon-mobile-name
+      display: flex
+      align-items: baseline
+      gap: 12px
+      font-size: 13px
+    .dragon-mobile-amounts
+      display: grid
+      grid-template-columns: repeat(3, minmax(0, 1fr))
+      gap: 8px
+      margin: 12px 0 0 20px
+      > div
+        display: flex
+        flex-direction: column
+        gap: 4px
+      span
+        color: var(--text-secondary)
+        font-size: 12px
+      strong
+        font-variant-numeric: tabular-nums
+        font-size: 14px
+    .ant-drawer-body
+      padding: 16px
+    .dragon-totals
+      gap: 8px
+      strong
+        font-size: 18px
+      span
+        font-size: 11px

@@ -15,6 +15,28 @@ function load(file, imports = {}) {
 const format = load('utils/format.ts');
 const avatars = load('auth/avatars.ts');
 const market = load('app/analysis/components/market-display.ts');
+const funds = load('utils/active-funds.ts');
+const navigation = load('app/analysis/components/market-navigation.ts');
+
+test('seat association matches typography variants but never another branch', () => {
+  const rows = [
+    {name:'甲', orgs:['高盛（中国）证券有限公司上海世纪大道证券营业部']},
+    {name:'乙', orgs:['高盛(中国)证券有限公司上海世纪大道证券营业部']},
+    {name:'丙', orgs:['高盛(中国)证券有限公司上海南京路证券营业部']},
+  ];
+  assert.deepEqual(funds.matchingFunds(rows, ' 高盛(中国)证券有限公司 上海世纪大道证券营业部 ').map(r=>r.name), ['甲','乙']);
+  assert.deepEqual(funds.matchingFunds(rows, '机构专用'), []);
+  assert.deepEqual(funds.matchingFunds(rows, ''), []);
+  assert.equal(new URL(funds.activeFundsHref('席位 & 名称'), 'https://example.test').searchParams.get('org'), '席位 & 名称');
+});
+test('only explicit market detail links carry validated date and scope', () => {
+  const href = navigation.marketHref('/analysis/limits', {date:'2026-09-28',scope:'gem'}, {keyword:'300001.SZ'});
+  const params = new URL(href, 'https://example.test').searchParams;
+  assert.equal(params.get('keyword'), '300001.SZ');
+  assert.deepEqual(navigation.linkedSelection(params.toString()), {date:'2026-09-28',scope:'gem'});
+  assert.deepEqual(navigation.linkedSelection('scope=invalid&date=hello'), {});
+  assert.deepEqual(navigation.linkedSelection(''), {});
+});
 
 const candle = (date, low, high, close = high) => ({ date, start: date, end: date, value: [low, close, low, high] });
 test('index volume and market amount share candle dates and sum complete calendar periods', () => {
