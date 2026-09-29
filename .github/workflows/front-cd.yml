@@ -19,6 +19,9 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            apps/front/package.json
       - run: pnpm install --filter front --frozen-lockfile
       - run: pnpm -C apps/front run lint
       - name: Verify display formatting and request compatibility

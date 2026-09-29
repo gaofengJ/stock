@@ -96,6 +96,9 @@ jobs:
         with:
           node-version: 18
           cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            apps/back/package.json
       - run: pnpm install --filter back --frozen-lockfile
       - run: pnpm -C apps/back run lint
       - run: pnpm -C apps/back run build
