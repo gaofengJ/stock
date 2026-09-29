@@ -17,6 +17,34 @@ const avatars = load('auth/avatars.ts');
 const market = load('app/analysis/components/market-display.ts');
 
 const candle = (date, low, high, close = high) => ({ date, start: date, end: date, value: [low, close, low, high] });
+test('index volume and market amount share candle dates and sum complete calendar periods', () => {
+  const dates = ['2025-12-29', '2025-12-31', '2026-01-02', '2026-01-05'];
+  const points = dates.map((date, i) => ({date, open: 100 + i, close: 101 + i, low: 99 + i, high: 102 + i, vol: (i + 1) * 10000}));
+  const amounts = dates.map((date, i) => ({date, value: (i + 1) * 100}));
+  for (const period of ['day', 'week', 'month']) {
+    const candles = market.indexCandles(points, dates, period);
+    const totals = market.periodTotals(amounts, dates, period);
+    assert.deepEqual(candles.map(c => [c.start, c.end, c.date]), totals.map(c => [c.start, c.end, c.date]));
+  }
+  assert.deepEqual(market.indexCandles(points, dates, 'week').map(c => c.volume), [6, 4]);
+  assert.deepEqual(market.indexCandles(points, dates, 'month').map(c => c.volume), [3, 7]);
+  assert.deepEqual(market.periodTotals(amounts, dates, 'week').map(c => c.value), [600, 400]);
+  assert.deepEqual(market.periodTotals(amounts, dates, 'month').map(c => c.value), [300, 700]);
+});
+
+test('missing or invalid volume leaves a gap independently of valid prices, while zero is retained', () => {
+  const dates = ['2026-09-21', '2026-09-22'];
+  const points = dates.map(date => ({date, open: 100, close: 101, low: 99, high: 102, vol: 0}));
+  assert.equal(market.indexCandles(points, dates, 'week')[0].volume, 0);
+  for (const invalid of [undefined, null, NaN, -1]) {
+    const candles = market.indexCandles([points[0], {...points[1], vol: invalid}], dates, 'week');
+    assert.equal(candles[0].volume, null);
+    assert.deepEqual(candles[0].value, [100, 101, 99, 102]);
+    assert.equal(market.periodTotals([{date: dates[0], value: 100}, {date: dates[1], value: invalid}], dates, 'month')[0].value, null);
+  }
+  assert.equal(market.periodTotals([{date: dates[0], value: 100}], dates, 'week')[0].value, null);
+});
+
 test('moving averages use full history before clipping and restart after missing candles', () => {
   const candles = Array.from({ length: 300 }, (_, i) => candle(String(i), i + 1, i + 1));
   const ma = market.movingAverage(candles, 250);
@@ -42,6 +70,7 @@ test('trillion reference lines convert from hundred-million units and leave smal
   assert.deepEqual(market.amountReferenceLevels([10000]), [10000]);
   assert.deepEqual(market.amountReferenceLevels([16800]), [10000, 20000]);
   assert.deepEqual(market.amountReferenceLevels([25000, NaN]), [10000, 20000, 30000]);
+  assert.deepEqual(market.amountReferenceLevels([520000]), [100000, 200000, 300000, 400000, 500000, 600000]);
 });
 
 test('market scope selects relevant reference indexes without leaking Shanghai into Beijing', () => {

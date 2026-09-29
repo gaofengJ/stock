@@ -1,45 +1,34 @@
 'use client';
 
-import { memo, useState } from 'react';
-import {
-  Card, Empty, Segmented, Select,
-} from 'antd';
+import { memo } from 'react';
+import { Card, Empty } from 'antd';
 import CChart from '@/components/CChart';
 import HelpTooltip from '@/components/HelpTooltip';
 import { MarketSeries } from '@/api/market';
 import { numberText } from '@/utils/format';
 import { movingAverageColors, quoteColors, withAlpha } from '@/colors';
 import {
-  CandlePeriod, indexCandles, movingAverage, averagePeriods, unfilledGaps,
+  ChartWindow, indexCandles, movingAverage, averagePeriods, unfilledGaps,
 } from './market-display';
 
-function IndexChart({ index, dates }: { index: MarketSeries['indexes'][number] | undefined; dates: string[] }) {
-  const [period, setPeriod] = useState<CandlePeriod>('day');
-  const [count, setCount] = useState(60);
+function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][number]; dates: string[]; window: ChartWindow }) {
+  const { period, count } = window;
   const all = indexCandles(index?.series || [], dates, period);
   const candles = count === 0 ? all : all.slice(-count);
   const offset = all.length - candles.length;
   const averages = averagePeriods.map((n) => ({ name: `MA${n}`, values: movingAverage(all, n).slice(offset) }));
   const gaps = unfilledGaps(all);
-  const periodName = { day: '个交易日', week: '周', month: '月' }[period];
-  const ranges = { day: [20, 60, 120, 0], week: [12, 26, 52, 0], month: [6, 12, 0] }[period];
   return (
     <Card
       className="market-chart market-index-chart"
       title={(
         <span className="market-section-title">
           {index?.name || '指数'}
-          <HelpTooltip label="指数走势" title="MA为当前周期收盘均线（日K为日均线，周/月K为周/月均线），点击图例可开关；不足周期留空。色带标出截至所选日期未回补的跳空缺口，部分回补后仅保留剩余区间。周/月K由日线汇总，首尾周期可能不完整，最多展示两年数据。" />
+          <HelpTooltip label="指数走势" title="MA为当前周期收盘均线（日K为日均线，周/月K为周/月均线），点击图例可开关；不足周期留空。色带标出截至所选日期未回补的跳空缺口，部分回补后仅保留剩余区间。周/月K由日线汇总，首尾周期可能不完整，下方为对应周期成交量，周/月成交量按日线求和；最多展示两年数据。" />
         </span>
       )}
-      extra={(
-        <div className="market-chart-controls">
-          <Segmented aria-label="K线周期" value={period} onChange={(value) => { setPeriod(value as CandlePeriod); setCount({ day: 60, week: 26, month: 12 }[value as CandlePeriod]); }} options={[{ value: 'day', label: '日K' }, { value: 'week', label: '周K' }, { value: 'month', label: '月K' }]} />
-          <Select aria-label="K线范围" value={count} onChange={setCount} options={ranges.map((value) => ({ value, label: value ? `近${value}${periodName}` : '全部（最多两年）' }))} />
-        </div>
-      )}
     >
-      {!candles.some((c) => c.value) ? <Empty description="该范围暂无完整K线数据" /> : (
+      {!candles.some((c) => c.value || c.volume != null) ? <Empty description="该范围暂无完整行情数据" /> : (
         <CChart genOptions={() => ({
           tooltip: {
             trigger: 'axis',
@@ -50,18 +39,36 @@ function IndexChart({ index, dates }: { index: MarketSeries['indexes'][number] |
               if (!candle) return '';
               const date = candle.start === candle.end ? candle.date : `${candle.start} 至 ${candle.end}`;
               const values = Array.isArray(params) ? params : [params];
-              const lines = values.filter((p: any) => p.seriesType === 'line').map((p: any) => `${p.seriesName}  ${numberText(p.value)} 点`).join('\n');
-              return candle.value ? `${date}\n开盘  ${numberText(candle.value[0])} 点\n收盘  ${numberText(candle.value[1])} 点\n最高  ${numberText(candle.value[3])} 点\n最低  ${numberText(candle.value[2])} 点${lines ? `\n${lines}` : ''}` : `${date}\n数据不完整`;
+              const lines = values.filter((p: any) => p.seriesType === 'line').map((p: any) => `${p.seriesName}  ${numberText(p.value)}`).join('\n');
+              return candle.value ? `${date}\n开盘  ${numberText(candle.value[0])}\n收盘  ${numberText(candle.value[1])}\n最高  ${numberText(candle.value[3])}\n最低  ${numberText(candle.value[2])}\n成交量  ${numberText(candle.volume)} 万手${lines ? `\n${lines}` : ''}` : `${date}\n价格数据不完整\n成交量  ${numberText(candle.volume)} 万手`;
             },
           },
-          grid: {
-            left: 16, right: 20, top: 60, bottom: 24, containLabel: true,
-          },
+          axisPointer: { link: [{ xAxisIndex: 'all' }] },
+          grid: [
+            {
+              left: 64, right: 20, top: 42, height: 184,
+            },
+            {
+              left: 64, right: 20, top: 270, height: 56,
+            },
+          ],
           legend: { top: 0, type: 'scroll', data: averages.map((a) => a.name) },
-          xAxis: { type: 'category', data: candles.map((c) => c.date), axisLabel: { hideOverlap: true } },
-          yAxis: {
-            type: 'value', name: '点', nameGap: 16, scale: true, axisLabel: { formatter: (v: number) => numberText(v) },
-          },
+          xAxis: [
+            {
+              type: 'category', data: candles.map((c) => c.date), gridIndex: 0, axisLabel: { show: false }, axisTick: { show: false },
+            },
+            {
+              type: 'category', data: candles.map((c) => c.date), gridIndex: 1, axisLabel: { hideOverlap: true },
+            },
+          ],
+          yAxis: [
+            {
+              type: 'value', gridIndex: 0, scale: true, axisLabel: { formatter: (v: number) => numberText(v) },
+            },
+            {
+              type: 'value', gridIndex: 1, name: '成交量（万手）', nameGap: 12, splitNumber: 2, axisLabel: { formatter: (v: number) => numberText(v, v > 0 && v < 1 ? 2 : 0) },
+            },
+          ],
           series: [{
             type: 'candlestick',
             name: index?.name,
@@ -89,7 +96,17 @@ function IndexChart({ index, dates }: { index: MarketSeries['indexes'][number] |
             connectNulls: false,
             lineStyle: { width: 1.25, color: movingAverageColors[i] },
             itemStyle: { color: movingAverageColors[i] },
-          }))],
+          })), {
+            type: 'bar',
+            name: '成交量',
+            xAxisIndex: 1,
+            yAxisIndex: 1,
+            barMaxWidth: 16,
+            data: candles.map((c) => ({
+              value: c.volume,
+              itemStyle: { color: !c.value || c.value[0] === c.value[1] ? quoteColors.flat : quoteColors[c.value[1] > c.value[0] ? 'up' : 'down'] },
+            })),
+          }],
         })}
         />
       )}

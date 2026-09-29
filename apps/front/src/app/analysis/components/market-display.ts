@@ -17,6 +17,9 @@ export function scopeIndexes(indexes: MarketSeries['indexes'], scope: MarketScop
 }
 
 export type CandlePeriod = 'day' | 'week' | 'month';
+export interface ChartWindow { period: CandlePeriod; count: number }
+export const defaultChartCounts = { day: 60, week: 26, month: 12 };
+export const chartRanges = { day: [20, 60, 120, 250, 0], week: [12, 26, 52, 0], month: [6, 12, 24, 0] };
 export interface Candle {
   date: string; start: string; end: string; value: [number, number, number, number] | null;
 }
@@ -62,11 +65,15 @@ export function unfilledGaps(candles: Candle[]): PriceGap[] {
 // Amounts are in 亿元: 10,000 亿元 = 1 万亿元. Do not stretch small-volume charts to a trillion.
 export function amountReferenceLevels(values: (number | null)[]): number[] {
   const max = Math.max(0, ...values.filter((v): v is number => v != null && Number.isFinite(v)));
-  return max < 10000 ? [] : Array.from({ length: Math.ceil(max / 10000) }, (_, i) => (i + 1) * 10000);
+  if (max < 10000) return [];
+  // Weekly/monthly sums can reach tens of trillions; keep reference labels readable.
+  const rawStep = Math.max(1, max / 10000 / 6);
+  const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+  const step = [1, 2, 5, 10].find((n) => n * magnitude >= rawStep)! * magnitude * 10000;
+  return Array.from({ length: Math.ceil(max / step) }, (_, i) => (i + 1) * step);
 }
 // Use the trading calendar to retain gaps. A missing trading day invalidates its candle.
-export function indexCandles(points: IndexPoint[], dates: string[], period: CandlePeriod): Candle[] {
-  const byDate = new Map(points.map((p) => [p.date, p]));
+export function periodGroups(dates: string[], period: CandlePeriod): string[][] {
   const groups = new Map<string, string[]>();
   dates.forEach((date) => {
     let key = date;
@@ -78,7 +85,24 @@ export function indexCandles(points: IndexPoint[], dates: string[], period: Cand
     }
     groups.set(key, [...(groups.get(key) || []), date]);
   });
-  return Array.from(groups.values()).map((days): Candle => {
+  return Array.from(groups.values());
+}
+
+export function periodTotals(points: { date: string; value: number | null | undefined }[], dates: string[], period: CandlePeriod) {
+  const byDate = new Map(points.map((p) => [p.date, p.value]));
+  return periodGroups(dates, period).map((days) => {
+    const values = days.map((d) => byDate.get(d));
+    const complete = values.every((v): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0);
+    return {
+      date: days.at(-1)!, start: days[0], end: days.at(-1)!, value: complete ? values.reduce((sum, v) => sum + v, 0) : null,
+    };
+  });
+}
+
+export function indexCandles(points: IndexPoint[], dates: string[], period: CandlePeriod): (Candle & { volume: number | null })[] {
+  const byDate = new Map(points.map((p) => [p.date, p]));
+  const volumes = periodTotals(points.map((p) => ({ date: p.date, value: p.vol })), dates, period);
+  return periodGroups(dates, period).map((days, i): Candle & { volume: number | null } => {
     const rows = days.map((d) => byDate.get(d));
     const valid = rows.every((p) => p && [p.open, p.close, p.low, p.high].every((v) => typeof v === 'number' && Number.isFinite(v)));
     return {
@@ -86,6 +110,8 @@ export function indexCandles(points: IndexPoint[], dates: string[], period: Cand
       start: days[0],
       end: days[days.length - 1],
       value: valid ? [rows[0]!.open!, rows[rows.length - 1]!.close, Math.min(...rows.map((p) => p!.low!)), Math.max(...rows.map((p) => p!.high!))] : null,
+      // index_daily vol is in hands; display 万手. Missing volume is not zero.
+      volume: volumes[i].value == null ? null : volumes[i].value! / 10000,
     };
   });
 }
