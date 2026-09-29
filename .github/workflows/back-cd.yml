@@ -65,8 +65,24 @@ jobs:
       - run: pnpm -C apps/front run lint
       - run: node apps/front/scripts/test-errors.cjs && node apps/front/scripts/test-market-compatibility.cjs
       - run: pnpm -C apps/front run build
+      - name: Set up BuildKit
+        uses: docker/setup-buildx-action@v4
+        with:
+          driver: docker-container
+      # 这里只构建仓库内的配置模板，不注入生产凭据；缓存供发布任务复用。
       - name: Verify production image and native Argon2 runtime
-        run: docker build -f apps/back/dockerfile -t stock-back-verify .
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/back/dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: stock-back-verify
+          cache-from: type=gha,version=2,scope=stock-back-verify
+          cache-to: type=gha,version=2,scope=stock-back-verify,mode=max
+          provenance: false
+      - name: Check native Argon2 in the exported image
+        run: docker run --rm stock-back-verify node scripts/check-argon2.cjs
   build:
     if: github.event_name == 'push'
     needs: verify
@@ -75,6 +91,11 @@ jobs:
       # 1. 拉取代码 (升级到 v4)
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Set up BuildKit
+        uses: docker/setup-buildx-action@v4
+        with:
+          driver: docker-container
 
       - name: Prepare production environment without logging credentials
         env:
@@ -106,14 +127,19 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 4. 构建并推送镜像 (使用官方 Action，支持缓存)
+      # 直接由 BuildKit 推送；含生产凭据的镜像不导出到 GitHub 缓存或构建记录。
       - name: Build and Push Docker Image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: false
         with:
           context: .
           file: apps/back/dockerfile
+          platforms: linux/amd64
           push: true
           tags: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-back:${{ github.sha }}
+          cache-from: type=gha,version=2,scope=stock-back-verify
+          provenance: false
 
       - name: Upload versioned release scripts
         uses: appleboy/scp-action@v0.1.7

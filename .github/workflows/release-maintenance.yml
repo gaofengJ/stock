@@ -1,52 +1,186 @@
-name: Release disk maintenance
+name: Validate direct image push and cache reuse
 on:
-  workflow_dispatch:
-    inputs:
-      operation:
-        description: '检查部署磁盘，或清理超过七天未使用的 Docker 构建缓存'
-        type: choice
-        required: true
-        default: inspect
-        options: [inspect, clean-build-cache]
+  workflow_dispatch: {}
 permissions:
   contents: read
-concurrency:
-  group: stock-back-push-refs/heads/master
-  cancel-in-progress: false
 jobs:
-  maintenance:
-    if: github.ref == 'refs/heads/master'
+  verify_image:
+    if: github.ref == 'refs/heads/codex/fix-registry-layer-reuse'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: Inspect release storage and optionally reclaim build cache
-        uses: appleboy/ssh-action@v1.2.0
-        env:
-          OPERATION: ${{ inputs.operation }}
+      - uses: actions/checkout@v4
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          command_timeout: 10m
-          envs: OPERATION
-          script: |
-            set -eu
-            exec 9>/var/lock/stock-back-release.lock
-            flock -n 9 || { echo 'Another release is running'; exit 1; }
-            case "$OPERATION" in
-              inspect) ;;
-              clean-build-cache) docker builder prune --force --filter until=168h ;;
-              *) echo 'Unsupported operation'; exit 1 ;;
-            esac
-            df -B1 / /opt
-            docker system df
-            docker images --format '{{.ID}} {{.Repository}}:{{.Tag}} {{.Size}}'
-            docker ps -a --format '{{.Names}} {{.Status}} {{.Image}}'
-            du -xhd1 /opt /var /home /opt/stock-release /opt/stock-blog-style
-            python3 - <<'PY'
-            import glob, json
-            reports = sorted(glob.glob('/opt/stock-release/runs/*/preflight.json'))
-            if reports:
-                report = json.load(open(reports[-1]))
-                print(json.dumps({k: report.get(k) for k in ('database', 'totalBytes', 'requiredFreeBytes', 'pending')}))
-                print(json.dumps([table for table in report.get('tables', []) if table['name'].startswith('t_auth')]))
-            PY
+          sparse-checkout: |-
+            apps/back
+            apps/front
+            .github
+      - name: Set up BuildKit
+        uses: docker/setup-buildx-action@v4
+        with:
+          driver: docker-container
+      - name: Verify production image and native Argon2 runtime
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/back/dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: stock-back-verify
+          cache-from: type=gha,version=2,scope=stock-back-verify
+          cache-to: type=gha,version=2,scope=stock-back-verify,mode=max
+          provenance: false
+      - name: Check native Argon2 in the exported image
+        run: docker run --rm stock-back-verify node scripts/check-argon2.cjs
+  round_1:
+    needs: verify_image
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - back
+          - front
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |-
+            apps/back
+            apps/front
+            .github
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+        if: matrix.app == 'front'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+        if: matrix.app == 'front'
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+        if: matrix.app == 'front'
+      - name: Build Project
+        run: pnpm run build:front
+        if: matrix.app == 'front'
+      - name: Set up BuildKit
+        uses: docker/setup-buildx-action@v4
+        with:
+          driver: docker-container
+      - name: Login to Aliyun Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Build and push back round 1
+        uses: docker/build-push-action@v7
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: false
+        with:
+          context: .
+          file: apps/back/dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-back:cache-check-${{
+            github.sha }}-1
+          cache-from: type=gha,version=2,scope=stock-back-verify
+          provenance: false
+        if: matrix.app == 'back'
+      - name: Build and push front round 1
+        uses: docker/build-push-action@v7
+        with:
+          context: apps/front
+          platforms: linux/amd64
+          push: true
+          tags: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-front:cache-check-${{
+            github.sha }}-1
+          cache-from: type=gha,version=2,scope=stock-front
+          cache-to: type=gha,version=2,scope=stock-front,mode=max
+          provenance: false
+        if: matrix.app == 'front'
+      - name: Record compressed layer digests
+        env:
+          IMAGE: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-${{ matrix.app
+            }}:cache-check-${{ github.sha }}-1
+        run: "docker buildx imagetools inspect --raw \"$IMAGE\" | jq '{config, layers:
+          [.layers[] | {digest, size}]}'"
+  round_2:
+    needs: round_1
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - back
+          - front
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |-
+            apps/back
+            apps/front
+            .github
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+        if: matrix.app == 'front'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+        if: matrix.app == 'front'
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+        if: matrix.app == 'front'
+      - name: Build Project
+        run: pnpm run build:front
+        if: matrix.app == 'front'
+      - name: Set up BuildKit
+        uses: docker/setup-buildx-action@v4
+        with:
+          driver: docker-container
+      - name: Login to Aliyun Registry
+        uses: docker/login-action@v3
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Build and push back round 2
+        uses: docker/build-push-action@v7
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: false
+        with:
+          context: .
+          file: apps/back/dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-back:cache-check-${{
+            github.sha }}-2
+          cache-from: type=gha,version=2,scope=stock-back-verify
+          provenance: false
+        if: matrix.app == 'back'
+      - name: Build and push front round 2
+        uses: docker/build-push-action@v7
+        with:
+          context: apps/front
+          platforms: linux/amd64
+          push: true
+          tags: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-front:cache-check-${{
+            github.sha }}-2
+          cache-from: type=gha,version=2,scope=stock-front
+          cache-to: type=gha,version=2,scope=stock-front,mode=max
+          provenance: false
+        if: matrix.app == 'front'
+      - name: Record compressed layer digests
+        env:
+          IMAGE: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-${{ matrix.app
+            }}:cache-check-${{ github.sha }}-2
+        run: "docker buildx imagetools inspect --raw \"$IMAGE\" | jq '{config, layers:
+          [.layers[] | {digest, size}]}'"
