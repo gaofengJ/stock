@@ -241,7 +241,8 @@ jobs:
           TUSHARE_CONF_TOKEN: ${{ secrets.TUSHARE_CONF_TOKEN }}
         run: node .github/scripts/render-runtime-env.cjs apps/back/.env.production apps/back/ops/release/runtime.env
       - name: Upload versioned release scripts
-        uses: appleboy/scp-action@v0.1.7
+        # Composite action runs as the runner user and can read mode-600 configuration.
+        uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
