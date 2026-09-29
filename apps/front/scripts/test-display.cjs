@@ -14,6 +14,41 @@ function load(file, imports = {}) {
 }
 const format = load('utils/format.ts');
 const avatars = load('auth/avatars.ts');
+const market = load('app/analysis/components/market-display.ts');
+
+test('market scope selects relevant reference indexes without leaking Shanghai into Beijing', () => {
+  const indexes = ['000001.SH', '399001.SZ', '399006.SZ', '000688.SH', '899050.BJ', '000300.SH'].map(code => ({code}));
+  assert.deepEqual(market.scopeIndexes(indexes, 'bj').map(x => x.code), ['899050.BJ']);
+  assert.deepEqual(market.scopeIndexes(indexes, 'gem').map(x => x.code), ['399006.SZ']);
+  assert.deepEqual(market.scopeIndexes(indexes, 'star').map(x => x.code), ['000688.SH']);
+  assert.deepEqual(market.scopeIndexes(indexes, 'main').map(x => x.code), ['000001.SH', '399001.SZ']);
+  assert.equal(market.scopeIndexes(indexes, 'hs').length, 5);
+  assert.equal(market.scopeIndexes(indexes, 'all').length, 6);
+});
+
+test('weekly and monthly candles use first open, last close and actual high/low, across year boundaries', () => {
+  const points = [
+    {date:'2025-12-29',open:100,close:103,low:98,high:105},
+    {date:'2025-12-31',open:103,close:102,low:101,high:110},
+    {date:'2026-01-02',open:102,close:107,low:100,high:108},
+    {date:'2026-01-05',open:107,close:106,low:104,high:109},
+  ];
+  const dates = points.map(x => x.date);
+  assert.deepEqual(market.indexCandles(points, dates, 'day').map(x=>x.value), points.map(p=>[p.open,p.close,p.low,p.high]));
+  assert.deepEqual(market.indexCandles(points, dates, 'week').map(x=>x.value), [[100,107,98,110],[107,106,104,109]]);
+  assert.deepEqual(market.indexCandles(points, dates, 'month').map(x=>x.value), [[100,102,98,110],[102,106,100,109]]);
+  assert.equal(points[0].open,100);
+});
+
+test('missing daily data leaves a gap instead of fabricating weekly or monthly candles', () => {
+  const points=[{date:'2026-09-21',open:100,close:101,low:99,high:102}];
+  const dates=['2026-09-21','2026-09-22'];
+  assert.equal(market.indexCandles(points, dates, 'day')[1].value,null);
+  assert.equal(market.indexCandles(points, dates, 'week')[0].value,null);
+  assert.equal(market.indexCandles(points, dates, 'month')[0].value,null);
+  assert.equal(market.indexCandles([{...points[0],high:NaN}], dates.slice(0,1), 'day')[0].value,null);
+  assert.deepEqual(market.indexCandles([], [], 'month'),[]);
+});
 test('all users share 28 choices and explicit choices override role defaults', () => {
   const admin = [{ code: 'admin' }];
   assert.equal(avatars.avatarId('bull-admin-heart', admin), 'bull-red-heart');

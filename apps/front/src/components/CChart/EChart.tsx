@@ -5,7 +5,7 @@ import { numberText } from '@/utils/format';
 import { useEffect, useRef } from 'react';
 import ReactEChartsCore from 'echarts-for-react/lib/core';
 import * as echarts from 'echarts/core';
-import { LineChart, BarChart } from 'echarts/charts';
+import { LineChart, BarChart, CandlestickChart } from 'echarts/charts';
 import {
   GridComponent,
   LegendComponent,
@@ -19,6 +19,7 @@ import type { EChartsOption } from 'echarts-for-react/lib/types';
 echarts.use([
   LineChart,
   BarChart,
+  CandlestickChart,
   GridComponent,
   ToolboxComponent,
   TooltipComponent,

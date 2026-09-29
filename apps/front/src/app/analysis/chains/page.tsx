@@ -10,15 +10,17 @@ import LegacyPage from './LegacyPage';
 
 import MarketShell from '../components/MarketShell';
 import useMarketData from '../components/useMarketData';
-import { DataState, numberText, Trend } from '../components/MarketCharts';
+import {
+  DataState, numberText, Trend, TrendRange, SectionTitle,
+} from '../components/MarketCharts';
 
 function ChainsPage() {
-  const series = useMarketData<MarketSeries>('chains');
+  const series = useMarketData<MarketSeries>('chains', { days: 730 });
   const ladder = useMarketData<Ladder>('ladder');
   const heights = Array.from(new Set(ladder.data?.items.map((r) => r.limitTimes) || [])).sort((a, b) => b - a);
   return (
     <MarketShell title="连板分析" path="/analysis/chains">
-      <p className="market-note">按数据源非ST样本统计。晋级率按昨日同一批股票跟踪；分母为昨日对应高度全部股票，停牌视为未晋级。高位指昨日四板及以上。</p>
+      <SectionTitle title="连板统计" description="按数据源非ST样本统计。晋级率按昨日同一批股票跟踪；分母为昨日对应高度全部股票，停牌视为未晋级。高位指昨日四板及以上。" />
       <Tabs items={[
         {
           key: 'ladder',
@@ -28,7 +30,7 @@ function ChainsPage() {
               <DataState loading={series.loading} error={series.error} retry={series.retry} empty={!series.data?.snapshot}>
                 <Row gutter={[16, 16]} className="market-metrics">
                   {series.data?.snapshot?.upgrades.map((r) => (
-                    <Col span={6} key={r.from}>
+                    <Col xs={24} sm={12} xl={6} key={r.from}>
                       <Card size="small" title={r.from === 4 ? '高位晋级' : `${r.from}进${r.from + 1}`}>
                         <strong className="metric-value">
                           {numberText(r.rate)}
@@ -53,7 +55,7 @@ function ChainsPage() {
               <DataState loading={ladder.loading} error={ladder.error} retry={ladder.retry} empty={!ladder.data?.ready}>
                 {!heights.length && <p>当日无涨停记录</p>}
                 {heights.map((height) => (
-                  <Card key={height} className="market-chart" title={`${height === 1 ? '首板' : `${height}连板`} · ${ladder.data!.items.filter((r) => r.limitTimes === height).length}只`}>
+                  <Card key={height} className="market-chart" title={`${height === 1 ? '首板' : `${height}连板`} - ${ladder.data!.items.filter((r) => r.limitTimes === height).length}只`}>
                     <Table
                       scroll={{ x: 760 }}
                       pagination={false}
@@ -96,15 +98,21 @@ function ChainsPage() {
           key: 'history',
           label: '历史统计',
           children: (
-            <DataState loading={series.loading} error={series.error} empty={!series.data?.snapshot}>
-              {series.data && (
-              <>
-                <Trend title="涨停梯队数量（含首板）" data={series.data} fields={[1, 2, 3, 4].map((n) => ({ label: n === 4 ? '四板及以上' : `${n}板`, value: (s) => s.counts[n - 1] }))} />
-                <Trend title="连板晋级率" data={series.data} percent fields={[1, 2, 3, 4].map((n) => ({ label: n === 4 ? '高位晋级' : `${n}进${n + 1}`, value: (s) => s.upgrades[n - 1].rate }))} />
-                <Trend title="涨停与连板成交额" unit="亿元" digits={2} data={series.data} fields={[{ label: '涨停成交额', value: (s) => s.limitAmount }, { label: '连板成交额', value: (s) => s.chainAmount }]} />
-              </>
-              )}
-            </DataState>
+            <>
+              <div className="market-section-toolbar">
+                <SectionTitle title="历史走势" />
+                <TrendRange />
+              </div>
+              <DataState loading={series.loading} error={series.error} empty={!series.data?.snapshot}>
+                {series.data && (
+                <>
+                  <Trend title="涨停梯队数量（含首板）" unit="只" data={series.data} fields={[1, 2, 3, 4].map((n) => ({ label: n === 4 ? '四板及以上' : `${n}板`, value: (s) => s.counts[n - 1] }))} />
+                  <Trend title="连板晋级率" data={series.data} percent fields={[1, 2, 3, 4].map((n) => ({ label: n === 4 ? '高位晋级' : `${n}进${n + 1}`, value: (s) => s.upgrades[n - 1].rate }))} />
+                  <Trend title="涨停与连板成交额" unit="亿元" digits={2} type="bar" data={series.data} fields={[{ label: '涨停成交额', value: (s) => s.limitAmount }, { label: '连板成交额', value: (s) => s.chainAmount }]} />
+                </>
+                )}
+              </DataState>
+            </>
           ),
         },
       ]}

@@ -6,7 +6,7 @@ import { useMarket } from './MarketContext';
 
 export default function useMarketData<T>(endpoint: string, extra: Record<string, unknown> = {}) {
   const {
-    date, scope, days, status,
+    date, scope, days: selectedDays, status,
   } = useMarket();
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
@@ -15,6 +15,8 @@ export default function useMarketData<T>(endpoint: string, extra: Record<string,
   const [error, setError] = useState('');
   const { requestConfig, runLatestRequest } = useLatestRequest(`market-${endpoint}`);
   const extraKey = JSON.stringify(extra);
+  const defaultDays = ['limits', 'ladder'].includes(endpoint) ? 20 : selectedDays;
+  const days = typeof extra.days === 'number' ? extra.days : defaultDays;
   const revision = status?.revision;
   const requestKey = JSON.stringify([endpoint, date, scope, days, extraKey, revision, attempt]);
   const [loadedKey, setLoadedKey] = useState('');

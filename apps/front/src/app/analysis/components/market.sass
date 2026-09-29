@@ -1,9 +1,11 @@
 .market-page
   min-height: 100%
+  > .c-search-form
+    margin-bottom: 24px
   .market-heading
     display: flex
     align-items: center
-    gap: 16px
+    gap: 8px
     margin-bottom: 16px
     h1
       margin: 0
@@ -60,10 +62,54 @@
   .market-index .metric-value
     font-size: 24px
   .market-index-change
-    display: block
-    margin-top: 4px
+    display: flex
+    flex-wrap: wrap
+    gap: 6px 16px
+    margin-top: 8px
+    font-size: 20px
     font-weight: 600
   .market-heading
     flex-wrap: wrap
   .market-loading
     text-align: center
+  .market-section-title
+    display: flex
+    align-items: center
+    gap: 6px
+  .market-section-toolbar
+    display: flex
+    align-items: center
+    justify-content: space-between
+    flex-wrap: wrap
+    gap: 12px
+    margin: 20px 0 16px
+    .section-heading
+      margin: 0
+  .market-chart-controls, .market-trend-control
+    display: flex
+    align-items: center
+    flex-wrap: wrap
+    gap: 8px
+    font-size: 13px
+    .ant-select
+      width: 160px
+  .market-chart .ant-card-head-wrapper
+    flex-wrap: wrap
+    gap: 12px
+    padding: 12px 0
+  .market-chart .ant-card-head-title
+    white-space: normal
+  .market-chart .ant-card-extra
+    margin-inline-start: auto
+
+.market-scope-option
+  display: flex
+  align-items: center
+  justify-content: space-between
+  gap: 16px
+
+@media (max-width: 767px)
+  .market-page .market-chart .ant-card-extra
+    margin-inline-start: 0
+  .market-page .market-chart .ant-card-head-title
+    flex-basis: 100%

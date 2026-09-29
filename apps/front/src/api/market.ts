@@ -17,11 +17,15 @@ export interface MarketStatus {
   stages: { task: string; status: string; updatedAt: string; error: string | null }[];
   backfill: { id: number; status: string; stage: string; error: string | null } | null;
 }
+export interface IndexPoint {
+  date: string; close: number; pctChg: number; amount: number;
+  open?: number; high?: number; low?: number; preClose?: number; vol?: number;
+}
 export interface MarketSeries {
   status: MarketStatus; date: string | null; snapshot: MarketStats | null;
   previousAmount?: number | null; fiveDayAmount?: number | null; updatedAt?: string;
   series: { date: string; data: MarketStats | null }[];
-  indexes: { code: string; name: string; series: { date: string; close: number; pctChg: number; amount: number }[] }[];
+  indexes: { code: string; name: string; series: IndexPoint[] }[];
   markets: (MarketStats & { scope: string })[];
 }
 export interface LimitRow {

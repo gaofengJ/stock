@@ -1,27 +1,31 @@
 'use client';
 
 import {
-  Alert, Button, DatePicker, Empty, Select, Space, Spin, Tag, Typography,
+  Alert, Button, DatePicker, Empty, Select, Spin, Typography,
 } from 'antd';
 import { beijingTime } from '@/utils/format';
 import dayjs from 'dayjs';
 import Layout from '@/components/Layout';
+import HelpTooltip from '@/components/HelpTooltip';
 import { analysisSiderMenuItems } from '@/components/Layout/config';
 import CSearchForm from '@/components/common/CSearchForm';
 import { EHeaderMenuKey } from '@/components/Layout/enum';
 import { useMarket } from './MarketContext';
+import { scopes } from './market-display';
 import './market.sass';
 
-export const scopes = [
-  { value: 'all', label: '沪深京全部' }, { value: 'hs', label: '沪深' },
-  { value: 'main', label: '主板' }, { value: 'gem', label: '创业板' },
-  { value: 'star', label: '科创板' }, { value: 'bj', label: '北交所' },
-];
+export { scopes } from './market-display';
+const renderScopeOption = (option: { data: typeof scopes[number] }) => (
+  <span className="market-scope-option">
+    <span>{option.data.label}</span>
+    <HelpTooltip label={option.data.label} title={option.data.description} stopPropagation />
+  </span>
+);
 export default function MarketShell({
-  title, path, children, trend = true,
-}: { title: string; path: string; children: React.ReactNode; trend?: boolean }) {
+  title, path, children,
+}: { title: string; path: string; children: React.ReactNode }) {
   const {
-    date, days, scope, status, error, select, retry,
+    date, scope, status, error, select, retry,
   } = useMarket();
   const dates = new Set(status?.dates || []);
   return (
@@ -29,7 +33,7 @@ export default function MarketShell({
       <div className="market-page p-16 rounded-[6px] bg-bg-white">
         <div className="market-heading">
           <Typography.Title level={1}>{title}</Typography.Title>
-          <Tag>盘后数据</Tag>
+          <HelpTooltip label={title} title={`数据日期：${date || '暂无可用交易日'}。更新于北京时间 ${beijingTime(status?.dateUpdates?.[date])}，为盘后数据。`} />
         </div>
         <CSearchForm
           configs={[
@@ -37,27 +41,20 @@ export default function MarketShell({
               name: 'date', label: '交易日期', component: <DatePicker />, attrs: { allowClear: false, disabledDate: (d: dayjs.Dayjs) => !dates.has(d.format('YYYY-MM-DD')) },
             },
             {
-              name: 'scope', label: '统计范围', component: <Select />, attrs: { options: scopes, style: { width: 170 } },
+              name: 'scope',
+              label: '统计范围',
+              component: <Select />,
+              attrs: {
+                options: scopes,
+                style: { width: 170 },
+                popupMatchSelectWidth: 240,
+                optionRender: renderScopeOption,
+              },
             },
-            ...(trend ? [{
-              name: 'days', label: '趋势范围', component: <Select />, attrs: { style: { width: 160 }, options: [20, 60, 120, 250, 730].map((v) => ({ value: v, label: v === 730 ? '最近两年' : `近${v}个交易日` })) },
-            }] : []),
           ]}
-          searchParams={{ date: date ? dayjs(date) : undefined, scope, days }}
-          setSearchParams={(v) => select({ date: v.date?.format('YYYY-MM-DD') || date, scope: v.scope, days: v.days || days })}
+          searchParams={{ date: date ? dayjs(date) : undefined, scope }}
+          setSearchParams={(v) => select({ date: v.date?.format('YYYY-MM-DD') || date, scope: v.scope })}
         />
-        <Space className="market-status" wrap>
-          <Typography.Text type="secondary">
-            数据日期：
-            {date || '暂无可用交易日'}
-          </Typography.Text>
-          {status?.dateUpdates?.[date] && (
-          <Typography.Text type="secondary">
-            本日数据更新（北京时间）：
-            {beijingTime(status.dateUpdates?.[date])}
-          </Typography.Text>
-          )}
-        </Space>
         {error && <Alert type="error" showIcon message={error} action={<Button size="small" onClick={retry}>重试</Button>} />}
         {status && status.expectedDate !== status.latestDate && (
         <Alert

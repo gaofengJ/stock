@@ -1,23 +1,27 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, Col, Row } from 'antd';
-import CChart from '@/components/CChart';
+import { Col, Row } from 'antd';
 import { MarketSeries } from '@/api/market';
 import { changeClass, numberText } from '@/utils/format';
 import MarketShell, { scopes } from '../components/MarketShell';
 import useMarketData from '../components/useMarketData';
 import { useMarket } from '../components/MarketContext';
-import { DataState, Metrics, Trend } from '../components/MarketCharts';
+import {
+  DataState, Metrics, Trend, SectionTitle,
+} from '../components/MarketCharts';
+import { scopeIndexes } from '../components/market-display';
+import IndexChart from '../components/IndexChart';
 
 export default function OverviewPage() {
   const {
     data, loading, error, retry,
-  } = useMarketData<MarketSeries>('overview');
+  } = useMarketData<MarketSeries>('overview', { days: 730 });
   const { scope } = useMarket();
   const [index, setIndex] = useState('000001.SH');
   const snapshot = data?.snapshot;
-  const selected = data?.indexes.find((i) => i.code === index);
+  const indexes = scopeIndexes(data?.indexes || [], scope);
+  const selected = indexes.find((i) => i.code === index) || indexes[0];
   const difference = snapshot && data?.previousAmount != null ? snapshot.amount - data.previousAmount : null;
   const change = difference != null && data?.previousAmount ? (difference / data.previousAmount) * 100 : null;
   const previousDate = data?.series.filter((r) => r.date < (data.date || '')).at(-1)?.date;
@@ -30,27 +34,29 @@ export default function OverviewPage() {
       <DataState loading={loading} error={error} retry={retry} empty={!snapshot}>
         {data && snapshot && (
           <>
-            <h2 className="section-heading">主要指数</h2>
+            <SectionTitle title="主要指数" description="按所选市场展示相关参考指数；指数点位和涨跌取其自身行情，不按股票统计样本重新计算。主板范围的上证指数、深证成指也包含其他板块样本。" />
             <Row gutter={[16, 16]} className="market-metrics">
-              {data.indexes.map((i) => {
+              {indexes.map((i) => {
                 const point = i.series.find((r) => r.date === data.date);
+                const delta = point?.preClose != null ? point.close - point.preClose : null;
                 return (
                   <Col xs={24} sm={12} xl={6} key={i.code}>
-                    <button type="button" className={`market-index ${index === i.code ? 'active' : ''}`} aria-pressed={index === i.code} aria-label={`查看${i.name}走势`} onClick={() => setIndex(i.code)}>
+                    <button type="button" className={`market-index ${selected?.code === i.code ? 'active' : ''}`} aria-pressed={selected?.code === i.code} aria-label={`查看${i.name}走势`} onClick={() => setIndex(i.code)}>
                       <div className="market-index-name">{i.name}</div>
-                      <div className="metric-value">
+                      <div className={`metric-value ${changeClass(point?.pctChg)}`}>
                         {numberText(point?.close)}
                         <span className="metric-unit">点</span>
                       </div>
                       <span className={`market-index-change ${changeClass(point?.pctChg)}`}>
-                        {numberText(point?.pctChg, 2, true)}
-                        {point ? '%' : ''}
+                        <span>{`${numberText(delta, 2, true)} 点`}</span>
+                        <span>{`${numberText(point?.pctChg, 2, true)}${point ? '%' : ''}`}</span>
                       </span>
                     </button>
                   </Col>
                 );
               })}
             </Row>
+            <IndexChart index={selected} dates={data.series.map((r) => r.date)} />
             <h2 className="section-heading">成交与量能</h2>
             <Metrics items={[
               {
@@ -79,7 +85,7 @@ export default function OverviewPage() {
             }))}
             />
             )}
-            <h2 className="section-heading">涨跌概况</h2>
+            <SectionTitle title="涨跌概况" description="按所选统计范围计算，包含ST，排除当日无成交股票。" />
             <Metrics items={[
               {
                 title: '上涨家数', value: snapshot.up, suffix: '只', className: 'quote-up',
@@ -102,23 +108,7 @@ export default function OverviewPage() {
               <span style={{ flexGrow: snapshot.down, background: 'var(--quote-down)' }} />
             </div>
             )}
-            <p className="market-note">涨跌家数包含ST，排除无成交股票。指数展示其自身涨跌，不随统计范围筛选。</p>
-            <h2 className="section-heading">历史走势</h2>
-            <Card title={`${selected?.name || ''} · 收盘点位`} className="market-chart">
-              <CChart genOptions={() => ({
-                tooltip: { trigger: 'axis', valueFormatter: (v: unknown) => (v == null ? '—' : `${numberText(v)}点`) },
-                grid: {
-                  left: 16, right: 16, bottom: 24, top: 20, containLabel: true,
-                },
-                xAxis: { type: 'category', data: data.series.map((r) => r.date), axisLabel: { hideOverlap: true } },
-                yAxis: { type: 'value', scale: true, axisLabel: { formatter: (v: number) => numberText(v) } },
-                series: [{
-                  type: 'line', name: selected?.name, showSymbol: false, connectNulls: false, itemStyle: { color: '#ff2e63' }, data: data.series.map((r) => selected?.series.find((p) => p.date === r.date)?.close ?? null),
-                }],
-              })}
-              />
-            </Card>
-            <Trend title="市场成交额" unit="亿元" digits={2} data={data} fields={[{ label: '成交额', value: (s) => s.amount }]} />
+            <Trend title={`${range} - 市场成交额`} unit="亿元" digits={2} type="bar" controls data={data} fields={[{ label: '成交额', value: (s) => s.amount }]} />
           </>
         )}
       </DataState>

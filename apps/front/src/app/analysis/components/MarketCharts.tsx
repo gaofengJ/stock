@@ -1,15 +1,33 @@
 'use client';
 
 import {
-  Alert, Button, Card, Col, Empty, Row, Spin,
+  Alert, Button, Card, Col, Empty, Row, Select, Spin,
 } from 'antd';
 import CChart from '@/components/CChart';
 import HelpTooltip from '@/components/HelpTooltip';
 import { quoteColors } from '@/theme';
 import { numberText } from '@/utils/format';
 import { MarketSeries, MarketStats } from '@/api/market';
+import { useMarket } from './MarketContext';
 
 export { numberText } from '@/utils/format';
+export function TrendRange() {
+  const { days, select } = useMarket();
+  return (
+    <div className="market-trend-control">
+      <span>趋势范围</span>
+      <Select aria-label="趋势范围" value={days} onChange={(value) => select({ days: value })} options={[20, 60, 120, 250, 730].map((value) => ({ value, label: value === 730 ? '最近两年' : `近${value}个交易日` }))} />
+    </div>
+  );
+}
+export function SectionTitle({ title, description }: { title: string; description?: string }) {
+  return (
+    <h2 className="section-heading market-section-title">
+      {title}
+      {description && <HelpTooltip label={title} title={description} />}
+    </h2>
+  );
+}
 export function DataState({
   loading, error, empty, children, retry,
 }: {
@@ -59,31 +77,34 @@ const seriesColor = (label: string, index: number) => {
   return ['#ff2e63', '#477ac2', '#8a65b5', '#bd780a'][index % 4];
 };
 export function Trend({
-  title, data, fields, percent = false, unit = '', digits = 0,
+  title, data, fields, percent = false, unit = '', digits = 0, type = 'line', controls = false,
 }: {
   title: string; data: MarketSeries; fields: { label: string; value: (s: MarketStats) => number | null }[];
-  percent?: boolean; unit?: string; digits?: number;
+  percent?: boolean; unit?: string; digits?: number; type?: 'line' | 'bar'; controls?: boolean;
 }) {
   const suffix = percent ? '%' : unit;
+  const { days } = useMarket();
+  const series = days === 730 ? data.series : data.series.slice(-days);
   return (
-    <Card title={title} className="market-chart">
+    <Card title={title} extra={controls && <TrendRange />} className="market-chart">
       <CChart genOptions={() => ({
         tooltip: { trigger: 'axis', valueFormatter: (v: unknown) => (v == null ? '—' : `${numberText(v, percent ? 2 : digits)}${suffix}`) },
-        legend: { bottom: 0, type: 'scroll' },
+        legend: { top: 0, left: 'center', type: 'scroll' },
         grid: {
-          left: 16, right: 16, top: 20, bottom: 55, containLabel: true,
+          left: 16, right: 20, top: 56, bottom: 24, containLabel: true,
         },
-        xAxis: { type: 'category', data: data.series.map((r) => r.date), axisLabel: { hideOverlap: true } },
+        xAxis: { type: 'category', data: series.map((r) => r.date), axisLabel: { hideOverlap: true } },
         yAxis: {
-          type: 'value', name: suffix, minInterval: percent || digits ? undefined : 1, axisLabel: { formatter: (v: number) => numberText(v, percent ? 2 : digits) },
+          type: 'value', name: suffix, nameGap: 16, minInterval: percent || digits ? undefined : 1, axisLabel: { formatter: (v: number) => numberText(v, percent ? 2 : digits) },
         },
         series: fields.map((f, index) => ({
-          type: 'line',
+          type,
+          barMaxWidth: 24,
           name: f.label,
           itemStyle: { color: seriesColor(f.label, index) },
-          showSymbol: data.series.length <= 30,
+          showSymbol: series.length <= 30,
           connectNulls: false,
-          data: data.series.map((r) => (r.data ? f.value(r.data) : null)),
+          data: series.map((r) => (r.data ? f.value(r.data) : null)),
         })),
       })}
       />
