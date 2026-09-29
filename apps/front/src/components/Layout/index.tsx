@@ -165,7 +165,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
           </Popover>
           <span className="sync-schedule">
             <span className="sync-schedule-label">
-              盘后数据 ·
+              盘后数据
               <strong>20:30</strong>
               起同步
             </span>
