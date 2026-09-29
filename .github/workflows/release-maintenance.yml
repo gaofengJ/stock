@@ -1,52 +1,13 @@
-name: Release disk maintenance
+name: Validate release optimization
 on:
   workflow_dispatch:
-    inputs:
-      operation:
-        description: '检查部署磁盘，或清理超过七天未使用的 Docker 构建缓存'
-        type: choice
-        required: true
-        default: inspect
-        options: [inspect, clean-build-cache]
 permissions:
   contents: read
-concurrency:
-  group: stock-back-push-refs/heads/master
-  cancel-in-progress: false
+  actions: read
+  pull-requests: read
 jobs:
-  maintenance:
-    if: github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Inspect release storage and optionally reclaim build cache
-        uses: appleboy/ssh-action@v1.2.0
-        env:
-          OPERATION: ${{ inputs.operation }}
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          command_timeout: 10m
-          envs: OPERATION
-          script: |
-            set -eu
-            exec 9>/var/lock/stock-back-release.lock
-            flock -n 9 || { echo 'Another release is running'; exit 1; }
-            case "$OPERATION" in
-              inspect) ;;
-              clean-build-cache) docker builder prune --force --filter until=168h ;;
-              *) echo 'Unsupported operation'; exit 1 ;;
-            esac
-            df -B1 / /opt
-            docker system df
-            docker images --format '{{.ID}} {{.Repository}}:{{.Tag}} {{.Size}}'
-            docker ps -a --format '{{.Names}} {{.Status}} {{.Image}}'
-            du -xhd1 /opt /var /home /opt/stock-release /opt/stock-blog-style
-            python3 - <<'PY'
-            import glob, json
-            reports = sorted(glob.glob('/opt/stock-release/runs/*/preflight.json'))
-            if reports:
-                report = json.load(open(reports[-1]))
-                print(json.dumps({k: report.get(k) for k in ('database', 'totalBytes', 'requiredFreeBytes', 'pending')}))
-                print(json.dumps([table for table in report.get('tables', []) if table['name'].startswith('t_auth')]))
-            PY
+  validate:
+    uses: ./.github/workflows/back-cd.yml
+    with:
+      publish_images: true
+    secrets: inherit

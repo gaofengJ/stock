@@ -29,6 +29,12 @@ shellDescribe('发布脚本故障恢复', () => {
       writeFileSync(join(dir, name, 'refresh.py'), 'fixture');
     });
     if (paused) writeFileSync(join(dir, 'stock-test', 'PAUSED'), '');
+    if (fail !== 'missing-env') {
+      writeFileSync(
+        join(dir, 'release', 'runtime.env'),
+        'DB_PASSWORD=test-only',
+      );
+    }
     const script = readFileSync(
       resolve(__dirname, '../../ops/release/deploy.sh'),
       'utf8',
@@ -84,7 +90,9 @@ export -f docker python3 flock df mysqldump sleep
       encoding: 'utf8',
       timeout: 15000,
     });
-    const log = readFileSync(join(dir, 'commands.log'), 'utf8');
+    const log = existsSync(join(dir, 'commands.log'))
+      ? readFileSync(join(dir, 'commands.log'), 'utf8')
+      : '';
     return {
       ...result,
       log,
@@ -97,12 +105,22 @@ export -f docker python3 flock df mysqldump sleep
     expect(result.status).not.toBe(0);
     expect(result.log).not.toContain('docker stop');
   });
+  it('配置缺失在接触生产容器之前失败', () => {
+    const result = run('missing-env');
+    expect(result.status).not.toBe(0);
+    expect(result.log).toBe('');
+    expect(result.stdout).toContain('phase=runtime-config');
+    expect(result.stdout).toContain('status=failed');
+  });
   it('备份失败恢复旧容器和刷新状态，不执行迁移', () => {
     const result = run('backup');
     expect(result.status).not.toBe(0);
     expect(result.log).toContain('docker start old-id');
     expect(result.log).not.toContain('database.cjs migrate');
     expect(result.paused).toBe(false);
+    expect(result.stdout).toMatch(
+      /TIMING phase=backup-export-compress seconds=\d+ status=failed/,
+    );
   });
   it('预检空间不足时保留运行中的旧服务', () => {
     const result = run('space-before');
@@ -147,5 +165,17 @@ export -f docker python3 flock df mysqldump sleep
     expect(result.stdout).toContain('Deployment verified');
     expect(result.paused).toBe(paused);
     expect(result.log).not.toMatch(/docker (rm|rmi) /);
+    const containers = result.log
+      .split('\n')
+      .filter((line) => line.startsWith('docker run '));
+    expect(containers.length).toBeGreaterThan(1);
+    containers.forEach((command) => {
+      expect(command).toContain('dst=/run/stock/runtime.env,readonly');
+      expect(command).toContain('-e APP_ENV_FILE=/run/stock/runtime.env');
+    });
+    expect(result.stdout).toMatch(
+      /TIMING phase=backup-checksum seconds=\d+ status=success/,
+    );
+    expect(result.stdout).not.toContain('DB_PASSWORD');
   });
 });
