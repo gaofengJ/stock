@@ -60,17 +60,12 @@ jobs:
               print(json.dumps(output),flush=True)
               return rows
           
-          jobs=[
-           ('front_fast','registry.cn-hangzhou.aliyuncs.com','mufengtongxue/stock-front','sha256:367e131dd5b072945ae15fb099d2505ce6a6bb0bc3dacc250ed519ee2425a510',True),
-           ('front_slow','registry.cn-hangzhou.aliyuncs.com','mufengtongxue/stock-front','sha256:a2a858b63ddff86f69c9d245092f9d7477e4ec0b064f08db4de9ca444939da7d',True),
-           ('back_fast','registry.cn-hangzhou.aliyuncs.com','mufengtongxue/stock-back','8eb39d3cbdedeb1d83da57063ba1d1026b30a497',True),
-           ('back_slow','registry.cn-hangzhou.aliyuncs.com','mufengtongxue/stock-back','9116804f0e96375c306b4dd8c3e1157171f5a119',True),
-           ('nginx_source','registry-1.docker.io','library/nginx','sha256:abe47724e466aeab9a345d8e46a221c2fa8953c7848bb4a3bd9976a7199f8cf2',False),
-           ('node_source','registry-1.docker.io','library/node','sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e',False),
-          ]
-          for args in jobs:
-              try: inspect(*args)
-              except urllib.error.HTTPError as e: print(json.dumps({'label':args[0],'error':'HTTP '+str(e.code)}),flush=True)
-              except Exception as e: print(json.dumps({'label':args[0],'error':type(e).__name__}),flush=True)
+          base,headers=client('registry.cn-hangzhou.aliyuncs.com','mufengtongxue/stock-front',True)
+          for label,digest in [('dockerhub_original','sha256:6b37362b3da78869050b894b799ad4df04f1f3b52774087db0d81151570244c8'),('aliyun_recompressed','sha256:f072f58012e569b0fc15edd040e893d5a99c5cd8050a0e93304598c2bf794a83')]:
+              try:
+                  request(base+'/blobs/'+digest,headers,'HEAD')
+                  print(json.dumps({'probe':label,'status':200}),flush=True)
+              except urllib.error.HTTPError as e:
+                  print(json.dumps({'probe':label,'status':e.code}),flush=True)
           
           PY
