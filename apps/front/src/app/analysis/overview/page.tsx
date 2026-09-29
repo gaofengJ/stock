@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Col, Row } from 'antd';
 import { MarketSeries } from '@/api/market';
 import { changeClass, numberText } from '@/utils/format';
@@ -13,6 +13,8 @@ import {
 import { scopeIndexes } from '../components/market-display';
 import IndexChart from '../components/IndexChart';
 
+const amountFields = [{ label: '成交额', value: (s: NonNullable<MarketSeries['snapshot']>) => s.amount }];
+
 export default function OverviewPage() {
   const {
     data, loading, error, retry,
@@ -20,6 +22,7 @@ export default function OverviewPage() {
   const { scope } = useMarket();
   const [index, setIndex] = useState('000001.SH');
   const snapshot = data?.snapshot;
+  const indexDates = useMemo(() => data?.series.map((r) => r.date) || [], [data]);
   const indexes = scopeIndexes(data?.indexes || [], scope);
   const selected = indexes.find((i) => i.code === index) || indexes[0];
   const difference = snapshot && data?.previousAmount != null ? snapshot.amount - data.previousAmount : null;
@@ -56,7 +59,7 @@ export default function OverviewPage() {
                 );
               })}
             </Row>
-            <IndexChart index={selected} dates={data.series.map((r) => r.date)} />
+            <IndexChart index={selected} dates={indexDates} />
             <h2 className="section-heading">成交与量能</h2>
             <Metrics items={[
               {
@@ -108,7 +111,7 @@ export default function OverviewPage() {
               <span style={{ flexGrow: snapshot.down, background: 'var(--quote-down)' }} />
             </div>
             )}
-            <Trend title={`${range} - 市场成交额`} unit="亿元" digits={2} type="bar" controls data={data} fields={[{ label: '成交额', value: (s) => s.amount }]} />
+            <Trend title={`${range} - 市场成交额`} unit="亿元" digits={2} type="bar" controls data={data} fields={amountFields} />
           </>
         )}
       </DataState>

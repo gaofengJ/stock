@@ -16,6 +16,34 @@ const format = load('utils/format.ts');
 const avatars = load('auth/avatars.ts');
 const market = load('app/analysis/components/market-display.ts');
 
+const candle = (date, low, high, close = high) => ({ date, start: date, end: date, value: [low, close, low, high] });
+test('moving averages use full history before clipping and restart after missing candles', () => {
+  const candles = Array.from({ length: 300 }, (_, i) => candle(String(i), i + 1, i + 1));
+  const ma = market.movingAverage(candles, 250);
+  assert.equal(ma[248], null);
+  assert.equal(ma[249], 125.5);
+  assert.equal(ma.at(-1), 175.5);
+  const missing = [...candles.slice(0, 5), { value: null }, ...candles.slice(6, 12)];
+  assert.deepEqual(market.movingAverage(missing, 5).slice(4, 11), [3, null, null, null, null, null, 9]);
+});
+
+test('gap bands shrink on partial fills and disappear on full fills without treating missing days as gaps', () => {
+  const up = [candle('1', 90, 100), candle('2', 105, 110), candle('3', 103, 108)];
+  assert.deepEqual(market.unfilledGaps(up), [{ start: '1', low: 100, high: 103, direction: 'up' }]);
+  assert.deepEqual(market.unfilledGaps([...up, candle('4', 99, 106)]), []);
+  const down = [candle('1', 100, 110), candle('2', 90, 95), candle('3', 91, 98)];
+  assert.deepEqual(market.unfilledGaps(down), [{ start: '1', low: 98, high: 100, direction: 'down' }]);
+  assert.deepEqual(market.unfilledGaps([...down, candle('4', 92, 101)]), []);
+  assert.deepEqual(market.unfilledGaps([up[0], { value: null }, up[1]]), []);
+});
+
+test('trillion reference lines convert from hundred-million units and leave small charts unscaled', () => {
+  assert.deepEqual(market.amountReferenceLevels([null, 400, 9000]), []);
+  assert.deepEqual(market.amountReferenceLevels([10000]), [10000]);
+  assert.deepEqual(market.amountReferenceLevels([16800]), [10000, 20000]);
+  assert.deepEqual(market.amountReferenceLevels([25000, NaN]), [10000, 20000, 30000]);
+});
+
 test('market scope selects relevant reference indexes without leaking Shanghai into Beijing', () => {
   const indexes = ['000001.SH', '399001.SZ', '399006.SZ', '000688.SH', '899050.BJ', '000300.SH'].map(code => ({code}));
   assert.deepEqual(market.scopeIndexes(indexes, 'bj').map(x => x.code), ['899050.BJ']);

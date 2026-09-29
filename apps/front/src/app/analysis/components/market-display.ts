@@ -20,6 +20,50 @@ export type CandlePeriod = 'day' | 'week' | 'month';
 export interface Candle {
   date: string; start: string; end: string; value: [number, number, number, number] | null;
 }
+export const averagePeriods = [5, 10, 20, 30, 60, 120, 250];
+
+export function movingAverage(candles: Candle[], period: number): (number | null)[] {
+  let sum = 0;
+  let consecutive = 0;
+  return candles.map((c, i) => {
+    if (!c.value) { sum = 0; consecutive = 0; return null; }
+    sum += c.value[1]; consecutive += 1;
+    if (consecutive > period) sum -= candles[i - period].value![1];
+    return consecutive >= period ? sum / period : null;
+  });
+}
+
+export interface PriceGap { start: string; low: number; high: number; direction: 'up' | 'down' }
+export function unfilledGaps(candles: Candle[]): PriceGap[] {
+  let gaps: PriceGap[] = [];
+  candles.forEach((c, i) => {
+    if (!c.value) { gaps = []; return; }
+    const [, , low, high] = c.value;
+    gaps = gaps.flatMap((gap) => {
+      if (gap.direction === 'up') return low <= gap.low ? [] : [{ ...gap, high: Math.min(gap.high, low) }];
+      return high >= gap.high ? [] : [{ ...gap, low: Math.max(gap.low, high) }];
+    });
+    const previous = candles[i - 1];
+    if (!previous?.value) return;
+    if (low > previous.value[3]) {
+      gaps.push({
+        start: previous.date, low: previous.value[3], high: low, direction: 'up',
+      });
+    }
+    if (high < previous.value[2]) {
+      gaps.push({
+        start: previous.date, low: high, high: previous.value[2], direction: 'down',
+      });
+    }
+  });
+  return gaps;
+}
+
+// Amounts are in 亿元: 10,000 亿元 = 1 万亿元. Do not stretch small-volume charts to a trillion.
+export function amountReferenceLevels(values: (number | null)[]): number[] {
+  const max = Math.max(0, ...values.filter((v): v is number => v != null && Number.isFinite(v)));
+  return max < 10000 ? [] : Array.from({ length: Math.ceil(max / 10000) }, (_, i) => (i + 1) * 10000);
+}
 // Use the trading calendar to retain gaps. A missing trading day invalidates its candle.
 export function indexCandles(points: IndexPoint[], dates: string[], period: CandlePeriod): Candle[] {
   const byDate = new Map(points.map((p) => [p.date, p]));

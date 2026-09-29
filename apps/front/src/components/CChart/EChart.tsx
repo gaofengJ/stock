@@ -9,6 +9,8 @@ import { LineChart, BarChart, CandlestickChart } from 'echarts/charts';
 import {
   GridComponent,
   LegendComponent,
+  MarkAreaComponent,
+  MarkLineComponent,
   TitleComponent,
   ToolboxComponent,
   TooltipComponent,
@@ -25,6 +27,8 @@ echarts.use([
   TooltipComponent,
   TitleComponent,
   LegendComponent,
+  MarkAreaComponent,
+  MarkLineComponent,
   CanvasRenderer,
 ]);
 

@@ -26,14 +26,14 @@ export default function useMarketData<T>(endpoint: string, extra: Record<string,
       request: () => marketRequest<T>(endpoint, {
         date, scope, days, ...JSON.parse(extraKey),
       }, requestConfig),
-      onStart: () => { setLoading(true); setData(null); setError(''); },
+      onStart: () => { setLoading(true); setError(''); },
       onSuccess: (r) => setData(r.data),
       onError: (e) => setError(errorMessage(e, '数据加载失败')),
       onFinally: () => { setLoadedKey(requestKey); setLoading(false); },
     });
   }, [requestKey, attempt, endpoint, date, scope, days, extraKey, revision, requestConfig, runLatestRequest]);
   return {
-    data: loadedKey === requestKey ? data : null,
+    data,
     loading: loading || loadedKey !== requestKey,
     error: loadedKey === requestKey ? error : '',
     retry,
