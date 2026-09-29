@@ -90,9 +90,10 @@ const seriesColor = (label: string, index: number) => {
   return chartPalette[index % chartPalette.length];
 };
 function TrendChart({
-  title, data, fields, percent = false, unit = '', digits = 0, type = 'line', controls = false,
+  title, description, data, fields, percent = false, unit = '', digits = 0, type = 'line', controls = false,
 }: {
-  title: string; data: MarketSeries; fields: { label: string; value: (s: MarketStats) => number | null }[];
+  title: string; description?: string; data: MarketSeries;
+  fields: { label: string; value: (s: MarketStats) => number | null; tooltip?: (s: MarketStats | null) => string }[];
   percent?: boolean; unit?: string; digits?: number; type?: 'line' | 'bar'; controls?: boolean;
 }) {
   const { colors } = useSiteTheme();
@@ -101,9 +102,35 @@ function TrendChart({
   const series = days === 730 ? data.series : data.series.slice(-days);
   const references = unit === '亿元' ? amountReferenceLevels(series.flatMap((r) => fields.map((f) => (r.data ? f.value(r.data) : null)))) : [];
   return (
-    <Card title={title} extra={controls && <TrendRange />} className="market-chart">
+    <Card
+      title={(
+        <span>
+          {title}
+          {description && <HelpTooltip label={title} title={description} />}
+        </span>
+)}
+      extra={controls && <TrendRange />}
+      className="market-chart"
+    >
       <CChart genOptions={() => ({
-        tooltip: { trigger: 'axis', valueFormatter: (v: unknown) => (v == null ? '—' : `${numberText(v, percent ? 2 : digits)}${suffix}`) },
+        tooltip: {
+          trigger: 'axis',
+          valueFormatter: (v: unknown) => (v == null ? '—' : `${numberText(v, percent ? 2 : digits)}${suffix}`),
+          ...(fields.some((f) => f.tooltip) ? {
+            renderMode: 'richText' as const,
+            formatter: (params: any) => {
+              const points = Array.isArray(params) ? params : [params];
+              const row = series[points[0]?.dataIndex];
+              if (!row) return '';
+              return [row.date, ...points.map((point) => {
+                const field = fields[point.seriesIndex];
+                const value = row.data && field.value(row.data);
+                const text = field.tooltip?.(row.data) ?? (value == null ? '—' : `${numberText(value, percent ? 2 : digits)}${suffix}`);
+                return `${point.marker || ''}${field.label}：${text}`;
+              })].join('\n');
+            },
+          } : {}),
+        },
         legend: { top: 0, left: 'center', type: 'scroll' },
         grid: {
           left: 16, right: 20, top: 56, bottom: 24, containLabel: true,

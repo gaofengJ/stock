@@ -17,6 +17,17 @@ const avatars = load('auth/avatars.ts');
 const market = load('app/analysis/components/market-display.ts');
 const funds = load('utils/active-funds.ts');
 const navigation = load('app/analysis/components/market-navigation.ts');
+const promotion = load('app/analysis/components/promotion-display.ts', {'@/utils/format': format});
+
+test('promotion tooltip distinguishes no cohort, failed promotion, valid rate and missing data', () => {
+  const stats = (rate, numerator, denominator, from = 3) => ({upgrades: [{from, rate, numerator, denominator}]});
+  assert.equal(promotion.promotionTooltip(stats(null, 0, 0), 3), '昨日三板样本为 0，暂无晋级率');
+  assert.equal(promotion.promotionTooltip(stats(0, 0, 4), 3), '0.00%（晋级 0 只／昨日样本 4 只）');
+  assert.equal(promotion.promotionTooltip(stats(50, 2, 4), 3), '50.00%（晋级 2 只／昨日样本 4 只）');
+  assert.equal(promotion.promotionTooltip(null, 3), '当日统计数据缺失');
+  assert.equal(promotion.promotionTooltip(stats(null, 0, 4), 3), '晋级率数据缺失（晋级 0 只／昨日样本 4 只）');
+  assert.equal(promotion.promotionTooltip(stats(null, 0, 0, 4), 4), '昨日四板及以上样本为 0，暂无晋级率');
+});
 
 test('seat association matches typography variants but never another branch', () => {
   const rows = [

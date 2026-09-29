@@ -11,6 +11,7 @@ import { useAccount } from '@/auth/Boundary';
 import { allowedPath } from '@/auth/client';
 import { useMarket } from '../components/MarketContext';
 import { marketHref } from '../components/market-navigation';
+import { promotionTooltip } from '../components/promotion-display';
 import MarketCompatibility from '../components/MarketCompatibility';
 import LegacyPage from './LegacyPage';
 
@@ -117,7 +118,7 @@ function ChainsPage() {
                 <Row gutter={20}>
                   <Col xs={24} lg={12}><Trend title="最高连板" unit="板" data={series.data} fields={[{ label: '连板高度', value: (s) => s.maxHeight }]} /></Col>
                   <Col xs={24} lg={12}><Trend title="涨停梯队数量（含首板）" unit="只" data={series.data} fields={[1, 2, 3, 4].map((n) => ({ label: n === 4 ? '四板及以上' : `${n}板`, value: (s) => s.counts[n - 1] }))} /></Col>
-                  <Col xs={24} lg={12}><Trend title="连板晋级率" data={series.data} percent fields={[1, 2, 3, 4].map((n) => ({ label: n === 4 ? '高位晋级' : `${n}进${n + 1}`, value: (s) => s.upgrades[n - 1].rate }))} /></Col>
+                  <Col xs={24} lg={12}><Trend title="连板晋级率" description="昨日对应梯队无样本时不计算晋级率，曲线保留断点；有样本但无人晋级为0%。悬浮可查看样本数和晋级数量。" data={series.data} percent fields={[1, 2, 3, 4].map((n) => ({ label: n === 4 ? '高位晋级' : `${n}进${n + 1}`, value: (s) => s.upgrades[n - 1].rate, tooltip: (s) => promotionTooltip(s, n) }))} /></Col>
                   <Col xs={24} lg={12}><Trend title="涨停与连板成交额" unit="亿元" digits={2} type="bar" data={series.data} fields={[{ label: '涨停成交额', value: (s) => s.limitAmount }, { label: '连板成交额', value: (s) => s.chainAmount }]} /></Col>
                 </Row>
                 )}
