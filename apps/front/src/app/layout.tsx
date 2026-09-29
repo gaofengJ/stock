@@ -1,7 +1,8 @@
+/* eslint-disable react/no-danger -- Only trusted palette constants and a fixed pre-paint theme script are inserted. */
 import AccountBoundary from '@/auth/Boundary';
 import type { Metadata } from 'next';
-import type { CSSProperties } from 'react';
-import { colorVariables } from '@/colors';
+import { themeVariablesCss } from '@/colors';
+import SiteTheme from '@/components/SiteTheme';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 import './global.css';
 import '@/auth/account.css';
@@ -18,9 +19,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN" style={colorVariables as CSSProperties}>
+    <html lang="zh-CN" suppressHydrationWarning>
+      <head>
+        <style dangerouslySetInnerHTML={{ __html: themeVariablesCss }} />
+        <script dangerouslySetInnerHTML={{ __html: '(function(){try{document.documentElement.dataset.theme=localStorage.getItem("stock-theme")==="dark"?"dark":"light"}catch(e){}})()' }} />
+      </head>
       <body>
-        <AntdRegistry><AccountBoundary>{children}</AccountBoundary></AntdRegistry>
+        <AntdRegistry><SiteTheme><AccountBoundary>{children}</AccountBoundary></SiteTheme></AntdRegistry>
       </body>
     </html>
   );

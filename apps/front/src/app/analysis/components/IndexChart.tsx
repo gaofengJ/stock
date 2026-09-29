@@ -6,17 +6,23 @@ import {
 } from 'antd';
 import { ExpandOutlined, ReloadOutlined } from '@ant-design/icons';
 import CChart from '@/components/CChart';
+import { useSiteTheme } from '@/components/SiteTheme';
 import HelpTooltip from '@/components/HelpTooltip';
 import { MarketSeries } from '@/api/market';
 import { numberText } from '@/utils/format';
 import {
-  movingAverageColors, quoteColors, withAlpha, candlePanelColors,
+  movingAverageColors, lightMovingAverageColors, quoteColors, withAlpha, candlePanelColors, chartColors,
 } from '@/colors';
 import {
   ChartWindow, indexCandles, movingAverage, averagePeriods, unfilledGaps,
 } from './market-display';
 
 function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][number]; dates: string[]; window: ChartWindow }) {
+  const { mode, colors } = useSiteTheme();
+  const panel = mode === 'dark' ? candlePanelColors : {
+    text: colors.secondary, muted: colors.muted, axis: chartColors.axis, selection: chartColors.grid,
+  };
+  const averagesPalette = mode === 'dark' ? movingAverageColors : lightMovingAverageColors;
   const [expanded, setExpanded] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const { period, count } = window;
@@ -29,7 +35,6 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
     !candles.some((c) => c.value || c.volume != null) ? <Empty description="该范围暂无完整行情数据" /> : (
       <CChart
         key={`${index.code}-${period}-${count}-${dates.at(-1)}-${resetKey}`}
-        appearance="dark"
         height={height}
         genOptions={() => ({
           tooltip: {
@@ -45,7 +50,7 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
               return candle.value ? `${date}\n开盘  ${numberText(candle.value[0])}\n收盘  ${numberText(candle.value[1])}\n最高  ${numberText(candle.value[3])}\n最低  ${numberText(candle.value[2])}\n成交量  ${numberText(candle.volume)} 万手${lines ? `\n${lines}` : ''}` : `${date}\n价格数据不完整\n成交量  ${numberText(candle.volume)} 万手`;
             },
           },
-          axisPointer: { link: [{ xAxisIndex: 'all' }], label: { backgroundColor: candlePanelColors.selection } },
+          axisPointer: { link: [{ xAxisIndex: 'all' }], label: { backgroundColor: panel.selection, color: panel.text } },
           dataZoom: [{
             type: 'inside',
             xAxisIndex: [0, 1],
@@ -65,12 +70,12 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
             right: 20,
             startValue: count ? Math.max(0, candles.length - count) : 0,
             endValue: candles.length - 1,
-            borderColor: candlePanelColors.axis,
-            fillerColor: withAlpha(candlePanelColors.text, 0.15),
-            handleStyle: { color: candlePanelColors.text },
-            textStyle: { color: candlePanelColors.text },
-            dataBackground: { lineStyle: { color: candlePanelColors.muted }, areaStyle: { color: candlePanelColors.selection } },
-            selectedDataBackground: { lineStyle: { color: candlePanelColors.text }, areaStyle: { color: candlePanelColors.selection } },
+            borderColor: panel.axis,
+            fillerColor: withAlpha(panel.text, 0.15),
+            handleStyle: { color: panel.text },
+            textStyle: { color: panel.text },
+            dataBackground: { lineStyle: { color: panel.muted }, areaStyle: { color: panel.selection } },
+            selectedDataBackground: { lineStyle: { color: panel.text }, areaStyle: { color: panel.selection } },
           }],
           grid: [
             {
@@ -81,7 +86,7 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
             },
           ],
           legend: {
-            top: 8, left: 8, right: 8, type: 'scroll', pageIconColor: candlePanelColors.text, pageTextStyle: { color: candlePanelColors.text }, data: averages.map((a) => a.name),
+            top: 8, left: 8, right: 8, type: 'scroll', pageIconColor: panel.text, pageTextStyle: { color: panel.text }, data: averages.map((a) => a.name),
           },
           xAxis: [
             {
@@ -124,8 +129,8 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
             data: a.values,
             showSymbol: false,
             connectNulls: false,
-            lineStyle: { width: 1.25, color: movingAverageColors[i] },
-            itemStyle: { color: movingAverageColors[i] },
+            lineStyle: { width: 1.25, color: averagesPalette[i] },
+            itemStyle: { color: averagesPalette[i] },
           })), {
             type: 'bar',
             name: '成交量',
@@ -134,7 +139,7 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
             barMaxWidth: 16,
             data: candles.map((c) => ({
               value: c.volume,
-              itemStyle: { color: !c.value || c.value[0] === c.value[1] ? quoteColors.flat : quoteColors[c.value[1] > c.value[0] ? 'up' : 'down'] },
+              itemStyle: { color: !c.value || c.value[0] === c.value[1] ? colors.secondary : quoteColors[c.value[1] > c.value[0] ? 'up' : 'down'] },
             })),
           }],
         })}

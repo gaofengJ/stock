@@ -1,11 +1,12 @@
 'use client';
 
 import { fontFamily } from '@/theme';
+import { useSiteTheme } from '@/components/SiteTheme';
 import {
   chartColors, chartPalette, quoteColors, uiColors, candlePanelColors,
 } from '@/colors';
 import { numberText } from '@/utils/format';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import ReactEChartsCore from 'echarts-for-react/lib/core';
 import * as echarts from 'echarts/core';
 import { LineChart, BarChart, CandlestickChart } from 'echarts/charts';
@@ -45,6 +46,7 @@ const axisTheme = {
   splitLine: { lineStyle: { color: chartColors.grid } },
 };
 echarts.registerTheme('stock', {
+  backgroundColor: uiColors.surface,
   color: chartPalette,
   textStyle: { color: uiColors.text, fontFamily },
   title: { textStyle: { color: uiColors.text }, subtextStyle: { color: uiColors.secondary } },
@@ -67,11 +69,14 @@ const darkAxis = {
   splitLine: { lineStyle: { color: candlePanelColors.grid } },
 };
 echarts.registerTheme('stock-dark', {
+  color: chartPalette,
+  title: { textStyle: { color: candlePanelColors.text }, subtextStyle: { color: candlePanelColors.muted } },
   backgroundColor: candlePanelColors.background,
   textStyle: { color: candlePanelColors.text, fontFamily },
   legend: { textStyle: { color: candlePanelColors.text }, inactiveColor: candlePanelColors.axis },
   categoryAxis: darkAxis,
   valueAxis: darkAxis,
+  timeAxis: darkAxis,
   tooltip: { backgroundColor: candlePanelColors.background, borderColor: candlePanelColors.axis, textStyle: { color: candlePanelColors.text } },
 });
 
@@ -81,9 +86,17 @@ interface IEchartsProps {
   height?: number;
 }
 
-const EChart = ({ genOptions, appearance = 'light', height = 360 }: IEchartsProps) => {
+const EChart = ({ genOptions, appearance, height = 360 }: IEchartsProps) => {
+  const { mode } = useSiteTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<ReactEChartsCore>(null);
+  const zoomRef = useRef<{ start: number; end: number }[]>([]);
+  const events = useMemo(() => ({
+    datazoom: (_event: unknown, instance: echarts.ECharts) => {
+      const zoom = instance.getOption().dataZoom as { start: number; end: number }[];
+      zoomRef.current = zoom.map(({ start, end }) => ({ start, end }));
+    },
+  }), []);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -103,7 +116,11 @@ const EChart = ({ genOptions, appearance = 'light', height = 360 }: IEchartsProp
       <ReactEChartsCore
         ref={chartRef}
         echarts={echarts}
-        theme={appearance === 'dark' ? 'stock-dark' : 'stock'}
+        theme={(appearance || mode) === 'dark' ? 'stock-dark' : 'stock'}
+        onEvents={events}
+        onChartReady={(instance: echarts.ECharts) => {
+          zoomRef.current.forEach((zoom, dataZoomIndex) => instance.dispatchAction({ type: 'dataZoom', dataZoomIndex, ...zoom }));
+        }}
         option={{ ...options, textStyle: { fontFamily, fontSize: 12, ...options.textStyle }, tooltip: { confine: true, valueFormatter: (v: unknown) => numberText(v), ...tooltip } }}
         lazyUpdate
         style={{ width: '100%', height }}

@@ -32,7 +32,8 @@ import {
 import ImgFengye from '@/assets/imgs/fengye.png';
 import ImgAuthorAvatar from '@/assets/imgs/author-avatar.png';
 import { useOptionsState } from '@/store/useOptionsStore';
-import { uiColors, withAlpha } from '@/colors';
+import { withAlpha } from '@/colors';
+import { ThemeToggle, useSiteTheme } from '@/components/SiteTheme';
 
 import { headerMenuItems } from './config';
 
@@ -77,6 +78,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
   asideMenuOpen = '',
   contentClassName = 'p-16',
 }) => {
+  const { colors } = useSiteTheme();
   const router = useRouter();
   const screens = Grid.useBreakpoint();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -122,7 +124,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
     <Layout className="platform-layout">
       <Header
         className="platform-header"
-        style={{ backgroundColor: uiColors.surface }}
+        style={{ backgroundColor: colors.surface }}
       >
         {mobile && <Button type="text" icon={<MenuOutlined />} aria-label="打开栏目导航" onClick={() => setDrawerOpen(true)} />}
         <Link href={homePath(user)} className="platform-brand" aria-label="木风同学，返回首页">
@@ -140,6 +142,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
         />
         )}
         <div className="header-tools">
+          <ThemeToggle />
           <Popover
             trigger={['hover', 'focus', 'click']}
             placement="bottomRight"
@@ -157,7 +160,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
             <button type="button" className="header-contact">
               <WechatOutlined
                 style={{
-                  color: uiColors.wechat,
+                  color: colors.wechat,
                 }}
               />
               <span>联系作者</span>
@@ -240,7 +243,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
         )}
         <Layout className={`platform-content ${contentClassName}`}>
           <Content className="platform-content-inner">
-            <Watermark className="platform-watermark" font={{ color: withAlpha(uiColors.text, 0.035), fontSize: 12 }} gap={[180, 160]} height={40} width={160} content="木风同学的投资小站">
+            <Watermark className="platform-watermark" font={{ color: withAlpha(colors.text, 0.035), fontSize: 12 }} gap={[180, 160]} height={40} width={160} content="木风同学的投资小站">
               <LoginActivityContext.Provider value={activity}>{children}</LoginActivityContext.Provider>
             </Watermark>
           </Content>

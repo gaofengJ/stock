@@ -38,6 +38,7 @@ export const chartColors = {
 };
 // Reference screenshot: MA5 / MA10 / MA20 / MA30 / MA60 / MA120 / MA250.
 export const movingAverageColors = ['#d6d6d6', '#d942a6', '#edc14a', '#339bd0', '#a65326', '#319878', '#df6288'];
+export const lightMovingAverageColors = ['#697386', '#c73591', '#ac810a', '#2587b6', '#a65326', '#278166', '#cc4d75'];
 export const candlePanelColors = {
   background: '#111111', text: '#cccccc', muted: '#929292', grid: '#2b2b2b', axis: '#555555', selection: '#414141',
 };
@@ -62,29 +63,52 @@ export const utilityColors = {
   black: uiColors.text,
 };
 
-export const colorVariables = {
-  ...Object.fromEntries(Object.entries(utilityColors).flatMap(([name, color]) => [
-    [`--color-${name}`, color], [`--color-${name}-78`, withAlpha(color, 0.78)], [`--color-${name}-56`, withAlpha(color, 0.56)],
-  ])),
-  '--color-primary': uiColors.primary,
-  '--color-primary-text': uiColors.primaryText,
-  '--color-primary-soft': uiColors.primarySoft,
-  '--color-primary-subtle': uiColors.primarySubtle,
-  '--color-surface': uiColors.surface,
-  '--color-surface-muted': uiColors.surfaceMuted,
-  '--color-border': uiColors.border,
-  '--color-border-light': uiColors.borderLight,
-  '--text-secondary': uiColors.secondary,
-  '--text-muted': uiColors.muted,
-  '--text-disabled': uiColors.disabled,
-  '--quote-up': quoteColors.up,
-  '--quote-up-soft': withAlpha(quoteColors.up, 0.08),
-  '--quote-up-border': withAlpha(quoteColors.up, 0.24),
-  '--quote-down': quoteColors.down,
-  '--quote-flat': quoteColors.flat,
-  '--quote-warning': quoteColors.warning,
-  '--shadow-soft': withAlpha(uiColors.text, 0.025),
-  '--shadow-popup': withAlpha(uiColors.text, 0.08),
-  '--border-swatch': withAlpha(uiColors.text, 0.125),
-  '--loading-overlay': withAlpha(uiColors.surface, 0.3),
+export const darkUiColors = {
+  ...uiColors,
+  primaryText: '#ff7899',
+  primarySoft: '#35212b',
+  primarySubtle: '#241c23',
+  text: '#e6e8ed',
+  secondary: '#a5adba',
+  muted: '#8892a2',
+  disabled: '#626b79',
+  background: '#111318',
+  surface: '#1b1e25',
+  surfaceMuted: '#232730',
+  border: '#353b47',
+  borderLight: '#2c313c',
 };
+
+function variablesFor(colors: typeof uiColors) {
+  const utilities = { ...utilityColors, grey: colors.background, black: colors.text };
+  return {
+    ...Object.fromEntries(Object.entries(utilities).flatMap(([name, color]) => [
+      [`--color-${name}`, color], [`--color-${name}-78`, withAlpha(color, 0.78)], [`--color-${name}-56`, withAlpha(color, 0.56)],
+    ])),
+    '--color-primary': colors.primary,
+    '--color-primary-text': colors.primaryText,
+    '--color-primary-soft': colors.primarySoft,
+    '--color-primary-subtle': colors.primarySubtle,
+    '--color-surface': colors.surface,
+    '--color-surface-muted': colors.surfaceMuted,
+    '--color-border': colors.border,
+    '--color-border-light': colors.borderLight,
+    '--text-secondary': colors.secondary,
+    '--text-muted': colors.muted,
+    '--text-disabled': colors.disabled,
+    '--quote-up': quoteColors.up,
+    '--quote-up-soft': withAlpha(quoteColors.up, 0.08),
+    '--quote-up-border': withAlpha(quoteColors.up, 0.24),
+    '--quote-down': quoteColors.down,
+    '--quote-flat': colors.secondary,
+    '--quote-warning': quoteColors.warning,
+    '--shadow-soft': withAlpha(colors.text, 0.025),
+    '--shadow-popup': withAlpha(colors.text, 0.08),
+    '--border-swatch': withAlpha(colors.text, 0.125),
+    '--loading-overlay': withAlpha(colors.surface, 0.3),
+  };
+}
+export const colorVariables = variablesFor(uiColors);
+export const darkColorVariables = variablesFor(darkUiColors);
+const cssVariables = (variables: Record<string, string>) => Object.entries(variables).map(([name, value]) => `${name}:${value}`).join(';');
+export const themeVariablesCss = `:root{${cssVariables(colorVariables)};color-scheme:light}html[data-theme="dark"]{${cssVariables(darkColorVariables)};color-scheme:dark}`;

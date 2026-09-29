@@ -6,9 +6,10 @@ import {
 import { memo } from 'react';
 import { LoadingOutlined } from '@ant-design/icons';
 import CChart from '@/components/CChart';
+import { useSiteTheme } from '@/components/SiteTheme';
 import HelpTooltip from '@/components/HelpTooltip';
 import {
-  quoteColors, chartColors, chartPalette, uiColors,
+  quoteColors, chartColors, chartPalette,
 } from '@/colors';
 import { numberText, changeClass } from '@/utils/format';
 import { MarketSeries, MarketStats } from '@/api/market';
@@ -93,6 +94,7 @@ function TrendChart({
   title: string; data: MarketSeries; fields: { label: string; value: (s: MarketStats) => number | null }[];
   percent?: boolean; unit?: string; digits?: number; type?: 'line' | 'bar'; controls?: boolean;
 }) {
+  const { colors } = useSiteTheme();
   const suffix = percent ? '%' : unit;
   const { days } = useMarket();
   const series = days === 730 ? data.series : data.series.slice(-days);
@@ -121,7 +123,7 @@ function TrendChart({
             silent: true,
             symbol: 'none',
             lineStyle: { type: 'dashed', color: chartColors.reference, width: 1 },
-            label: { position: 'insideEndTop', formatter: '{b}', color: uiColors.secondary },
+            label: { position: 'insideEndTop', formatter: '{b}', color: colors.secondary },
             data: references.map((value) => ({ name: `${value / 10000}万亿`, yAxis: value })),
           } : undefined,
         })),

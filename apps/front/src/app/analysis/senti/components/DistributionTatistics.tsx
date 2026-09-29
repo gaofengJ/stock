@@ -3,8 +3,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { Spin } from 'antd';
 import { NSGetAnalysisSentiDistributionTatistics } from '@/api/services.types';
 import { getAnalysisSentiDistributionTatistics } from '@/api/services';
-import { quoteColors, uiColors } from '@/colors';
+import { quoteColors } from '@/colors';
 import CChart from '@/components/CChart';
+import { useSiteTheme } from '@/components/SiteTheme';
 import { getRoundedMax, getRoundedMin } from '@/utils';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 
@@ -19,6 +20,7 @@ interface ITotalData {
 }
 
 const DistributionTatistics = ({ tradeDate }: IProps) => {
+  const { colors } = useSiteTheme();
   const [loading, setLoading] = useState<boolean>(false);
   const [sourceData, setSourceData] = useState<NSGetAnalysisSentiDistributionTatistics.IRes>([]);
   const { requestConfig, runLatestRequest } = useLatestRequest('senti-distribution-statistics');
@@ -102,7 +104,7 @@ const DistributionTatistics = ({ tradeDate }: IProps) => {
         top: 0,
         left: 8,
         textStyle: {
-          color: uiColors.secondary,
+          color: colors.secondary,
           fontWeight: 'bold',
           fontSize: 16,
         },
@@ -138,14 +140,14 @@ const DistributionTatistics = ({ tradeDate }: IProps) => {
             title: '保存为图片',
             iconStyle: {
               color: 'transparent',
-              borderColor: uiColors.secondary,
+              borderColor: colors.secondary,
             },
             emphasis: {
               // hover样式
               iconStyle: {
                 color: 'transparent',
-                borderColor: uiColors.secondary,
-                textFill: uiColors.secondary,
+                borderColor: colors.secondary,
+                textFill: colors.secondary,
               },
             },
           },
@@ -172,7 +174,7 @@ const DistributionTatistics = ({ tradeDate }: IProps) => {
             show: true,
             position: 'top',
             formatter: (p: { value: unknown }) => numberText(p.value, 0),
-            color: uiColors.secondary,
+            color: colors.secondary,
           },
           data: sourceData.map((item) => item.count),
         },

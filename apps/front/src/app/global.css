@@ -74,3 +74,9 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "P
 
 .ant-tag.brand-tag { color: var(--color-primary-text); background: var(--color-primary-soft); border-color: var(--color-primary-soft); }
 .ant-tag.quote-up-tag { color: var(--quote-up); background: var(--quote-up-soft); border-color: var(--quote-up-border); }
+
+.theme-toggle.ant-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 32px; height: 32px; padding: 0; color: var(--text-secondary); font-size: 17px; }
+.theme-toggle.ant-btn:hover { color: var(--color-black); background: var(--color-surface-muted); }
+.theme-toggle:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.entry-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
+@media (max-width: 479px) { .header-tools { gap: 8px; } }

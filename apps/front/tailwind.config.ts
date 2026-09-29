@@ -1,41 +1,39 @@
 import type { Config } from 'tailwindcss';
-import { EThemeColors } from './src/types/common.enum';
-import { quoteColors } from './src/colors';
 
 interface Spacing {
   [key: string]: string;
 }
 
 const colorsConfig = {
-  'quote-up': quoteColors.up,
-  'quote-down': quoteColors.down,
-  'quote-flat': quoteColors.flat,
-  'primary-default': EThemeColors.colorPinkRed,
-  'bg-base': EThemeColors.colorGrey,
-  'bg-white': EThemeColors.colorWhite,
-  'bg-black': EThemeColors.colorBlack,
-  'bg-black78': EThemeColors.colorBlack78,
-  'bg-black56': EThemeColors.colorBlack56,
-  'bg-pink-red': EThemeColors.colorPinkRed,
-  'bg-pink-red78': EThemeColors.colorPinkRed78,
-  'bg-pink-red56': EThemeColors.colorPinkRed56,
-  'bg-grey': EThemeColors.colorGrey,
-  'bg-grey78': EThemeColors.colorGrey78,
-  'bg-grey56': EThemeColors.colorGrey56,
-  'bg-lime-green': EThemeColors.colorLimeGreen,
-  'bg-lime-green78': EThemeColors.colorLimeGreen78,
-  'bg-lime-green56': EThemeColors.colorLimeGreen56,
+  'quote-up': 'var(--quote-up)',
+  'quote-down': 'var(--quote-down)',
+  'quote-flat': 'var(--quote-flat)',
+  'primary-default': 'var(--color-pink-red)',
+  'bg-base': 'var(--color-grey)',
+  'bg-white': 'var(--color-surface)',
+  'bg-black': 'var(--color-black)',
+  'bg-black78': 'var(--color-black-78)',
+  'bg-black56': 'var(--color-black-56)',
+  'bg-pink-red': 'var(--color-pink-red)',
+  'bg-pink-red78': 'var(--color-pink-red-78)',
+  'bg-pink-red56': 'var(--color-pink-red-56)',
+  'bg-grey': 'var(--color-grey)',
+  'bg-grey78': 'var(--color-grey-78)',
+  'bg-grey56': 'var(--color-grey-56)',
+  'bg-lime-green': 'var(--color-lime-green)',
+  'bg-lime-green78': 'var(--color-lime-green-78)',
+  'bg-lime-green56': 'var(--color-lime-green-56)',
 
-  'text-white': EThemeColors.colorWhite,
-  'text-grey': EThemeColors.colorGrey,
-  'text-grey78': EThemeColors.colorGrey78,
-  'text-grey56': EThemeColors.colorGrey56,
-  'text-black': EThemeColors.colorBlack,
-  'text-black78': EThemeColors.colorBlack78,
-  'text-black56': EThemeColors.colorBlack56,
-  'text-pink-red': EThemeColors.colorPinkRed,
-  'text-pink-red78': EThemeColors.colorPinkRed78,
-  'text-pink-red56': EThemeColors.colorPinkRed56,
+  'text-white': '#ffffff',
+  'text-grey': 'var(--color-grey)',
+  'text-grey78': 'var(--color-grey-78)',
+  'text-grey56': 'var(--color-grey-56)',
+  'text-black': 'var(--color-black)',
+  'text-black78': 'var(--color-black-78)',
+  'text-black56': 'var(--color-black-56)',
+  'text-pink-red': 'var(--color-pink-red)',
+  'text-pink-red78': 'var(--color-pink-red-78)',
+  'text-pink-red56': 'var(--color-pink-red-56)',
 };
 
 const config: Config = {

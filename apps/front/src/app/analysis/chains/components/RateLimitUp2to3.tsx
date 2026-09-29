@@ -7,7 +7,8 @@ import { getAnalysisChainsUpgradeLimitUpRates } from '@/api/services';
 import { NSGetAnalysisChainsUpgradeLimitUpRates } from '@/api/services.types';
 
 import CChart from '@/components/CChart';
-import { quoteColors, uiColors } from '@/colors';
+import { useSiteTheme } from '@/components/SiteTheme';
+import { quoteColors } from '@/colors';
 import { getRoundedMax, getRoundedMin } from '@/utils';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 
@@ -21,6 +22,7 @@ interface IProps {
 const UPGRADE_NUM = 3;
 
 const RateLimitUp2to3 = ({ dateRange }: IProps) => {
+  const { colors } = useSiteTheme();
   const [loading, setLoading] = useState<boolean>(false);
   const [sourceData, setSourceData] = useState<NSGetAnalysisChainsUpgradeLimitUpRates.IRes>([]);
   const { requestConfig, runLatestRequest } = useLatestRequest('chains-rate-limit-up-2-to-3');
@@ -71,7 +73,7 @@ const RateLimitUp2to3 = ({ dateRange }: IProps) => {
         top: 0,
         left: 8,
         textStyle: {
-          color: uiColors.secondary,
+          color: colors.secondary,
           fontWeight: 'bold',
           fontSize: 16,
         },
@@ -107,13 +109,13 @@ const RateLimitUp2to3 = ({ dateRange }: IProps) => {
             title: '保存为图片',
             iconStyle: {
               color: 'transparent',
-              borderColor: uiColors.secondary,
+              borderColor: colors.secondary,
             },
             emphasis: { // hover样式
               iconStyle: {
                 color: 'transparent',
-                borderColor: uiColors.secondary,
-                textFill: uiColors.secondary,
+                borderColor: colors.secondary,
+                textFill: colors.secondary,
               },
             },
           },

@@ -9,13 +9,14 @@ import {
 import {
   BarChartOutlined, FundOutlined, ReadOutlined, UserOutlined, LockOutlined,
 } from '@ant-design/icons';
-import { themeConfig } from '@/components/Layout/config';
+import { ThemeToggle, useSiteTheme } from '@/components/SiteTheme';
 import ImgFengye from '@/assets/imgs/fengye.png';
 import { useRouter } from 'next/navigation';
 import { api } from './client';
 import { useAccount } from './Boundary';
 
 export default function Entry({ register = false }: { register?: boolean }) {
+  const { themeConfig } = useSiteTheme();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
@@ -25,9 +26,12 @@ export default function Entry({ register = false }: { register?: boolean }) {
   return (
     <ConfigProvider theme={themeConfig}>
       <main className="entry-page">
-        <div className="entry-brand">
-          <img src={ImgFengye.src} alt="" />
-          木风同学的投资小站
+        <div className="entry-header">
+          <div className="entry-brand">
+            <img src={ImgFengye.src} alt="" />
+            木风同学的投资小站
+          </div>
+          <ThemeToggle />
         </div>
         <div className="entry-shell">
           <section className="entry-intro">

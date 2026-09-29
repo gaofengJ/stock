@@ -7,7 +7,8 @@ import { getAnalysisSentiList } from '@/api/services';
 import { NSGetAnalysisSentiList } from '@/api/services.types';
 
 import CChart from '@/components/CChart';
-import { quoteColors, uiColors } from '@/colors';
+import { useSiteTheme } from '@/components/SiteTheme';
+import { quoteColors } from '@/colors';
 import { getRoundedMax, getRoundedMin } from '@/utils';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 
@@ -16,6 +17,7 @@ interface IProps {
 }
 
 const LimitUpHighSuccess = ({ dateRange }: IProps) => {
+  const { colors } = useSiteTheme();
   const [loading, setLoading] = useState<boolean>(false);
   const [sourceData, setSourceData] = useState<NSGetAnalysisSentiList.IRes>([]);
   const { requestConfig, runLatestRequest } = useLatestRequest('senti-limit-up-success');
@@ -65,7 +67,7 @@ const LimitUpHighSuccess = ({ dateRange }: IProps) => {
         top: 0,
         left: 8,
         textStyle: {
-          color: uiColors.secondary,
+          color: colors.secondary,
           fontWeight: 'bold',
           fontSize: 16,
         },
@@ -101,13 +103,13 @@ const LimitUpHighSuccess = ({ dateRange }: IProps) => {
             title: '保存为图片',
             iconStyle: {
               color: 'transparent',
-              borderColor: uiColors.secondary,
+              borderColor: colors.secondary,
             },
             emphasis: { // hover样式
               iconStyle: {
                 color: 'transparent',
-                borderColor: uiColors.secondary,
-                textFill: uiColors.secondary,
+                borderColor: colors.secondary,
+                textFill: colors.secondary,
               },
             },
           },

@@ -15,7 +15,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   Button, ConfigProvider, Result, Spin,
 } from 'antd';
-import { themeConfig } from '@/theme';
+import { useSiteTheme } from '@/components/SiteTheme';
 import { errorMessage } from '@/api/errors';
 import zhCN from 'antd/locale/zh_CN';
 import { clearTradeDateCache } from '@/hooks/useDefaultTradeDate';
@@ -39,6 +39,7 @@ export default function AccountBoundary({
 }: {
   children: React.ReactNode;
 }) {
+  const { themeConfig } = useSiteTheme();
   const path = usePathname().replace(/\/$/, '') || '/';
   const router = useRouter();
   const [user, setUser] = useState<Account | null>(null);

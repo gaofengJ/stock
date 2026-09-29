@@ -4,8 +4,9 @@ import { memo } from 'react';
 import { Card, Empty } from 'antd';
 import { MarketSeries } from '@/api/market';
 import CChart from '@/components/CChart';
+import { useSiteTheme } from '@/components/SiteTheme';
 import HelpTooltip from '@/components/HelpTooltip';
-import { chartColors, uiColors, quoteColors } from '@/colors';
+import { chartColors, quoteColors } from '@/colors';
 import { numberText } from '@/utils/format';
 import { ChartWindow, amountReferenceLevels, periodTotals } from './market-display';
 import ChartRange from './ChartRange';
@@ -13,6 +14,7 @@ import ChartRange from './ChartRange';
 function MarketAmountChart({
   data, window, title, dates, onWindowChange,
 }: { data: MarketSeries; window: ChartWindow; title: string; dates: string[]; onWindowChange: (value: ChartWindow) => void }) {
+  const { colors } = useSiteTheme();
   const all = periodTotals(data.series.map((p) => ({ date: p.date, value: p.data?.amount })), dates, window.period);
   const rows = window.count ? all.slice(-window.count) : all;
   const references = amountReferenceLevels(rows.map((r) => r.value));
@@ -70,7 +72,7 @@ function MarketAmountChart({
               silent: true,
               symbol: 'none',
               lineStyle: { type: 'dashed', color: chartColors.reference, width: 1 },
-              label: { position: 'insideEndTop', formatter: '{b}', color: uiColors.secondary },
+              label: { position: 'insideEndTop', formatter: '{b}', color: colors.secondary },
               data: references.map((value) => ({ name: `${value / 10000}万亿`, yAxis: value })),
             },
           }],

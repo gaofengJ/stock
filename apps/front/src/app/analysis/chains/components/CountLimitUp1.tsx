@@ -7,7 +7,8 @@ import { getAnalysisChainsCountLimitUpTimes } from '@/api/services';
 import { NSGetAnalysisChainsCountLimitUpTimes } from '@/api/services.types';
 
 import CChart from '@/components/CChart';
-import { quoteColors, uiColors } from '@/colors';
+import { useSiteTheme } from '@/components/SiteTheme';
+import { quoteColors } from '@/colors';
 import { getRoundedMax, getRoundedMin } from '@/utils';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 
@@ -21,6 +22,7 @@ interface IProps {
 const LIMIT_TIMES = 1;
 
 const CountLimitUp1 = ({ dateRange }: IProps) => {
+  const { colors } = useSiteTheme();
   const [loading, setLoading] = useState<boolean>(false);
   const [sourceData, setSourceData] = useState<NSGetAnalysisChainsCountLimitUpTimes.IRes>([]);
   const { requestConfig, runLatestRequest } = useLatestRequest('chains-count-limit-up-1');
@@ -71,7 +73,7 @@ const CountLimitUp1 = ({ dateRange }: IProps) => {
         top: 0,
         left: 8,
         textStyle: {
-          color: uiColors.secondary,
+          color: colors.secondary,
           fontWeight: 'bold',
           fontSize: 16,
         },
@@ -103,13 +105,13 @@ const CountLimitUp1 = ({ dateRange }: IProps) => {
             title: '保存为图片',
             iconStyle: {
               color: 'transparent',
-              borderColor: uiColors.secondary,
+              borderColor: colors.secondary,
             },
             emphasis: { // hover样式
               iconStyle: {
                 color: 'transparent',
-                borderColor: uiColors.secondary,
-                textFill: uiColors.secondary,
+                borderColor: colors.secondary,
+                textFill: colors.secondary,
               },
             },
           },
