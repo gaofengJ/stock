@@ -118,7 +118,7 @@ export default function Page() {
       {loadError && <Alert type="error" message={loadError} showIcon action={<Button size="small" onClick={() => load()}>重试</Button>} />}
       <Table
         loading={loading}
-        locale={{ emptyText: loading ? '正在加载数据…' : (loadError || '没有符合条件的记录') }}
+        locale={{ emptyText: loading ? '加载中…' : (loadError || '没有符合条件的记录') }}
         size="middle"
         scroll={{ x: 900 }}
         rowKey="id"

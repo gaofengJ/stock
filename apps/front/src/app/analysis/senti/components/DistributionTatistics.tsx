@@ -1,6 +1,6 @@
+import Loading from '@/components/Loading';
 import { numberText } from '@/utils/format';
 import { useCallback, useEffect, useState } from 'react';
-import { Spin } from 'antd';
 import { NSGetAnalysisSentiDistributionTatistics } from '@/api/services.types';
 import { getAnalysisSentiDistributionTatistics } from '@/api/services';
 import { quoteColors } from '@/colors';
@@ -193,7 +193,7 @@ const DistributionTatistics = ({ tradeDate }: IProps) => {
         <span className="ml-8 text-16 text-text-black78">{totalData.countNegative}</span>
       </div>
       {loading ? (
-        <Spin className="w-full h-320 !leading-[320px]" size="large" />
+        <Loading />
       ) : (
         <CChart genOptions={genOptions} />
       )}

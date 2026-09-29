@@ -143,7 +143,7 @@ function BasicDailyPage() {
           dataSource={dailyData.items}
           columns={dailyColumns}
           locale={{
-            emptyText: (<div className="min-h-240 leading-[240px]">{loading ? '正在加载数据…' : (loadError || '当前日期与筛选条件下暂无数据')}</div>),
+            emptyText: (<div className="min-h-240 leading-[240px]">{loading ? '加载中…' : (loadError || '当前日期与筛选条件下暂无数据')}</div>),
           }}
           scroll={{ x: 4000, y: 'max(240px, calc(100dvh - 320px))' }}
           loading={!dateError && (!dateReady || loading)}

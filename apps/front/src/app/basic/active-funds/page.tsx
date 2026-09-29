@@ -67,7 +67,7 @@ function BasicActiveFundsPage() {
         <h1 className="page-heading">游资名录</h1>
         {loadError && <Alert type="error" message={loadError} showIcon action={<Button size="small" onClick={getActiveFunds}>重试</Button>} />}
         <Table
-          locale={{ emptyText: loading ? '正在加载数据…' : (loadError || '没有符合条件的数据') }}
+          locale={{ emptyText: loading ? '加载中…' : (loadError || '没有符合条件的数据') }}
           rootClassName="active-funds-table"
           rowKey="name"
           dataSource={activeFundsData.items}

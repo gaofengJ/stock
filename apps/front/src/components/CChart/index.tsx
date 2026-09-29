@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import Loading from '@/components/Loading';
 import type { EChartsOption } from 'echarts-for-react/lib/types';
 
 interface IEchartsProps {
@@ -11,7 +12,7 @@ interface IEchartsProps {
 
 const EChart = dynamic(() => import('./EChart'), {
   ssr: false,
-  loading: () => <div className="w-full h-360" />,
+  loading: () => <Loading height={360} />,
 });
 
 const CChart = ({ genOptions, appearance, height }: IEchartsProps) => (

@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  Alert, Button, DatePicker, Empty, Select, Spin, Typography,
+  Alert, Button, DatePicker, Empty, Select, Typography,
 } from 'antd';
 import { beijingTime } from '@/utils/format';
 import dayjs from 'dayjs';
@@ -10,6 +10,7 @@ import HelpTooltip from '@/components/HelpTooltip';
 import { analysisSiderMenuItems } from '@/components/Layout/config';
 import CSearchForm from '@/components/common/CSearchForm';
 import { EHeaderMenuKey } from '@/components/Layout/enum';
+import { LoadingOverlay } from '@/components/Loading';
 import { useMarket } from './MarketContext';
 import { scopes } from './market-display';
 import './market.sass';
@@ -66,8 +67,8 @@ export default function MarketShell({
         />
         )}
         {status?.backfill && status.backfill.status !== 'success' && <Alert type="info" showIcon message={`历史补齐：${status.backfill.stage}${status.backfill.status === 'failed' ? '（失败，请查看数据同步）' : ''}`} />}
-        {!status && !error && <Spin className="market-loading" />}
-        {status && !date && <Empty description="暂无完整的市场分析数据" />}
+        {!status && !error && <div className="market-initial-loading"><LoadingOverlay /></div>}
+        {status && !date && <div className="market-empty"><Empty description="暂无数据" /></div>}
         {status && date && children}
       </div>
     </Layout>

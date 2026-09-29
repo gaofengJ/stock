@@ -13,7 +13,8 @@ const code = ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/app
 }).outputText;
 new Function('require', 'exports', code)((name) => {
   if (name === './MarketContext') return { useMarket: () => state };
-  if (name === 'antd') return { Spin: () => React.createElement('span', null, 'loading'), Alert: () => null };
+  if (name === '@/components/Loading') return { default: () => React.createElement('span', null, 'loading') };
+  if (name === 'antd') return { Alert: () => null };
   return require(name);
 }, moduleUnderTest.exports);
 const Compatibility = moduleUnderTest.exports.default;

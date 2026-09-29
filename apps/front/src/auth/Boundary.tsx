@@ -13,8 +13,9 @@ import React, {
 } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  Button, ConfigProvider, Result, Spin,
+  Button, ConfigProvider, Result,
 } from 'antd';
+import Loading from '@/components/Loading';
 import { useSiteTheme } from '@/components/SiteTheme';
 import { errorMessage } from '@/api/errors';
 import zhCN from 'antd/locale/zh_CN';
@@ -155,12 +156,7 @@ export default function AccountBoundary({
     || (!publicPage && (!user || (user.guest && !allowedPath(user, path))))
     || (user?.mustChangePassword && path !== '/profile')
   ) {
-    content = (
-      <div style={{ padding: 100, textAlign: 'center' }}>
-        <Spin size="large" />
-        <p>{publicPage && user && !user.guest ? '已登录，正在跳转' : '正在确认访问状态'}</p>
-      </div>
-    );
+    content = <Loading height="100dvh" />;
   } else if (!publicPage && (!allowedPath(user, path) || error)) {
     content = (
       <Result

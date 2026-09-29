@@ -1,7 +1,9 @@
 'use client';
 
+import Loading from '@/components/Loading';
+
 import { errorMessage } from '@/api/errors';
-import { Alert, Button, Spin } from 'antd';
+import { Alert, Button } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import dynamic from 'next/dynamic';
@@ -20,7 +22,7 @@ import './limits.sass';
 const TradeCalendarGrid = dynamic(() => import('./TradeCalendarGrid'), {
   ssr: false,
   loading: () => (
-    <Spin className="w-full h-320 !leading-[320px]" size="large" />
+    <Loading />
   ),
 });
 
@@ -106,7 +108,7 @@ function BasicTradeCalPage() {
         </div>
         <div className="h-[calc(100vh-176px)] overflow-y-auto overflow-x-hidden">
           {!loadError && (loading ? (
-            <Spin className="w-full h-320 !leading-[320px]" size="large" />
+            <Loading />
           ) : (
             <TradeCalendarGrid
               items={tradeCalData.items}

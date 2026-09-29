@@ -1,7 +1,9 @@
 'use client';
 
+import Loading from '@/components/Loading';
+
 import {
-  Col, Row, Spin, Alert, Button,
+  Col, Row, Alert, Button,
 } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 import { useEffect, useState } from 'react';
@@ -152,7 +154,7 @@ function AnalysisChainsPage() {
               </Col>
             </Row>
           ) : (
-            <Spin className="w-full h-320 !leading-[320px]" size="large" />
+            <Loading />
           )}
         </div>
       </div>

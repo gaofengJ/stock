@@ -1,5 +1,7 @@
+.platform-watermark > .market-page
+  min-height: calc(100dvh - 88px)
+
 .market-page
-  min-height: 100%
   > .c-search-form
     margin-bottom: 24px
   .market-heading
@@ -19,9 +21,6 @@
     margin-bottom: 20px
   .market-chart
     margin-bottom: 20px
-  .market-loading
-    display: block
-    padding: 120px 0
   .market-note
     margin: 12px 0 20px
   .market-index
@@ -109,37 +108,25 @@
     gap: 12px
   .market-heading
     flex-wrap: wrap
-  .market-loading
-    text-align: center
   .market-data-state
     position: relative
     min-height: 120px
   .market-initial-loading
-    padding: 24px 0
-    min-height: 240px
+    position: relative
+    min-height: max(360px, calc(100dvh - 240px))
+    .loading-overlay
+      background: transparent
+    .loading-overlay-indicator
+      border: 0
+      box-shadow: none
+      background: transparent
+  .market-empty
+    min-height: 360px
+    display: grid
+    place-items: center
   .market-data-content.is-pending
     opacity: .35
     pointer-events: none
-  .market-refresh-overlay
-    position: absolute
-    inset: 0
-    z-index: 5
-    padding-top: 32px
-    text-align: center
-    background: var(--loading-overlay)
-    > span
-      position: sticky
-      top: 24px
-      display: inline-flex
-      align-items: center
-      gap: 10px
-      padding: 10px 16px
-      border: 1px solid var(--color-border)
-      border-radius: 6px
-      color: var(--text-secondary)
-      font-size: 13px
-      line-height: 20px
-      background: var(--color-surface)
   .market-section-title
     display: flex
     align-items: center
@@ -177,6 +164,8 @@
   gap: 16px
 
 @media (max-width: 767px)
+  .platform-watermark > .market-page
+    min-height: calc(100dvh - 72px)
   .market-page .market-chart .ant-card-extra
     margin-inline-start: 0
   .market-page .market-chart .ant-card-head-title

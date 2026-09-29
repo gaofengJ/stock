@@ -192,7 +192,7 @@ function StrategyPage() {
             locale={{
               emptyText: (
                 <div className="min-h-240 leading-[240px]">
-                  {tableLoading ? '正在加载数据…' : (loadError || '当前日期没有符合该策略的股票')}
+                  {tableLoading ? '加载中…' : (loadError || '当前日期没有符合该策略的股票')}
                 </div>
               ),
             }}

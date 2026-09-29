@@ -1,6 +1,8 @@
 'use client';
 
-import { Alert, Spin } from 'antd';
+import Loading from '@/components/Loading';
+
+import { Alert } from 'antd';
 import { useMarket } from './MarketContext';
 
 /** 新数据发布之前保留原有查询能力，不能让新增数据集阻断已有页面。 */
@@ -9,7 +11,7 @@ export default function MarketCompatibility({
 }: { legacy: React.ReactElement; children: React.ReactElement }) {
   const { status, error } = useMarket();
   if (status?.latestDate) return children;
-  if (!status && !error) return <Spin className="w-full h-320 !leading-[320px]" size="large" />;
+  if (!status && !error) return <Loading height="100dvh" />;
   return legacy;
 }
 

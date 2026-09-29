@@ -1,6 +1,7 @@
+import Loading from '@/components/Loading';
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
-import { Col, Row, Spin } from 'antd';
+import { Col, Row } from 'antd';
 import CSearchForm from '@/components/common/CSearchForm';
 import { useDefaultTradeDate } from '@/hooks/useDefaultTradeDate';
 
@@ -61,7 +62,7 @@ function SingleDateSection() {
             <Col span={12} />
           </Row>
         ) : (
-          <Spin className="w-full h-320 !leading-[320px]" size="large" />
+          <Loading />
         )}
       </div>
     </div>

@@ -1,10 +1,10 @@
 'use client';
 
 import {
-  Alert, Button, Card, Col, Empty, Row, Select, Skeleton,
+  Alert, Button, Card, Col, Empty, Row, Select,
 } from 'antd';
 import { memo } from 'react';
-import { LoadingOutlined } from '@ant-design/icons';
+import { LoadingOverlay } from '@/components/Loading';
 import CChart from '@/components/CChart';
 import { useSiteTheme } from '@/components/SiteTheme';
 import HelpTooltip from '@/components/HelpTooltip';
@@ -42,17 +42,10 @@ export function DataState({
   return (
     <div className="market-data-state" aria-busy={loading}>
       {error && <Alert type="error" message={error} description={!empty ? '更新失败，以下为上次成功加载的数据。' : undefined} showIcon action={retry && <Button size="small" onClick={retry}>重试</Button>} />}
-      {loading && empty && <div className="market-initial-loading" role="status" aria-label="正在加载数据"><Skeleton active paragraph={{ rows: 4 }} /></div>}
-      {!loading && !error && empty && <Empty description="该日期数据尚未完整，请查看同步状态" />}
-      <div className={`market-data-content${loading || error ? ' is-pending' : ''}`} aria-hidden={loading || !!error}>{children}</div>
-      {loading && !empty && (
-      <div className="market-refresh-overlay" role="status">
-        <span>
-          <LoadingOutlined spin />
-          正在更新当前区域…
-        </span>
-      </div>
-      )}
+      {loading && empty && <div className="market-initial-loading"><LoadingOverlay /></div>}
+      {!loading && !error && empty && <div className="market-empty"><Empty description="暂无数据" /></div>}
+      {!empty && <div className={`market-data-content${loading || error ? ' is-pending' : ''}`} aria-hidden={loading || !!error}>{children}</div>}
+      {loading && !empty && <LoadingOverlay />}
     </div>
   );
 }

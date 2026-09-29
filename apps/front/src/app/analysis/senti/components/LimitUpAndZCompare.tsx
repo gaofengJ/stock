@@ -1,8 +1,8 @@
+import Loading from '@/components/Loading';
 import { numberText } from '@/utils/format';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import dayjs from 'dayjs';
-import { Spin } from 'antd';
 import { getAnalysisSentiList } from '@/api/services';
 import { NSGetAnalysisSentiList } from '@/api/services.types';
 
@@ -162,7 +162,7 @@ const LimitUpAndZCompare = ({ dateRange }: IProps) => {
       ],
     };
   };
-  return loading ? <Spin className="w-full h-320 !leading-[320px]" size="large" /> : <CChart genOptions={genOptions} />;
+  return loading ? <Loading /> : <CChart genOptions={genOptions} />;
 };
 
 export default LimitUpAndZCompare;

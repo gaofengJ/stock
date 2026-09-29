@@ -1,9 +1,11 @@
 'use client';
 
+import Loading from '@/components/Loading';
+
 import { errorMessage } from '@/api/errors';
 import { useEffect, useState } from 'react';
 import {
-  Alert, Button, Collapse, Descriptions, Drawer, Empty, Spin, Table, Typography,
+  Alert, Button, Collapse, Descriptions, Drawer, Empty, Table, Typography,
 } from 'antd';
 import { DragonData, marketRequest } from '@/api/market';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
@@ -29,7 +31,7 @@ export default function DragonDrawer({ stock, date, close }: { stock: { tsCode: 
   return (
     <Drawer title={`${stock?.name || ''} ${date} 龙虎榜`} width={880} open={!!stock} onClose={close}>
       <Typography.Paragraph type="secondary">按上榜原因分别展示。不同原因及买卖榜可能包含重复席位，不跨榜累计净买入额。</Typography.Paragraph>
-      {loading && <Spin />}
+      {loading && <Loading height={240} />}
       {error && <Alert message={error} type="error" showIcon action={<Button size="small" onClick={() => setAttempt((v) => v + 1)}>重试</Button>} />}
       {!loading && !error && data && !reasons.length && <Empty description="Tushare暂无返回记录，可能未上榜或数据尚未更新" />}
       <Collapse items={reasons.map((reason) => ({

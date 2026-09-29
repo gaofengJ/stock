@@ -108,7 +108,7 @@ function BasicStockPage() {
           />
         </div>
         <Table
-          locale={{ emptyText: loading ? '正在加载数据…' : (loadError || '没有符合条件的数据') }}
+          locale={{ emptyText: loading ? '加载中…' : (loadError || '没有符合条件的数据') }}
           dataSource={stockData.items}
           columns={stockColumns}
           scroll={{ x: 2000, y: 'max(240px, calc(100dvh - 320px))' }}
