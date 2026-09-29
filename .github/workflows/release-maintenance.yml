@@ -1,52 +1,76 @@
-name: Release disk maintenance
+name: Read-only registry diagnosis
 on:
   workflow_dispatch:
-    inputs:
-      operation:
-        description: '检查部署磁盘，或清理超过七天未使用的 Docker 构建缓存'
-        type: choice
-        required: true
-        default: inspect
-        options: [inspect, clean-build-cache]
 permissions:
   contents: read
-concurrency:
-  group: stock-back-push-refs/heads/master
-  cancel-in-progress: false
 jobs:
-  maintenance:
-    if: github.ref == 'refs/heads/master'
+  inspect:
+    if: github.ref == 'refs/heads/codex/diagnose-registry-push-20260929'
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
-      - name: Inspect release storage and optionally reclaim build cache
-        uses: appleboy/ssh-action@v1.2.0
+      - name: Compare image metadata without downloading layers or pushing images
         env:
-          OPERATION: ${{ inputs.operation }}
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          command_timeout: 10m
-          envs: OPERATION
-          script: |
-            set -eu
-            exec 9>/var/lock/stock-back-release.lock
-            flock -n 9 || { echo 'Another release is running'; exit 1; }
-            case "$OPERATION" in
-              inspect) ;;
-              clean-build-cache) docker builder prune --force --filter until=168h ;;
-              *) echo 'Unsupported operation'; exit 1 ;;
-            esac
-            df -B1 / /opt
-            docker system df
-            docker images --format '{{.ID}} {{.Repository}}:{{.Tag}} {{.Size}}'
-            docker ps -a --format '{{.Names}} {{.Status}} {{.Image}}'
-            du -xhd1 /opt /var /home /opt/stock-release /opt/stock-blog-style
-            python3 - <<'PY'
-            import glob, json
-            reports = sorted(glob.glob('/opt/stock-release/runs/*/preflight.json'))
-            if reports:
-                report = json.load(open(reports[-1]))
-                print(json.dumps({k: report.get(k) for k in ('database', 'totalBytes', 'requiredFreeBytes', 'pending')}))
-                print(json.dumps([table for table in report.get('tables', []) if table['name'].startswith('t_auth')]))
-            PY
+          REGISTRY_USER: ${{ secrets.DOCKER_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os,json,urllib.request,urllib.parse,urllib.error,base64,re,time
+          ACCEPT=','.join(['application/vnd.oci.image.index.v1+json','application/vnd.docker.distribution.manifest.list.v2+json','application/vnd.oci.image.manifest.v1+json','application/vnd.docker.distribution.manifest.v2+json'])
+          
+          def request(url,headers=None,method='GET'):
+              req=urllib.request.Request(url,headers=headers or {},method=method)
+              with urllib.request.urlopen(req,timeout=40) as r:
+                  data=r.read(2_000_000) if method=='GET' else b''
+                  return json.loads(data) if data else {},dict(r.headers)
+          
+          def client(host,repo,private=False):
+              try: request('https://'+host+'/v2/')
+              except urllib.error.HTTPError as e:
+                  if e.code!=401: raise
+                  params=dict(re.findall(r'(\w+)="([^"]+)"',e.headers['WWW-Authenticate']))
+              realm=params['realm']
+              assert urllib.parse.urlparse(realm).hostname in ('auth.docker.io','dockerauth.cn-hangzhou.aliyuncs.com')
+              headers={}
+              if private:
+                  raw=(os.environ['REGISTRY_USER']+':'+os.environ['REGISTRY_PASSWORD']).encode()
+                  headers['Authorization']='Basic '+base64.b64encode(raw).decode()
+              auth,_=request(realm+'?'+urllib.parse.urlencode({'service':params['service'],'scope':'repository:'+repo+':pull'}),headers)
+              token=auth.get('token') or auth['access_token']
+              return 'https://'+host+'/v2/'+repo,{'Authorization':'Bearer '+token,'Accept':ACCEPT}
+          
+          def inspect(label,host,repo,ref,private=False):
+              started=time.monotonic()
+              base,headers=client(host,repo,private)
+              manifest,_=request(base+'/manifests/'+ref,headers)
+              if 'manifests' in manifest:
+                  chosen=next(x for x in manifest['manifests'] if x.get('platform',{}).get('os')=='linux' and x['platform'].get('architecture')=='amd64')
+                  manifest,_=request(base+'/manifests/'+chosen['digest'],headers)
+              config,_=request(base+'/blobs/'+manifest['config']['digest'],headers)
+              history=[h for h in config.get('history',[]) if not h.get('empty_layer')]
+              rows=[]
+              for i,(layer,diff) in enumerate(zip(manifest['layers'],config['rootfs']['diff_ids'])):
+                  cmd=history[i].get('created_by','') if i<len(history) else ''
+                  kind=('production dependencies' if 'pnpm install' in cmd and '--prod' in cmd else 'pnpm install/build dependencies' if 'pnpm install' in cmd else 'pnpm global install' if 'npm install -g pnpm' in cmd else 'copy' if 'COPY' in cmd else 'other')
+                  rows.append({'index':i,'digest':layer['digest'],'diff_id':diff,'compressed_bytes':layer['size'],'kind':kind})
+              largest=max(rows,key=lambda x:x['compressed_bytes'])
+              _,blobheaders=request(base+'/blobs/'+largest['digest'],headers,'HEAD')
+              output={'label':label,'elapsed_seconds':round(time.monotonic()-started,2),'total_compressed_bytes':sum(l['size'] for l in manifest['layers']),'largest_blob_head_ok':True,'layers':rows}
+              print(json.dumps(output),flush=True)
+              return rows
+          
+          jobs=[
+           ('front_fast','registry.cn-hangzhou.aliyuncs.com','mufengtongxue/stock-front','sha256:367e131dd5b072945ae15fb099d2505ce6a6bb0bc3dacc250ed519ee2425a510',True),
+           ('front_slow','registry.cn-hangzhou.aliyuncs.com','mufengtongxue/stock-front','sha256:a2a858b63ddff86f69c9d245092f9d7477e4ec0b064f08db4de9ca444939da7d',True),
+           ('back_fast','registry.cn-hangzhou.aliyuncs.com','mufengtongxue/stock-back','8eb39d3cbdedeb1d83da57063ba1d1026b30a497',True),
+           ('back_slow','registry.cn-hangzhou.aliyuncs.com','mufengtongxue/stock-back','9116804f0e96375c306b4dd8c3e1157171f5a119',True),
+           ('nginx_source','registry-1.docker.io','library/nginx','sha256:abe47724e466aeab9a345d8e46a221c2fa8953c7848bb4a3bd9976a7199f8cf2',False),
+           ('node_source','registry-1.docker.io','library/node','sha256:8d6421d663b4c28fd3ebc498332f249011d118945588d0a35cb9bc4b8ca09d9e',False),
+          ]
+          for args in jobs:
+              try: inspect(*args)
+              except urllib.error.HTTPError as e: print(json.dumps({'label':args[0],'error':'HTTP '+str(e.code)}),flush=True)
+              except Exception as e: print(json.dumps({'label':args[0],'error':type(e).__name__}),flush=True)
+          
+          PY
