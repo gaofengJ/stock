@@ -4,18 +4,43 @@ import { memo } from 'react';
 import { Card, Empty } from 'antd';
 import { MarketSeries } from '@/api/market';
 import CChart from '@/components/CChart';
-import { chartColors, uiColors } from '@/colors';
+import HelpTooltip from '@/components/HelpTooltip';
+import { chartColors, uiColors, quoteColors } from '@/colors';
 import { numberText } from '@/utils/format';
 import { ChartWindow, amountReferenceLevels, periodTotals } from './market-display';
+import ChartRange from './ChartRange';
 
 function MarketAmountChart({
-  data, window, title, dates,
-}: { data: MarketSeries; window: ChartWindow; title: string; dates: string[] }) {
+  data, window, title, dates, onWindowChange,
+}: { data: MarketSeries; window: ChartWindow; title: string; dates: string[]; onWindowChange: (value: ChartWindow) => void }) {
   const all = periodTotals(data.series.map((p) => ({ date: p.date, value: p.data?.amount })), dates, window.period);
   const rows = window.count ? all.slice(-window.count) : all;
   const references = amountReferenceLevels(rows.map((r) => r.value));
   return (
-    <Card title={title} className="market-chart market-amount-chart">
+    <Card
+      title={(
+        <span className="market-section-title">
+          {title}
+          <HelpTooltip label="市场成交额" title="按顶部统计范围汇总A股成交额，不跟随单个指数选择。范围没有唯一的涨跌指标，成交额统一使用红柱。周/月为周期内成交额合计。" />
+        </span>
+)}
+      extra={<ChartRange value={window} onChange={onWindowChange} />}
+      className="market-chart market-amount-chart"
+    >
+      <div className="market-amount-summary">
+        <span>
+          当日成交额
+          <strong>{numberText(data.snapshot?.amount)}</strong>
+          {' '}
+          亿元
+        </span>
+        <span>
+          较上一交易日
+          {numberText(data.snapshot && data.previousAmount != null ? data.snapshot.amount - data.previousAmount : null, 2, true)}
+          {' '}
+          亿元
+        </span>
+      </div>
       {!rows.some((r) => r.value != null) ? <Empty description="该范围暂无完整成交额数据" /> : (
         <CChart genOptions={() => ({
           tooltip: {
@@ -40,7 +65,7 @@ function MarketAmountChart({
             name: '成交额',
             barMaxWidth: 24,
             data: rows.map((r) => r.value),
-            itemStyle: { color: chartColors.blue },
+            itemStyle: { color: quoteColors.up },
             markLine: {
               silent: true,
               symbol: 'none',

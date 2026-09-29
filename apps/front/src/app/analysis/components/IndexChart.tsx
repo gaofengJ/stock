@@ -1,35 +1,37 @@
 'use client';
 
-import { memo } from 'react';
-import { Card, Empty } from 'antd';
+import { memo, useState } from 'react';
+import {
+  Button, Card, Empty, Modal,
+} from 'antd';
+import { ExpandOutlined, ReloadOutlined } from '@ant-design/icons';
 import CChart from '@/components/CChart';
 import HelpTooltip from '@/components/HelpTooltip';
 import { MarketSeries } from '@/api/market';
 import { numberText } from '@/utils/format';
-import { movingAverageColors, quoteColors, withAlpha } from '@/colors';
+import {
+  movingAverageColors, quoteColors, withAlpha, candlePanelColors,
+} from '@/colors';
 import {
   ChartWindow, indexCandles, movingAverage, averagePeriods, unfilledGaps,
 } from './market-display';
 
 function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][number]; dates: string[]; window: ChartWindow }) {
+  const [expanded, setExpanded] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
   const { period, count } = window;
   const all = indexCandles(index?.series || [], dates, period);
-  const candles = count === 0 ? all : all.slice(-count);
-  const offset = all.length - candles.length;
-  const averages = averagePeriods.map((n) => ({ name: `MA${n}`, values: movingAverage(all, n).slice(offset) }));
+  const candles = all;
+  const dateLabels = new Map(candles.map((c, i) => [c.date, !i || candles[i - 1].date.slice(0, 4) !== c.date.slice(0, 4) ? c.date.slice(0, 7) : c.date.slice(5)]));
+  const averages = averagePeriods.map((n) => ({ name: `MA${n}`, values: movingAverage(all, n) }));
   const gaps = unfilledGaps(all);
-  return (
-    <Card
-      className="market-chart market-index-chart"
-      title={(
-        <span className="market-section-title">
-          {index?.name || '指数'}
-          <HelpTooltip label="指数走势" title="MA为当前周期收盘均线（日K为日均线，周/月K为周/月均线），点击图例可开关；不足周期留空。色带标出截至所选日期未回补的跳空缺口，部分回补后仅保留剩余区间。周/月K由日线汇总，首尾周期可能不完整，下方为对应周期成交量，周/月成交量按日线求和；最多展示两年数据。" />
-        </span>
-      )}
-    >
-      {!candles.some((c) => c.value || c.volume != null) ? <Empty description="该范围暂无完整行情数据" /> : (
-        <CChart genOptions={() => ({
+  const renderChart = (height: number) => (
+    !candles.some((c) => c.value || c.volume != null) ? <Empty description="该范围暂无完整行情数据" /> : (
+      <CChart
+        key={`${index.code}-${period}-${count}-${dates.at(-1)}-${resetKey}`}
+        appearance="dark"
+        height={height}
+        genOptions={() => ({
           tooltip: {
             trigger: 'axis',
             axisPointer: { type: 'cross' },
@@ -43,22 +45,50 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
               return candle.value ? `${date}\n开盘  ${numberText(candle.value[0])}\n收盘  ${numberText(candle.value[1])}\n最高  ${numberText(candle.value[3])}\n最低  ${numberText(candle.value[2])}\n成交量  ${numberText(candle.volume)} 万手${lines ? `\n${lines}` : ''}` : `${date}\n价格数据不完整\n成交量  ${numberText(candle.volume)} 万手`;
             },
           },
-          axisPointer: { link: [{ xAxisIndex: 'all' }] },
+          axisPointer: { link: [{ xAxisIndex: 'all' }], label: { backgroundColor: candlePanelColors.selection } },
+          dataZoom: [{
+            type: 'inside',
+            xAxisIndex: [0, 1],
+            filterMode: 'filter',
+            startValue: count ? Math.max(0, candles.length - count) : 0,
+            endValue: candles.length - 1,
+            zoomOnMouseWheel: 'ctrl',
+            moveOnMouseMove: true,
+            preventDefaultMouseMove: false,
+          }, {
+            type: 'slider',
+            xAxisIndex: [0, 1],
+            filterMode: 'filter',
+            bottom: 8,
+            height: 20,
+            left: 64,
+            right: 20,
+            startValue: count ? Math.max(0, candles.length - count) : 0,
+            endValue: candles.length - 1,
+            borderColor: candlePanelColors.axis,
+            fillerColor: withAlpha(candlePanelColors.text, 0.15),
+            handleStyle: { color: candlePanelColors.text },
+            textStyle: { color: candlePanelColors.text },
+            dataBackground: { lineStyle: { color: candlePanelColors.muted }, areaStyle: { color: candlePanelColors.selection } },
+            selectedDataBackground: { lineStyle: { color: candlePanelColors.text }, areaStyle: { color: candlePanelColors.selection } },
+          }],
           grid: [
             {
-              left: 64, right: 20, top: 42, height: 184,
+              left: 64, right: 20, top: 44, height: height * 0.48,
             },
             {
-              left: 64, right: 20, top: 270, height: 56,
+              left: 64, right: 20, top: height * 0.69, height: height * 0.14,
             },
           ],
-          legend: { top: 0, type: 'scroll', data: averages.map((a) => a.name) },
+          legend: {
+            top: 8, left: 8, right: 8, type: 'scroll', pageIconColor: candlePanelColors.text, pageTextStyle: { color: candlePanelColors.text }, data: averages.map((a) => a.name),
+          },
           xAxis: [
             {
               type: 'category', data: candles.map((c) => c.date), gridIndex: 0, axisLabel: { show: false }, axisTick: { show: false },
             },
             {
-              type: 'category', data: candles.map((c) => c.date), gridIndex: 1, axisLabel: { hideOverlap: true },
+              type: 'category', data: candles.map((c) => c.date), gridIndex: 1, axisLabel: { hideOverlap: true, formatter: (date: string) => (period === 'month' ? date.slice(0, 7) : dateLabels.get(date) || date) },
             },
           ],
           yAxis: [
@@ -108,9 +138,32 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
             })),
           }],
         })}
-        />
+      />
+    )
+  );
+  return (
+    <>
+      <Card
+        className="market-chart market-index-chart"
+        title={(
+          <span className="market-section-title">
+            {index?.name || '指数'}
+            <HelpTooltip label="指数走势" title="拖动底部日期条或按住Ctrl滚轮缩放，右上角可重置或放大查看。均线随周期计算，成交量按周期求和；缺口显示所选交易日尚未回补的区间，首尾周/月可能不完整，最多两年数据。" />
+          </span>
       )}
-    </Card>
+        extra={(
+          <div className="market-chart-actions">
+            <Button size="small" icon={<ReloadOutlined />} onClick={() => setResetKey((v) => v + 1)} aria-label={`重置${index.name}日期范围`}>重置</Button>
+            <Button size="small" icon={<ExpandOutlined />} onClick={() => setExpanded(true)} aria-label={`放大查看${index.name}`}>放大</Button>
+          </div>
+        )}
+      >
+        {renderChart(400)}
+      </Card>
+      <Modal title={index.name} open={expanded} onCancel={() => setExpanded(false)} footer={<Button icon={<ReloadOutlined />} onClick={() => setResetKey((v) => v + 1)}>重置日期范围</Button>} width={1400} style={{ maxWidth: 'calc(100vw - 24px)' }} destroyOnClose>
+        {expanded && renderChart(560)}
+      </Modal>
+    </>
   );
 }
 export default memo(IndexChart);

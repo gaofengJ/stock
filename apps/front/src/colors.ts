@@ -13,8 +13,8 @@ export const uiColors = {
   surfaceMuted: '#fafafb',
   border: '#eceef1',
   borderLight: '#f0f1f4',
-  success: '#16a085',
-  error: '#f04468',
+  success: '#4c9c48',
+  error: '#f44838',
   warning: '#c58a26',
   info: '#4f86e8',
   wechat: '#07c160',
@@ -36,9 +36,11 @@ export const chartColors = {
   axis: '#b1bbc9',
   reference: '#929faf',
 };
-// Fixed order: MA5 / MA10 / MA20 / MA30 / MA60 / MA120 / MA250.
-export const movingAverageColors = [chartColors.orange, chartColors.blue, chartColors.purple,
-  chartColors.pink, chartColors.teal, chartColors.gold, chartColors.slate];
+// Reference screenshot: MA5 / MA10 / MA20 / MA30 / MA60 / MA120 / MA250.
+export const movingAverageColors = ['#d6d6d6', '#d942a6', '#edc14a', '#339bd0', '#a65326', '#319878', '#df6288'];
+export const candlePanelColors = {
+  background: '#111111', text: '#cccccc', muted: '#929292', grid: '#2b2b2b', axis: '#555555', selection: '#414141',
+};
 export const chartPalette = [uiColors.primary, chartColors.blue, chartColors.purple,
   chartColors.orange, chartColors.teal, chartColors.pink, chartColors.gold, chartColors.slate];
 
