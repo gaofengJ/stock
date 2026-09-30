@@ -13,14 +13,16 @@ type Props<Row extends object> = Omit<TableProps<Row>, 'loading' | 'scroll'> & {
   loading?: boolean;
   scroll?: Omit<NonNullable<TableProps<Row>['scroll']>, 'y'>;
   maxBodyHeight?: number;
+  minBodyHeight?: number;
+  bottomSpacing?: number;
 };
 
 /** Shared table body sizing and loading; Ant Design handles synchronized fixed headers. */
 export default function DataTable<Row extends object = any>({
-  loading = false, scroll, locale, maxBodyHeight = 720, ...props
+  loading = false, scroll, locale, maxBodyHeight = 720, minBodyHeight = 240, bottomSpacing = 48, ...props
 }: Props<Row>) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState(240);
+  const [height, setHeight] = useState(minBodyHeight);
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return undefined;
@@ -38,7 +40,7 @@ export default function DataTable<Row extends object = any>({
         const offset = Math.max(0, rect.top - top + (area?.scrollTop ?? window.scrollY));
         const header = root.querySelector('.ant-table-header')?.getBoundingClientRect().height || 48;
         const footer = root.querySelector('.ant-pagination')?.getBoundingClientRect().height || 0;
-        setHeight(Math.max(240, Math.min(maxBodyHeight, Math.floor(bottom - top - offset - header - footer - 48))));
+        setHeight(Math.max(minBodyHeight, Math.min(maxBodyHeight, Math.floor(bottom - top - offset - header - footer - bottomSpacing))));
       });
     };
     const observer = new ResizeObserver(measure);
@@ -51,7 +53,7 @@ export default function DataTable<Row extends object = any>({
       cancelAnimationFrame(frame);
       window.removeEventListener('resize', measure);
     };
-  }, [maxBodyHeight]);
+  }, [maxBodyHeight, minBodyHeight, bottomSpacing]);
   return (
     <div ref={rootRef} className={`data-table${loading ? ' is-loading' : ''}`} aria-busy={loading} style={{ '--table-body-height': `${height}px` } as CSSProperties}>
       <div className="data-table-content" aria-hidden={loading || undefined}>

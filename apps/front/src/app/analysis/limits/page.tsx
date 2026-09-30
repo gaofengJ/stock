@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
-  Button, Input, Select, Space, Tabs,
+  Button, Input, Select, Space, Tabs, Tooltip,
 } from 'antd';
 import Table from '@/components/DataTable';
 import { changeClass, scaledNumber } from '@/utils/format';
-import { LimitRow } from '@/api/market';
+import { DragonList, LimitRow } from '@/api/market';
 import LegacyPage from './LegacyPage';
 import MarketCompatibility from '../components/MarketCompatibility';
 import MarketShell from '../components/MarketShell';
@@ -26,6 +26,8 @@ function LimitsPage() {
   const [height, setHeight] = useState<number | undefined>();
   const [stock, setStock] = useState<LimitRow | null>(null);
   const { date } = useMarket();
+  const dragon = useMarketData<DragonList>('dragon-list', { days: 20 });
+  const dragonCodes = new Set(dragon.data?.codes || []);
   useEffect(() => {
     setKeyword(linkedKeyword); setSearch(linkedKeyword); setType(linkedType); setHeight(undefined);
   }, [linkedKeyword, linkedType]);
@@ -51,7 +53,9 @@ function LimitsPage() {
           size="middle"
           bordered
           scroll={{ x: 1800 }}
-          pagination={{ pageSize: 50, showSizeChanger: false }}
+          pagination={false}
+          maxBodyHeight={Number.POSITIVE_INFINITY}
+          bottomSpacing={16}
           columns={[
             {
               title: '代码', dataIndex: 'tsCode', fixed: 'left', width: 115,
@@ -83,7 +87,15 @@ function LimitsPage() {
               title: '流通市值(亿元)', dataIndex: 'floatMv', align: 'right', render: amount,
             },
             {
-              title: '详情', key: 'action', fixed: 'right', width: 90, render: (_, r) => <Button type="link" onClick={() => setStock(r)}>龙虎榜</Button>,
+              title: '龙虎榜',
+              key: 'action',
+              fixed: 'right',
+              width: 90,
+              render: (_, r) => {
+                if (dragon.loading) return <span className="quote-flat">核对中</span>;
+                if (dragon.error) return <Tooltip title="榜单查询失败"><Button type="link" size="small" onClick={dragon.retry}>重试</Button></Tooltip>;
+                return dragonCodes.has(r.tsCode) ? <Button type="link" onClick={() => setStock(r)}>查看</Button> : <Tooltip title="当日未上榜"><span className="quote-flat">—</span></Tooltip>;
+              },
             },
           ]}
         />

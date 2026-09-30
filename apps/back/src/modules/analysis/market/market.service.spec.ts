@@ -1,6 +1,8 @@
 import { DataSource } from 'typeorm';
 import { TushareService } from '@/shared/tushare/tushare.service';
+import { ACCESS } from '@/modules/auth/permissions';
 import { MarketService } from './market.service';
+import { MarketController } from './market.controller';
 
 describe('Market status date-specific update times', () => {
   it('preserves each published date timestamp instead of applying the latest one to history', async () => {
@@ -41,5 +43,120 @@ describe('Market status date-specific update times', () => {
     ).status();
     expect(status.latestDate).toBeNull();
     expect(status.dateUpdates).toEqual({});
+  });
+});
+
+describe('daily dragon list availability', () => {
+  const reply = (items: string[][]) => ({
+    code: 0,
+    data: { fields: ['ts_code', 'trade_date'], items },
+  });
+  const setup = () => {
+    const queryData = jest.fn();
+    const service = new MarketService(
+      {} as DataSource,
+      {
+        queryData,
+      } as unknown as TushareService,
+    );
+    return { service, queryData };
+  };
+  afterEach(() => jest.useRealTimers());
+
+  it('deduplicates multiple listing reasons and merges concurrent date requests', async () => {
+    const { service, queryData } = setup();
+    queryData.mockResolvedValue(
+      reply([
+        ['600825.SH', '20260930'],
+        ['600825.SH', '20260930'],
+        ['000678.SZ', '20260930'],
+      ]),
+    );
+    const results = await Promise.all([
+      service.dragonList('2026-09-30'),
+      service.dragonList('2026-09-30'),
+    ]);
+    expect(results[0].codes).toEqual(['600825.SH', '000678.SZ']);
+    expect(results[1]).toEqual(results[0]);
+    await service.dragonList('2026-09-30');
+    expect(queryData).toHaveBeenCalledTimes(1);
+    expect(queryData).toHaveBeenCalledWith(
+      'top_list',
+      {
+        trade_date: '20260930',
+      },
+      'ts_code,trade_date',
+      10000,
+      7000,
+    );
+  });
+
+  it('keeps different dates separate and rejects missing or invalid request dates', async () => {
+    const { service, queryData } = setup();
+    queryData.mockImplementation((_api, params) =>
+      reply([
+        [
+          params.trade_date === '20260930' ? '600825.SH' : '000678.SZ',
+          params.trade_date,
+        ],
+      ]),
+    );
+    expect((await service.dragonList('2026-09-30')).codes).toEqual([
+      '600825.SH',
+    ]);
+    expect((await service.dragonList('2026-09-29')).codes).toEqual([
+      '000678.SZ',
+    ]);
+    await expect(service.dragonList('')).rejects.toThrow('请选择交易日');
+    await expect(service.dragonList('invalid')).rejects.toThrow();
+    expect(queryData).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not turn upstream failures into an empty list and retries after failure', async () => {
+    const { service, queryData } = setup();
+    queryData
+      .mockRejectedValueOnce(new Error('source failure'))
+      .mockResolvedValue(reply([]));
+    await expect(service.dragonList('2026-09-30')).rejects.toThrow(
+      'source failure',
+    );
+    expect((await service.dragonList('2026-09-30')).codes).toEqual([]);
+    expect(queryData).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects unrelated dates and malformed stock codes instead of caching incorrect availability', async () => {
+    const { service, queryData } = setup();
+    queryData
+      .mockResolvedValueOnce(reply([['600825.SH', '20260929']]))
+      .mockResolvedValueOnce(reply([['not-a-stock', '20260930']]))
+      .mockResolvedValue(reply([['899050.BJ', '2026-09-30']]));
+    await expect(service.dragonList('2026-09-30')).rejects.toThrow(
+      '龙虎榜交易日期不匹配',
+    );
+    await expect(service.dragonList('2026-09-30')).rejects.toThrow(
+      '龙虎榜股票代码异常',
+    );
+    expect((await service.dragonList('2026-09-30')).codes).toEqual([
+      '899050.BJ',
+    ]);
+  });
+
+  it('expires empty lists quickly so newly published listings can appear', async () => {
+    jest.useFakeTimers();
+    const { service, queryData } = setup();
+    queryData
+      .mockResolvedValueOnce(reply([]))
+      .mockResolvedValue(reply([['600825.SH', '20260930']]));
+    expect((await service.dragonList('2026-09-30')).codes).toEqual([]);
+    await jest.advanceTimersByTimeAsync(61000);
+    expect((await service.dragonList('2026-09-30')).codes).toEqual([
+      '600825.SH',
+    ]);
+  });
+
+  it('uses the same permission as limit review details', () => {
+    expect(
+      Reflect.getMetadata(ACCESS, MarketController.prototype.dragonList),
+    ).toEqual({ any: ['analysis:limits'] });
   });
 });

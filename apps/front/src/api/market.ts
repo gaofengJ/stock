@@ -43,4 +43,8 @@ export interface DragonData {
   seats: { reason: string; exalter: string; side: string; buy: number | null; sell: number | null; netBuy: number | null }[];
   queriedAt: string;
 }
+export interface DragonList {
+  codes: string[];
+  queriedAt: string;
+}
 export const marketRequest = <T>(endpoint: string, params: Record<string, unknown> = {}, config: RequestConfig = {}) => axios.get<T>(`/analysis/market/${endpoint}`, { params, ...config });

@@ -90,7 +90,9 @@ function ChainsPage() {
                     size="small"
                     dataSource={ladder.data?.transitions}
                     scroll={{ x: 760 }}
-                    pagination={{ pageSize: 30 }}
+                    pagination={false}
+                    minBodyHeight={400}
+                    maxBodyHeight={400}
                     columns={[
                       { title: '代码', dataIndex: 'tsCode' }, { title: '名称', dataIndex: 'name' }, { title: '昨日高度', dataIndex: 'previousHeight' },
                       { title: '今日高度', dataIndex: 'height' }, {
@@ -116,9 +118,9 @@ function ChainsPage() {
               <DataState loading={series.loading} error={series.error} retry={series.retry} empty={!series.data?.snapshot}>
                 {series.data && (
                 <Row gutter={20}>
-                  <Col xs={24} lg={12}><Trend title="最高连板" unit="板" data={series.data} fields={[{ label: '连板高度', value: (s) => s.maxHeight }]} /></Col>
-                  <Col xs={24} lg={12}><Trend title="涨停梯队数量（含首板）" unit="只" data={series.data} fields={[1, 2, 3, 4].map((n) => ({ label: n === 4 ? '四板及以上' : `${n}板`, value: (s) => s.counts[n - 1] }))} /></Col>
-                  <Col xs={24} lg={12}><Trend title="连板晋级率" description="昨日对应梯队无样本时不计算晋级率，曲线保留断点；有样本但无人晋级为0%。悬浮可查看样本数和晋级数量。" data={series.data} percent fields={[1, 2, 3, 4].map((n) => ({ label: n === 4 ? '高位晋级' : `${n}进${n + 1}`, value: (s) => s.upgrades[n - 1].rate, tooltip: (s) => promotionTooltip(s, n) }))} /></Col>
+                  <Col xs={24} lg={12}><Trend title="最高连板" unit="板" data={series.data} average fields={[{ label: '连板高度', value: (s) => s.maxHeight }]} /></Col>
+                  <Col xs={24} lg={12}><Trend title="涨停梯队数量（含首板）" unit="只" data={series.data} average fields={[1, 2, 3, 4].map((n) => ({ label: n === 4 ? '四板及以上' : `${n}板`, value: (s) => s.counts[n - 1] }))} /></Col>
+                  <Col xs={24} lg={12}><Trend title="连板晋级率" description="昨日对应梯队无样本时不计算晋级率，曲线保留断点；有样本但无人晋级为0%。悬浮可查看样本数和晋级数量。" data={series.data} percent average fields={[1, 2, 3, 4].map((n) => ({ label: n === 4 ? '高位晋级' : `${n}进${n + 1}`, value: (s) => s.upgrades[n - 1].rate, tooltip: (s) => promotionTooltip(s, n) }))} /></Col>
                   <Col xs={24} lg={12}><Trend title="涨停与连板成交额" unit="亿元" digits={2} type="bar" data={series.data} fields={[{ label: '涨停成交额', value: (s) => s.limitAmount }, { label: '连板成交额', value: (s) => s.chainAmount }]} /></Col>
                 </Row>
                 )}

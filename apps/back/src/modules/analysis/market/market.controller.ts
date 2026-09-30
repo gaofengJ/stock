@@ -75,4 +75,11 @@ export class MarketController {
   dragon(@Query() q: DragonQueryDto) {
     return this.service.dragon(q.date, q.code);
   }
+
+  @Get('dragon-list')
+  @Permit('analysis:limits')
+  @ApiOperation({ summary: '当日龙虎榜上榜股票名单' })
+  dragonList(@Query() q: MarketQueryDto) {
+    return this.service.dragonList(q.date);
+  }
 }

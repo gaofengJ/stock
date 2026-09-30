@@ -20,6 +20,11 @@ import { DragonCache } from './dragon-cache';
 
 @Injectable()
 export class MarketService {
+  private dragonListCache = new DragonCache<{
+    codes: string[];
+    queriedAt: string;
+  }>();
+
   private dragonCache = new DragonCache<{
     summary: Record<string, unknown>[];
     seats: Record<string, unknown>[];
@@ -229,6 +234,39 @@ export class MarketService {
         })
         .sort((a, b) => b.previousHeight - a.previousHeight),
     };
+  }
+
+  async dragonList(date?: string) {
+    if (!date) throw new BadRequestException('请选择交易日');
+    normalizeDate(date);
+    return this.dragonListCache.get(
+      date,
+      async () => {
+        const tradeDate = date.replace(/-/g, '');
+        const rows = readSnapshot(
+          await this.tushare.queryData(
+            'top_list',
+            { trade_date: tradeDate },
+            'ts_code,trade_date',
+            10000,
+            7000,
+          ),
+          ['ts_code', 'trade_date'],
+          true,
+        );
+        if (
+          rows.some((r) => String(r.tradeDate).replace(/-/g, '') !== tradeDate)
+        )
+          throw new Error('龙虎榜交易日期不匹配');
+        if (rows.some((r) => !/^\d{6}\.(SH|SZ|BJ)$/.test(r.tsCode)))
+          throw new Error('龙虎榜股票代码异常');
+        return {
+          codes: [...new Set(rows.map((r) => String(r.tsCode)))],
+          queriedAt: new Date().toISOString(),
+        };
+      },
+      (r) => !r.codes.length,
+    );
   }
 
   async dragon(date: string, code: string) {
