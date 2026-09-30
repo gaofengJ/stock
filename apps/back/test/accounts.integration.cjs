@@ -66,7 +66,7 @@ async function main() {
     const newsMigration = new RealTimeNews1790812800001();
     await newsMigration.up(q);
     await newsMigration.up(q);
-    assert.equal(Number((await db.query('SELECT COUNT(*) n FROM t_news_source'))[0].n), 5);
+    assert.equal(Number((await db.query('SELECT COUNT(*) n FROM t_news_source'))[0].n), 6);
     assert.equal(Number((await db.query("SELECT COUNT(*) n FROM t_role_permission rp JOIN t_role r ON r.id=rp.role_id JOIN t_permission p ON p.id=rp.permission_id WHERE r.code='user' AND p.code='news:manage'"))[0].n), 0, 'Ordinary users cannot manage sources');
     const [portrait] = await db.query("SELECT avatar FROM t_user WHERE username='mufeng'");
     assert.match(portrait.avatar, /^auto-bull-(red|pink|gold|green|blue|purple|coffee)-(star|heart|flower|bow)$/);
@@ -118,6 +118,7 @@ async function main() {
     assert.equal((await inject('PATCH','/news/sources/jin10',{enabled:false},admin)).statusCode, 200);
     assert.equal((await inject('GET','/news?date=2026-02-30',undefined,user)).statusCode, 400);
     assert.equal((await inject('POST','/news/'+newsItem.id+'/favorite',undefined,user)).statusCode, 201);
+    assert.equal((await inject('DELETE','/news/'+newsItem.id+'/favorite',undefined,{cookie:user.cookie})).statusCode, 403, 'News mutations require CSRF');
     assert.equal((await inject('GET','/news?favorites=true',undefined,user)).json().data.total, 1);
     assert.equal((await inject('GET','/news?favorites=true',undefined,admin)).json().data.total, 0, 'Favorites are private to the authenticated user');
     assert.equal((await inject('DELETE','/news/'+newsItem.id+'/favorite',undefined,user)).statusCode, 200);
@@ -125,9 +126,16 @@ async function main() {
     const newsService = app.get(NewsService);
     newsService.fetch = async (route) => {
       if (route.startsWith('/stcn')) throw new Error('Fixture upstream failure');
-      return [{id:'fixture-'+route,title:'采集测试',content_html:'<p>安全正文</p>',date_published:new Date().toISOString(),url:'https://example.com/news'}];
+      return [{id:'fixture-'+route,title:'采集测试',content_html:'<p>安全正文</p>',date_published:route==='/yicai/headline'?null:new Date().toISOString(),url:'https://example.com/news'}];
     };
+    await db.query("INSERT INTO t_news_item(source,dedupe_key,kind,title,body,important,published_at,created_at,updated_at) VALUES('jin10',REPEAT('b',64),'flash','旧收藏','正文',0,'2020-01-01',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3)),('jin10',REPEAT('c',64),'flash','旧未收藏','正文',0,'2020-01-01',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))");
+    const [oldFavorite] = await db.query("SELECT id FROM t_news_item WHERE dedupe_key=REPEAT('b',64)");
+    await db.query('INSERT INTO t_news_favorite(user_id,news_id,created_at) VALUES(?,?,UTC_TIMESTAMP(3))',[user.user.id,oldFavorite.id]);
     await newsService.sync(true);
+    assert.equal(Number((await db.query("SELECT COUNT(*) n FROM t_news_item WHERE dedupe_key=REPEAT('b',64)"))[0].n),1,'Retention preserves favorited news');
+    assert.equal(Number((await db.query("SELECT COUNT(*) n FROM t_news_item WHERE dedupe_key=REPEAT('c',64)"))[0].n),0,'Retention removes expired unfavorited news');
+    const [collected] = await db.query("SELECT published_at,time_basis FROM t_news_item WHERE source='yicai-news'");
+    assert.equal(collected.time_basis,'collected');
     const [failedSource] = await db.query("SELECT * FROM t_news_source WHERE source='stcn'");
     assert.equal(failedSource.status, 'error');
     const [goodSource] = await db.query("SELECT * FROM t_news_source WHERE source='yicai'");
@@ -136,6 +144,7 @@ async function main() {
     await db.query('UPDATE t_news_source SET last_attempt=NULL,next_attempt=NULL');
     await newsService.sync(true);
     assert.equal(Number((await db.query('SELECT COUNT(*) n FROM t_news_item'))[0].n), beforeCount, 'Repeated feed collection deduplicates rows');
+    assert.equal((await db.query("SELECT published_at FROM t_news_item WHERE source='yicai-news'"))[0].published_at.getTime(),collected.published_at.getTime(),'Missing publication time preserves first collection time');
     const activity = (await inject('GET', '/admin/login-activity', undefined, admin)).json().data;
     assert.equal(activity.unread, 2, 'Registration and regular login notify; administrator login does not');
     assert.ok(activity.items.some(item => item.registered));

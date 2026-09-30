@@ -82,6 +82,8 @@ export function normalizeNews(
       : url || `${title}|${date.toISOString().slice(0, 10)}`;
   return {
     key: createHash('sha256').update(identity).digest('hex'),
+    timeBasis:
+      typeof item.date_published === 'string' ? 'published' : 'collected',
     title,
     body,
     url,

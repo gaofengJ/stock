@@ -45,4 +45,13 @@ describe('News feed normalization', () => {
       normalizeNews({ title: 'x', date_published: '2099-01-01' }, source, now),
     ).toBeNull();
   });
+  it('labels the first collection time when a source omits its publication time', () => {
+    const item = normalizeNews(
+      { id: 'without-time', title: '快讯', date_published: null },
+      source,
+      now,
+    )!;
+    expect(item.timeBasis).toBe('collected');
+    expect(item.date).toEqual(now);
+  });
 });

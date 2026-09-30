@@ -16,6 +16,7 @@ export class RealTimeNews1790812800001 implements MigrationInterface {
       id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,source VARCHAR(16) NOT NULL,dedupe_key CHAR(64) NOT NULL,
       kind VARCHAR(16) NOT NULL,title VARCHAR(512) NOT NULL,body TEXT NOT NULL,original_url VARCHAR(2048) NULL,
       important TINYINT NOT NULL DEFAULT 0,published_at DATETIME(3) NOT NULL,
+      time_basis VARCHAR(16) NOT NULL DEFAULT 'published',
       created_at DATETIME(3) NOT NULL,updated_at DATETIME(3) NOT NULL,
       UNIQUE KEY uq_news_source_key(source,dedupe_key),KEY ix_news_date(published_at,id),
       KEY ix_news_source_date(source,published_at,id),KEY ix_news_important_date(important,published_at,id)

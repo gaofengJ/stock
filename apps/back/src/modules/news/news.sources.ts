@@ -21,11 +21,18 @@ export const NEWS_SOURCES = [
     enabled: true,
   },
   {
+    code: 'yicai-news',
+    name: '第一财经头条',
+    path: '/yicai/headline',
+    kind: 'article',
+    enabled: true,
+  },
+  {
     code: 'sina',
     name: '新浪财经',
     path: '/sina/finance/rollnews',
     kind: 'article',
-    enabled: true,
+    enabled: false,
   },
   {
     code: 'bloomberg',

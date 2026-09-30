@@ -159,7 +159,7 @@ export class NewsService implements OnApplicationBootstrap {
       [userId || 0, ...args],
     );
     const rows = await this.db.query(
-      `SELECT n.id,n.source,n.kind,n.title,LEFT(n.body,360) body,n.original_url,n.important,n.published_at,(f.news_id IS NOT NULL) favorite FROM t_news_item n ${join} WHERE ${where} ORDER BY n.published_at DESC,n.id DESC LIMIT ? OFFSET ?`,
+      `SELECT n.id,n.source,n.kind,n.title,LEFT(n.body,360) body,n.original_url,n.important,n.published_at,n.time_basis,(f.news_id IS NOT NULL) favorite FROM t_news_item n ${join} WHERE ${where} ORDER BY n.published_at DESC,n.id DESC LIMIT ? OFFSET ?`,
       [userId || 0, ...args, query.pageSize, (query.page - 1) * query.pageSize],
     );
     return {
@@ -183,6 +183,7 @@ export class NewsService implements OnApplicationBootstrap {
       originalUrl: row.original_url,
       important: Boolean(row.important),
       publishedAt: isoDate(row.published_at),
+      timeBasis: row.time_basis || 'published',
       favorite: Boolean(row.favorite),
     };
   }
@@ -260,7 +261,7 @@ export class NewsService implements OnApplicationBootstrap {
       let added = 0;
       for (const item of normalized) {
         const result = await q.query(
-          `INSERT INTO t_news_item(source,dedupe_key,kind,title,body,original_url,important,published_at,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE title=VALUES(title),body=VALUES(body),original_url=VALUES(original_url),important=GREATEST(important,VALUES(important)),updated_at=UTC_TIMESTAMP(3)`,
+          `INSERT INTO t_news_item(source,dedupe_key,kind,title,body,original_url,important,published_at,time_basis,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE title=VALUES(title),body=VALUES(body),original_url=VALUES(original_url),important=GREATEST(important,VALUES(important)),published_at=IF(time_basis='collected' AND VALUES(time_basis)='published',VALUES(published_at),published_at),time_basis=IF(VALUES(time_basis)='published','published',time_basis),updated_at=UTC_TIMESTAMP(3)`,
           [
             source.code,
             item.key,
@@ -270,6 +271,7 @@ export class NewsService implements OnApplicationBootstrap {
             item.url,
             important.has(item.key) ? 1 : 0,
             sqlDate(item.date),
+            item.timeBasis,
           ],
         );
         if (result.affectedRows === 1) added += 1;
