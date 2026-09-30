@@ -83,6 +83,7 @@ export const PERMISSIONS = [
     route: '/basic/active-funds',
   },
   { code: 'news:read', name: '实时资讯', group: '实时资讯', route: '/news' },
+  { code: 'news:manage', name: '资讯来源管理', group: '管理后台', route: '' },
   {
     code: 'review:read',
     name: '每日复盘',

@@ -22,10 +22,6 @@ export const headerMenuItems: MenuProps['items'] = [
     label: '市场分析',
   },
   {
-    key: EHeaderMenuKey.trends,
-    label: '市场行情',
-  },
-  {
     key: EHeaderMenuKey.strategy,
     label: '策略选股',
   },
