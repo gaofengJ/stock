@@ -107,13 +107,6 @@
     .market-chart
       margin-bottom: 0
       height: 100%
-  .market-index-pair
-    margin-bottom: 20px
-    .market-chart
-      margin-bottom: 0
-      height: 100%
-    .ant-card-head
-      min-height: 60px
   .market-chart-selection
     display: flex
     align-items: center
@@ -175,6 +168,21 @@
   align-items: center
   justify-content: space-between
   gap: 16px
+
+.ant-modal.market-index-modal
+  .ant-modal-content
+    height: calc(100dvh - 32px)
+    display: flex
+    flex-direction: column
+    padding: 16px 20px
+  .ant-modal-header, .ant-modal-footer
+    flex-shrink: 0
+  .ant-modal-body
+    flex: 1
+    min-height: 0
+    overflow: hidden
+  .market-expanded-chart
+    height: 100%
 
 .market-ladder-stocks
   display: flex

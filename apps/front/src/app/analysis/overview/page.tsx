@@ -105,17 +105,19 @@ export default function OverviewPage() {
             </Row>
             <div className="market-section-toolbar">
               <div className="market-chart-selection">
-                <SectionTitle title="指数图表" description="每行左侧K线、右侧成交量，同步缩放。周/月由日线汇总，首尾周期可能不完整。" />
+                <SectionTitle title="指数图表" description="上方K线、下方成交量，共用日期与缩放。周/月由日线汇总。" />
                 {selected && <Button size="small" onClick={() => setIndex(null)}>显示全部指数</Button>}
               </div>
               <ChartRange value={window} onChange={setWindow} />
             </div>
-            <div className="market-chart-grid">
+            <Row gutter={[16, 16]} className="market-chart-grid">
               {visibleIndexes.map((i) => (
-                <IndexChart key={i.code} index={i} dates={indexDates} window={window} />
+                <Col xs={24} lg={12} key={i.code}>
+                  <IndexChart index={i} dates={indexDates} window={window} />
+                </Col>
               ))}
-              {!visibleIndexes.length && <div className="market-empty"><Empty description="该范围暂无完整K线与成交量数据" /></div>}
-            </div>
+              {!visibleIndexes.length && <Col span={24}><div className="market-empty"><Empty description="该范围暂无完整K线与成交量数据" /></div></Col>}
+            </Row>
           </>
         )}
       </DataState>

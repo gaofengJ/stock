@@ -8,7 +8,6 @@ interface IEchartsProps {
   genOptions: () => EChartsOption;
   appearance?: 'light' | 'dark';
   height?: number;
-  group?: string;
 }
 
 const EChart = dynamic(() => import('./EChart'), {
@@ -16,10 +15,8 @@ const EChart = dynamic(() => import('./EChart'), {
   loading: () => <Loading height={360} />,
 });
 
-const CChart = ({
-  genOptions, appearance, height, group,
-}: IEchartsProps) => (
-  <EChart genOptions={genOptions} appearance={appearance} height={height} group={group} />
+const CChart = ({ genOptions, appearance, height }: IEchartsProps) => (
+  <EChart genOptions={genOptions} appearance={appearance} height={height} />
 );
 
 export default CChart;
