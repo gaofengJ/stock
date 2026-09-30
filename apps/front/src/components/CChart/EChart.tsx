@@ -84,9 +84,14 @@ interface IEchartsProps {
   genOptions: () => EChartsOption;
   appearance?: 'light' | 'dark';
   height?: number;
+  group?: string;
 }
 
-const EChart = ({ genOptions, appearance, height = 360 }: IEchartsProps) => {
+const chartGroups = new Map<string, number>();
+
+const EChart = ({
+  genOptions, appearance, height = 360, group,
+}: IEchartsProps) => {
   const { mode } = useSiteTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<ReactEChartsCore>(null);
@@ -97,6 +102,23 @@ const EChart = ({ genOptions, appearance, height = 360 }: IEchartsProps) => {
       zoomRef.current = zoom.map(({ start, end }) => ({ start, end }));
     },
   }), []);
+
+  useEffect(() => {
+    const instance = chartRef.current?.getEchartsInstance();
+    if (!group || !instance) return undefined;
+    instance.group = group;
+    chartGroups.set(group, (chartGroups.get(group) || 0) + 1);
+    echarts.connect(group);
+    return () => {
+      instance.group = '';
+      const remaining = (chartGroups.get(group) || 1) - 1;
+      if (remaining) chartGroups.set(group, remaining);
+      else {
+        chartGroups.delete(group);
+        echarts.disconnect(group);
+      }
+    };
+  }, [group, mode, appearance]);
 
   useEffect(() => {
     const container = containerRef.current;

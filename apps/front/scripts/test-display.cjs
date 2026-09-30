@@ -78,6 +78,21 @@ test('missing or invalid volume leaves a gap independently of valid prices, whil
   assert.equal(market.periodTotals([{date: dates[0], value: 100}], dates, 'week')[0].value, null);
 });
 
+test('paired index charts keep matching gaps and retain valid zero volume in every period', () => {
+  const dates = ['2026-09-21', '2026-09-22'];
+  const points = dates.map(date => ({date, open: 100, close: 101, low: 99, high: 102, vol: 0}));
+  for (const period of ['day', 'week', 'month']) {
+    const valid = market.pairedIndexCandles(points, dates, period);
+    assert.ok(valid.every(c => c.value && c.volume === 0));
+    for (const invalid of [{...points[1], vol: undefined}, {...points[1], high: undefined}]) {
+      const rows = market.pairedIndexCandles([points[0], invalid], dates, period);
+      assert.equal(rows.at(-1).value, null);
+      assert.equal(rows.at(-1).volume, null);
+      if (period === 'day') assert.deepEqual(rows[0].value, [100, 101, 99, 102]);
+    }
+  }
+});
+
 test('moving averages use full history before clipping and restart after missing candles', () => {
   const candles = Array.from({ length: 300 }, (_, i) => candle(String(i), i + 1, i + 1));
   const ma = market.movingAverage(candles, 250);

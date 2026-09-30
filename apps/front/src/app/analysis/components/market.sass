@@ -79,11 +79,17 @@
     margin-top: 0
   .market-amount-summary
     display: flex
+    align-items: baseline
     flex-wrap: wrap
     gap: 8px 20px
     margin-bottom: 12px
     color: var(--text-secondary)
     font-size: 13px
+    line-height: 24px
+    > span
+      display: inline-flex
+      align-items: baseline
+      gap: 6px
     strong
       color: var(--color-black)
       font-size: 18px
@@ -101,6 +107,13 @@
     .market-chart
       margin-bottom: 0
       height: 100%
+  .market-index-pair
+    margin-bottom: 20px
+    .market-chart
+      margin-bottom: 0
+      height: 100%
+    .ant-card-head
+      min-height: 60px
   .market-chart-selection
     display: flex
     align-items: center

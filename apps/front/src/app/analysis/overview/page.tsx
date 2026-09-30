@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Col, Row } from 'antd';
+import {
+  Button, Col, Empty, Row,
+} from 'antd';
 import Link from 'next/link';
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import { MarketSeries } from '@/api/market';
@@ -15,7 +17,7 @@ import { useMarket } from '../components/MarketContext';
 import {
   DataState, Metrics, SectionTitle,
 } from '../components/MarketCharts';
-import { ChartWindow, scopeIndexes } from '../components/market-display';
+import { ChartWindow, pairedIndexCandles, scopeIndexes } from '../components/market-display';
 import IndexChart from '../components/IndexChart';
 import ChartRange from '../components/ChartRange';
 import MarketAmountChart from '../components/MarketAmountChart';
@@ -33,7 +35,11 @@ export default function OverviewPage() {
   const indexDates = useMemo(() => data?.series.map((r) => r.date) || [], [data]);
   const indexes = scopeIndexes(data?.indexes || [], scope);
   const selected = indexes.find((i) => i.code === index);
-  const visibleIndexes = selected ? [selected] : indexes;
+  const visibleIndexes = (selected ? [selected] : indexes).filter((i) => {
+    const candles = pairedIndexCandles(i.series, indexDates, window.period);
+    const visible = window.count ? candles.slice(-window.count) : candles;
+    return visible.some((c) => c.value && c.volume != null);
+  });
   const range = scopes.find((s) => s.value === scope)?.label;
   return (
     <MarketShell title="大盘概览" path="/analysis/overview">
@@ -41,7 +47,7 @@ export default function OverviewPage() {
         {data && snapshot && (
           <>
             <div className="market-section-toolbar market-breadth-heading">
-              <SectionTitle title="市场概况" description="与市场情绪的涨跌分布使用相同日期和范围，包含ST、排除无成交股票。这里看涨跌家数摘要，市场情绪查看幅度分布、历史走势及非ST样本的涨跌停表现。" />
+              <SectionTitle title="市场概况" description="统计所选范围内有成交的A股，包含ST；与市场情绪的涨跌分布口径一致。" />
               {allowedPath(user, '/analysis/senti') && <Link href={marketHref('/analysis/senti', { date, scope })} className="market-detail-link">查看市场情绪与涨跌分布 →</Link>}
             </div>
             <Metrics items={[
@@ -66,7 +72,7 @@ export default function OverviewPage() {
               <span style={{ flexGrow: snapshot.down, background: 'var(--quote-down)' }} />
             </div>
             )}
-            <SectionTitle title="主要指数" description="点击指数可单独查看，再次点击恢复全部。指数行情取其自身样本；主板范围的上证指数、深证成指也包含其他板块样本。" />
+            <SectionTitle title="主要指数" description="点击指数查看对应K线和成交量，再次点击恢复全部。" />
             <Row gutter={[16, 16]} className="market-metrics">
               {indexes.map((i) => {
                 const point = i.series.find((r) => r.date === data.date);
@@ -99,18 +105,17 @@ export default function OverviewPage() {
             </Row>
             <div className="market-section-toolbar">
               <div className="market-chart-selection">
-                <SectionTitle title="指数图表" description="选择器同步设置K线、成交量和市场成交额的初始日期范围，各张K线可独立缩放。周/月由日线汇总，首尾周期可能不完整；各指数成交量不能相加作为全市场成交量。" />
+                <SectionTitle title="指数图表" description="每行左侧K线、右侧成交量，同步缩放。周/月由日线汇总，首尾周期可能不完整。" />
                 {selected && <Button size="small" onClick={() => setIndex(null)}>显示全部指数</Button>}
               </div>
               <ChartRange value={window} onChange={setWindow} />
             </div>
-            <Row gutter={[16, 16]} className="market-chart-grid">
+            <div className="market-chart-grid">
               {visibleIndexes.map((i) => (
-                <Col xs={24} lg={12} key={i.code}>
-                  <IndexChart index={i} dates={indexDates} window={window} />
-                </Col>
+                <IndexChart key={i.code} index={i} dates={indexDates} window={window} />
               ))}
-            </Row>
+              {!visibleIndexes.length && <div className="market-empty"><Empty description="该范围暂无完整K线与成交量数据" /></div>}
+            </div>
           </>
         )}
       </DataState>

@@ -23,7 +23,7 @@ function MarketAmountChart({
       title={(
         <span className="market-section-title">
           {title}
-          <HelpTooltip label="市场成交额" title="按顶部统计范围汇总A股成交额，不跟随单个指数选择。范围没有唯一的涨跌指标，成交额统一使用红柱。周/月为周期内成交额合计。" />
+          <HelpTooltip label="市场成交额" title="按所选范围汇总A股成交额，周/月为周期合计。" />
         </span>
 )}
       extra={<ChartRange value={window} onChange={onWindowChange} />}
@@ -31,16 +31,14 @@ function MarketAmountChart({
     >
       <div className="market-amount-summary">
         <span>
-          当日成交额
+          <span>当日成交额</span>
           <strong>{numberText(data.snapshot?.amount)}</strong>
-          {' '}
-          亿元
+          <span>亿元</span>
         </span>
         <span>
-          较上一交易日
-          {numberText(data.snapshot && data.previousAmount != null ? data.snapshot.amount - data.previousAmount : null, 2, true)}
-          {' '}
-          亿元
+          <span>较上一交易日</span>
+          <strong>{numberText(data.snapshot && data.previousAmount != null ? data.snapshot.amount - data.previousAmount : null, 2, true)}</strong>
+          <span>亿元</span>
         </span>
       </div>
       {!rows.some((r) => r.value != null) ? <Empty description="该范围暂无完整成交额数据" /> : (
