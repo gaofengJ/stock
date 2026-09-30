@@ -73,7 +73,11 @@ export default function Page() {
     if (favorites) params.set('favorites', 'true');
     try {
       const result = await api<NewsList>(`/news?${params}`);
-      if (current === request.current) { setData(result); setError(''); }
+      if (current === request.current) {
+        setData(result); setError('');
+        const lastPage = Math.max(1, Math.ceil(result.total / 20));
+        if (page > lastPage) setPage(lastPage);
+      }
     } catch (e) { if (current === request.current) setError(errorMessage(e)); } finally { if (current === request.current) { setLoading(false); pending.current = false; } }
   }, [date, source, kind, keyword, important, favorites, page]);
   useEffect(() => {

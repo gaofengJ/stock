@@ -26,4 +26,3 @@
 .sourceTitle { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .interval { margin-top: 16px; display: flex; align-items: center; gap: 12px; font-size: 13px; }
 @media (max-width: 680px) { .heading { align-items: flex-start; flex-direction: column; gap: 16px; } .filters { padding: 12px; gap: 10px; } .filters .search { width: 100%; } .item { padding: 16px 12px; gap: 10px; time { min-width: 61px; font-size: 12px; } } .important { padding-left: 9px; } .title { font-size: 15px; } .meta { flex-wrap: wrap; } .item > :global(.ant-btn) { padding: 4px; } }
-
