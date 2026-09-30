@@ -41,6 +41,14 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
   };
   const averagesPalette = mode === 'dark' ? movingAverageColors : lightMovingAverageColors;
   const [expanded, setExpanded] = useState(false);
+  useEffect(() => {
+    if (!expanded) return undefined;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExpanded(false);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [expanded]);
   const [resetKey, setResetKey] = useState(0);
   const { period, count } = window;
   const all = pairedIndexCandles(index?.series || [], dates, period);
@@ -110,7 +118,7 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
               type: 'category', data: candles.map((c) => c.date), gridIndex: 0, axisLabel: { show: false }, axisTick: { show: false },
             },
             {
-              type: 'category', data: candles.map((c) => c.date), gridIndex: 1, axisLabel: { hideOverlap: true, formatter: (date: string) => (period === 'month' ? date.slice(0, 7) : dateLabels.get(date) || date) },
+              type: 'category', data: candles.map((c) => c.date), gridIndex: 1, axisTick: { alignWithLabel: true }, axisLabel: { hideOverlap: true, formatter: (date: string) => (period === 'month' ? date.slice(0, 7) : dateLabels.get(date) || date) },
             },
           ],
           yAxis: [
@@ -128,17 +136,15 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
               color: quoteColors.up, color0: quoteColors.down, borderColor: quoteColors.up, borderColor0: quoteColors.down,
             },
             data: candles.map((c) => c.value || ['-', '-', '-', '-']),
-            markArea: {
+            markLine: {
               silent: true,
+              symbol: 'none',
               label: { show: false },
-              data: gaps.map((gap) => [{
+              data: gaps.flatMap((gap) => [gap.low, gap.high].map((boundary) => [{
                 name: `${gap.direction === 'up' ? '向上' : '向下'}缺口`,
-                xAxis: gap.start < candles[0].date ? candles[0].date : gap.start,
-                yAxis: gap.low,
-                itemStyle: {
-                  color: withAlpha(quoteColors[gap.direction], 0.1), borderColor: quoteColors[gap.direction], borderWidth: 1, borderType: 'dashed',
-                },
-              }, { xAxis: candles[candles.length - 1].date, yAxis: gap.high }]),
+                coord: [gap.start < candles[0].date ? candles[0].date : gap.start, boundary],
+                lineStyle: { color: withAlpha(quoteColors[gap.direction], 0.35), width: 1, type: 'dashed' },
+              }, { coord: [candles[candles.length - 1].date, boundary] }])),
             },
           }, ...averages.map((a, i) => ({
             type: 'line' as const,
@@ -171,7 +177,7 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
         title={(
           <span className="market-section-title">
             {index?.name || '指数'}
-            <HelpTooltip label="指数走势" title="上方K线、下方成交量，共用日期与缩放。虚线框为未回补缺口。" />
+            <HelpTooltip label="指数走势" title="上方K线、下方成交量，共用日期与缩放。淡色虚线为未回补缺口边界。" />
           </span>
       )}
         extra={(
@@ -187,6 +193,7 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
         className="market-index-modal"
         title={index.name}
         open={expanded}
+        keyboard
         onCancel={() => setExpanded(false)}
         footer={<Button icon={<ReloadOutlined />} onClick={() => setResetKey((v) => v + 1)}>重置日期范围</Button>}
         width="calc(100vw - 32px)"

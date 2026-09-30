@@ -15,17 +15,20 @@ import useMarketData from '../components/useMarketData';
 import { DataState, numberText, SectionTitle } from '../components/MarketCharts';
 import DragonDrawer from '../components/DragonDrawer';
 import { useMarket } from '../components/MarketContext';
+import { linkedLimitType } from '../components/market-navigation';
 
 function LimitsPage() {
-  const linkedKeyword = useSearchParams().get('keyword') || '';
-  const [type, setType] = useState('U'); const [keyword, setKeyword] = useState(linkedKeyword);
+  const params = useSearchParams();
+  const linkedKeyword = params.get('keyword') || '';
+  const linkedType = linkedLimitType(params.get('type'));
+  const [type, setType] = useState(linkedType); const [keyword, setKeyword] = useState(linkedKeyword);
   const [search, setSearch] = useState(linkedKeyword);
   const [height, setHeight] = useState<number | undefined>();
   const [stock, setStock] = useState<LimitRow | null>(null);
   const { date } = useMarket();
   useEffect(() => {
-    setKeyword(linkedKeyword); setSearch(linkedKeyword); setType('U'); setHeight(undefined);
-  }, [linkedKeyword]);
+    setKeyword(linkedKeyword); setSearch(linkedKeyword); setType(linkedType); setHeight(undefined);
+  }, [linkedKeyword, linkedType]);
   const {
     data, loading, error, retry,
   } = useMarketData<{ ready: boolean; items: LimitRow[] }>('limits', { type, keyword, height });

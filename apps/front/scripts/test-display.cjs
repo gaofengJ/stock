@@ -19,6 +19,20 @@ const funds = load('utils/active-funds.ts');
 const navigation = load('app/analysis/components/market-navigation.ts');
 const promotion = load('app/analysis/components/promotion-display.ts', {'@/utils/format': format});
 
+test('trend averages retain zero and exclude missing or invalid values', () => {
+  assert.equal(market.seriesAverage([null, undefined, NaN, Infinity]), null);
+  assert.equal(market.seriesAverage([0, 30, 60, null]), 30);
+  assert.equal(market.seriesAverage([-3, 0, 3]), 0);
+});
+
+test('review links select only supported event tabs', () => {
+  for (const type of ['U', 'D', 'Z']) {
+    const href = navigation.marketHref('/analysis/limits', {date:'2026-09-28',scope:'gem'}, {type});
+    assert.equal(navigation.linkedLimitType(new URL(href, 'https://example.test').searchParams.get('type')), type);
+  }
+  for (const invalid of [null, '', 'invalid', 'd']) assert.equal(navigation.linkedLimitType(invalid), 'U');
+});
+
 test('promotion tooltip distinguishes no cohort, failed promotion, valid rate and missing data', () => {
   const stats = (rate, numerator, denominator, from = 3) => ({upgrades: [{from, rate, numerator, denominator}]});
   assert.equal(promotion.promotionTooltip(stats(null, 0, 0), 3), '昨日三板样本为 0，暂无晋级率');

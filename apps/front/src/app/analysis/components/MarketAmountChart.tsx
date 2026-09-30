@@ -56,7 +56,9 @@ function MarketAmountChart({
           grid: {
             left: 16, right: 20, top: 56, bottom: 24, containLabel: true,
           },
-          xAxis: { type: 'category', data: rows.map((r) => r.date), axisLabel: { hideOverlap: true } },
+          xAxis: {
+            type: 'category', data: rows.map((r) => r.date), axisTick: { alignWithLabel: true }, axisLabel: { hideOverlap: true },
+          },
           yAxis: {
             type: 'value', name: '亿元', nameGap: 16, max: references.at(-1), axisLabel: { formatter: (v: number) => numberText(v, 0) },
           },

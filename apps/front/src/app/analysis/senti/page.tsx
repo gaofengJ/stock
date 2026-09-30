@@ -32,7 +32,13 @@ function SentimentPage() {
         <>
           <SectionTitle title="当日情绪" description="涨跌停、炸板为数据源非ST样本。封板率＝涨停／触板，炸板率＝炸板／触板。昨日涨停表现剔除昨日一字板、ST、新股、退市整理及当日无成交样本；该比例不是实际交易胜率。" />
           <Metrics items={[
-            { title: '涨停家数', className: 'quote-up', value: s.limitUp }, { title: '跌停家数', className: 'quote-down', value: s.limitDown }, { title: '炸板家数', value: s.broken },
+            {
+              title: '涨停家数', className: 'quote-up', value: s.limitUp, suffix: '只', href: allowedPath(user, '/analysis/limits') ? marketHref('/analysis/limits', { date, scope }, { type: 'U' }) : undefined,
+            }, {
+              title: '跌停家数', className: 'quote-down', value: s.limitDown, suffix: '只', href: allowedPath(user, '/analysis/limits') ? marketHref('/analysis/limits', { date, scope }, { type: 'D' }) : undefined,
+            }, {
+              title: '炸板家数', value: s.broken, suffix: '只', href: allowedPath(user, '/analysis/limits') ? marketHref('/analysis/limits', { date, scope }, { type: 'Z' }) : undefined,
+            },
             {
               title: '最高连板', value: s.maxHeight, suffix: '板', href: allowedPath(user, '/analysis/chains') ? marketHref('/analysis/chains', { date, scope }) : undefined,
             },
@@ -79,9 +85,9 @@ function SentimentPage() {
           </div>
           <Row gutter={20}>
             <Col xs={24} lg={12}><Trend title="涨停、跌停与炸板" unit="只" data={data} fields={[{ label: '涨停', value: (v) => v.limitUp }, { label: '跌停', value: (v) => v.limitDown }, { label: '炸板', value: (v) => v.broken }]} /></Col>
-            <Col xs={24} lg={12}><Trend title="封板率" data={data} percent fields={[{ label: '封板率', value: (v) => v.sealRate }]} /></Col>
+            <Col xs={24} lg={12}><Trend title="封板率" data={data} percent average fields={[{ label: '封板率', value: (v) => v.sealRate }]} /></Col>
             <Col xs={24} lg={12}><Trend title="昨日涨停股今日表现" data={data} percent fields={[{ label: '高开率', value: (v) => v.highOpenRate }, { label: '上涨率', value: (v) => v.riseRate }]} /></Col>
-            <Col xs={24} lg={12}><Trend title="昨日涨停股今日平均涨幅" data={data} percent fields={[{ label: '平均涨幅', value: (v) => v.averageChange }]} /></Col>
+            <Col xs={24} lg={12}><Trend title="昨日涨停股今日平均涨幅" data={data} percent average fields={[{ label: '平均涨幅', value: (v) => v.averageChange }]} /></Col>
             <Col xs={24} lg={12}><Trend title="上涨与下跌家数" unit="只" data={data} fields={[{ label: '上涨', value: (v) => v.up }, { label: '下跌', value: (v) => v.down }]} /></Col>
           </Row>
         </>

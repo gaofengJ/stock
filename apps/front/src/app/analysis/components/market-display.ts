@@ -122,3 +122,8 @@ export function pairedIndexCandles(points: IndexPoint[], dates: string[], period
     c.value && c.volume != null ? c : { ...c, value: null, volume: null }
   ));
 }
+
+export function seriesAverage(values: (number | null | undefined)[]) {
+  const valid = values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+  return valid.length ? valid.reduce((sum, value) => sum + value, 0) / valid.length : null;
+}

@@ -2,6 +2,9 @@ import type { MarketScope } from '@/api/market';
 
 export interface Selection { date: string; scope: MarketScope; days: number }
 export const defaultSelection: Selection = { date: '', scope: 'all', days: 20 };
+export function linkedLimitType(value: string | null) {
+  return value === 'D' || value === 'Z' ? value : 'U';
+}
 export function linkedSelection(query: string): Partial<Selection> {
   const params = new URLSearchParams(query);
   const date = params.get('date') || '';

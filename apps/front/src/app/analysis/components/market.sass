@@ -33,6 +33,22 @@
     font-size: 12px
   .metric-card
     height: 100%
+    position: relative
+  .metric-detail-link
+    color: inherit
+    &:hover
+      color: var(--color-primary-text)
+    &::after
+      content: ''
+      position: absolute
+      inset: 0
+      border-radius: 8px
+    &:focus-visible::after
+      outline: 2px solid var(--color-pink-red)
+      outline-offset: -2px
+  .metric-label .help-tooltip-trigger
+    position: relative
+    z-index: 1
   .metric-label
     display: flex
     align-items: center

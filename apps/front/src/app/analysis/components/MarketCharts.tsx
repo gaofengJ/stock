@@ -10,12 +10,12 @@ import CChart from '@/components/CChart';
 import { useSiteTheme } from '@/components/SiteTheme';
 import HelpTooltip from '@/components/HelpTooltip';
 import {
-  quoteColors, chartColors, chartPalette,
+  quoteColors, chartColors, chartPalette, withAlpha,
 } from '@/colors';
 import { numberText, changeClass } from '@/utils/format';
 import { MarketSeries, MarketStats } from '@/api/market';
 import { useMarket } from './MarketContext';
-import { amountReferenceLevels } from './market-display';
+import { amountReferenceLevels, seriesAverage } from './market-display';
 
 export { numberText } from '@/utils/format';
 export function TrendRange() {
@@ -63,7 +63,7 @@ export function Metrics({ items }: { items: Metric[] }) {
           <Card size="small" className="metric-card">
             <div className="metric-label">
               {i.href ? (
-                <Link href={i.href}>
+                <Link className="metric-detail-link" href={i.href}>
                   {i.title}
                   {' '}
                   →
@@ -90,16 +90,17 @@ const seriesColor = (label: string, index: number) => {
   return chartPalette[index % chartPalette.length];
 };
 function TrendChart({
-  title, description, data, fields, percent = false, unit = '', digits = 0, type = 'line', controls = false,
+  title, description, data, fields, percent = false, unit = '', digits = 0, type = 'line', controls = false, average = false,
 }: {
   title: string; description?: string; data: MarketSeries;
   fields: { label: string; value: (s: MarketStats) => number | null; tooltip?: (s: MarketStats | null) => string }[];
-  percent?: boolean; unit?: string; digits?: number; type?: 'line' | 'bar'; controls?: boolean;
+  percent?: boolean; unit?: string; digits?: number; type?: 'line' | 'bar'; controls?: boolean; average?: boolean;
 }) {
   const { colors } = useSiteTheme();
   const suffix = percent ? '%' : unit;
   const { days } = useMarket();
   const series = days === 730 ? data.series : data.series.slice(-days);
+  const mean = average && fields.length === 1 && type === 'line' ? seriesAverage(series.map((r) => (r.data ? fields[0].value(r.data) : null))) : null;
   const references = unit === '亿元' ? amountReferenceLevels(series.flatMap((r) => fields.map((f) => (r.data ? f.value(r.data) : null)))) : [];
   return (
     <Card
@@ -135,7 +136,9 @@ function TrendChart({
         grid: {
           left: 16, right: 20, top: 56, bottom: 24, containLabel: true,
         },
-        xAxis: { type: 'category', data: series.map((r) => r.date), axisLabel: { hideOverlap: true } },
+        xAxis: {
+          type: 'category', data: series.map((r) => r.date), axisTick: { alignWithLabel: true }, axisPointer: { snap: true }, axisLabel: { hideOverlap: true },
+        },
         yAxis: {
           type: 'value', name: suffix, nameGap: 16, max: references.at(-1), minInterval: percent || digits ? undefined : 1, axisLabel: { formatter: (v: number) => numberText(v, percent ? 2 : digits) },
         },
@@ -152,7 +155,12 @@ function TrendChart({
             symbol: 'none',
             lineStyle: { type: 'dashed', color: chartColors.reference, width: 1 },
             label: { position: 'insideEndTop', formatter: '{b}', color: colors.secondary },
-            data: references.map((value) => ({ name: `${value / 10000}万亿`, yAxis: value })),
+            data: [...references.map((value) => ({ name: `${value / 10000}万亿`, yAxis: value })), ...(mean == null ? [] : [{
+              name: `平均 ${numberText(mean, 2)}${suffix}`,
+              yAxis: mean,
+              lineStyle: { color: withAlpha(colors.secondary, 0.3), width: 1, type: 'dashed' as const },
+              label: { color: withAlpha(colors.secondary, 0.65) },
+            }])],
           } : undefined,
         })),
       })}
