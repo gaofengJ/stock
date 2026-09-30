@@ -14,6 +14,10 @@ const { AccountAvatars1790467200001 } = require('../dist/migrations/179046720000
 const { MarketAnalysis1790553600000 } = require('../dist/migrations/1790553600000-MarketAnalysis');
 const { LoginActivity1790640000000 } = require('../dist/migrations/1790640000000-LoginActivity');
 const { DragonPermission1790812800000 } = require('../dist/migrations/1790812800000-DragonPermission');
+const { RealTimeNews1790812800001 } = require('../dist/migrations/1790812800001-RealTimeNews');
+const { NewsModule } = require('../dist/modules/news/news.module');
+const { NewsService } = require('../dist/modules/news/news.service');
+const { ConfigModule } = require('@nestjs/config');
 const { TransformInterceptor } = require('../dist/interceptors/transform.interceptor');
 const { hashPassword } = require('../dist/modules/auth/password');
 const { ActiveFundsEntity } = require('../dist/modules/source/active-funds/active-funds.entity');
@@ -59,6 +63,11 @@ async function main() {
       JOIN t_permission source ON source.id=old.permission_id AND source.code='analysis:limits'
       WHERE NOT EXISTS (SELECT 1 FROM t_role_permission rp JOIN t_permission p ON p.id=rp.permission_id WHERE rp.role_id=old.role_id AND p.code='analysis:dragon')`);
     assert.equal(missingAccess.length, 0, 'Existing review roles keep dragon access');
+    const newsMigration = new RealTimeNews1790812800001();
+    await newsMigration.up(q);
+    await newsMigration.up(q);
+    assert.equal(Number((await db.query('SELECT COUNT(*) n FROM t_news_source'))[0].n), 6);
+    assert.equal(Number((await db.query("SELECT COUNT(*) n FROM t_role_permission rp JOIN t_role r ON r.id=rp.role_id JOIN t_permission p ON p.id=rp.permission_id WHERE r.code='user' AND p.code='news:manage'"))[0].n), 0, 'Ordinary users cannot manage sources');
     const [portrait] = await db.query("SELECT avatar FROM t_user WHERE username='mufeng'");
     assert.match(portrait.avatar, /^auto-bull-(red|pink|gold|green|blue|purple|coffee)-(star|heart|flower|bow)$/);
     await avatars.up(q);
@@ -74,7 +83,7 @@ async function main() {
     await q.release();
     class TestDatabase {}
     Global()(TestDatabase); Module({ providers: [{ provide: DataSource, useValue: db }], exports: [DataSource] })(TestDatabase);
-    const module = await Test.createTestingModule({ imports: [TestDatabase, AuthModule], providers: [{ provide: APP_GUARD, useClass: AuthGuard }] }).compile();
+    const module = await Test.createTestingModule({ imports: [TestDatabase, AuthModule, ConfigModule.forRoot({isGlobal:true,ignoreEnvFile:true,load:[()=>({NEWS_SYNC_ENABLED:'false'})]}), NewsModule], providers: [{ provide: APP_GUARD, useClass: AuthGuard }] }).compile();
     const adapter = new FastifyAdapter();
     await adapter.register(require('@fastify/cookie'));
     app = module.createNestApplication(adapter, { logger: false });
@@ -101,6 +110,41 @@ async function main() {
     assert.equal((await inject('POST', '/auth/register', { username: 'mufeng', password: 'test-password-123' }, anon)).statusCode, 409);
     let user = await login('alice', 'test-password-123');
     const admin = await login('mufeng', adminPassword);
+    await db.query("INSERT INTO t_news_item(source,dedupe_key,kind,title,body,important,published_at,created_at,updated_at) VALUES('jin10',REPEAT('a',64),'flash','新闻测试','测试正文',1,'2026-10-01 00:00:00',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))");
+    const [newsItem] = await db.query('SELECT id FROM t_news_item LIMIT 1');
+    assert.equal((await inject('GET','/news?date=2026-10-01',undefined,user)).json().data.total, 1);
+    assert.equal((await inject('PATCH','/news/sources/jin10',{enabled:false},user)).statusCode, 403);
+    assert.equal((await inject('PATCH','/news/sources/jin10',{enabled:'false'},admin)).statusCode, 400);
+    assert.equal((await inject('PATCH','/news/sources/jin10',{enabled:false},admin)).statusCode, 200);
+    assert.equal((await inject('GET','/news?date=2026-02-30',undefined,user)).statusCode, 400);
+    assert.equal((await inject('POST','/news/'+newsItem.id+'/favorite',undefined,user)).statusCode, 201);
+    assert.equal((await inject('DELETE','/news/'+newsItem.id+'/favorite',undefined,{cookie:user.cookie})).statusCode, 403, 'News mutations require CSRF');
+    assert.equal((await inject('GET','/news?favorites=true',undefined,user)).json().data.total, 1);
+    assert.equal((await inject('GET','/news?favorites=true',undefined,admin)).json().data.total, 0, 'Favorites are private to the authenticated user');
+    assert.equal((await inject('DELETE','/news/'+newsItem.id+'/favorite',undefined,user)).statusCode, 200);
+    // Exercise real MySQL upserts, partial feed failure and retention SQL without external network.
+    const newsService = app.get(NewsService);
+    newsService.fetch = async (route) => {
+      if (route.startsWith('/stcn')) throw new Error('Fixture upstream failure');
+      return [{id:'fixture-'+route,title:'采集测试',content_html:'<p>安全正文</p>',date_published:route==='/yicai/headline'?null:new Date().toISOString(),url:'https://example.com/news'}];
+    };
+    await db.query("INSERT INTO t_news_item(source,dedupe_key,kind,title,body,important,published_at,created_at,updated_at) VALUES('jin10',REPEAT('b',64),'flash','旧收藏','正文',0,'2020-01-01',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3)),('jin10',REPEAT('c',64),'flash','旧未收藏','正文',0,'2020-01-01',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))");
+    const [oldFavorite] = await db.query("SELECT id FROM t_news_item WHERE dedupe_key=REPEAT('b',64)");
+    await db.query('INSERT INTO t_news_favorite(user_id,news_id,created_at) VALUES(?,?,UTC_TIMESTAMP(3))',[user.user.id,oldFavorite.id]);
+    await newsService.sync(true);
+    assert.equal(Number((await db.query("SELECT COUNT(*) n FROM t_news_item WHERE dedupe_key=REPEAT('b',64)"))[0].n),1,'Retention preserves favorited news');
+    assert.equal(Number((await db.query("SELECT COUNT(*) n FROM t_news_item WHERE dedupe_key=REPEAT('c',64)"))[0].n),0,'Retention removes expired unfavorited news');
+    const [collected] = await db.query("SELECT published_at,time_basis FROM t_news_item WHERE source='yicai-news'");
+    assert.equal(collected.time_basis,'collected');
+    const [failedSource] = await db.query("SELECT * FROM t_news_source WHERE source='stcn'");
+    assert.equal(failedSource.status, 'error');
+    const [goodSource] = await db.query("SELECT * FROM t_news_source WHERE source='yicai'");
+    assert.equal(goodSource.status, 'ok');
+    const beforeCount = Number((await db.query('SELECT COUNT(*) n FROM t_news_item'))[0].n);
+    await db.query('UPDATE t_news_source SET last_attempt=NULL,next_attempt=NULL');
+    await newsService.sync(true);
+    assert.equal(Number((await db.query('SELECT COUNT(*) n FROM t_news_item'))[0].n), beforeCount, 'Repeated feed collection deduplicates rows');
+    assert.equal((await db.query("SELECT published_at FROM t_news_item WHERE source='yicai-news'"))[0].published_at.getTime(),collected.published_at.getTime(),'Missing publication time preserves first collection time');
     const activity = (await inject('GET', '/admin/login-activity', undefined, admin)).json().data;
     assert.equal(activity.unread, 2, 'Registration and regular login notify; administrator login does not');
     assert.ok(activity.items.some(item => item.registered));

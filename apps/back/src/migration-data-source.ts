@@ -8,6 +8,7 @@ import { AccountAvatars1790467200001 } from './migrations/1790467200001-AccountA
 import { MarketAnalysis1790553600000 } from './migrations/1790553600000-MarketAnalysis';
 import { LoginActivity1790640000000 } from './migrations/1790640000000-LoginActivity';
 import { DragonPermission1790812800000 } from './migrations/1790812800000-DragonPermission';
+import { RealTimeNews1790812800001 } from './migrations/1790812800001-RealTimeNews';
 
 dotenv.config({
   path:
@@ -31,6 +32,7 @@ export default new DataSource({
     MarketAnalysis1790553600000,
     LoginActivity1790640000000,
     DragonPermission1790812800000,
+    RealTimeNews1790812800001,
   ],
   migrationsTransactionMode: 'none',
   logging: false,

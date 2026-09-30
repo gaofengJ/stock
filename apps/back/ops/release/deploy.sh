@@ -127,6 +127,9 @@ db verify > "$RUN/verification.json"
 start_phase start-new-service
 new_started=1
 docker run --restart unless-stopped --add-host host.docker.internal:172.17.0.1 --mount "type=bind,src=$ENV_FILE,dst=/run/stock/runtime.env,readonly" -e APP_ENV_FILE=/run/stock/runtime.env -e SYNC_ON_STARTUP=false -d -p 3000:3000 -v /home/logs/stock-back:/usr/src/app/apps/back/logs --name stock-back "$IMAGE"
+if docker network inspect stock-news >/dev/null 2>&1; then
+  docker network connect stock-news stock-back
+fi
 start_phase api-smoke
 healthy=0
 for attempt in $(seq 1 30); do
