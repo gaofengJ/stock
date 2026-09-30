@@ -3,7 +3,7 @@
 import {
   Alert, Button, Card, Col, Empty, Row, Select,
 } from 'antd';
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import Link from 'next/link';
 import { LoadingOverlay } from '@/components/Loading';
 import CChart from '@/components/CChart';
@@ -97,10 +97,13 @@ function TrendChart({
   percent?: boolean; unit?: string; digits?: number; type?: 'line' | 'bar'; controls?: boolean; average?: boolean;
 }) {
   const { colors } = useSiteTheme();
+  const [legendSelected, setLegendSelected] = useState<Record<string, boolean>>({});
   const suffix = percent ? '%' : unit;
   const { days } = useMarket();
   const series = days === 730 ? data.series : data.series.slice(-days);
-  const mean = average && fields.length === 1 && type === 'line' ? seriesAverage(series.map((r) => (r.data ? fields[0].value(r.data) : null))) : null;
+  const visibleFields = fields.filter((f) => legendSelected[f.label] !== false);
+  const meanField = average && visibleFields.length === 1 && type === 'line' ? visibleFields[0] : null;
+  const mean = meanField ? seriesAverage(series.map((r) => (r.data ? meanField.value(r.data) : null))) : null;
   const references = unit === '亿元' ? amountReferenceLevels(series.flatMap((r) => fields.map((f) => (r.data ? f.value(r.data) : null)))) : [];
   return (
     <Card
@@ -113,57 +116,61 @@ function TrendChart({
       extra={controls && <TrendRange />}
       className="market-chart"
     >
-      <CChart genOptions={() => ({
-        tooltip: {
-          trigger: 'axis',
-          valueFormatter: (v: unknown) => (v == null ? '—' : `${numberText(v, percent ? 2 : digits)}${suffix}`),
-          ...(fields.some((f) => f.tooltip) ? {
-            renderMode: 'richText' as const,
-            formatter: (params: any) => {
-              const points = Array.isArray(params) ? params : [params];
-              const row = series[points[0]?.dataIndex];
-              if (!row) return '';
-              return [row.date, ...points.map((point) => {
-                const field = fields[point.seriesIndex];
-                const value = row.data && field.value(row.data);
-                const text = field.tooltip?.(row.data) ?? (value == null ? '—' : `${numberText(value, percent ? 2 : digits)}${suffix}`);
-                return `${point.marker || ''}${field.label}：${text}`;
-              })].join('\n');
+      <CChart
+        onLegendChange={setLegendSelected}
+        genOptions={() => ({
+          tooltip: {
+            trigger: 'axis',
+            valueFormatter: (v: unknown) => (v == null ? '—' : `${numberText(v, percent ? 2 : digits)}${suffix}`),
+            ...(fields.some((f) => f.tooltip) ? {
+              renderMode: 'richText' as const,
+              formatter: (params: any) => {
+                const points = Array.isArray(params) ? params : [params];
+                const row = series[points[0]?.dataIndex];
+                if (!row) return '';
+                return [row.date, ...points.map((point) => {
+                  const field = fields[point.seriesIndex];
+                  const value = row.data && field.value(row.data);
+                  const text = field.tooltip?.(row.data) ?? (value == null ? '—' : `${numberText(value, percent ? 2 : digits)}${suffix}`);
+                  return `${point.marker || ''}${field.label}：${text}`;
+                })].join('\n');
+              },
+            } : {}),
+          },
+          legend: {
+            top: 0, left: 'center', type: 'scroll', selected: legendSelected,
+          },
+          grid: {
+            left: 16, right: 20, top: 56, bottom: 24, containLabel: true,
+          },
+          xAxis: {
+            type: 'category', data: series.map((r) => r.date), axisTick: { alignWithLabel: true }, axisPointer: { snap: true }, axisLabel: { hideOverlap: true },
+          },
+          yAxis: {
+            type: 'value', name: suffix, nameGap: 16, max: references.at(-1), minInterval: percent || digits ? undefined : 1, axisLabel: { formatter: (v: number) => numberText(v, percent ? 2 : digits) },
+          },
+          series: fields.map((f, index) => ({
+            type,
+            barMaxWidth: 24,
+            name: f.label,
+            itemStyle: { color: seriesColor(f.label, index) },
+            showSymbol: series.length <= 30,
+            connectNulls: false,
+            data: series.map((r) => (r.data ? f.value(r.data) : null)),
+            markLine: {
+              silent: true,
+              symbol: 'none',
+              lineStyle: { type: 'dashed', color: chartColors.reference, width: 1 },
+              label: { position: 'insideEndTop', formatter: '{b}', color: colors.secondary },
+              data: [...(index === 0 ? references.map((value) => ({ name: `${value / 10000}万亿`, yAxis: value })) : []), ...(mean == null || meanField !== f ? [] : [{
+                name: `平均 ${numberText(mean, 2)}${suffix}`,
+                yAxis: mean,
+                lineStyle: { color: withAlpha(colors.secondary, 0.3), width: 1, type: 'dashed' as const },
+                label: { color: withAlpha(colors.secondary, 0.65) },
+              }])],
             },
-          } : {}),
-        },
-        legend: { top: 0, left: 'center', type: 'scroll' },
-        grid: {
-          left: 16, right: 20, top: 56, bottom: 24, containLabel: true,
-        },
-        xAxis: {
-          type: 'category', data: series.map((r) => r.date), axisTick: { alignWithLabel: true }, axisPointer: { snap: true }, axisLabel: { hideOverlap: true },
-        },
-        yAxis: {
-          type: 'value', name: suffix, nameGap: 16, max: references.at(-1), minInterval: percent || digits ? undefined : 1, axisLabel: { formatter: (v: number) => numberText(v, percent ? 2 : digits) },
-        },
-        series: fields.map((f, index) => ({
-          type,
-          barMaxWidth: 24,
-          name: f.label,
-          itemStyle: { color: seriesColor(f.label, index) },
-          showSymbol: series.length <= 30,
-          connectNulls: false,
-          data: series.map((r) => (r.data ? f.value(r.data) : null)),
-          markLine: index === 0 ? {
-            silent: true,
-            symbol: 'none',
-            lineStyle: { type: 'dashed', color: chartColors.reference, width: 1 },
-            label: { position: 'insideEndTop', formatter: '{b}', color: colors.secondary },
-            data: [...references.map((value) => ({ name: `${value / 10000}万亿`, yAxis: value })), ...(mean == null ? [] : [{
-              name: `平均 ${numberText(mean, 2)}${suffix}`,
-              yAxis: mean,
-              lineStyle: { color: withAlpha(colors.secondary, 0.3), width: 1, type: 'dashed' as const },
-              label: { color: withAlpha(colors.secondary, 0.65) },
-            }])],
-          } : undefined,
-        })),
-      })}
+          })),
+        })}
       />
     </Card>
   );

@@ -84,19 +84,23 @@ interface IEchartsProps {
   genOptions: () => EChartsOption;
   appearance?: 'light' | 'dark';
   height?: number;
+  onLegendChange?: (selected: Record<string, boolean>) => void;
 }
 
-const EChart = ({ genOptions, appearance, height = 360 }: IEchartsProps) => {
+const EChart = ({
+  genOptions, appearance, height = 360, onLegendChange,
+}: IEchartsProps) => {
   const { mode } = useSiteTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<ReactEChartsCore>(null);
   const zoomRef = useRef<{ start: number; end: number }[]>([]);
   const events = useMemo(() => ({
+    ...(onLegendChange ? { legendselectchanged: (event: { selected: Record<string, boolean> }) => onLegendChange(event.selected) } : {}),
     datazoom: (_event: unknown, instance: echarts.ECharts) => {
       const zoom = instance.getOption().dataZoom as { start: number; end: number }[];
       zoomRef.current = zoom.map(({ start, end }) => ({ start, end }));
     },
-  }), []);
+  }), [onLegendChange]);
 
   useEffect(() => {
     const container = containerRef.current;

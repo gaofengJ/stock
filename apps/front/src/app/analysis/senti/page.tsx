@@ -84,11 +84,11 @@ function SentimentPage() {
             <TrendRange />
           </div>
           <Row gutter={20}>
-            <Col xs={24} lg={12}><Trend title="涨停、跌停与炸板" unit="只" data={data} fields={[{ label: '涨停', value: (v) => v.limitUp }, { label: '跌停', value: (v) => v.limitDown }, { label: '炸板', value: (v) => v.broken }]} /></Col>
+            <Col xs={24} lg={12}><Trend title="涨停、跌停与炸板" unit="只" data={data} average fields={[{ label: '涨停', value: (v) => v.limitUp }, { label: '跌停', value: (v) => v.limitDown }, { label: '炸板', value: (v) => v.broken }]} /></Col>
             <Col xs={24} lg={12}><Trend title="封板率" data={data} percent average fields={[{ label: '封板率', value: (v) => v.sealRate }]} /></Col>
-            <Col xs={24} lg={12}><Trend title="昨日涨停股今日表现" data={data} percent fields={[{ label: '高开率', value: (v) => v.highOpenRate }, { label: '上涨率', value: (v) => v.riseRate }]} /></Col>
+            <Col xs={24} lg={12}><Trend title="昨日涨停股今日表现" data={data} percent average fields={[{ label: '高开率', value: (v) => v.highOpenRate }, { label: '上涨率', value: (v) => v.riseRate }]} /></Col>
             <Col xs={24} lg={12}><Trend title="昨日涨停股今日平均涨幅" data={data} percent average fields={[{ label: '平均涨幅', value: (v) => v.averageChange }]} /></Col>
-            <Col xs={24} lg={12}><Trend title="上涨与下跌家数" unit="只" data={data} fields={[{ label: '上涨', value: (v) => v.up }, { label: '下跌', value: (v) => v.down }]} /></Col>
+            <Col xs={24} lg={12}><Trend title="上涨与下跌家数" unit="只" data={data} average fields={[{ label: '上涨', value: (v) => v.up }, { label: '下跌', value: (v) => v.down }]} /></Col>
           </Row>
         </>
         )}
