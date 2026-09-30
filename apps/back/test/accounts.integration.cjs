@@ -13,6 +13,7 @@ const { Accounts1790467200000 } = require('../dist/migrations/1790467200000-Acco
 const { AccountAvatars1790467200001 } = require('../dist/migrations/1790467200001-AccountAvatars');
 const { MarketAnalysis1790553600000 } = require('../dist/migrations/1790553600000-MarketAnalysis');
 const { LoginActivity1790640000000 } = require('../dist/migrations/1790640000000-LoginActivity');
+const { DragonPermission1790812800000 } = require('../dist/migrations/1790812800000-DragonPermission');
 const { TransformInterceptor } = require('../dist/interceptors/transform.interceptor');
 const { hashPassword } = require('../dist/modules/auth/password');
 const { ActiveFundsEntity } = require('../dist/modules/source/active-funds/active-funds.entity');
@@ -45,6 +46,19 @@ async function main() {
     await avatars.up(q);
     await new MarketAnalysis1790553600000().up(q);
     await new LoginActivity1790640000000().up(q);
+    const dragonPermission = new DragonPermission1790812800000();
+    const tableCount = (await db.query('SHOW TABLES')).length;
+    await dragonPermission.up(q);
+    // Simulate an existing installation whose catalog predates this module.
+    await dragonPermission.down(q);
+    await dragonPermission.up(q);
+    await dragonPermission.up(q);
+    assert.equal((await db.query('SHOW TABLES')).length, tableCount, 'Dragon board adds no business tables');
+    assert.equal(Number((await db.query("SELECT COUNT(*) n FROM t_permission WHERE code='analysis:dragon'"))[0].n), 1);
+    const missingAccess = await db.query(`SELECT DISTINCT old.role_id FROM t_role_permission old
+      JOIN t_permission source ON source.id=old.permission_id AND source.code='analysis:limits'
+      WHERE NOT EXISTS (SELECT 1 FROM t_role_permission rp JOIN t_permission p ON p.id=rp.permission_id WHERE rp.role_id=old.role_id AND p.code='analysis:dragon')`);
+    assert.equal(missingAccess.length, 0, 'Existing review roles keep dragon access');
     const [portrait] = await db.query("SELECT avatar FROM t_user WHERE username='mufeng'");
     assert.match(portrait.avatar, /^auto-bull-(red|pink|gold|green|blue|purple|coffee)-(star|heart|flower|bow)$/);
     await avatars.up(q);
@@ -101,6 +115,7 @@ async function main() {
     assert.match((await db.query('SELECT avatar FROM t_user WHERE id=?', [created.json().data.id]))[0].avatar, /^auto-bull-(red|pink|gold|green|blue|purple|coffee)-(star|heart|flower|bow)$/);
     assert.equal(user.user.permissions.includes('users:manage'), false);
     assert.ok(user.user.permissions.includes('strategy:read'));
+    assert.ok(user.user.permissions.includes('analysis:dragon'));
     assert.equal((await inject('GET', '/admin/users', undefined, user)).statusCode, 403);
     assert.equal((await inject('POST', '/admin/users', { username: 'evil', password: 'test-password-123' }, user)).statusCode, 403);
     assert.equal((await inject('PATCH', '/admin/users/' + admin.user.id, { active: 'false' }, admin)).statusCode, 400);

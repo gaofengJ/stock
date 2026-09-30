@@ -47,4 +47,10 @@ export interface DragonList {
   codes: string[];
   queriedAt: string;
 }
+export interface DragonListing {
+  tsCode: string; name: string; reason: string;
+  close: number | null; pctChange: number | null; turnoverRate: number | null;
+  lBuy: number | null; lSell: number | null; netAmount: number | null;
+}
+export interface DragonBoard { items: DragonListing[]; queriedAt: string }
 export const marketRequest = <T>(endpoint: string, params: Record<string, unknown> = {}, config: RequestConfig = {}) => axios.get<T>(`/analysis/market/${endpoint}`, { params, ...config });

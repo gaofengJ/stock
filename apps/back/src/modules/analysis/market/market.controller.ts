@@ -28,6 +28,7 @@ export class MarketController {
     'analysis:senti',
     'analysis:limits',
     'analysis:chains',
+    'analysis:dragon',
   )
   @ApiOperation({ summary: '市场数据可用日期和同步阶段' })
   status() {
@@ -70,7 +71,7 @@ export class MarketController {
   }
 
   @Get('dragon')
-  @Permit('analysis:limits')
+  @Permit('analysis:limits', 'analysis:dragon')
   @ApiOperation({ summary: '按需查询龙虎榜' })
   dragon(@Query() q: DragonQueryDto) {
     return this.service.dragon(q.date, q.code);
@@ -81,5 +82,12 @@ export class MarketController {
   @ApiOperation({ summary: '当日龙虎榜上榜股票名单' })
   dragonList(@Query() q: MarketQueryDto) {
     return this.service.dragonList(q.date);
+  }
+
+  @Get('dragon-board')
+  @Permit('analysis:dragon')
+  @ApiOperation({ summary: '按统计范围查看当日龙虎榜，资金按上榜原因独立展示' })
+  dragonBoard(@Query() q: MarketQueryDto) {
+    return this.service.dragonBoard(q);
   }
 }

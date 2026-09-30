@@ -47,6 +47,12 @@ export const PERMISSIONS = [
     route: '/trends',
   },
   {
+    code: 'analysis:dragon',
+    name: '龙虎榜',
+    group: '市场分析',
+    route: '/analysis/dragon',
+  },
+  {
     code: 'strategy:read',
     name: '策略选股',
     group: '策略选股',

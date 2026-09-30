@@ -109,7 +109,9 @@ function SeatTable({ seats, side, funds }: { seats: Seat[]; side: string; funds:
   );
 }
 
-export default function DragonDrawer({ stock, date, close }: { stock: { tsCode: string; name: string } | null; date: string; close: () => void }) {
+export function DragonDetails({
+  stock, date, reason: linkedReason, onReady,
+}: { stock: { tsCode: string; name: string } | null; date: string; reason?: string; onReady?: () => void }) {
   const [data, setData] = useState<DragonData | null>(null);
   const [funds, setFunds] = useState<NSGetBasicActiveFundsList.IRes>([]);
   const [fundsError, setFundsError] = useState('');
@@ -117,6 +119,8 @@ export default function DragonDrawer({ stock, date, close }: { stock: { tsCode: 
   const [loading, setLoading] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState('');
+  const [reason, setReason] = useState<string | undefined>(linkedReason);
+  useEffect(() => setReason(linkedReason), [linkedReason, stock?.tsCode, date]);
   const { user } = useAccount();
   const canReadFunds = allowedPath(user, '/basic/active-funds');
   const opened = !!stock;
@@ -141,31 +145,17 @@ export default function DragonDrawer({ stock, date, close }: { stock: { tsCode: 
       onFinally: () => setLoading(false),
     });
   }, [attempt, stock, date, runLatestRequest, requestConfig]);
+  useEffect(() => {
+    if (!data || !onReady) return undefined;
+    const frame = requestAnimationFrame(onReady);
+    return () => cancelAnimationFrame(frame);
+  }, [data, onReady]);
   const reasons = Array.from(new Set([...(data?.summary.map((r) => r.reason) || []), ...(data?.seats.map((r) => r.reason) || [])]));
   return (
-    <Drawer
-      title={(
-        <div className="dragon-title">
-          <strong>
-            {stock?.name}
-            {' '}
-            <span>{stock?.tsCode}</span>
-          </strong>
-          <span>
-            {date}
-            {' '}
-            龙虎榜
-          </span>
-        </div>
-)}
-      width={960}
-      open={opened}
-      onClose={close}
-      rootClassName="dragon-drawer"
-    >
+    <div className="dragon-details">
       <div className="dragon-intro">
         <span>按上榜原因查看买卖席位</span>
-        <HelpTooltip label="龙虎榜统计口径" title="不同上榜原因和买卖榜可能包含重复席位，不跨榜累加金额。营业部名称与游资名录准确匹配时可点击查看关联信息；关联名称仅为名录记录，不代表本次交易者身份。" />
+        <HelpTooltip label="龙虎榜统计口径" title="金额按上榜原因分别统计。关联名称来自营业部名录，不代表交易者身份。" />
       </div>
       {loading && <Loading height={320} />}
       {error && <Alert message={error} type="error" showIcon action={<Button size="small" onClick={() => setAttempt((v) => v + 1)}>重试</Button>} />}
@@ -175,6 +165,8 @@ export default function DragonDrawer({ stock, date, close }: { stock: { tsCode: 
       <Tabs
         key={`${stock?.tsCode}-${date}`}
         className="dragon-reasons"
+        activeKey={reason && reasons.includes(reason) ? reason : reasons[0]}
+        onChange={setReason}
         items={reasons.map((reason, index) => ({
           key: reason,
           label: reasons.length === 1 ? '上榜详情' : `上榜原因 ${index + 1}`,
@@ -194,14 +186,24 @@ export default function DragonDrawer({ stock, date, close }: { stock: { tsCode: 
                   ))}
                 </div>
               ))}
-              {['0', '1', ...(data?.seats.some((r) => r.reason === reason && !['0', '1'].includes(String(r.side))) ? ['other'] : [])].map((side) => (
-                <SeatTable key={side} side={side} funds={canReadFunds ? funds : []} seats={data?.seats.filter((r) => r.reason === reason && (side === 'other' ? !['0', '1'].includes(String(r.side)) : String(r.side) === side)) || []} />
-              ))}
+              <div className="dragon-seat-grid">
+                {['0', '1', ...(data?.seats.some((r) => r.reason === reason && !['0', '1'].includes(String(r.side))) ? ['other'] : [])].map((side) => (
+                  <SeatTable key={side} side={side} funds={canReadFunds ? funds : []} seats={data?.seats.filter((r) => r.reason === reason && (side === 'other' ? !['0', '1'].includes(String(r.side)) : String(r.side) === side)) || []} />
+                ))}
+              </div>
             </>
           ),
         }))}
       />
       )}
+    </div>
+  );
+}
+
+export default function DragonDrawer({ stock, date, close }: { stock: { tsCode: string; name: string } | null; date: string; close: () => void }) {
+  return (
+    <Drawer title={`${stock?.name || ''} ${stock?.tsCode || ''} ${date} 龙虎榜`} width={960} open={!!stock} onClose={close} rootClassName="dragon-drawer">
+      {stock && <DragonDetails stock={stock} date={date} />}
     </Drawer>
   );
 }

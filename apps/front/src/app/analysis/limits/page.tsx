@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { useAccount } from '@/auth/Boundary';
+import { allowedPath } from '@/auth/client';
 import {
   Button, Input, Select, Space, Tabs, Tooltip,
 } from 'antd';
@@ -15,7 +18,7 @@ import useMarketData from '../components/useMarketData';
 import { DataState, numberText, SectionTitle } from '../components/MarketCharts';
 import DragonDrawer from '../components/DragonDrawer';
 import { useMarket } from '../components/MarketContext';
-import { linkedLimitType } from '../components/market-navigation';
+import { linkedLimitType, marketHref } from '../components/market-navigation';
 
 function LimitsPage() {
   const params = useSearchParams();
@@ -25,7 +28,10 @@ function LimitsPage() {
   const [search, setSearch] = useState(linkedKeyword);
   const [height, setHeight] = useState<number | undefined>();
   const [stock, setStock] = useState<LimitRow | null>(null);
-  const { date } = useMarket();
+  const { date, scope } = useMarket();
+  const { user } = useAccount();
+  const canReadDragon = allowedPath(user, '/analysis/dragon');
+  const dragonHref = (code?: string) => marketHref('/analysis/dragon', { date, scope }, code ? { code } : {});
   const dragon = useMarketData<DragonList>('dragon-list', { days: 20 });
   const dragonCodes = new Set(dragon.data?.codes || []);
   useEffect(() => {
@@ -87,14 +93,16 @@ function LimitsPage() {
               title: '流通市值(亿元)', dataIndex: 'floatMv', align: 'right', render: amount,
             },
             {
-              title: '龙虎榜',
+              title: canReadDragon ? <Link href={dragonHref()}>龙虎榜</Link> : '龙虎榜',
               key: 'action',
               fixed: 'right',
+              align: 'center',
               width: 90,
               render: (_, r) => {
                 if (dragon.loading) return <span className="quote-flat">核对中</span>;
                 if (dragon.error) return <Tooltip title="榜单查询失败"><Button type="link" size="small" onClick={dragon.retry}>重试</Button></Tooltip>;
-                return dragonCodes.has(r.tsCode) ? <Button type="link" onClick={() => setStock(r)}>查看</Button> : <Tooltip title="当日未上榜"><span className="quote-flat">—</span></Tooltip>;
+                if (!dragonCodes.has(r.tsCode)) return <Tooltip title="当日未上榜"><span className="quote-flat">—</span></Tooltip>;
+                return canReadDragon ? <Link href={dragonHref(r.tsCode)} aria-label={`查看${r.name}龙虎榜`}>查看</Link> : <Button type="link" onClick={() => setStock(r)}>查看</Button>;
               },
             },
           ]}

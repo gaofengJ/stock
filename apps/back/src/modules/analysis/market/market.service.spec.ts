@@ -85,7 +85,7 @@ describe('daily dragon list availability', () => {
       {
         trade_date: '20260930',
       },
-      'ts_code,trade_date',
+      undefined,
       10000,
       7000,
     );
@@ -158,5 +158,65 @@ describe('daily dragon list availability', () => {
     expect(
       Reflect.getMetadata(ACCESS, MarketController.prototype.dragonList),
     ).toEqual({ any: ['analysis:limits'] });
+  });
+
+  it('shares the full snapshot with the board and keeps overlapping reasons separate', async () => {
+    const { service, queryData } = setup();
+    queryData.mockResolvedValue({
+      code: 0,
+      data: {
+        fields: [
+          'ts_code',
+          'trade_date',
+          'name',
+          'reason',
+          'net_amount',
+          'close',
+        ],
+        items: [
+          ['600825.SH', '20260930', '新华传媒', '单日涨幅', 100000, 10.35],
+          ['600825.SH', '20260930', '新华传媒', '三日涨幅', 200000, 10.35],
+          ['300750.SZ', '20260930', '宁德时代', '单日涨幅', -300000, null],
+        ],
+      },
+    });
+    await service.dragonList('2026-09-30');
+    const main = await service.dragonBoard({
+      date: '2026-09-30',
+      scope: 'main',
+      days: 20,
+      type: 'U',
+    });
+    expect(main.items.map((r) => r.netAmount)).toEqual([100000, 200000]);
+    const gem = await service.dragonBoard({
+      date: '2026-09-30',
+      scope: 'gem',
+      days: 20,
+      type: 'U',
+    });
+    expect(gem.items).toHaveLength(1);
+    expect(gem.items[0].close).toBeNull();
+    expect(queryData).toHaveBeenCalledTimes(1);
+    queryData.mockResolvedValue(reply([]));
+    const detail = await service.dragon('2026-09-30', '600825.SH');
+    expect(detail.summary.map((r) => r.netAmount)).toEqual([100000, 200000]);
+    expect(queryData).toHaveBeenLastCalledWith(
+      'top_inst',
+      { trade_date: '20260930', ts_code: '600825.SH' },
+      undefined,
+      10000,
+      7000,
+    );
+    await service.dragon('2026-09-30', '600825.SH');
+    expect(queryData).toHaveBeenCalledTimes(2);
+  });
+
+  it('protects the standalone board and permits existing detail access', () => {
+    expect(
+      Reflect.getMetadata(ACCESS, MarketController.prototype.dragonBoard),
+    ).toEqual({ any: ['analysis:dragon'] });
+    expect(
+      Reflect.getMetadata(ACCESS, MarketController.prototype.dragon),
+    ).toEqual({ any: ['analysis:limits', 'analysis:dragon'] });
   });
 });

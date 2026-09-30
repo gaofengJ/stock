@@ -22,6 +22,7 @@ import { DragonCache } from './dragon-cache';
 export class MarketService {
   private dragonListCache = new DragonCache<{
     codes: string[];
+    items: Record<string, any>[];
     queriedAt: string;
   }>();
 
@@ -236,7 +237,7 @@ export class MarketService {
     };
   }
 
-  async dragonList(date?: string) {
+  private async dragonSnapshot(date?: string) {
     if (!date) throw new BadRequestException('请选择交易日');
     normalizeDate(date);
     return this.dragonListCache.get(
@@ -247,7 +248,7 @@ export class MarketService {
           await this.tushare.queryData(
             'top_list',
             { trade_date: tradeDate },
-            'ts_code,trade_date',
+            undefined,
             10000,
             7000,
           ),
@@ -262,11 +263,48 @@ export class MarketService {
           throw new Error('龙虎榜股票代码异常');
         return {
           codes: [...new Set(rows.map((r) => String(r.tsCode)))],
+          items: rows,
           queriedAt: new Date().toISOString(),
         };
       },
       (r) => !r.codes.length,
     );
+  }
+
+  async dragonList(date?: string) {
+    const { codes, queriedAt } = await this.dragonSnapshot(date);
+    return { codes, queriedAt };
+  }
+
+  async dragonBoard(q: MarketQueryDto) {
+    const { items, queriedAt } = await this.dragonSnapshot(q.date);
+    if (
+      items.some(
+        (r) => typeof r.name !== 'string' || typeof r.reason !== 'string',
+      )
+    )
+      throw new Error('龙虎榜榜单字段不完整');
+    // Each reason has its own reporting period; never add overlapping records.
+    const number = (v: unknown) =>
+      v === null || v === undefined || v === '' || !Number.isFinite(Number(v))
+        ? null
+        : Number(v);
+    return {
+      queriedAt,
+      items: items
+        .filter((r) => inScope(r.tsCode, q.scope))
+        .map((r) => ({
+          tsCode: r.tsCode,
+          name: r.name,
+          reason: r.reason,
+          close: number(r.close),
+          pctChange: number(r.pctChange),
+          turnoverRate: number(r.turnoverRate),
+          lBuy: number(r.lBuy),
+          lSell: number(r.lSell),
+          netAmount: number(r.netAmount),
+        })),
+    };
   }
 
   async dragon(date: string, code: string) {
@@ -275,12 +313,12 @@ export class MarketService {
       `${date}:${code}`,
       async () => {
         const params = { trade_date: date.replace(/-/g, ''), ts_code: code };
-        const [summary, seats] = await Promise.all([
-          this.tushare.queryData('top_list', params, undefined, 10000, 7000),
+        const [snapshot, seats] = await Promise.all([
+          this.dragonSnapshot(date),
           this.tushare.queryData('top_inst', params, undefined, 10000, 7000),
         ]);
         return {
-          summary: readSnapshot(summary, ['ts_code', 'trade_date'], true),
+          summary: snapshot.items.filter((r) => r.tsCode === code),
           seats: readSnapshot(seats, ['ts_code', 'trade_date'], true),
           queriedAt: new Date().toISOString(),
         };

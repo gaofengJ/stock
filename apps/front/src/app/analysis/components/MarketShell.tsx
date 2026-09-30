@@ -5,6 +5,7 @@ import {
 } from 'antd';
 import { beijingTime } from '@/utils/format';
 import dayjs from 'dayjs';
+import { BankOutlined } from '@ant-design/icons';
 import Layout from '@/components/Layout';
 import HelpTooltip from '@/components/HelpTooltip';
 import { analysisSiderMenuItems } from '@/components/Layout/config';
@@ -16,6 +17,7 @@ import { scopes } from './market-display';
 import './market.sass';
 
 export { scopes } from './market-display';
+const analysisMenu = [...(analysisSiderMenuItems || []), { key: '/analysis/dragon', label: '龙虎榜', icon: <BankOutlined /> }];
 const renderScopeOption = (option: { data: typeof scopes[number] }) => (
   <span className="market-scope-option">
     <span>{option.data.label}</span>
@@ -30,7 +32,7 @@ export default function MarketShell({
   } = useMarket();
   const dates = new Set(status?.dates || []);
   return (
-    <Layout headerMenuActive={EHeaderMenuKey.analysis} asideMenuItems={analysisSiderMenuItems} asideMenuActive={path}>
+    <Layout headerMenuActive={EHeaderMenuKey.analysis} asideMenuItems={analysisMenu} asideMenuActive={path}>
       <div className="market-page p-16 rounded-[6px] bg-bg-white">
         <div className="market-heading">
           <Typography.Title level={1}>{title}</Typography.Title>
