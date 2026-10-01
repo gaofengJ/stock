@@ -1,0 +1,10 @@
+[Unit]
+Description=Stock daily backup at 04:15 Asia/Shanghai
+
+[Timer]
+OnCalendar=*-*-* 20:15:00 UTC
+Persistent=true
+Unit=stock-release-backup.service
+
+[Install]
+WantedBy=timers.target

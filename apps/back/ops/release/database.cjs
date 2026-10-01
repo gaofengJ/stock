@@ -85,6 +85,7 @@ async function report() {
     version: server.version,
     ...planReleaseSpace(tables, pending),
     pending,
+    migrationHistory: history.map(item => item.name).sort(),
     tables,
     counts,
   };
@@ -108,7 +109,18 @@ async function main() {
   }
   await ds.initialize();
   try {
-    if (action === 'preflight')
+    if (action === 'backup-info') {
+      const [tables] = await Promise.all([
+        ds.query('SELECT TABLE_NAME name,ENGINE engine,DATA_LENGTH+INDEX_LENGTH bytes FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE()'),
+      ]);
+      if (tables.some(table => table.engine && table.engine !== 'InnoDB'))
+        throw new Error('Backup requires InnoDB business tables');
+      const history = await ds.query('SELECT name FROM migrations ORDER BY name');
+      const totalBytes = tables.reduce((sum, table) => sum + Number(table.bytes), 0);
+      if (!Number.isSafeInteger(totalBytes) || totalBytes < 0)
+        throw new Error('Invalid backup size estimate');
+      process.stdout.write(JSON.stringify({database: ds.options.database, totalBytes, migrationHistory: history.map(item => item.name)}) + '\n');
+    } else if (action === 'preflight')
       process.stdout.write(JSON.stringify(await report()) + '\n');
     else if (action === 'migrate') {
       // A stopped-writer preflight is required so counts describe this exact migration.
@@ -176,7 +188,7 @@ async function main() {
         JSON.stringify({ status: 'queued', start, end: endDate }) + '\n',
       );
     } else
-      throw new Error('Expected preflight, migrate, verify or enqueue-market');
+      throw new Error('Expected preflight, backup-info, migrate, verify or enqueue-market');
   } finally {
     await ds.destroy();
   }

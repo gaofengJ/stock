@@ -1,4 +1,6 @@
-import { planReleaseSpace } from './release-space';
+import { readdirSync, readFileSync } from 'fs';
+import { resolve } from 'path';
+import { planReleaseSpace, validateMigrationProfiles } from './release-space';
 
 const GiB = 1024 ** 3;
 const tables = [
@@ -107,23 +109,38 @@ describe('Release disk space budget', () => {
     });
   });
 
-  it('falls back conservatively when a new migration has no reviewed profile', () => {
-    expect(
+  it('rejects unreviewed migrations before deployment instead of guessing whole-database space', () => {
+    expect(() =>
       planReleaseSpace(tables, [
         'LoginActivity1790640000000',
         'FutureMigration1800000000000',
       ]),
-    ).toMatchObject({
-      requiredFreeBytes: total * 4 + GiB,
-      spaceBudget: { unprofiled: ['FutureMigration1800000000000'] },
+    ).toThrow(
+      'Missing reviewed migration space profile: FutureMigration1800000000000',
+    );
+  });
+
+  it('application releases reserve headroom and reuse the independent backup', () => {
+    expect(planReleaseSpace(tables, [])).toMatchObject({
+      requiredFreeBytes: GiB,
+      releaseMode: 'application',
+      spaceBudget: { migrationBytes: 0, backupBytes: 0 },
     });
   });
 
-  it('reserves the full backup and headroom even with no pending migrations', () => {
-    expect(planReleaseSpace(tables, [])).toMatchObject({
-      requiredFreeBytes: total * 2 + GiB,
-      spaceBudget: { migrationBytes: 0 },
-    });
+  it('every migration source declares its operation and affected tables', () => {
+    const directory = resolve(__dirname, '../../migrations');
+    const names = readdirSync(directory)
+      .filter((file) => file.endsWith('.ts'))
+      .map((file) => {
+        const source = readFileSync(resolve(directory, file), 'utf8');
+        const match = source.match(
+          /export class (\w+) implements MigrationInterface/,
+        );
+        if (!match) throw new Error(`Unrecognized migration: ${file}`);
+        return match[1];
+      });
+    expect(validateMigrationProfiles(names)).toHaveLength(names.length);
   });
 
   it.each([-1, NaN, Infinity, 0.5, 'invalid'])(
@@ -137,7 +154,10 @@ describe('Release disk space budget', () => {
 
   it('rejects unsafe arithmetic instead of underestimating the budget', () => {
     expect(() =>
-      planReleaseSpace([{ name: 'table', bytes: Number.MAX_SAFE_INTEGER }], []),
+      planReleaseSpace(
+        [{ name: 'table', bytes: Number.MAX_SAFE_INTEGER }],
+        ['ReliableSync1790380800000'],
+      ),
     ).toThrow('safe integer range');
   });
 });

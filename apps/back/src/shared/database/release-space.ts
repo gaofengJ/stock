@@ -3,9 +3,27 @@ interface TableSize {
   bytes: string | number | null;
 }
 
-// Only migrations with reviewed DDL may use a table-specific workspace budget.
-// Historical or newly added migrations retain the full-database allowance.
 const migrationTables: Record<string, readonly string[]> = {
+  ReliableSync1790380800000: [],
+  Accounts1790467200000: [],
+  SyncSafety1790380800001: ['t_sync_day_policy'],
+  AccountAvatars1790467200001: ['t_user'],
+  MarketAnalysis1790553600000: [
+    't_source_index_daily',
+    't_processed_market_daily',
+    't_source_bse_mapping',
+    't_admin_job',
+    't_permission',
+    't_role_permission',
+  ],
+  DragonPermission1790812800000: ['t_permission', 't_role_permission'],
+  RealTimeNews1790812800001: [
+    't_news_source',
+    't_news_item',
+    't_news_favorite',
+    't_permission',
+    't_role_permission',
+  ],
   // Adds only source configuration rows; no business-data DDL or rebuild.
   ExpandedNewsSources1790832000000: ['t_news_source'],
   NewsDisplayPolicy1790835600000: ['t_news_source'],
@@ -28,7 +46,46 @@ const migrationTables: Record<string, readonly string[]> = {
   ],
 };
 
+// A deliberate review is required for each migration, including historical ones.
+// These two legacy migrations copy/deduplicate data or restructure legacy accounts.
+const migrationOperations: Record<
+  string,
+  'create' | 'data' | 'schema' | 'full-database'
+> = {
+  ReliableSync1790380800000: 'full-database',
+  Accounts1790467200000: 'full-database',
+  SyncSafety1790380800001: 'create',
+  AccountAvatars1790467200001: 'schema',
+  MarketAnalysis1790553600000: 'schema',
+  DragonPermission1790812800000: 'data',
+  RealTimeNews1790812800001: 'create',
+  LoginActivity1790640000000: 'schema',
+  ExpandedNewsSources1790832000000: 'data',
+  NewsDisplayPolicy1790835600000: 'data',
+  NewsTranslations1791072000000: 'create',
+  MarketBreadth1790899200000: 'create',
+  ThsSectors1790985600000: 'create',
+};
+
+export function validateMigrationProfiles(names: string[]) {
+  const missing = names.filter(
+    (name) =>
+      !Object.prototype.hasOwnProperty.call(migrationTables, name) ||
+      !Object.prototype.hasOwnProperty.call(migrationOperations, name),
+  );
+  if (missing.length)
+    throw new Error(
+      `Missing reviewed migration space profile: ${missing.join(', ')}`,
+    );
+  return names.map((name) => ({
+    name,
+    operation: migrationOperations[name],
+    tables: migrationTables[name],
+  }));
+}
+
 export function planReleaseSpace(tables: TableSize[], pending: string[]) {
+  const profiles = validateMigrationProfiles(pending);
   const sizes = tables.map((table) => {
     const bytes = Number(table.bytes);
     if (!Number.isSafeInteger(bytes) || bytes < 0)
@@ -36,21 +93,24 @@ export function planReleaseSpace(tables: TableSize[], pending: string[]) {
     return { name: table.name, bytes };
   });
   const totalBytes = sizes.reduce((sum, table) => sum + table.bytes, 0);
-  const unprofiled = pending.filter(
-    (name) => !Object.prototype.hasOwnProperty.call(migrationTables, name),
+  if (!Number.isSafeInteger(totalBytes))
+    throw new Error('Release space budget exceeds the safe integer range');
+  const fullDatabase = profiles.some(
+    (profile) => profile.operation === 'full-database',
   );
   const affectedTables = new Set(
     pending.flatMap((name) => migrationTables[name] || []),
   );
-  const workspaceBytes = unprofiled.length
+  const workspaceBytes = fullDatabase
     ? totalBytes
     : sizes.reduce(
         (sum, table) =>
           sum + (affectedTables.has(table.name) ? table.bytes : 0),
         0,
       );
-  // The full streamed gzip backup is still required for every deployment.
-  const backupBytes = totalBytes * 2;
+  // Schema migrations need a fresh stopped-writer backup. Application releases
+  // reuse a verified recent independent backup and do not export another copy.
+  const backupBytes = pending.length ? totalBytes * 2 : 0;
   const migrationBytes = workspaceBytes * 2;
   const reserveBytes = 1024 ** 3;
   const requiredFreeBytes = backupBytes + migrationBytes + reserveBytes;
@@ -58,14 +118,16 @@ export function planReleaseSpace(tables: TableSize[], pending: string[]) {
     throw new Error('Release space budget exceeds the safe integer range');
   return {
     totalBytes,
+    releaseMode: pending.length ? 'migration' : 'application',
+    profiles,
     requiredFreeBytes,
     spaceBudget: {
       backupBytes,
       migrationBytes,
       reserveBytes,
-      mode: unprofiled.length ? 'full-database' : 'affected-tables',
+      mode: fullDatabase ? 'full-database' : 'affected-tables',
       affectedTables: Array.from(affectedTables),
-      unprofiled,
+      unprofiled: [],
     },
   };
 }

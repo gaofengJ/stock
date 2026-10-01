@@ -103,6 +103,12 @@ jobs:
       - run: pnpm install --filter back --frozen-lockfile
       - run: pnpm -C apps/back run lint
       - run: pnpm -C apps/back run build
+      - name: Check every migration has a reviewed space policy
+        run: node apps/back/scripts/check-migration-policy.cjs
+      - name: Test release maintenance and shell syntax
+        run: |
+          python3 -m unittest discover -s apps/back/ops/release -p 'test_*.py'
+          bash -n apps/back/ops/release/deploy.sh apps/back/ops/release/backup.sh apps/back/ops/release/daily-backup.sh
       - run: pnpm -C apps/back run test --runInBand
         env:
           SYNC_TEST_MYSQL_PORT: 3306

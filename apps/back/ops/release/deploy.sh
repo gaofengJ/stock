@@ -45,6 +45,12 @@ failure() {
   finish_phase failed
   rm -f "$client"
   printf 'FAILED phase=%s report=%s\n' "$migration_started" "$RUN" >&2
+  if [[ "$new_started" == 1 ]]; then
+    docker stop stock-back || true
+    if [[ "$migration_started" == 0 ]]; then
+      docker rename stock-back "stock-back-failed-${RELEASE_SHA:0:12}-$(date +%s)" || true
+    fi
+  fi
   if [[ "$migration_started" == 0 ]]; then
     if [[ "$stopped" == 1 ]]; then
       if [[ "$old_name" != stock-back ]]; then docker rename "$old_id" stock-back || true; fi
@@ -52,7 +58,6 @@ failure() {
     fi
     restore_refresh
   else
-    if [[ "$new_started" == 1 ]]; then docker stop stock-back || true; fi
     echo 'Migration may have committed DDL. Old container stays stopped. Follow recovery.md; do not blindly downgrade or restore over this database.' >&2
   fi
   exit "$code"
@@ -63,6 +68,7 @@ trap 'exit 130' INT TERM
 start_phase runtime-config
 [[ -s "$ENV_FILE" ]] || { echo 'Missing runtime configuration'; false; }
 chmod 600 "$ENV_FILE"
+command -v systemctl >/dev/null || { echo 'systemd is required for independent backups'; false; }
 start_phase image-pull
 if [[ -n "${DOCKER_PASSWORD:-}" ]]; then
   printf '%s' "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin registry.cn-hangzhou.aliyuncs.com
@@ -87,6 +93,22 @@ free=$(df -PB1 "$RUN" | awk 'NR==2 {print $4}')
 printf 'Release disk budget: available=%s required=%s bytes\n' "$free" "$required"
 python3 -c 'import json,sys; print(json.dumps(json.load(open(sys.argv[1]))["spaceBudget"]))' "$RUN/preflight.json"
 [[ "$free" -ge "$required" ]] || { echo 'Insufficient backup/migration disk space'; false; }
+release_mode=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["releaseMode"])' "$RUN/preflight.json")
+[[ "$release_mode" == migration || "$release_mode" == application ]] || { echo 'Unknown release mode'; false; }
+printf 'Release mode: %s\n' "$release_mode"
+
+if [[ "$release_mode" == application ]]; then
+  start_phase application-schema-verify
+  db verify > "$RUN/verification.json"
+  start_phase recent-backup-verify
+  if ! python3 "$PACKAGE/release/maintenance.py" --root "$ROOT" --check-backup "$RUN/preflight.json" > "$RUN/recent-backup.json"; then
+    # Initialize independent backup while the old service is still running.
+    # A missing/corrupt/stale backup never causes an unprotected application update.
+    start_phase independent-backup-bootstrap
+    bash "$PACKAGE/release/backup.sh" "$ROOT/backups/$(date -u +%Y%m%d-%H%M%S)-bootstrap-$RELEASE_SHA" "$IMAGE" "$ENV_FILE"
+    python3 "$PACKAGE/release/maintenance.py" --root "$ROOT" --check-backup "$RUN/preflight.json" > "$RUN/recent-backup.json"
+  fi
+fi
 
 start_phase pause-refresh
 if [[ ! -f /opt/stock-test/PAUSED ]]; then touch /opt/stock-test/PAUSED; paused_by_release=1; fi
@@ -99,6 +121,7 @@ install -m 700 "$PACKAGE/test-db/refresh.py" /opt/stock-test/refresh.py
 start_phase stop-old-service
 stopped=1
 docker stop -t 60 "$old_id"
+if [[ "$release_mode" == migration ]]; then
 start_phase backup-client-config
 db client-config > "$client"
 start_phase backup-export-compress
@@ -114,20 +137,23 @@ start_phase post-backup-space
 remaining_required=$(python3 -c 'import json,sys; b=json.load(open(sys.argv[1]))["spaceBudget"]; print(b["migrationBytes"]+b["reserveBytes"])' "$RUN/preflight.json")
 free=$(df -PB1 "$RUN" | awk 'NR==2 {print $4}')
 [[ "$free" -ge "$remaining_required" ]] || { echo 'Insufficient migration space after backup'; false; }
+fi
 old_name="stock-back-previous-${RELEASE_SHA:0:12}-$(date +%s)"
 docker rename stock-back "$old_name"
 printf '%s\n' "$old_name" > "$RUN/old-container-name"
 # Mark before launching: a disconnected migration client may already have committed.
+if [[ "$release_mode" == migration ]]; then
 start_phase migration
 migration_started=1
 printf 'migration-started\n' > "$RUN/phase"
 db migrate > "$RUN/migration.jsonl"
 start_phase database-verify
 db verify > "$RUN/verification.json"
+fi
 start_phase start-new-service
 install -d -m 755 /opt/stock-news/feeds
 new_started=1
-docker run --restart unless-stopped --add-host host.docker.internal:172.17.0.1 --mount "type=bind,src=$ENV_FILE,dst=/run/stock/runtime.env,readonly" --mount "type=bind,src=/opt/stock-news/feeds,dst=/run/stock/news-feeds,readonly" -e APP_ENV_FILE=/run/stock/runtime.env -e SYNC_ON_STARTUP=false -d -p 3000:3000 -v /home/logs/stock-back:/usr/src/app/apps/back/logs --name stock-back "$IMAGE"
+docker run --restart unless-stopped --label "stock.release.sha=$RELEASE_SHA" --add-host host.docker.internal:172.17.0.1 --mount "type=bind,src=$ENV_FILE,dst=/run/stock/runtime.env,readonly" --mount "type=bind,src=/opt/stock-news/feeds,dst=/run/stock/news-feeds,readonly" -e APP_ENV_FILE=/run/stock/runtime.env -e SYNC_ON_STARTUP=false -d -p 3000:3000 -v /home/logs/stock-back:/usr/src/app/apps/back/logs --name stock-back "$IMAGE"
 if docker network inspect stock-news >/dev/null 2>&1; then
   docker network connect stock-news stock-back
 fi
@@ -141,6 +167,21 @@ done
 start_phase enqueue-and-resume
 db enqueue-market > "$RUN/backfill.json"
 restore_refresh
+start_phase independent-backup-schedule
+install -d -m 700 "$ROOT/tools" "$ROOT/backups"
+for tool in backup.sh daily-backup.sh maintenance.py; do
+  install -m 700 "$PACKAGE/release/$tool" "$ROOT/tools/$tool"
+done
+install -m 644 "$PACKAGE/release/stock-release-backup.service" /etc/systemd/system/stock-release-backup.service
+install -m 644 "$PACKAGE/release/stock-release-backup.timer" /etc/systemd/system/stock-release-backup.timer
+systemctl daemon-reload
+systemctl enable --now stock-release-backup.timer
+systemctl is-active --quiet stock-release-backup.timer
 printf 'success\n' > "$RUN/phase"
+finish_phase
+start_phase release-retention
+# Maintenance cannot invalidate a healthy deployment. Failed/unarchived backup
+# copies remain protected and no runtime configuration directory is deleted.
+python3 "$ROOT/tools/maintenance.py" --root "$ROOT" --apply > "$RUN/retention.json" || echo 'Release maintenance deferred; inspect retention logs'
 finish_phase
 echo "Deployment verified: $RELEASE_SHA; backup and recovery data: $RUN"

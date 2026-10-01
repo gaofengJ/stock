@@ -760,9 +760,8 @@ mysqlDescribe('MySQL 同步事务与迁移回归', () => {
         rows: 1,
         duplicates: 0,
       });
-      expect(migrated[1].requiredFreeBytes).toBe(
-        migrated[1].totalBytes * 2 + 1024 ** 3,
-      );
+      expect(migrated[1].requiredFreeBytes).toBe(1024 ** 3);
+      expect(migrated[1].releaseMode).toBe('application');
       expect(cli('verify')[0]).toMatchObject({
         status: 'verified',
         database: probe,

@@ -1,0 +1,11 @@
+[Unit]
+Description=Stock independent database backup and release maintenance
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/stock-release/tools/daily-backup.sh
+UMask=0077
+TimeoutStartSec=2h
+

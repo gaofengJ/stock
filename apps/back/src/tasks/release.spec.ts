@@ -20,9 +20,21 @@ shellDescribe('发布脚本故障恢复', () => {
   function run(fail: string, paused = false) {
     const dir = mkdtempSync(join(tmpdir(), 'stock-release-test-'));
     const unix = posix(dir);
-    ['release', 'test-db', 'stock-test', 'locks'].forEach((name) =>
+    ['release', 'test-db', 'stock-test', 'locks', 'units'].forEach((name) =>
       mkdirSync(join(dir, name)),
     );
+    [
+      'backup.sh',
+      'daily-backup.sh',
+      'maintenance.py',
+      'stock-release-backup.service',
+      'stock-release-backup.timer',
+    ].forEach((file) => {
+      writeFileSync(
+        join(dir, 'release', file),
+        file === 'backup.sh' ? '#!/usr/bin/env bash\nexit 1\n' : 'fixture',
+      );
+    });
     ['test-db', 'stock-test'].forEach((name) => {
       writeFileSync(join(dir, name, 'refresh.cjs'), 'fixture');
       writeFileSync(join(dir, name, 'history-refresh.cjs'), 'fixture');
@@ -40,7 +52,9 @@ shellDescribe('发布脚本故障恢复', () => {
       'utf8',
     )
       .replace('/opt/stock-release', `${unix}/runs`)
+      .replace(/\/etc\/systemd\/system/g, `${unix}/units`)
       .replace(/\/opt\/stock-test/g, `${unix}/stock-test`)
+      .replace(/\/opt\/stock-news/g, `${unix}/stock-news`)
       .replace(/\/var\/lock/g, `${unix}/locks`);
     writeFileSync(join(dir, 'release', 'deploy.sh'), script);
     writeFileSync(
@@ -53,7 +67,8 @@ docker() {
     *" preflight") echo '{"requiredFreeBytes":100,"database":"stock","spaceBudget":{"migrationBytes":0,"reserveBytes":100}}' ;;
     *" client-config") echo '[client]' ;;
     *" migrate") [[ "$FAIL" != migration ]] || return 1 ;;
-    *"smoke.cjs") [[ "$FAIL" != smoke ]] || return 1 ;;
+    *"smoke.cjs") [[ "$FAIL" != smoke && "$FAIL" != app-smoke ]] || return 1 ;;
+    *" verify") [[ "$FAIL" != app-schema ]] || return 1 ;;
     "run --restart"*) [[ "$FAIL" != start ]] || return 1 ;;
     "inspect --format"*) if [[ "$*" == *'.Id'* ]]; then echo 'old-id'; else echo 'old-image'; fi ;;
   esac
@@ -61,12 +76,19 @@ docker() {
 }
 python3() {
   case "$*" in
+    *releaseMode*) if [[ "$FAIL" == app* ]]; then echo application; else echo migration; fi ;;
+    *--check-backup*) [[ "$FAIL" != app-backup-missing ]] || return 1; echo '{"status":"verified"}' ;;
+    *maintenance.py*) echo '{"applied":true}' ;;
     *requiredFreeBytes*|*migrationBytes*) echo 100 ;;
     *spaceBudget*) echo '{"migrationBytes":0,"reserveBytes":100}' ;;
     *) echo stock ;;
   esac
 }
 flock() { return 0; }
+systemctl() { echo "systemctl $*" >> "$TEST_LOG"; return 0; }
+install() {
+  if [[ "$1" == -d ]]; then shift 3; mkdir -p "$@"; else shift 2; cp "$@"; fi
+}
 df() {
   available=999999999999
   if [[ "$FAIL" == space-before ]] || { [[ "$FAIL" == space-after ]] && [[ -f "$TEST_BACKUP_DONE" ]]; }; then available=0; fi
@@ -75,7 +97,7 @@ df() {
 mysqldump() { echo 'backup'; touch "$TEST_BACKUP_DONE"; [[ "$FAIL" != backup && "$FAIL" != backup-timing ]]; }
 tee() { if [[ "$FAIL" == backup-timing ]]; then cat; return 1; else command tee "$@"; fi; }
 sleep() { return 0; }
-export -f docker python3 flock df mysqldump sleep tee
+export -f docker python3 flock df mysqldump sleep tee systemctl install
 `,
     );
     const result = spawnSync(bash, [posix(join(dir, 'release', 'deploy.sh'))], {
@@ -182,4 +204,32 @@ export -f docker python3 flock df mysqldump sleep tee
     );
     expect(result.stdout).not.toContain('DB_PASSWORD');
   });
+  it('无迁移发布复用已校验备份，不导出整库、不执行迁移', () => {
+    const result = run('app');
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Release mode: application');
+    expect(result.stdout).not.toContain('phase=backup-export-compress');
+    expect(result.log).not.toContain('database.cjs migrate');
+    expect(result.log).toContain(
+      'systemctl enable --now stock-release-backup.timer',
+    );
+  });
+  it('无迁移发布启动后校验失败，保留新版现场并恢复旧服务', () => {
+    const result = run('app-smoke');
+    expect(result.status).not.toBe(0);
+    expect(result.log).toContain('docker stop stock-back');
+    expect(result.log).toContain('stock-back-failed-');
+    expect(result.log).toContain('docker rename old-id stock-back');
+    expect(result.log).toContain('docker start old-id');
+    expect(result.log).not.toContain('database.cjs migrate');
+    expect(result.paused).toBe(false);
+  });
+  it.each(['app-schema', 'app-backup-missing'])(
+    '无迁移发布缺少兼容结构或有效备份时不停止旧服务 %s',
+    (fail) => {
+      const result = run(fail);
+      expect(result.status).not.toBe(0);
+      expect(result.log).not.toContain('docker stop');
+    },
+  );
 });
