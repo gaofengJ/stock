@@ -299,11 +299,11 @@ export class NewsService implements OnApplicationBootstrap {
       title: row.title,
       body: row.body,
       originalUrl: row.original_url,
-      important: Boolean(row.important),
+      important: Number(row.important || 0) === 1,
       publishedAt: isoDate(row.published_at),
       timeBasis: row.time_basis || 'published',
-      favorite: Boolean(row.favorite),
-      read: Boolean(row.already_read),
+      favorite: Number(row.favorite || 0) === 1,
+      read: Number(row.already_read || 0) === 1,
       translation: row.translated_title
         ? {
             title: row.translated_title,

@@ -6,6 +6,27 @@ import { NEWS_SOURCES, isNewsSource } from './news.sources';
 
 describe('News service safety', () => {
   const config = new ConfigService({ NEWS_SYNC_ENABLED: 'false' });
+  it('interprets MySQL string flags without marking another reader as read', async () => {
+    const query = jest
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          id: 1,
+          already_read: '0',
+          favorite: '0',
+          important: '0',
+          title: '新闻',
+        },
+      ])
+      .mockResolvedValue([]);
+    const item = await new NewsService(
+      { query } as unknown as DataSource,
+      config,
+    ).detail(1, 42);
+    expect(item.read).toBe(false);
+    expect(item.favorite).toBe(false);
+    expect(item.important).toBe(false);
+  });
   it('hides retired, failed, disabled and never-collected subscriptions from readers', async () => {
     const success = new Date('2026-10-01T00:00:00Z');
     const rows = [
