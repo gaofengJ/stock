@@ -7,17 +7,18 @@ import {
   Alert, Button, Checkbox, DatePicker, Drawer, Empty, Input, Pagination, Segmented, Select, Skeleton, Space, Switch, Tag, Tooltip, message,
 } from 'antd';
 import {
-  ReloadOutlined, SettingOutlined, StarFilled, StarOutlined, ExportOutlined, InfoCircleOutlined,
+  ReloadOutlined, SettingOutlined, ExportOutlined, InfoCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import CommonLayout from '@/components/Layout';
 import { useAccount } from '@/auth/Boundary';
-import { api } from '@/auth/client';
+import { api, allowedPath } from '@/auth/client';
 import { errorMessage } from '@/api/errors';
 import styles from './news.module.scss';
+import FocusDrawer, { NewsPreferences } from './FocusDrawer';
 
-interface NewsItem { id: number; source: string; sourceName: string; kind: string; title: string; body: string; originalUrl: string | null; important: boolean; publishedAt: string; timeBasis: string; favorite: boolean; translation?: { title: string; body: string; engine: string; model: string } | null }
-interface NewsList { items: NewsItem[]; total: number; updatedAt: string; date: string }
+interface NewsItem { id: number; source: string; sourceName: string; kind: string; title: string; body: string; originalUrl: string | null; important: boolean; publishedAt: string; timeBasis: string; read: boolean; stocks: { tsCode: string; name: string }[]; related: { id: number; source: string; title: string; originalUrl: string | null }[]; translation?: { title: string; body: string; engine: string; model: string } | null }
+interface NewsList { items: NewsItem[]; total: number; updatedAt: string; date: string; latestId: number; newCount: number }
 interface Source { code: string; name: string; enabled: boolean; intervalSeconds: number; status: string; lastSuccess: string | null; nextAttempt: string | null; lastError: string; lastAdded: number; availabilityNote?: string; description?: string }
 interface SourceState { collecting: boolean; sources: Source[] }
 const chinaDate = () => new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
@@ -37,7 +38,6 @@ export default function Page() {
   const [kind, setKind] = useState('');
   const [keyword, setKeyword] = useState('');
   const [important, setImportant] = useState(false);
-  const [favorites, setFavorites] = useState(false);
   const [page, setPage] = useState(1);
   const [auto, setAuto] = useState(true);
   const [data, setData] = useState<NewsList | null>(null);
@@ -50,9 +50,19 @@ export default function Page() {
   const [detail, setDetail] = useState<NewsItem | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
-  const [favoriteBusy, setFavoriteBusy] = useState<number | null>(null);
   const [configBusy, setConfigBusy] = useState('');
   const [syncBusy, setSyncBusy] = useState(false);
+  const [range, setRange] = useState('today');
+  const [merge, setMerge] = useState(true);
+  const [stock, setStock] = useState('');
+  const [watchlist, setWatchlist] = useState(false);
+  const [following, setFollowing] = useState(false);
+  const [focusOpen, setFocusOpen] = useState(false);
+  const [preferences, setPreferences] = useState<NewsPreferences>({ keywords: [], stocks: [] });
+  const [readIds, setReadIds] = useState<number[]>([]);
+  const [newCount, setNewCount] = useState(0);
+  const [newAfter, setNewAfter] = useState<number | null>(null);
+  const latestId = useRef<number | null>(null);
   const request = useRef(0);
   const detailRequest = useRef(0);
   const pending = useRef(false);
@@ -65,51 +75,67 @@ export default function Page() {
     if (!quiet) setLoading(true);
     pending.current = true;
     const params = new URLSearchParams({ page: String(page), pageSize: '20' });
-    if (!favorites) params.set('date', date);
+    params.set('range', range);
+    if (range === 'date') params.set('date', date);
+    if (merge) params.set('merge', 'true');
+    if (stock) params.set('stock', stock);
+    if (watchlist && signedIn) params.set('watchlist', 'true');
+    if (following && signedIn) params.set('following', 'true');
+    if (quiet && latestId.current !== null) params.set('afterId', String(latestId.current));
     if (source) params.set('source', source);
     if (kind) params.set('kind', kind);
     if (keyword) params.set('keyword', keyword);
     if (important) params.set('important', 'true');
-    if (favorites) params.set('favorites', 'true');
     try {
       const result = await api<NewsList>(`/news?${params}`);
       if (current === request.current) {
         setData(result); setError('');
+        if (quiet && result.newCount > 0) {
+          const previousLatest = latestId.current;
+          setNewCount((old) => old + result.newCount);
+          setNewAfter((old) => old ?? previousLatest);
+        }
+        latestId.current = result.latestId;
         const lastPage = Math.max(1, Math.ceil(result.total / 20));
         if (page > lastPage) setPage(lastPage);
       }
     } catch (e) { if (current === request.current) setError(errorMessage(e)); } finally { if (current === request.current) { setLoading(false); pending.current = false; } }
-  }, [date, source, kind, keyword, important, favorites, page]);
+  }, [date, source, kind, keyword, important, page, range, merge, stock, watchlist, following, signedIn]);
   useEffect(() => {
-    setData(null); load();
+    setData(null); latestId.current = null; setNewCount(0); setNewAfter(null); load();
     return () => { request.current += 1; pending.current = false; };
-  }, [load]);
+  }, [load, preferences, user?.id]);
   useEffect(() => { loadSources(); }, [loadSources]);
+  useEffect(() => {
+    let current = true;
+    setPreferences({ keywords: [], stocks: [] }); setReadIds([]); setWatchlist(false); setFollowing(false);
+    if (signedIn) api<NewsPreferences>('/news/preferences').then((value) => { if (current) setPreferences(value); }).catch((e) => { if (current) message.error(errorMessage(e)); });
+    return () => { current = false; };
+  }, [signedIn, user?.id]);
   useEffect(() => {
     const refresh = () => {
       if (!auto || document.hidden || pending.current) return;
       loadSources();
-      if (page === 1 && !favorites) load(true);
+      if (page === 1) load(true);
     };
     const timer = window.setInterval(refresh, 30000);
     document.addEventListener('visibilitychange', refresh);
     return () => { window.clearInterval(timer); document.removeEventListener('visibilitychange', refresh); };
-  }, [auto, load, loadSources, page, favorites]);
+  }, [auto, load, loadSources, page]);
   useEffect(() => () => { detailRequest.current += 1; }, []);
   const openDetail = async (item: NewsItem) => {
     const current = detailRequest.current + 1; detailRequest.current = current;
     setDetailOpen(true); setDetail(item); setDetailLoading(true); setDetailError('');
-    try { const result = await api<NewsItem>(`/news/${item.id}`); if (current === detailRequest.current) setDetail(result); } catch (e) { if (current === detailRequest.current) setDetailError(errorMessage(e)); } finally { if (current === detailRequest.current) setDetailLoading(false); }
-  };
-  const favorite = async (item: NewsItem) => {
-    if (!signedIn || favoriteBusy !== null) return;
-    setFavoriteBusy(item.id);
     try {
-      const result = await api<{ favorite: boolean }>(`/news/${item.id}/favorite`, item.favorite ? 'DELETE' : 'POST');
-      setData((prev) => (prev ? { ...prev, items: prev.items.map((n) => (n.id === item.id ? { ...n, favorite: result.favorite } : n)) } : prev));
-      setDetail((prev) => (prev?.id === item.id ? { ...prev, favorite: result.favorite } : prev));
-      if (favorites) load(true);
-    } catch (e) { message.error(errorMessage(e)); } finally { setFavoriteBusy(null); }
+      const result = await api<NewsItem>(`/news/${item.id}`);
+      if (current === detailRequest.current) {
+        setDetail(result);
+        const ids = [item.id, ...(result.related || []).map((related) => related.id)];
+        if (signedIn) await api(`/news/${item.id}/read`, 'POST');
+        setReadIds((old) => Array.from(new Set([...old, ...ids])).slice(-2000));
+        setData((old) => (old ? { ...old, items: old.items.map((row) => (ids.includes(row.id) ? { ...row, read: true } : row)) } : old));
+      }
+    } catch (e) { if (current === detailRequest.current) setDetailError(errorMessage(e)); } finally { if (current === detailRequest.current) setDetailLoading(false); }
   };
   const updateSource = async (item: Source, value: Record<string, unknown>) => {
     setConfigBusy(item.code);
@@ -125,22 +151,25 @@ export default function Page() {
   }, [source, sources]);
   const selectedSource = availableSources.find((s) => s.code === source);
   const sourceTip = selectedSource?.description ? `${selectedSource.name}：${selectedSource.description}` : '市场快讯、财经报道与热门讨论。';
-  let emptyText = '当天暂无资讯，采集后将在这里显示，也可选择其他日期';
-  if (source || keyword || important) emptyText = '当前筛选条件下暂无资讯';
-  if (favorites) emptyText = '暂无收藏，点击资讯旁的星标即可收藏';
-  const favoriteTitle = (item: NewsItem) => {
-    if (!signedIn) return '登录后可收藏资讯';
-    return item.favorite ? '取消收藏' : '收藏资讯';
+  const rangeText: Record<string, string> = {
+    hour: '最近一小时', today: '今天', 'three-days': '最近三天', date,
   };
+  const focusMatches = (item: NewsItem) => preferences.keywords.filter((word) => `${item.title}\n${item.body}\n${item.translation?.title || ''}\n${item.translation?.body || ''}`.toLowerCase().includes(word.toLowerCase()));
+  const relatedSources = (item: NewsItem) => Array.from(new Set((item.related || []).map((related) => sources.sources.find((s) => s.code === related.source)?.name || related.source)));
+  const stockTags = (item: NewsItem) => (item.stocks || []).map((symbol) => (
+    <Tag key={symbol.tsCode} color={preferences.stocks.includes(symbol.tsCode) ? 'blue' : 'default'}>
+      <button type="button" className={styles.stockLink} aria-label={`筛选${symbol.name}资讯`} onClick={() => { setStock(symbol.tsCode); setPage(1); }}>{symbol.name}</button>
+      {allowedPath(user, '/basic/stock') && <a className={styles.stockLink} href={`/basic/stock/?tsCode=${encodeURIComponent(symbol.tsCode)}`} target="_blank" rel="noopener noreferrer" aria-label={`查看${symbol.name}个股信息`}><ExportOutlined /></a>}
+    </Tag>
+  ));
+  let emptyText = '当天暂无资讯，采集后将在这里显示，也可选择其他日期';
+  if (source || keyword || important || stock || following || watchlist) emptyText = '当前筛选条件下暂无资讯';
+  if (watchlist && !preferences.stocks.length) emptyText = '请在“我的关注”中添加自选股票';
+  if (following && !preferences.keywords.length) emptyText = '请在“我的关注”中添加关键词';
   const sourceColor = (s: Source) => {
     if (!s.enabled) return 'default';
     return { ok: 'green', error: 'orange' }[s.status] || 'blue';
   };
-  const favoriteButton = (item: NewsItem) => (
-    <Tooltip title={favoriteTitle(item)}>
-      <Button type="text" aria-label={item.favorite ? '取消收藏' : '收藏资讯'} disabled={!signedIn || favoriteBusy !== null} loading={favoriteBusy === item.id} icon={item.favorite ? <StarFilled className={styles.star} /> : <StarOutlined />} onClick={() => favorite(item)} />
-    </Tooltip>
-  );
   return (
     <CommonLayout headerMenuActive="/news" showAsideMenu={false}>
       <main className={styles.news}>
@@ -156,6 +185,7 @@ export default function Page() {
               自动刷新
             </span>
             <Button icon={<ReloadOutlined />} loading={loading} onClick={() => { load(); loadSources(); }}>刷新</Button>
+            <Tooltip title={signedIn ? '管理关注关键词和自选股票' : '登录后保存关注设置'}><Button disabled={!signedIn} onClick={() => setFocusOpen(true)}>我的关注</Button></Tooltip>
             <Button icon={<SettingOutlined />} onClick={() => setSettings(true)}>{manager ? '来源管理' : '来源状态'}</Button>
           </Space>
         </div>
@@ -167,14 +197,31 @@ export default function Page() {
               <Button type="text" size="small" aria-label="来源内容说明" icon={<InfoCircleOutlined />} />
             </Tooltip>
           </Space>
-          <DatePicker aria-label="资讯日期" allowClear={false} disabled={favorites} value={dayjs(date)} disabledDate={(d) => d.format('YYYY-MM-DD') > chinaDate()} onChange={(d) => { if (d) { setDate(d.format('YYYY-MM-DD')); setPage(1); } }} />
+          <Select aria-label="资讯时间范围" value={range} className={styles.sourceSelect} options={[{ label: '最近一小时', value: 'hour' }, { label: '今天', value: 'today' }, { label: '最近三天', value: 'three-days' }, { label: '指定日期', value: 'date' }]} onChange={(value) => { setRange(value); setPage(1); }} />
+          {range === 'date' && <DatePicker aria-label="资讯日期" allowClear={false} value={dayjs(date)} disabledDate={(d) => d.format('YYYY-MM-DD') > chinaDate()} onChange={(d) => { if (d) { setDate(d.format('YYYY-MM-DD')); setPage(1); } }} />}
           <Input.Search placeholder="搜索标题或正文" aria-label="搜索资讯" allowClear maxLength={80} className={styles.search} onSearch={(v) => { setKeyword(v.trim()); setPage(1); }} />
           <Checkbox checked={important} onChange={(e) => { setImportant(e.target.checked); setPage(1); }}>仅重点</Checkbox>
-          <Tooltip title={signedIn ? '查看个人收藏，覆盖所有日期' : '登录后可查看收藏'}><Button disabled={!signedIn} type={favorites ? 'primary' : 'default'} icon={<StarOutlined />} onClick={() => { setFavorites(!favorites); setPage(1); }}>{favorites ? '我的收藏' : '收藏'}</Button></Tooltip>
+          <Tooltip title="按标题相似度和数字合并，保留各来源。可关闭查看全部。"><Checkbox checked={merge} onChange={(e) => { setMerge(e.target.checked); setPage(1); }}>合并相似</Checkbox></Tooltip>
+          <Checkbox disabled={!signedIn} checked={following} onChange={(e) => { setFollowing(e.target.checked); setPage(1); }}>仅关注词</Checkbox>
+          <Checkbox disabled={!signedIn} checked={watchlist} onChange={(e) => { setWatchlist(e.target.checked); setPage(1); }}>仅自选股</Checkbox>
         </div>
+        {stock && (
+        <div className={styles.focusBar}>
+          <Tag closable onClose={() => { setStock(''); setPage(1); }}>
+            关联股票：
+            {stock}
+          </Tag>
+        </div>
+        )}
+        {preferences.keywords.length > 0 && (
+        <Space wrap className={styles.focusBar}>
+          <span>关注词：</span>
+          {preferences.keywords.map((word) => <Button size="small" key={word} onClick={() => { setKeyword(word); setPage(1); }}>{word}</Button>)}
+        </Space>
+        )}
         <div className={styles.summary}>
           <span>
-            {favorites ? '我的收藏 · 所有日期' : `${date} · 北京时间`}
+            {`${rangeText[range]} · 北京时间`}
             {' '}
             · 共
             {' '}
@@ -188,25 +235,50 @@ export default function Page() {
             {' '}
             个可用来源
             {data ? ` · 页面更新 ${formatTime(data.updatedAt)}` : ''}
-            {auto && page === 1 && !favorites ? ' · 每 30 秒刷新' : ' · 自动更新列表已暂停'}
+            {auto && page === 1 ? ' · 每 30 秒刷新' : ' · 自动更新列表已暂停'}
           </span>
         </div>
         {error && <Alert className={styles.alert} type="error" showIcon message={error} description={data ? '当前显示上次成功加载的资讯。' : undefined} action={<Button size="small" onClick={() => load()}>重试</Button>} />}
+        {newCount > 0 && (
+        <Button type="link" className={styles.newMessages} onClick={() => { document.querySelector('section[aria-label="资讯列表"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); setNewCount(0); setNewAfter(null); }}>
+          新增 / 更新
+          {newCount}
+          {' '}
+          条，查看最新资讯 ↑
+        </Button>
+        )}
         <section className={styles.list} aria-label="资讯列表" aria-busy={loading}>
           {loading && !data ? <div className={styles.skeleton}><Skeleton active paragraph={{ rows: 5 }} /></div> : null}
           {!loading && !data?.items.length && !error ? <Empty className={styles.empty} description={emptyText} /> : null}
           {data?.items.map((item) => (
-            <article key={item.id} className={`${styles.item} ${item.important ? styles.important : ''}`}>
+            <article key={item.id} className={`${styles.item} ${item.important ? styles.important : ''} ${item.read || readIds.includes(item.id) ? styles.read : ''} ${newAfter !== null && item.id > newAfter ? styles.newItem : ''}`}>
               <time dateTime={item.publishedAt}>
                 {formatTime(item.publishedAt)}
                 {item.timeBasis === 'collected' && <small>采集时间</small>}
-                {favorites ? <small>{dayjs(item.publishedAt).format('MM-DD')}</small> : null}
+                {range === 'three-days' ? <small>{dayjs(item.publishedAt).format('MM-DD')}</small> : null}
               </time>
               <div className={styles.itemContent}>
                 <div className={styles.meta}>
                   <Tag>{item.sourceName}</Tag>
                   <span>{item.kind === 'flash' ? '快讯' : '报道'}</span>
                   {item.important && <Tag color="red">重点</Tag>}
+                  {item.read || readIds.includes(item.id) ? <span>已读</span> : <Tag color="blue">未读</Tag>}
+                  {focusMatches(item).length > 0 && (
+                  <Tag color="gold">
+                    关注：
+                    {focusMatches(item).join('、')}
+                  </Tag>
+                  )}
+                  {merge && relatedSources(item).length > 0 && (
+                  <Tooltip title={relatedSources(item).join('、')}>
+                    <button type="button" className={styles.stockLink} onClick={() => openDetail(item)}>
+                      另有
+                      {relatedSources(item).length}
+                      {' '}
+                      个来源
+                    </button>
+                  </Tooltip>
+                  )}
                 </div>
                 <button type="button" className={styles.title} onClick={() => openDetail(item)}>{item.title}</button>
                 {item.translation && (
@@ -224,17 +296,25 @@ export default function Page() {
                   {item.translation.body}
                 </p>
                 )}
+                {(item.stocks || []).length > 0 && <Space wrap className={styles.stockTags}>{stockTags(item)}</Space>}
                 <div className={styles.actions}>
                   <Button size="small" type="link" onClick={() => openDetail(item)}>查看详情</Button>
                   {item.originalUrl && (
-                  <a href={item.originalUrl} target="_blank" rel="noopener noreferrer">
+                  <a
+                    href={item.originalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => {
+                      if (signedIn) api(`/news/${item.id}/read`, 'POST').then(() => setReadIds((old) => Array.from(new Set([...old, item.id])).slice(-2000))).catch((e) => message.error(errorMessage(e)));
+                      else setReadIds((old) => Array.from(new Set([...old, item.id])).slice(-2000));
+                    }}
+                  >
                     阅读原文
                     <ExportOutlined />
                   </a>
                   )}
                 </div>
               </div>
-              {favoriteButton(item)}
             </article>
           ))}
         </section>
@@ -253,7 +333,6 @@ export default function Page() {
               北京时间
             </span>
             {detail.important && <Tag color="red">重点</Tag>}
-            {favoriteButton(detail)}
           </Space>
           <h2>{detail.title}</h2>
           {detail.translation && (
@@ -271,10 +350,33 @@ export default function Page() {
           </p>
           )}
           {detail.translation && <p className={styles.note}>自动翻译，财经术语与专有名词可能有误，以英文原文为准。</p>}
+          {(detail.stocks || []).length > 0 && <Space wrap className={styles.stockTags}>{stockTags(detail)}</Space>}
           {detail.originalUrl && <Button href={detail.originalUrl} target="_blank" rel="noopener noreferrer" icon={<ExportOutlined />}>阅读原文</Button>}
+          {(detail.related || []).length > 0 && (
+          <section className={styles.related}>
+            <h3>相似报道与其他来源</h3>
+            <p className={styles.note}>规则匹配，请结合各来源原文判断。</p>
+            {detail.related.map((related) => (
+              <div key={related.id}>
+                <Button
+                  type="link"
+                  onClick={() => openDetail({
+                    ...detail, ...related, stocks: [], related: [],
+                  })}
+                >
+                  {sources.sources.find((s) => s.code === related.source)?.name || related.source}
+                  ：
+                  {related.title}
+                </Button>
+                {related.originalUrl && <a href={related.originalUrl} target="_blank" rel="noopener noreferrer">原文 ↗</a>}
+              </div>
+            ))}
+          </section>
+          )}
         </div>
         )}
       </Drawer>
+      <FocusDrawer open={focusOpen} onClose={() => setFocusOpen(false)} value={preferences} onSaved={setPreferences} />
       <Drawer title={manager ? '资讯来源管理' : '资讯来源状态'} width="min(560px, 100vw)" open={settings} onClose={() => setSettings(false)}>
         <p className={styles.note}>来源在后台定时采集。不可用时保留已有资讯，并逐步延长重试间隔。</p>
         {sourceError && <Alert type="error" message={sourceError} />}

@@ -6,6 +6,26 @@ import { NEWS_SOURCES, isNewsSource } from './news.sources';
 
 describe('News service safety', () => {
   const config = new ConfigService({ NEWS_SYNC_ENABLED: 'false' });
+  it('interprets MySQL string flags without marking another reader as read', async () => {
+    const query = jest
+      .fn()
+      .mockResolvedValueOnce([
+        {
+          id: 1,
+          already_read: '0',
+          important: '0',
+          title: '新闻',
+        },
+      ])
+      .mockResolvedValue([]);
+    const item = await new NewsService(
+      { query } as unknown as DataSource,
+      config,
+    ).detail(1, 42);
+    expect(item.read).toBe(false);
+    expect(item).not.toHaveProperty('favorite');
+    expect(item.important).toBe(false);
+  });
   it('hides retired, failed, disabled and never-collected subscriptions from readers', async () => {
     const success = new Date('2026-10-01T00:00:00Z');
     const rows = [
@@ -94,14 +114,11 @@ describe('News service safety', () => {
     runner.query.mockResolvedValue([{ acquired: 0 }]);
     expect(await service.sync()).toBe(false);
   });
-  it('requires a signed in owner for favorites and rejects unknown sources', async () => {
+  it('requires a signed in owner for personalized filters and rejects unknown sources', async () => {
     const db = { query: jest.fn() } as unknown as DataSource;
     const service = new NewsService(db, config);
-    await expect(service.favorite(1, undefined, true)).rejects.toThrow(
-      '请登录',
-    );
     await expect(
-      service.list({ ...new NewsQuery(), favorites: 'true' }),
+      service.list({ ...new NewsQuery(), watchlist: 'true' }),
     ).rejects.toThrow('请登录');
     await expect(
       service.updateSource('http://internal', { enabled: true }),
@@ -119,12 +136,11 @@ describe('News service safety', () => {
         ...new NewsQuery(),
         date: '2026-10-01',
         keyword: '%_!',
-        favorites: 'true',
       },
       42,
     );
     expect(query.mock.calls[0][1]).toEqual([
-      42,
+      2147483647,
       ...NEWS_SOURCES.filter(isNewsSource).map((source) => source.code),
       '2026-09-30 16:00:00.000',
       '2026-10-01 16:00:00.000',
@@ -133,6 +149,12 @@ describe('News service safety', () => {
       '%!%!_!!%',
       '%!%!_!!%',
     ]);
-    expect(query.mock.calls[0][0]).toContain('f.news_id IS NOT NULL');
+    expect(query.mock.calls[0][0]).not.toContain('t_news_favorite');
+    expect(query.mock.calls[1][1]).toEqual([
+      ...query.mock.calls[0][1].slice(1),
+      42,
+      20,
+      0,
+    ]);
   });
 });

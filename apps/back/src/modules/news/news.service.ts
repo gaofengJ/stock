@@ -5,7 +5,6 @@ import {
   Logger,
   NotFoundException,
   OnApplicationBootstrap,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
@@ -18,7 +17,14 @@ import {
   isNewsSource,
 } from './news.sources';
 import { isoDate, normalizeNews, sqlDate } from './news.normalize';
-import { NewsQuery, NewsSourceUpdate } from './news.dto';
+import {
+  NewsQuery,
+  NewsSourceUpdate,
+  NewsPreferences,
+  NewsStockQuery,
+} from './news.dto';
+import { NewsFeatures } from './news.features';
+import { hashText } from './news.rules';
 import { checkNewsSchema } from './news-schema';
 import { sinaFlashItems } from './news.providers';
 import { readBloombergFeed } from './news.bloomberg';
@@ -41,10 +47,13 @@ export class NewsService implements OnApplicationBootstrap {
 
   private readonly bloombergFeedFile: string;
 
+  readonly features: NewsFeatures;
+
   constructor(
     private readonly db: DataSource,
     config: ConfigService,
   ) {
+    this.features = new NewsFeatures(db);
     this.baseUrl = String(
       config.get('RSSHUB_BASE_URL') ||
         (process.env.NODE_ENV === 'production'
@@ -143,20 +152,34 @@ export class NewsService implements OnApplicationBootstrap {
   }
 
   async list(query: NewsQuery, userId?: number) {
-    const favorites = query.favorites === 'true';
-    if (favorites && !userId)
-      throw new UnauthorizedException('请登录后查看收藏');
     if (query.source && !sourceByCode(query.source))
       throw new BadRequestException('未知资讯来源');
     const clauses = [`n.source IN (${NEWS_CODES.map(() => '?').join(',')})`];
     const args: any[] = [...NEWS_CODES];
-    if (!favorites) clauses.push(DISPLAYABLE_SOURCE_SQL);
+    clauses.push(DISPLAYABLE_SOURCE_SQL);
     const date =
       query.date ||
-      (favorites
-        ? ''
-        : new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10));
-    if (date) {
+      new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
+    if (query.range === 'hour') {
+      clauses.push(
+        'n.published_at>=DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 1 HOUR) AND n.published_at<=UTC_TIMESTAMP(3)',
+      );
+    } else if (query.range === 'today' || query.range === 'three-days') {
+      const today = new Date(
+        `${new Date(Date.now() + 8 * 3600000)
+          .toISOString()
+          .slice(0, 10)}T00:00:00+08:00`,
+      );
+      clauses.push('n.published_at>=? AND n.published_at<?');
+      args.push(
+        sqlDate(
+          new Date(
+            today.getTime() - (query.range === 'three-days' ? 2 * 86400000 : 0),
+          ),
+        ),
+        sqlDate(new Date(today.getTime() + 86400000)),
+      );
+    } else if (date) {
       const start = new Date(`${date}T00:00:00+08:00`);
       if (
         !Number.isFinite(start.getTime()) ||
@@ -185,22 +208,66 @@ export class NewsService implements OnApplicationBootstrap {
         .replace(/[!%_]/g, (c) => `!${c}`)}%`;
       args.push(pattern, pattern, pattern, pattern);
     }
-    const join = `${
-      favorites ? '' : 'JOIN t_news_source s ON s.source=n.source '
-    }LEFT JOIN t_news_translation t ON t.news_id=n.id LEFT JOIN t_news_favorite f ON f.news_id=n.id AND f.user_id=?`;
-    if (favorites) clauses.push('f.news_id IS NOT NULL');
+    if (query.stock) {
+      clauses.push(
+        'EXISTS(SELECT 1 FROM t_news_stock x WHERE x.news_id=n.id AND x.ts_code=?)',
+      );
+      args.push(query.stock);
+    }
+    if (query.following === 'true' || query.watchlist === 'true') {
+      const preferences = await this.features.preferences(userId);
+      if (query.watchlist === 'true') {
+        if (!preferences.stocks.length) clauses.push('0=1');
+        else {
+          clauses.push(
+            `EXISTS(SELECT 1 FROM t_news_stock x WHERE x.news_id=n.id AND x.ts_code IN (${preferences.stocks
+              .map(() => '?')
+              .join(',')}))`,
+          );
+          args.push(...preferences.stocks);
+        }
+      }
+      if (query.following === 'true') {
+        if (!preferences.keywords.length) clauses.push('0=1');
+        else {
+          clauses.push(
+            `(${preferences.keywords
+              .map(
+                () =>
+                  "(n.title LIKE ? ESCAPE '!' OR n.body LIKE ? ESCAPE '!' OR t.title LIKE ? ESCAPE '!' OR t.body LIKE ? ESCAPE '!')",
+              )
+              .join(' OR ')})`,
+          );
+          preferences.keywords.forEach((word) => {
+            const pattern = `%${word.replace(/[!%_]/g, (c) => `!${c}`)}%`;
+            args.push(pattern, pattern, pattern, pattern);
+          });
+        }
+      }
+    }
+    const join =
+      'JOIN t_news_source s ON s.source=n.source LEFT JOIN t_news_translation t ON t.news_id=n.id LEFT JOIN t_news_rule r ON r.news_id=n.id';
     const where = clauses.join(' AND ');
-    const [{ total }] = await this.db.query(
-      `SELECT COUNT(*) total FROM t_news_item n ${join} WHERE ${where}`,
-      [userId || 0, ...args],
+    const group =
+      query.merge === 'true'
+        ? "COALESCE(r.group_key,CONCAT('id:',n.id))"
+        : 'n.id';
+    const groups = `SELECT MAX(n.id) id,MAX(n.published_at) newest,MAX(n.important) group_important FROM t_news_item n ${join} WHERE ${where} GROUP BY ${group}`;
+    const [{ total, latestId, newCount }] = await this.db.query(
+      `SELECT COUNT(*) total,COALESCE(MAX(g.id),0) latestId,COALESCE(SUM(g.id>?),0) newCount FROM (${groups}) g`,
+      [query.afterId ?? 2147483647, ...args],
     );
     const rows = await this.db.query(
-      `SELECT n.id,n.source,n.kind,n.title,LEFT(n.body,360) body,n.original_url,n.important,n.published_at,n.time_basis,t.title translated_title,LEFT(t.body,360) translated_body,t.engine translation_engine,t.model translation_model,(f.news_id IS NOT NULL) favorite FROM t_news_item n ${join} WHERE ${where} ORDER BY n.published_at DESC,n.id DESC LIMIT ? OFFSET ?`,
-      [userId || 0, ...args, query.pageSize, (query.page - 1) * query.pageSize],
+      `SELECT n.id,n.source,n.kind,n.title,LEFT(n.body,360) body,n.original_url,g.group_important important,n.published_at,n.time_basis,t.title translated_title,LEFT(t.body,360) translated_body,t.engine translation_engine,t.model translation_model,(v.news_id IS NOT NULL) already_read FROM t_news_item n JOIN (${groups}) g ON g.id=n.id LEFT JOIN t_news_translation t ON t.news_id=n.id LEFT JOIN t_news_read v ON v.news_id=n.id AND v.user_id=? ORDER BY g.newest DESC,n.id DESC LIMIT ? OFFSET ?`,
+      [...args, userId || 0, query.pageSize, (query.page - 1) * query.pageSize],
     );
     return {
-      items: rows.map((r: any) => this.present(r)),
+      items: await this.features.decorate(
+        rows.map((r: any) => this.present(r)),
+      ),
       total: Number(total),
+      latestId: Number(latestId || 0),
+      newCount: query.afterId === undefined ? 0 : Number(newCount || 0),
       page: query.page,
       pageSize: query.pageSize,
       date,
@@ -217,10 +284,10 @@ export class NewsService implements OnApplicationBootstrap {
       title: row.title,
       body: row.body,
       originalUrl: row.original_url,
-      important: Boolean(row.important),
+      important: Number(row.important || 0) === 1,
       publishedAt: isoDate(row.published_at),
       timeBasis: row.time_basis || 'published',
-      favorite: Boolean(row.favorite),
+      read: Number(row.already_read || 0) === 1,
       translation: row.translated_title
         ? {
             title: row.translated_title,
@@ -234,27 +301,32 @@ export class NewsService implements OnApplicationBootstrap {
 
   async detail(id: number, userId?: number) {
     const [row] = await this.db.query(
-      'SELECT n.*,t.title translated_title,t.body translated_body,t.engine translation_engine,t.model translation_model,(f.news_id IS NOT NULL) favorite FROM t_news_item n LEFT JOIN t_news_translation t ON t.news_id=n.id LEFT JOIN t_news_favorite f ON f.news_id=n.id AND f.user_id=? WHERE n.id=?',
+      'SELECT n.*,t.title translated_title,t.body translated_body,t.engine translation_engine,t.model translation_model,(v.news_id IS NOT NULL) already_read FROM t_news_item n LEFT JOIN t_news_translation t ON t.news_id=n.id LEFT JOIN t_news_read v ON v.news_id=n.id AND v.user_id=? WHERE n.id=?',
       [userId || 0, id],
     );
     if (!row) throw new NotFoundException('资讯不存在或已过期');
-    return this.present(row);
+    const [item] = await this.features.decorate([this.present(row)]);
+    return item;
   }
 
-  async favorite(id: number, userId: number | undefined, add: boolean) {
-    if (!userId) throw new UnauthorizedException('请登录后收藏');
-    await this.detail(id, userId);
-    if (add)
-      await this.db.query(
-        'INSERT IGNORE INTO t_news_favorite(user_id,news_id,created_at) VALUES(?,?,UTC_TIMESTAMP(3))',
-        [userId, id],
-      );
-    else
-      await this.db.query(
-        'DELETE FROM t_news_favorite WHERE user_id=? AND news_id=?',
-        [userId, id],
-      );
-    return { favorite: add };
+  preferences(userId?: number) {
+    return this.features.preferences(userId);
+  }
+
+  savePreferences(dto: NewsPreferences, userId?: number) {
+    return this.features.savePreferences(dto, userId);
+  }
+
+  stockOptions(query: NewsStockQuery) {
+    return this.features.stockOptions(query);
+  }
+
+  async markRead(id: number, userId?: number) {
+    const item = await this.detail(id, userId);
+    return this.features.read(
+      [id, ...item.related.map((related: any) => related.id)],
+      userId,
+    );
   }
 
   private async fetch(path: string): Promise<unknown[]> {
@@ -323,6 +395,15 @@ export class NewsService implements OnApplicationBootstrap {
         // Publish English changes and their matching translation as one unit.
         if (item.sourceHash) await q.startTransaction();
         try {
+          // A changed headline/body invalidates only its derived rules, not source history.
+          await q.query(
+            'DELETE x FROM t_news_stock x JOIN t_news_rule r ON r.news_id=x.news_id JOIN t_news_item n ON n.id=r.news_id WHERE n.source=? AND n.dedupe_key=? AND r.text_hash<>?',
+            [source.code, item.key, hashText(`${item.title}\n${item.body}`)],
+          );
+          await q.query(
+            'DELETE r FROM t_news_rule r JOIN t_news_item n ON n.id=r.news_id WHERE n.source=? AND n.dedupe_key=? AND r.text_hash<>?',
+            [source.code, item.key, hashText(`${item.title}\n${item.body}`)],
+          );
           const result = await q.query(
             `INSERT INTO t_news_item(source,dedupe_key,kind,title,body,original_url,important,published_at,time_basis,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE title=VALUES(title),body=VALUES(body),original_url=VALUES(original_url),important=GREATEST(important,VALUES(important)),published_at=IF(time_basis='collected' AND VALUES(time_basis)='published',VALUES(published_at),published_at),time_basis=IF(VALUES(time_basis)='published','published',time_basis),updated_at=UTC_TIMESTAMP(3)`,
             [
@@ -430,8 +511,10 @@ export class NewsService implements OnApplicationBootstrap {
       );
       if (workers.some((worker) => worker.status === 'rejected'))
         throw new Error('News database worker failed');
+      // Backfill existing articles incrementally, then enrich newly collected/changed items.
+      await this.features.indexBatch();
       await lock.query(
-        'DELETE FROM t_news_item WHERE id IN (SELECT id FROM (SELECT n.id FROM t_news_item n LEFT JOIN t_news_favorite f ON f.news_id=n.id WHERE n.published_at<DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 30 DAY) AND f.news_id IS NULL LIMIT 1000) expired)',
+        'DELETE FROM t_news_item WHERE published_at<DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 30 DAY) LIMIT 1000',
       );
       return true;
     } finally {

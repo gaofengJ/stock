@@ -9,6 +9,8 @@ import {
   Max,
   MaxLength,
   Min,
+  IsArray,
+  ArrayMaxSize,
 } from 'class-validator';
 
 export class NewsQuery {
@@ -26,7 +28,37 @@ export class NewsQuery {
 
   @IsOptional() @IsIn(['true', 'false']) important?: string;
 
-  @IsOptional() @IsIn(['true', 'false']) favorites?: string;
+  @IsOptional() @IsIn(['date', 'hour', 'today', 'three-days']) range?: string;
+
+  @IsOptional() @IsIn(['true', 'false']) merge?: string;
+
+  @IsOptional() @Matches(/^\d{6}\.(SH|SZ|BJ)$/) stock?: string;
+
+  @IsOptional() @IsIn(['true', 'false']) watchlist?: string;
+
+  @IsOptional() @IsIn(['true', 'false']) following?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(2147483647)
+  afterId?: number;
+}
+export class NewsPreferences {
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(40, { each: true })
+  keywords: string[];
+
+  @IsArray()
+  @ArrayMaxSize(50)
+  @Matches(/^\d{6}\.(SH|SZ|BJ)$/, { each: true })
+  stocks: string[];
+}
+export class NewsStockQuery {
+  @IsOptional() @IsString() @MaxLength(40) q?: string;
 }
 export class NewsSourceUpdate {
   @IsOptional()

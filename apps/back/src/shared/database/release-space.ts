@@ -29,6 +29,12 @@ const migrationTables: Record<string, readonly string[]> = {
   NewsDisplayPolicy1790835600000: ['t_news_source'],
   // Creates a new child table; does not rebuild existing news or market tables.
   NewsTranslations1791072000000: ['t_news_translation'],
+  NewsReadingFeatures1791158400000: [
+    't_news_rule',
+    't_news_stock',
+    't_news_preference',
+    't_news_read',
+  ],
   // Creates a new aggregate table without changing or rebuilding raw prices.
   MarketBreadth1790899200000: ['t_processed_market_breadth'],
   // Creates three source tables and inserts module permissions; no price-table DDL.
@@ -63,6 +69,7 @@ const migrationOperations: Record<
   ExpandedNewsSources1790832000000: 'data',
   NewsDisplayPolicy1790835600000: 'data',
   NewsTranslations1791072000000: 'create',
+  NewsReadingFeatures1791158400000: 'create',
   MarketBreadth1790899200000: 'create',
   ThsSectors1790985600000: 'create',
 };

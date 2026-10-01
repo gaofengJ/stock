@@ -2,6 +2,19 @@ import { checkNewsSchema } from './news-schema';
 import { NEWS_SOURCES } from './news.sources';
 
 const indexes = [
+  ...[
+    ['t_news_rule', 'news_id'],
+    ['t_news_stock', 'news_id'],
+    ['t_news_stock', 'ts_code'],
+    ['t_news_preference', 'user_id'],
+    ['t_news_read', 'user_id'],
+    ['t_news_read', 'news_id'],
+  ].map(([TABLE_NAME, COLUMN_NAME]) => ({
+    TABLE_NAME,
+    COLUMN_NAME,
+    INDEX_NAME: 'PRIMARY',
+    NON_UNIQUE: 0,
+  })),
   {
     TABLE_NAME: 't_news_translation',
     INDEX_NAME: 'PRIMARY',
@@ -42,7 +55,11 @@ const indexes = [
 
 describe('News deployment schema', () => {
   it('rejects a deployment without the translation migration', async () => {
-    const query = jest.fn().mockResolvedValue(indexes.slice(1));
+    const query = jest
+      .fn()
+      .mockResolvedValue(
+        indexes.filter((row) => row.TABLE_NAME !== 't_news_translation'),
+      );
     await expect(checkNewsSchema({ query })).rejects.toThrow(
       't_news_translation',
     );

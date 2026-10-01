@@ -25,13 +25,18 @@ import { useStockColumns } from './columns';
 function BasicStockPage() {
   const { sector, setSector } = useSectorSelection();
   const linkedDate = useSearchParams().get('date') || undefined;
+  const linkedStock = useSearchParams().get('tsCode') || '';
   const stockFilterConfigs = useStockFilterConfigs();
   // searchParams 的初始值
   const initialSearchParams: Partial<NSGetBasicStockList.IParams> = {
     pageNum: 1,
     pageSize: 20,
+    ...(/^\d{6}\.(SH|SZ|BJ)$/.test(linkedStock) ? { tsCode: linkedStock } : {}),
   };
   const [searchParams, setSearchParams] = useState<Partial<NSGetBasicStockList.IParams>>(initialSearchParams);
+  useEffect(() => {
+    if (/^\d{6}\.(SH|SZ|BJ)$/.test(linkedStock)) setSearchParams((old) => ({ ...old, tsCode: linkedStock, pageNum: 1 }));
+  }, [linkedStock]);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
