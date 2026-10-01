@@ -15,6 +15,7 @@ import { NEWS_SOURCES, NewsSource, sourceByCode } from './news.sources';
 import { isoDate, normalizeNews, sqlDate } from './news.normalize';
 import { NewsQuery, NewsSourceUpdate } from './news.dto';
 import { checkNewsSchema } from './news-schema';
+import { sinaFlashItems } from './news.providers';
 
 @Injectable()
 export class NewsService implements OnApplicationBootstrap {
@@ -75,6 +76,7 @@ export class NewsService implements OnApplicationBootstrap {
           code: s.code,
           name: s.name,
           kind: s.kind,
+          availabilityNote: s.availabilityNote || '',
           enabled: Boolean(row?.enabled),
           intervalSeconds: Number(row?.interval_seconds || 120),
           status: row?.status || 'pending',
@@ -227,18 +229,32 @@ export class NewsService implements OnApplicationBootstrap {
     return response.data.items.slice(0, 50);
   }
 
+  private async fetchSource(source: NewsSource): Promise<unknown[]> {
+    if (source.provider !== 'sina-flash') return this.fetch(source.path);
+    const response = await axios.get('https://app.cj.sina.com.cn/api/news/pc', {
+      params: { page: 1, size: 30, tag: 0 },
+      headers: { Referer: 'https://finance.sina.com.cn/7x24/' },
+      timeout: 15000,
+      maxRedirects: 0,
+      maxContentLength: 4 * 1024 * 1024,
+      maxBodyLength: 4 * 1024 * 1024,
+      proxy: false,
+    });
+    return sinaFlashItems(response.data);
+  }
+
   private async collect(source: NewsSource, row: any, q: QueryRunner) {
     await q.query(
       "UPDATE t_news_source SET last_attempt=UTC_TIMESTAMP(3),status='collecting' WHERE source=?",
       [source.code],
     );
     try {
-      const items = await this.fetch(source.path);
-      // The RSSHub JSON feed does not expose Jin10's important flag. Match its important feed instead.
+      const items = await this.fetchSource(source);
+      // Match each provider's dedicated important feed by normalized identity.
       const important = new Set<string>();
-      if (source.code === 'jin10') {
+      if (source.importantPath) {
         try {
-          const highlights = await this.fetch('/jin10/important');
+          const highlights = await this.fetch(source.importantPath);
           highlights.forEach((raw) => {
             const item = normalizeNews(raw, source);
             if (item) {
@@ -247,7 +263,7 @@ export class NewsService implements OnApplicationBootstrap {
             }
           });
         } catch {
-          this.logger.warn('金十重点资讯暂不可用，普通快讯继续采集');
+          this.logger.warn(`${source.name}重点资讯暂不可用，普通快讯继续采集`);
         }
       }
       const normalized = items

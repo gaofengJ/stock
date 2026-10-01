@@ -1,10 +1,23 @@
-export const NEWS_SOURCES = [
+export interface NewsSource {
+  code: string;
+  name: string;
+  path: string;
+  kind: 'flash' | 'article';
+  enabled: boolean;
+  provider?: 'rsshub' | 'sina-flash';
+  intervalSeconds?: number;
+  importantPath?: string;
+  availabilityNote?: string;
+}
+
+export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'jin10',
     name: '金十数据',
     path: '/jin10',
     kind: 'flash',
     enabled: true,
+    importantPath: '/jin10/important',
   },
   {
     code: 'yicai',
@@ -33,6 +46,8 @@ export const NEWS_SOURCES = [
     path: '/sina/finance/rollnews',
     kind: 'article',
     enabled: false,
+    availabilityNote:
+      '滚动新闻接口从当前服务器返回 HTTP 403；网站可访问不代表该接口可访问。',
   },
   {
     code: 'bloomberg',
@@ -40,8 +55,119 @@ export const NEWS_SOURCES = [
     path: '/bloomberg/markets',
     kind: 'article',
     enabled: false,
+    availabilityNote:
+      '当前服务器 DNS 解析异常，校正地址后 TLS 连接仍中断；需要可访问彭博的采集网络。',
   },
-] as const;
-export type NewsSource = (typeof NEWS_SOURCES)[number];
+  {
+    code: 'cls',
+    name: '财联社电报',
+    path: '/cls/telegraph',
+    kind: 'flash',
+    enabled: true,
+    importantPath: '/cls/telegraph/red',
+  },
+  {
+    code: 'cls-news',
+    name: '财联社头条',
+    path: '/cls/depth/1000',
+    kind: 'article',
+    enabled: true,
+    intervalSeconds: 600,
+  },
+  {
+    code: 'wallstreetcn',
+    name: '华尔街见闻快讯',
+    path: '/wallstreetcn/live',
+    kind: 'flash',
+    enabled: true,
+    importantPath: '/wallstreetcn/live/global/2',
+  },
+  {
+    code: 'wscn-news',
+    name: '华尔街见闻资讯',
+    path: '/wallstreetcn/news',
+    kind: 'article',
+    enabled: true,
+    intervalSeconds: 600,
+  },
+  {
+    code: 'ths',
+    name: '同花顺快讯',
+    path: '/10jqka/realtimenews',
+    kind: 'flash',
+    enabled: true,
+    importantPath: '/10jqka/realtimenews/%E9%87%8D%E8%A6%81',
+  },
+  {
+    code: 'em-search',
+    name: '东方财富股市新闻',
+    path: '/eastmoney/search/%E8%82%A1%E5%B8%82',
+    kind: 'article',
+    enabled: true,
+    intervalSeconds: 600,
+    availabilityNote:
+      '按“股市”关键词聚合公开新闻，覆盖范围受东方财富搜索结果限制。',
+  },
+  {
+    code: 'em-strategy',
+    name: '东方财富策略研报',
+    path: '/eastmoney/report/strategyreport',
+    kind: 'article',
+    enabled: true,
+    intervalSeconds: 1800,
+  },
+  {
+    code: 'em-macro',
+    name: '东方财富宏观研报',
+    path: '/eastmoney/report/macresearch',
+    kind: 'article',
+    enabled: true,
+    intervalSeconds: 1800,
+  },
+  {
+    code: 'em-broker',
+    name: '东方财富券商晨报',
+    path: '/eastmoney/report/brokerreport',
+    kind: 'article',
+    enabled: true,
+    intervalSeconds: 1800,
+  },
+  {
+    code: 'em-industry',
+    name: '东方财富行业研报',
+    path: '/eastmoney/report/industry',
+    kind: 'article',
+    enabled: true,
+    intervalSeconds: 1800,
+  },
+  {
+    code: 'em-stock',
+    name: '东方财富个股研报',
+    path: '/eastmoney/report/stock',
+    kind: 'article',
+    enabled: true,
+    intervalSeconds: 1800,
+  },
+  {
+    code: 'xueqiu-today',
+    name: '雪球热门话题',
+    path: '/xueqiu/today',
+    kind: 'article',
+    enabled: true,
+    intervalSeconds: 600,
+    availabilityNote:
+      '采用可用的今日话题接口采集热门讨论；内容为用户观点，旧热帖接口目前返回 HTTP 400。',
+  },
+  {
+    code: 'sina-flash',
+    name: '新浪财经快讯',
+    path: 'https://app.cj.sina.com.cn/api/news/pc',
+    provider: 'sina-flash',
+    kind: 'flash',
+    enabled: true,
+    availabilityNote:
+      '使用新浪财经网页公开的快讯接口；与暂不可用的滚动报道接口分开采集。',
+  },
+];
 export const sourceByCode = (code: string) =>
   NEWS_SOURCES.find((s) => s.code === code);

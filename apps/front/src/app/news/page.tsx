@@ -18,7 +18,7 @@ import styles from './news.module.scss';
 
 interface NewsItem { id: number; source: string; sourceName: string; kind: string; title: string; body: string; originalUrl: string | null; important: boolean; publishedAt: string; timeBasis: string; favorite: boolean }
 interface NewsList { items: NewsItem[]; total: number; updatedAt: string; date: string }
-interface Source { code: string; name: string; enabled: boolean; intervalSeconds: number; status: string; lastSuccess: string | null; nextAttempt: string | null; lastError: string; lastAdded: number }
+interface Source { code: string; name: string; enabled: boolean; intervalSeconds: number; status: string; lastSuccess: string | null; nextAttempt: string | null; lastError: string; lastAdded: number; availabilityNote?: string }
 interface SourceState { collecting: boolean; sources: Source[] }
 const chinaDate = () => new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
 const formatTime = (date: string | null, full = false) => (date ? new Intl.DateTimeFormat('zh-CN', {
@@ -157,7 +157,7 @@ export default function Page() {
         </div>
         <div className={styles.filters}>
           <Segmented value={kind} options={[{ label: '全部资讯', value: '' }, { label: '快讯', value: 'flash' }, { label: '报道', value: 'article' }]} onChange={(v) => { setKind(String(v)); setPage(1); }} />
-          <Select aria-label="资讯来源" value={source} className={styles.sourceSelect} options={[{ label: '全部来源', value: '' }, ...sources.sources.map((s) => ({ label: s.name, value: s.code }))]} onChange={(v) => { setSource(v); setPage(1); }} />
+          <Select aria-label="资讯来源" showSearch optionFilterProp="label" value={source} className={styles.sourceSelect} options={[{ label: '全部来源', value: '' }, ...sources.sources.map((s) => ({ label: s.name, value: s.code }))]} onChange={(v) => { setSource(v); setPage(1); }} />
           <DatePicker aria-label="资讯日期" allowClear={false} disabled={favorites} value={dayjs(date)} disabledDate={(d) => d.format('YYYY-MM-DD') > chinaDate()} onChange={(d) => { if (d) { setDate(d.format('YYYY-MM-DD')); setPage(1); } }} />
           <Input.Search placeholder="搜索标题或正文" aria-label="搜索资讯" allowClear maxLength={80} className={styles.search} onSearch={(v) => { setKeyword(v.trim()); setPage(1); }} />
           <Checkbox checked={important} onChange={(e) => { setImportant(e.target.checked); setPage(1); }}>仅重点</Checkbox>
@@ -178,6 +178,7 @@ export default function Page() {
             {successful}
             {' '}
             个来源正常
+            {` · 共 ${sources.sources.length} 个订阅入口`}
             {data ? ` · 页面更新 ${formatTime(data.updatedAt)}` : ''}
             {auto && page === 1 && !favorites ? ' · 每 30 秒刷新' : ' · 自动更新列表已暂停'}
           </span>
@@ -217,7 +218,7 @@ export default function Page() {
           ))}
         </section>
         {Boolean(data?.total) && <div className={styles.pagination}><Pagination current={page} pageSize={20} total={data?.total} showSizeChanger={false} showLessItems onChange={setPage} /></div>}
-        <p className={styles.note}>资讯来自各来源公开内容，采集和刷新可能存在延迟。来源未提供有效发布时间时，以首次采集时间展示并标注。重点标记来自金十重点快讯。报道以原文为准。</p>
+        <p className={styles.note}>资讯来自各来源公开内容，采集和刷新可能存在延迟。来源未提供有效发布时间时，以首次采集时间展示并标注。重点标记来自各来源的重点快讯。雪球内容为用户讨论。报道以原文为准。</p>
       </main>
       <Drawer title="资讯详情" width="min(640px, 100vw)" open={detailOpen} onClose={() => { setDetailOpen(false); detailRequest.current += 1; }}>
         {detail && (
@@ -273,6 +274,7 @@ export default function Page() {
               ) : null}
             </p>
             {s.lastError && <Alert showIcon type="warning" message={s.lastError} />}
+            {s.availabilityNote && <p className={styles.note}>{s.availabilityNote}</p>}
             {s.code === 'bloomberg' && <p className={styles.note}>境外来源的可用性取决于服务器网络和来源访问限制。</p>}
             {manager && (
             <div className={styles.interval}>

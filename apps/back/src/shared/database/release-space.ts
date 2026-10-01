@@ -6,6 +6,8 @@ interface TableSize {
 // Only migrations with reviewed DDL may use a table-specific workspace budget.
 // Historical or newly added migrations retain the full-database allowance.
 const migrationTables: Record<string, readonly string[]> = {
+  // Adds only source configuration rows; no business-data DDL or rebuild.
+  ExpandedNewsSources1790832000000: ['t_news_source'],
   LoginActivity1790640000000: [
     't_auth_audit',
     't_auth_activity_read',
