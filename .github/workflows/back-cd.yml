@@ -108,7 +108,7 @@ jobs:
       - name: Test release maintenance and shell syntax
         run: |
           python3 -m unittest discover -s apps/back/ops/release -p 'test_*.py'
-          bash -n apps/back/ops/release/deploy.sh apps/back/ops/release/backup.sh apps/back/ops/release/daily-backup.sh
+          bash -n apps/back/ops/release/deploy.sh apps/back/ops/release/deploy-front.sh apps/back/ops/release/backup.sh apps/back/ops/release/daily-backup.sh
       - name: Verify release scripts on production Python 3.5
         run: docker run --rm --mount "type=bind,src=$PWD/apps/back/ops/release,dst=/work,readonly" --workdir /work python:3.5-slim python -m unittest discover -p 'test_*.py'
       - run: pnpm -C apps/back run test --runInBand
@@ -229,7 +229,7 @@ jobs:
           context: apps/front
           platforms: linux/amd64
           push: true
-          tags: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-front:${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && 'latest' || format('ci-{0}', github.sha) }}
+          tags: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-front:${{ github.sha }}
           cache-from: type=gha,version=2,scope=stock-front
           cache-to: type=gha,version=2,scope=stock-front,mode=max
           provenance: false
@@ -283,14 +283,27 @@ jobs:
     if: always() && github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.publish-front.result == 'success' && (needs.changes.outputs.backend != 'true' || needs.deploy-back.result == 'success')
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: apps/back/ops/release
+      - name: Upload versioned frontend release scripts
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: apps/back/ops/release
+          target: /opt/stock-release/packages/${{ github.sha }}
+          strip_components: 3
       - name: Deploy to Server
         uses: appleboy/ssh-action@v1.2.0
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          RELEASE_SHA: ${{ github.sha }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
-          envs: DOCKER_USERNAME,DOCKER_PASSWORD
-          script: cd /home && sh stock-front-deploy.sh
+          envs: DOCKER_USERNAME,DOCKER_PASSWORD,RELEASE_SHA
+          script: bash /opt/stock-release/packages/${{ github.sha }}/release/deploy-front.sh

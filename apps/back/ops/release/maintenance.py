@@ -17,10 +17,11 @@ import sys
 import time
 
 REPOSITORY = 'registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-back'
-PREVIOUS = re.compile(r'^stock-back-previous-([a-f0-9]{12})-\d+$')
-FAILED = re.compile(r'^stock-back-failed-[a-f0-9]{12}-\d+$')
-BACKEND_TAG = re.compile(r'^' + re.escape(REPOSITORY) + r':[a-f0-9]{40}$')
-ROLLBACK_TAG = re.compile(r'^stock-back-rollback:[a-f0-9]{12}$')
+FRONT_REPOSITORY = 'registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-front'
+PREVIOUS = re.compile(r'^stock-(back|front)-previous-([a-f0-9]{12})-\d+$')
+FAILED = re.compile(r'^stock-(back|front)-failed-[a-f0-9]{12}-\d+$')
+RELEASE_TAG = re.compile(r'^(' + re.escape(REPOSITORY) + '|' + re.escape(FRONT_REPOSITORY) + r'):(?:[a-f0-9]{40}|ci-[a-f0-9]{40}|latest)$')
+ROLLBACK_TAG = re.compile(r'^stock-(back|front)-rollback:[a-f0-9]{12}$')
 SHA = re.compile(r'^[a-f0-9]{64}$')
 DAY = 86400
 
@@ -164,31 +165,63 @@ def archive_and_remove(directory, archive_root, root):
     (directory/'stock.sql.gz').unlink()
 
 
-def docker_plan(containers, images, failed_prefixes, now=None):
-    now = time.time() if now is None else now
-    previous = sorted([item for item in containers if PREVIOUS.fullmatch(item['Name'].lstrip('/'))],
-                      key=lambda item: timestamp(item['Created']), reverse=True)
-    newest = {item['Id'] for item in previous[:3]}
+def docker_plan(containers, images, successful_previous=None, now=None):
+    # Keep exactly current + one distinct successful prior image per application.
+    # Unrelated containers, including stopped ones, always protect their images.
+    keep, managed = set(), set()
+    retained = []
+    for service in ('back', 'front'):
+        current = [item for item in containers if item['Name'].lstrip('/') == 'stock-'+service]
+        if not current or not current[0]['State']['Running']:
+            # A stopped current service can be a failed DDL release; never clean
+            # its recovery resources while production is in maintenance state.
+            continue
+        current = current[0]
+        keep.add(current['Id'])
+        retained.append({'service': service, 'role': 'current', 'container': current['Name'], 'image': current['Image']})
+        previous = []
+        for item in containers:
+            name = item['Name'].lstrip('/')
+            match = PREVIOUS.fullmatch(name)
+            if match and match.group(1) == service:
+                if successful_previous is None or name in successful_previous:
+                    previous.append(item)
+                managed.add(item['Id'])
+            failed = FAILED.fullmatch(name)
+            if failed and failed.group(1) == service:
+                managed.add(item['Id'])
+        previous.sort(key=lambda item: timestamp(item['Created']), reverse=True)
+        prior = next((item for item in previous if item['Image'] != current['Image']), None)
+        if prior:
+            keep.add(prior['Id'])
+            retained.append({'service': service, 'role': 'previous', 'container': prior['Name'], 'image': prior['Image']})
     remove, protected_images = [], set()
     for item in containers:
-        match = PREVIOUS.fullmatch(item['Name'].lstrip('/'))
-        eligible = (match and item['Id'] not in newest and not item['State']['Running']
-                    and now-timestamp(item['Created']) >= 7*DAY and match.group(1) not in failed_prefixes)
+        eligible = item['Id'] in managed and item['Id'] not in keep and not item['State']['Running']
         if eligible:
             remove.append(item['Id'])
         else:
             # Every running or unrelated container protects its image.
             protected_images.add(item['Image'])
-    tags = []
+    tags, dangling, runtime_tags = [], [], []
+    # A missing/stopped application's image family is protected as a whole.
+    active = {item['Name'].lstrip('/') for item in containers if item['State']['Running']}
     for image in images:
-        if image['Id'] in protected_images or now-timestamp(image['Created']) < 7*DAY:
+        if image['Id'] in protected_images:
+            if not image.get('RepoTags'):
+                owners = [item for item in containers if item['Image'] == image['Id'] and item['State']['Running']]
+                if owners:
+                    name = re.sub(r'[^a-z0-9_.-]', '-', owners[0]['Name'].lstrip('/').lower())
+                    runtime_tags.append({'image': image['Id'], 'tag': 'stock-runtime-preserved:'+name+'-'+image['Id'].split(':')[-1][:12]})
             continue
-        for tag in image.get('RepoTags') or []:
-            if BACKEND_TAG.fullmatch(tag) or ROLLBACK_TAG.fullmatch(tag):
-                suffix = tag.split(':')[-1][:12]
-                if suffix not in failed_prefixes:
-                    tags.append(tag)
-    return {'containers': remove, 'imageTags': sorted(set(tags))}
+        image_tags = image.get('RepoTags') or []
+        if not image_tags:
+            dangling.append(image['Id'])
+        for tag in image_tags:
+            service = 'front' if tag.startswith(FRONT_REPOSITORY+':') or tag.startswith('stock-front-rollback:') else 'back'
+            if 'stock-'+service in active and (RELEASE_TAG.fullmatch(tag) or ROLLBACK_TAG.fullmatch(tag)):
+                tags.append(tag)
+    return {'containers': remove, 'imageTags': sorted(set(tags)), 'danglingImages': sorted(set(dangling)), 'retained': retained, 'runtimeImageTags': runtime_tags}
 
 
 def docker_json(kind):
@@ -205,19 +238,27 @@ def maintenance(root, apply=False):
     policy_file = root/'policy.json'
     policy = json.loads(policy_file.read_text()) if policy_file.is_file() else {}
     archive_root = pathlib.Path(policy['archiveRoot']) if policy.get('archiveRoot') else None
-    failed = set()
-    runs = root/'runs'
-    if runs.is_dir() and not runs.is_symlink():
-        for directory in runs.iterdir():
-            suffix = directory.name.rsplit('-', 1)[-1]
-            phase = directory/'phase'
-            if re.fullmatch('[a-f0-9]{40}', suffix) and (directory.is_symlink() or not phase.is_file() or phase.read_text().strip() != 'success'):
-                failed.add(suffix[:12])
-    plan = docker_plan(docker_json('container'), docker_json('image'), failed)
+    successful_previous = set()
+    for folder in ('runs', 'front-runs'):
+        runs = root/folder
+        if runs.is_dir() and not runs.is_symlink():
+            for directory in runs.iterdir():
+                phase, old = directory/'phase', directory/'old-container-name'
+                if directory.is_symlink() or phase.is_symlink() or old.is_symlink():
+                    continue
+                if phase.is_file() and phase.read_text().strip() == 'success' and old.is_file():
+                    name = old.read_text().strip()
+                    if PREVIOUS.fullmatch(name):
+                        successful_previous.add(name)
+    plan = docker_plan(docker_json('container'), docker_json('image'), successful_previous)
     candidates = backup_candidates(root)
     result = dict(plan, backupCandidates=len(candidates), archivedBackups=0,
                   backupCleanup='archive-required' if not archive_root else 'configured', applied=apply)
     if apply:
+        # A running service may have lost its original tag during a previous
+        # deploy. Give it an explicit local tag instead of interrupting it.
+        for record in plan['runtimeImageTags']:
+            subprocess.check_call(['docker', 'image', 'tag', record['image'], record['tag']])
         for directory in candidates:
             if archive_root:
                 archive_and_remove(directory, archive_root, root)
@@ -226,6 +267,13 @@ def maintenance(root, apply=False):
             subprocess.check_call(['docker', 'container', 'rm', container])
         for tag in plan['imageTags']:
             subprocess.check_call(['docker', 'image', 'rm', tag])
+        # Re-inspect after container/tag removal. Do not force-remove an image
+        # that another service started using since the plan was computed.
+        for image in docker_json('image'):
+            if not image.get('RepoTags'):
+                references = {item['Image'] for item in docker_json('container')}
+                if image['Id'] not in references:
+                    subprocess.check_call(['docker', 'image', 'rm', image['Id']])
     return result
 
 

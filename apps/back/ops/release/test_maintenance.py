@@ -121,18 +121,46 @@ class MaintenanceTests(unittest.TestCase):
             m.archive_and_remove(original, archive, boundary)
         self.assertTrue((original/'stock.sql.gz').exists())
 
-    def test_docker_cleanup_protects_running_recent_latest_three_unrelated_and_failed(self):
-        previous = [container('stock-back-previous-'+('%012x' % index)+'-'+str(index), 10+index, 'image-'+str(index)) for index in range(5)]
-        failed = container('stock-back-previous-'+'f'*12+'-1', 30, 'failed-image')
+    def test_cleanup_keeps_current_and_one_prior_without_seven_day_exemption(self):
+        previous = [container('stock-back-previous-'+('%012x' % index)+'-'+str(index), 0.1+index, 'image-'+str(index)) for index in range(5)]
+        failed = container('stock-back-failed-'+'f'*12+'-1', 0, 'failed-image')
         current = container('stock-back', 10, 'current-image', True)
         unrelated = container('other-application', 30, 'image-4')
         images = [dict(Id='image-'+str(index), Created=date(10), RepoTags=[m.REPOSITORY+':'+('%040x' % index)]) for index in range(5)]
-        images += [dict(Id='failed-image', Created=date(30), RepoTags=['stock-back-rollback:'+'f'*12]),
+        images += [dict(Id='failed-image', Created=date(0), RepoTags=[m.REPOSITORY+':'+'f'*40]),
                    dict(Id='unmanaged-image', Created=date(30), RepoTags=['unrelated:latest']),
                    dict(Id='new-image', Created=date(1), RepoTags=[m.REPOSITORY+':'+'a'*40])]
-        plan = m.docker_plan(previous+[failed,current,unrelated], images, {'f'*12}, NOW)
-        self.assertEqual(set(plan['containers']), {previous[3]['Id'], previous[4]['Id']})
-        self.assertEqual(plan['imageTags'], [m.REPOSITORY+':'+('%040x' % 3)])
+        plan = m.docker_plan(previous+[failed,current,unrelated], images)
+        self.assertEqual(set(plan['containers']), {item['Id'] for item in previous[1:]} | {failed['Id']})
+        self.assertEqual(set(plan['imageTags']), {m.REPOSITORY+':'+('%040x' % index) for index in (1,2,3)} | {m.REPOSITORY+':'+'f'*40, m.REPOSITORY+':'+'a'*40})
+
+    def test_both_services_keep_one_distinct_successful_history(self):
+        containers = []
+        successful = set()
+        for service in ('back', 'front'):
+            containers += [container('stock-'+service, 0, service+'-current', True),
+                container('stock-'+service+'-previous-'+'a'*12+'-1', 1, service+'-current'),
+                container('stock-'+service+'-previous-'+'b'*12+'-2', 2, service+'-prior'),
+                container('stock-'+service+'-previous-'+'c'*12+'-3', 3, service+'-older'),
+                container('stock-'+service+'-previous-'+'d'*12+'-4', 0.1, service+'-unsuccessful')]
+            successful.update(item['Name'].lstrip('/') for item in containers if '-previous-' in item['Name'] and 'd'*12 not in item['Name'])
+        plan = m.docker_plan(containers, [], successful)
+        self.assertEqual({item['image'] for item in plan['retained']}, {'back-current','back-prior','front-current','front-prior'})
+        self.assertEqual(len(plan['containers']), 6)
+
+    def test_dangling_cleanup_never_removes_any_container_reference(self):
+        containers = [container('stock-back', 0, 'current', True), container('other-stopped-service', 2, 'used')]
+        images = [dict(Id=value, RepoTags=None, Created=date(0)) for value in ('current','used','unused')]
+        plan = m.docker_plan(containers, images)
+        self.assertEqual(plan['danglingImages'], ['unused'])
+        self.assertEqual(plan['runtimeImageTags'], [{'image': 'current', 'tag': 'stock-runtime-preserved:stock-back-current'}])
+
+    def test_stopped_service_preserves_its_recovery_container_and_tag(self):
+        containers = [container('stock-back', 0, 'current'), container('stock-back-previous-'+'a'*12+'-1', 20, 'prior')]
+        images = [dict(Id='prior', RepoTags=[m.REPOSITORY+':'+'a'*40], Created=date(20))]
+        plan = m.docker_plan(containers, images, set())
+        self.assertEqual(plan['containers'], [])
+        self.assertEqual(plan['imageTags'], [])
 
 
 if __name__ == '__main__':

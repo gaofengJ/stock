@@ -18,6 +18,20 @@ jobs:
     if: github.ref == 'refs/heads/master' || inputs.operation == 'inspect'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        if: inputs.operation == 'inspect'
+        with:
+          sparse-checkout: apps/back/ops/release
+      - name: Upload readonly retention inspector
+        if: inputs.operation == 'inspect'
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: apps/back/ops/release/maintenance.py
+          target: /opt/stock-release/inspections/${{ github.sha }}
+          strip_components: 3
       - name: Inspect release storage and optionally reclaim build cache
         uses: appleboy/ssh-action@v1.2.0
         env:
@@ -43,7 +57,11 @@ jobs:
             docker ps -a --format '{{.Names}} {{.Status}} {{.Image}}'
             docker inspect stock-front | python3 -c 'import json,sys; c=json.load(sys.stdin)[0]; print(json.dumps({"frontConfiguration":{"image":c["Image"],"ports":c["HostConfig"]["PortBindings"],"mounts":[{k:m.get(k) for k in ("Source","Destination","RW")} for m in c["Mounts"]],"networks":list(c["NetworkSettings"]["Networks"]),"restart":c["HostConfig"]["RestartPolicy"]}}))'
             docker ps -a --format '{{.ID}}' | xargs -r docker inspect | python3 -c 'import json,sys; print(json.dumps({"containerReferences":[{"name":c["Name"],"image":c["Image"],"running":c["State"]["Running"]} for c in json.load(sys.stdin)]}))'
-            python3 /opt/stock-release/tools/maintenance.py --root /opt/stock-release
+            if [ "$OPERATION" = inspect ]; then
+              python3 /opt/stock-release/inspections/${{ github.sha }}/release/maintenance.py --root /opt/stock-release
+            else
+              python3 /opt/stock-release/tools/maintenance.py --root /opt/stock-release
+            fi
             python3 - <<'PY'
             import glob, json, os
             groups = {
