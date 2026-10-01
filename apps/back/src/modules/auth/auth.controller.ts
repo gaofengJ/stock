@@ -14,6 +14,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { FastifyReply } from 'fastify';
+import { SkipThrottle } from '@nestjs/throttler';
 import { AuthRequest, AuthService, COOKIE } from './auth.service';
 import {
   LoginDto,
@@ -39,6 +40,8 @@ export class AuthController {
   constructor(private auth: AuthService) {}
 
   // Authorize articles and search indexes using the existing role/trial policy.
+  // Nginx checks every static resource; these checks share its bridge IP.
+  @SkipThrottle()
   @Permit('blog:read')
   @Get('blog-access')
   blogAccess() {
