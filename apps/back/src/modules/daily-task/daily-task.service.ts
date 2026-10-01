@@ -26,6 +26,7 @@ import { SyncDayPolicyEntity } from './sync-day-policy.entity';
 import { DailyEntity } from '../source/daily/daily.entity';
 import { LimitEntity } from '../source/limit/limit.entity';
 import { StockEntity } from '../source/stock/stock.entity';
+import { StockIdentityService } from '../source/stock/stock-identity.service';
 import { TradeCalEntity } from '../source/trade-cal/trade-cal.entity';
 import { ActiveFundsEntity } from '../source/active-funds/active-funds.entity';
 import { SentiEntity } from '../processed/senti/senti.entity';
@@ -55,6 +56,7 @@ export class DailyTaskService {
     @Optional() private readonly market?: MarketSyncService,
     @Optional() private readonly breadth?: MarketBreadthService,
     @Optional() private readonly sectors?: SectorService,
+    @Optional() private readonly identity?: StockIdentityService,
   ) {}
 
   private withLock<T>(
@@ -132,6 +134,19 @@ export class DailyTaskService {
     await this.replaceSnapshot(manager, StockEntity, () =>
       this.source.stocks(),
     );
+    if (this.identity) {
+      try {
+        await this.identity.refresh(
+          manager,
+          await manager.find(StockEntity),
+          manual,
+        );
+      } catch (error) {
+        this.logger.error(
+          `股票历史信息同步失败，策略将提示数据未就绪: ${errorMessage(error)}`,
+        );
+      }
+    }
     if (!auxiliary) return;
     await this.refreshAuxiliary(manager, date, manual);
   }
@@ -255,7 +270,10 @@ export class DailyTaskService {
     try {
       // 所有外部请求在事务外完成，事务只包含数据库操作。
       const stocks = await manager.find(StockEntity);
-      const daily = await this.source.daily(date, stocks);
+      const sourceDaily = await this.source.daily(date, stocks);
+      const daily = this.identity
+        ? await this.identity.decorate(sourceDaily, manager)
+        : sourceDaily;
       const limits = await this.source.limits(date);
       const oldCount = await manager.countBy(DailyEntity, { tradeDate: date });
       if (!daily.length || (oldCount > 0 && daily.length < oldCount * 0.8))

@@ -124,7 +124,10 @@ describe('同步数据校验', () => {
       name: '股票名称',
       tradeDate: '2024-07-01',
       close: 11,
-      pe: 0,
+      pe: null,
+      peTtm: null,
+      turnoverRateF: null,
+      volumeRatio: null,
     });
     expect(rows[1]).toMatchObject({ tsCode: '000002.SZ', open: 0, close: 0 });
   });

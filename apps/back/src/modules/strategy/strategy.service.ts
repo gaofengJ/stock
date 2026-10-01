@@ -79,7 +79,7 @@ export class StrategyService {
   }
 
   /**
-   * 策略选股结果列表-连续三日放量收阳
+   * 策略选股结果列表-连续三日收阳
    */
   async threeDaysHighVol(date: CommonDateDto['date']) {
     const isOpen = await this.tradeCalService.isOpen(date);
@@ -153,7 +153,7 @@ export class StrategyService {
         key: EStrategyType.gapThreeHighTurnover,
       },
       {
-        label: '连续三日放量收阳',
+        label: '连续三日收阳',
         key: EStrategyType.threeDaysHighVol,
       },
       {

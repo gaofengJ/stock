@@ -1,5 +1,10 @@
 import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, In, Like, Not, Repository } from 'typeorm';
 
@@ -11,6 +16,7 @@ import { SentiUpDownCountEntity } from '@/modules/analysis/senti/senti.entity';
 
 import { DailyEntity } from './daily.entity';
 import { DailyDto, DailyQueryDto, DailyUpdateDto } from './daily.dto';
+import { StockIdentityService } from '../stock/stock-identity.service';
 import {
   hasValidStrategySequence,
   hasUpperShadowAboveThreePercent,
@@ -23,6 +29,7 @@ export class DailyService {
     private readonly writes: SyncWriteService,
     @InjectRepository(DailyEntity)
     private DailyRepository: Repository<DailyEntity>,
+    @Optional() private readonly identity?: StockIdentityService,
   ) {}
 
   async list({
@@ -264,23 +271,31 @@ export class DailyService {
         +d1.high < +d2.low && // 缺口
         +d3.low > +d1.high && // 允许部分回补，但最低价不能触及或跌破D1最高价
         +d4.low > +d1.high &&
-        +d2.amount > +d1.amount && // 仅跳空日成交额需高于基准日
-        [d2, d3, d4].every(
-          (day) =>
-            +(day.turnoverRateF || 0) > 5 &&
-            Number(day.turnoverRateF) > Number(d1.turnoverRateF),
-        ) // 不要求收盘递增或D4收阳
+        +d2.amount > +d1.amount // 仅跳空日成交额需高于基准日
       ) {
-        result.push(d4);
+        const shapeDays = [d2, d3, d4];
+        if (
+          shapeDays.some(
+            (day) =>
+              day.turnoverRateF == null ||
+              day.turnoverRateF === '' ||
+              !Number.isFinite(Number(day.turnoverRateF)),
+          )
+        ) {
+          throw new ConflictException(
+            '自由流通换手率数据不完整，请补同步后重试',
+          );
+        }
+        if (shapeDays.every((day) => Number(day.turnoverRateF) > 5))
+          result.push(d4);
       }
     });
     return result;
   }
 
   /**
-   * 策略：连续三日放量收阳
-   * 沿用原量比目标3.0、2.1、1.7各下调10%的门槛，且三天均收阳。
-   * 仅量比门槛逐日降低，不要求实际量比递减、成交量不下降或收盘逐日上涨。
+   * 策略：连续三日收阳。保留原接口键，不再要求量比达标。
+   * 不要求成交量不下降或收盘逐日上涨。
    * @param dates [date3(最新), date2, date1(最早)]
    */
   async findThreeDaysHighVol(
@@ -302,9 +317,6 @@ export class DailyService {
       if (!meetsCommonStrategyConditions([d1, d2, d3])) return;
 
       if (
-        +(d1.volumeRatio || 0) > 2.7 &&
-        +(d2.volumeRatio || 0) > 1.89 &&
-        +(d3.volumeRatio || 0) > 1.53 &&
         +d1.close > +d1.open &&
         +d2.close > +d2.open &&
         +d3.close > +d3.open
@@ -389,7 +401,7 @@ export class DailyService {
   }
 
   async strategyHistory(dates: string[], visible: string[], codes?: string[]) {
-    const sequence = await this.getDailyDataByDates(dates, codes);
+    const sequence = await this.getDailyDataByDates(dates, codes, false);
     return Promise.all(
       visible.map(async (date) => {
         const window = dates
@@ -428,13 +440,22 @@ export class DailyService {
     );
   }
 
-  private async getDailyDataByDates(dates: string[], codes?: string[]) {
+  private async getDailyDataByDates(
+    dates: string[],
+    codes?: string[],
+    checkReady = true,
+  ) {
     if (codes && !codes.length)
       return new Map<string, Record<string, DailyEntity>>();
+    if (checkReady && this.identity) await this.identity.assertReady(dates);
+    const identity = this.identity
+      ? await this.identity.load(dates)
+      : undefined;
+    const expandedCodes = codes && identity ? identity.expand(codes) : codes;
     const list = await this.DailyRepository.find({
       where: {
         tradeDate: In(dates),
-        ...(codes ? { tsCode: In(codes) } : {}),
+        ...(expandedCodes ? { tsCode: In(expandedCodes) } : {}),
       },
       // Strategy screening only needs a subset of columns. Restricting the
       // projection avoids fetching the whole wide row set across the network.
@@ -461,10 +482,38 @@ export class DailyService {
     const map = new Map<string, Record<string, DailyEntity>>();
     // eslint-disable-next-line no-restricted-syntax
     for (const item of list) {
-      if (!map.has(item.tsCode)) {
-        map.set(item.tsCode, {});
+      const code = identity?.canonical(item.tsCode) || item.tsCode;
+      const name = identity ? identity.name(code, item.tradeDate) : item.name;
+      if (
+        identity &&
+        identity.listed(code, item.tradeDate) &&
+        !name &&
+        Number(item.amount) > 50000 &&
+        Number(item.vol) > 0
+      )
+        throw new ConflictException(
+          `${item.tradeDate} 股票历史名称不完整，请补同步历史信息`,
+        );
+      if (!map.has(code)) {
+        map.set(code, {});
       }
-      map.get(item.tsCode)![item.tradeDate] = item;
+      const previous = map.get(code)![item.tradeDate];
+      if (
+        previous &&
+        (['open', 'close', 'high', 'low', 'preClose'] as const).some(
+          (field) => Number(previous[field]) !== Number(item[field]),
+        )
+      )
+        throw new ConflictException(
+          `${item.tradeDate} 股票新旧代码行情冲突，请核查数据`,
+        );
+      // Prefer the current code when equivalent alias rows exist on the same date.
+      if (!previous || item.tsCode === code)
+        map.get(code)![item.tradeDate] = {
+          ...item,
+          tsCode: code,
+          name,
+        } as DailyEntity;
     }
     return map;
   }

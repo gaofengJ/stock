@@ -193,7 +193,7 @@ export class SyncSourceService {
       )
     )
       throw new Error('日线关联接口数据不完整');
-    const numericFields = [
+    const optionalNumericFields = [
       'turnoverRate',
       'turnoverRateF',
       'volumeRatio',
@@ -209,6 +209,8 @@ export class SyncSourceService {
       'freeShare',
       'totalMv',
       'circMv',
+    ];
+    const requiredNumericFields = [
       'open',
       'high',
       'low',
@@ -221,12 +223,22 @@ export class SyncSourceService {
     ];
     return rows.map((row) => {
       const normalized = { ...row, name: stockByCode[row.tsCode]?.name || '' };
-      numericFields.forEach((field) => {
+      optionalNumericFields.forEach((field) => {
+        normalized[field] =
+          row[field] == null || row[field] === '' ? null : row[field];
+      });
+      // Limit/basic snapshots also contain suspended stocks without a daily row.
+      requiredNumericFields.forEach((field) => {
         normalized[field] = row[field] ?? 0;
       });
       if (
-        ['upLimit', 'downLimit', ...numericFields].some(
+        ['upLimit', 'downLimit', ...requiredNumericFields].some(
           (field) => !Number.isFinite(Number(normalized[field])),
+        ) ||
+        optionalNumericFields.some(
+          (field) =>
+            normalized[field] !== null &&
+            !Number.isFinite(Number(normalized[field])),
         )
       )
         throw new Error('日线包含无效数值');

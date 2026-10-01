@@ -15,7 +15,7 @@ export enum EStrategyType {
    */
   gapThreeHighTurnover = 'gapThreeHighTurnover',
   /**
-   * 连续三日放量收阳
+   * 连续三日收阳
    */
   threeDaysHighVol = 'threeDaysHighVol',
   /**

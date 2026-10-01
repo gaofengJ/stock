@@ -21,16 +21,8 @@ import { useStrategyConfigs } from './form-configs';
 import { strategyColumns } from './columns';
 
 import CandidateEnvironment from './CandidateEnvironment';
+import StrategyRules from './StrategyRules';
 import './strategy.sass';
-
-const strategyNotes: Record<string, string> = {
-  gapThreeUp: '从跳空日起连续三天收阳；不要求收盘逐日上涨。后续允许部分回补，但最低价必须始终高于跳空前一天最高价，触及也排除。',
-  gapTwoUp: '从跳空日起连续两天收阳；不要求收盘逐日上涨。后续允许部分回补，但最低价必须始终高于跳空前一天最高价，触及也排除。',
-  gapThreeHighTurnover: '从跳空日起三天自由流通换手率均大于5%，且均高于跳空前一天；跳空当天成交额须高于前一天。允许部分回补，但最低价必须始终高于跳空前一天最高价，触及也排除。不要求收阳或收盘逐日上涨。',
-  threeDaysHighVol: '三天量比分别大于2.7、1.89、1.53，且三天均收阳。不要求成交量不下降、量比递减或收盘逐日上涨。',
-  continuousGap: '连续两天最低价分别高于各自前一天最高价，形成两次完整向上缺口；不要求收阳。',
-  shadowWrap: '跳空日上影长度须大于昨收价的3%；次日收阳且收盘突破跳空日最高价。允许部分回补，但反包日最低价必须高于跳空前一天最高价，触及也排除。',
-};
 
 function StrategyPage() {
   const { sector, setSector } = useSectorSelection();
@@ -57,6 +49,7 @@ function StrategyPage() {
    * 更新 searchParams 的值
    */
   const handleSetSearchParams = (val: any) => {
+    if (!val.date?.isValid()) return;
     setSearchParams((state) => ({
       ...state,
       ...val,
@@ -88,7 +81,7 @@ function StrategyPage() {
   const [strategyData, setStrategyData] = useState(initialLimitsData);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready) { setDateReady(false); return; }
     setSearchParams((state) => {
       if (linkedDate) return { ...state, date: linkedDate };
       return state.date === candidate ? { ...state, date: tradeDate } : state;
@@ -124,7 +117,7 @@ function StrategyPage() {
   }), [runLatestTabsRequest, tabsRequestConfig, linkedStrategy]);
 
   const getStrategy = useCallback(() => {
-    if (!dateReady || !searchParams.date || !activedNav) return;
+    if (!ready || !dateReady || !searchParams.date || !activedNav) return;
     runLatestStrategyRequest({
       request: () => getStrategyList({
         ...searchParams,
@@ -143,6 +136,7 @@ function StrategyPage() {
   }, [
     activedNav,
     dateReady,
+    ready,
     runLatestStrategyRequest,
     searchParams,
     sector,
@@ -170,20 +164,7 @@ function StrategyPage() {
           items={navList}
           onChange={handleClickTabs}
         />
-        {strategyNotes[activedNav] && (
-          <Alert
-            className="mb-16"
-            type="info"
-            message="筛选规则"
-            description={(
-              <>
-                <div>{strategyNotes[activedNav]}</div>
-                <div>共同条件：形态观察期每天成交额严格大于5000万元，排除一字涨停；最后一天收盘不低于当天最高价与最低价的中点。成交量无需逐日增加。</div>
-                <div>{activedNav === 'threeDaysHighVol' ? '形态观察期为连续三天。' : '形态观察期从首次跳空日开始，不含跳空前仅作参照的基准日。'}</div>
-              </>
-            )}
-          />
-        )}
+        <StrategyRules strategy={activedNav} />
         {/* 防止内容撑开宽度: w-0 设置了元素的基础宽度为 0，防止内容影响元素的初始宽度。通常，flexbox 元素的宽度会根据内容自动扩展，但 w-0 强制宽度为 0，使得元素完全依赖 flex-grow 进行扩展 */}
         <div className="strategy-results">
           <div className="mb-16">
@@ -197,7 +178,7 @@ function StrategyPage() {
             />
           </div>
           <div className="mb-16"><SectorFilter value={sector} onChange={setSector} /></div>
-          <CandidateEnvironment date={searchParams.date || ''} />
+          <CandidateEnvironment date={ready && dateReady ? searchParams.date || '' : ''} />
           {linkedCode && <Alert className="mb-16" type="info" message={`定位股票 ${linkedCode}`} action={<Button size="small" onClick={() => { const params = new URLSearchParams(urlParams.toString()); params.delete('code'); window.history.replaceState(null, '', `?${params}`); }}>显示全部</Button>} />}
           <Table
             rootClassName="strategy-table"

@@ -4,6 +4,7 @@ interface TableSize {
 }
 
 const migrationTables: Record<string, readonly string[]> = {
+  StockIdentity1791244800000: ['t_source_stock_history'],
   ReliableSync1790380800000: [],
   Accounts1790467200000: [],
   SyncSafety1790380800001: ['t_sync_day_policy'],
@@ -58,6 +59,7 @@ const migrationOperations: Record<
   string,
   'create' | 'data' | 'schema' | 'full-database'
 > = {
+  StockIdentity1791244800000: 'create',
   ReliableSync1790380800000: 'full-database',
   Accounts1790467200000: 'full-database',
   SyncSafety1790380800001: 'create',

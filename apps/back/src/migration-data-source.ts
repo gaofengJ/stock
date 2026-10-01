@@ -15,6 +15,7 @@ import { MarketBreadth1790899200000 } from './migrations/1790899200000-MarketBre
 import { ThsSectors1790985600000 } from './migrations/1790985600000-ThsSectors';
 import { NewsTranslations1791072000000 } from './migrations/1791072000000-NewsTranslations';
 import { NewsReadingFeatures1791158400000 } from './migrations/1791158400000-NewsReadingFeatures';
+import { StockIdentity1791244800000 } from './migrations/1791244800000-StockIdentity';
 
 dotenv.config({
   path:
@@ -45,6 +46,7 @@ export default new DataSource({
     ThsSectors1790985600000,
     NewsTranslations1791072000000,
     NewsReadingFeatures1791158400000,
+    StockIdentity1791244800000,
   ],
   migrationsTransactionMode: 'none',
   logging: false,
