@@ -69,6 +69,8 @@ start_phase runtime-config
 [[ -s "$ENV_FILE" ]] || { echo 'Missing runtime configuration'; false; }
 chmod 600 "$ENV_FILE"
 command -v systemctl >/dev/null || { echo 'systemd is required for independent backups'; false; }
+python3 --version
+systemctl --version | head -n 1
 start_phase image-pull
 if [[ -n "${DOCKER_PASSWORD:-}" ]]; then
   printf '%s' "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin registry.cn-hangzhou.aliyuncs.com

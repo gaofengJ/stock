@@ -6,9 +6,9 @@ BACKUP_IMAGE=${2:?image required}
 BACKUP_ENV=${3:?runtime configuration required}
 ROOT=/opt/stock-release
 python3 - "$ROOT" "$DIR" <<'PY'
-import pathlib,sys
+import os,pathlib,sys
 root=pathlib.Path(sys.argv[1]).resolve()
-target=pathlib.Path(sys.argv[2]).resolve()
+target=pathlib.Path(os.path.realpath(sys.argv[2]))
 if target.parent != root/'backups' or target.exists():
     raise SystemExit('Invalid or existing backup directory')
 PY

@@ -13,6 +13,7 @@ import pathlib
 import re
 import shutil
 import subprocess
+import sys
 import time
 
 REPOSITORY = 'registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-back'
@@ -27,7 +28,10 @@ DAY = 86400
 def timestamp(value):
     # Normalize Docker nanoseconds for the production host's older Python.
     value = re.sub(r'(\.\d{6})\d+', r'\1', value)
-    return datetime.datetime.fromisoformat(value.replace('Z', '+00:00')).timestamp()
+    value = value.replace('Z', '+0000')
+    value = re.sub(r'([+-]\d{2}):(\d{2})$', r'\1\2', value)
+    pattern = '%Y-%m-%dT%H:%M:%S.%f%z' if '.' in value else '%Y-%m-%dT%H:%M:%S%z'
+    return datetime.datetime.strptime(value, pattern).timestamp()
 
 
 def digest(path):
@@ -106,7 +110,9 @@ def backup_candidates(root, now=None):
 
 def archive_and_remove(directory, archive_root, root):
     # Archiving on the same filesystem would not free system-disk capacity.
-    archive_root = archive_root.resolve(strict=True)
+    if not archive_root.is_dir():
+        raise ValueError('Archive directory does not exist')
+    archive_root = archive_root.resolve()
     if not archive_root.is_dir() or archive_root.stat().st_dev == root.stat().st_dev:
         raise ValueError('Archive must be an existing private directory on a separate filesystem')
     if os.path.commonpath([str(root.resolve()), str(archive_root)]) == str(root.resolve()):
@@ -193,7 +199,9 @@ def docker_json(kind):
 
 
 def maintenance(root, apply=False):
-    root = root.resolve(strict=True)
+    if not root.is_dir():
+        raise ValueError('Release directory does not exist')
+    root = root.resolve()
     policy_file = root/'policy.json'
     policy = json.loads(policy_file.read_text()) if policy_file.is_file() else {}
     archive_root = pathlib.Path(policy['archiveRoot']) if policy.get('archiveRoot') else None
@@ -236,4 +244,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except (ValueError, OSError, KeyError, subprocess.CalledProcessError) as error:
+        print(json.dumps({'status': 'deferred', 'error': str(error)}), file=sys.stderr)
+        sys.exit(1)

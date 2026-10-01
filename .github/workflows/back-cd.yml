@@ -109,6 +109,8 @@ jobs:
         run: |
           python3 -m unittest discover -s apps/back/ops/release -p 'test_*.py'
           bash -n apps/back/ops/release/deploy.sh apps/back/ops/release/backup.sh apps/back/ops/release/daily-backup.sh
+      - name: Verify release scripts on production Python 3.5
+        run: docker run --rm --mount "type=bind,src=$PWD/apps/back/ops/release,dst=/work,readonly" --workdir /work python:3.5-slim python -m unittest discover -p 'test_*.py'
       - run: pnpm -C apps/back run test --runInBand
         env:
           SYNC_TEST_MYSQL_PORT: 3306
