@@ -29,7 +29,7 @@ function sampleDays(): DailyEntity[] {
   );
 }
 
-describe('三日放量保留原量比和阳线规则', () => {
+describe('连续三日收阳，不限制量比', () => {
   function setup() {
     const rows = sampleDays().slice(0, 3);
     const service = new DailyService(undefined!, {
@@ -39,19 +39,18 @@ describe('三日放量保留原量比和阳线规则', () => {
     return { rows, run: () => service.findThreeDaysHighVol(dates) };
   }
 
-  it.each([
-    [0, 2.7],
-    [1, 1.89],
-    [2, 1.53],
-  ])('索引%s日保留严格大于%s的量比门槛', async (index, threshold) => {
-    const { rows, run } = setup();
-    rows[index].volumeRatio = String(threshold);
-    expect(await run()).toEqual([]);
-    rows[index].volumeRatio = String(threshold - 0.01);
-    expect(await run()).toEqual([]);
-    rows[index].volumeRatio = String(threshold + 0.01);
-    expect(await run()).toHaveLength(1);
-  });
+  it.each([0, 1, 2])(
+    '索引%s日低量比、零值或缺失量比不影响入选',
+    async (index) => {
+      const { rows, run } = setup();
+      rows[index].volumeRatio = '0.1';
+      expect(await run()).toHaveLength(1);
+      rows[index].volumeRatio = '0';
+      expect(await run()).toHaveLength(1);
+      rows[index].volumeRatio = undefined;
+      expect(await run()).toHaveLength(1);
+    },
+  );
 
   it('允许缩量、收盘逐日下降，不要求跳空，但末日必须收在上半区', async () => {
     const { rows, run } = setup();
@@ -467,7 +466,7 @@ describe('跳空后三连阳的组合规则', () => {
     expect(await run()).toEqual([]);
   });
 
-  it('二连阳和三连阳允许普通涨停，高换手仍须满足相对换手条件', async () => {
+  it('普通涨停可以入选，高换手无需高于基准日', async () => {
     const rows = sampleDays();
     rows[1].high = rows[1].close;
     rows[1].upLimit = rows[1].close;
@@ -479,9 +478,10 @@ describe('跳空后三连阳的组合规则', () => {
       await service.findGapTwoUp(dates.slice(0, 3).reverse()),
     ).toHaveLength(1);
     expect(await service.findGapThreeUp([...dates].reverse())).toHaveLength(1);
+    rows[0].amount = '45000';
     expect(
       await service.findGapThreeHighTurnover([...dates].reverse()),
-    ).toEqual([]);
+    ).toHaveLength(1);
   });
 });
 
@@ -509,7 +509,7 @@ describe('跳空后三日高换手的组合规则', () => {
     expect(await run()).toHaveLength(1);
   });
 
-  it.each([1, 2, 3])('索引%s日换手需严格高于5%%和D1', async (index) => {
+  it.each([1, 2, 3])('索引%s日换手需严格高于5%%，不比较D1', async (index) => {
     const { rows, run } = setup();
     rows[0].turnoverRateF = '4';
     rows[index].turnoverRateF = '5';
@@ -518,11 +518,21 @@ describe('跳空后三日高换手的组合规则', () => {
     expect(await run()).toHaveLength(1);
     rows[0].turnoverRateF = '5.5';
     rows[index].turnoverRateF = '5.5';
-    expect(await run()).toEqual([]);
+    expect(await run()).toHaveLength(1);
     rows[index].turnoverRateF = '5.49';
-    expect(await run()).toEqual([]);
+    expect(await run()).toHaveLength(1);
     rows[index].turnoverRateF = '5.51';
     expect(await run()).toHaveLength(1);
+  });
+
+  it('缺失换手率明确报错；真实零值正常排除；基准日换手率不参与', async () => {
+    const { rows, run } = setup();
+    rows[0].turnoverRateF = undefined;
+    expect(await run()).toHaveLength(1);
+    rows[2].turnoverRateF = undefined;
+    await expect(run()).rejects.toThrow('换手率数据不完整');
+    rows[2].turnoverRateF = '0';
+    expect(await run()).toEqual([]);
   });
 
   it('仅D2成交额须严格高于D1，D3、D4可以低于D1', async () => {

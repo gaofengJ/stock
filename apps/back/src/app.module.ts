@@ -30,6 +30,7 @@ import { AuthGuard } from './modules/auth/auth.guard';
 import { AdminModule } from './modules/admin/admin.module';
 import { DataLockInterceptor } from './modules/admin/data-lock.interceptor';
 import { NewsModule } from './modules/news/news.module';
+import { StockIdentityModule } from './modules/source/stock/stock-identity.module';
 
 @Module({
   imports: [
@@ -116,6 +117,7 @@ import { NewsModule } from './modules/news/news.module';
      */
     BasicModule,
     NewsModule,
+    StockIdentityModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter }, // 自定义异常过滤器，用于捕获和处理应用程序中所有未被捕获的异常，统一异常处理逻辑

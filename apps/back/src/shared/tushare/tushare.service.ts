@@ -135,29 +135,28 @@ export class TushareService {
    * @param exchange 交易所
    * @returns Promise<IBaseRes>
    */
-  getStockBasic(): Promise<IBaseRes<ITushareData>> {
-    return this.request({
-      data: {
-        api_name: 'stock_basic',
-        fields: [
-          'ts_code',
-          'symbol',
-          'name',
-          'area',
-          'industry',
-          'fullname',
-          'enname',
-          'cnspell',
-          'market',
-          'exchange',
-          'curr_type',
-          'list_status',
-          'list_date',
-          'delist_date',
-          'is_hs',
-        ],
-      },
-    });
+  getStockBasic(listStatus = 'L'): Promise<IBaseRes<ITushareData>> {
+    return this.queryData(
+      'stock_basic',
+      { list_status: listStatus },
+      [
+        'ts_code',
+        'symbol',
+        'name',
+        'area',
+        'industry',
+        'fullname',
+        'enname',
+        'cnspell',
+        'market',
+        'exchange',
+        'curr_type',
+        'list_status',
+        'list_date',
+        'delist_date',
+        'is_hs',
+      ].join(','),
+    );
   }
 
   /**

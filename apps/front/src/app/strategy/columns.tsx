@@ -157,7 +157,8 @@ export const strategyColumns: ColumnsType = [
     key: 'peTtm',
     width: 80,
     align: 'right',
-    render: renderEmptyField,
+    // Legacy imports filled missing PE with zero. PE=0 is not a usable valuation.
+    render: (val) => numberText(Number(val) === 0 ? null : val),
   },
   {
     title: '总市值(亿元)',

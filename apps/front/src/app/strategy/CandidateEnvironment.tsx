@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Alert, Button, Card, Space,
+  Alert, Button, Card, Space, Skeleton,
 } from 'antd';
 import Link from 'next/link';
 import { marketRequest, MarketStats, MarketBreadth } from '@/api/market';
@@ -31,44 +31,38 @@ export default function CandidateEnvironment({ date }: { date: string }) {
     });
   }, [date, attempt, requestConfig, runLatestRequest]);
   const current = data?.date === date ? data : null;
-  const ratio = (v: number | null | undefined) => `${numberText(v)}${v == null ? '' : '%'}`;
+  const metrics = [
+    { label: '上涨占比', value: current?.market?.upRatio, unit: '%' },
+    { label: '站上20日线', value: current?.breadth?.ma20.ratio, unit: '%' },
+    { label: '站上60日线', value: current?.breadth?.ma60.ratio, unit: '%' },
+    { label: '市场成交额', value: current?.market?.amount, unit: '亿元' },
+  ];
   return (
     <Card
       size="small"
-      className="mb-16"
+      className="strategy-environment mb-16"
       title={(
         <Space>
           大盘环境
           <HelpTooltip label="大盘环境" title="沪深京全部A股，均线采用复权价格；仅作背景参考，不影响选股。" />
         </Space>
 )}
-      extra={allowedPath(user, '/analysis/overview') ? <Link href={`/analysis/overview/?date=${date}&scope=all`}>查看大盘</Link> : undefined}
+      extra={date && allowedPath(user, '/analysis/overview') ? <Link href={`/analysis/overview/?date=${date}&scope=all`}>查看大盘</Link> : undefined}
     >
       {error ? <Alert type="warning" showIcon message={error} action={<Button size="small" onClick={() => setAttempt((v) => v + 1)}>重试</Button>} /> : (
-        <Space wrap size={24}>
-          <span>{date}</span>
-          {loading ? <span>加载中…</span> : (
-            <>
-              <span>
-                上涨占比
-                {ratio(current?.market?.upRatio)}
-              </span>
-              <span>
-                站上MA20
-                {ratio(current?.breadth?.ma20.ratio)}
-              </span>
-              <span>
-                站上MA60
-                {ratio(current?.breadth?.ma60.ratio)}
-              </span>
-              <span>
-                成交额
-                {numberText(current?.market?.amount)}
-                {current?.market ? '亿元' : ''}
-              </span>
-            </>
-          )}
-        </Space>
+        <div className="strategy-environment-grid" aria-busy={loading}>
+          {metrics.map((metric) => (
+            <div className="strategy-environment-metric" key={metric.label}>
+              <span className="strategy-environment-label">{metric.label}</span>
+              {loading || !date ? <Skeleton.Input active size="small" style={{ width: 100 }} /> : (
+                <div className="strategy-environment-value">
+                  <strong>{numberText(metric.value)}</strong>
+                  {metric.value != null && <span className="strategy-environment-unit">{metric.unit}</span>}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       )}
     </Card>
   );

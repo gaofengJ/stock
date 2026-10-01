@@ -24,7 +24,7 @@ export const STRATEGY_LABELS: Record<string, string> = {
   gapThreeUp: '缺口后三连阳',
   gapTwoUp: '缺口后二连阳',
   gapThreeHighTurnover: '缺口后三日高换手',
-  threeDaysHighVol: '三日放量收阳',
+  threeDaysHighVol: '三日收阳',
   continuousGap: '连续向上缺口',
   shadowWrap: '跳空上影反包',
 };
