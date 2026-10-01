@@ -23,14 +23,16 @@ const backend = http.createServer((req, res) => {
   res.end();
 });
 async function main() {
+  console.log('Starting the permission-check stand-in and Nginx.');
   await new Promise(resolve => backend.listen(3000, '0.0.0.0', resolve));
-  execFileSync('docker', ['run', '-d', '--name', name, '-p', '127.0.0.1:36082:80', '--mount', `type=bind,src=${path.resolve('apps/blog/blog.nginx.conf')},dst=/etc/nginx/conf.d/default.conf,readonly`, '--mount', `type=bind,src=${site},dst=/usr/share/nginx/html,readonly`, 'nginx:stable-alpine'], { stdio: 'inherit' });
-  execFileSync('docker', ['exec', name, 'nginx', '-t'], { stdio: 'inherit' });
-  const request = (url, cookie) => fetch(`http://127.0.0.1:36082${url}`, { headers: cookie ? { Cookie: cookie } : {} });
+  execFileSync('docker', ['run', '-d', '--name', name, '-p', '127.0.0.1:36082:80', '--mount', `type=bind,src=${path.resolve('apps/blog/blog.nginx.conf')},dst=/etc/nginx/conf.d/default.conf,readonly`, '--mount', `type=bind,src=${site},dst=/usr/share/nginx/html,readonly`, 'nginx:stable-alpine'], { stdio: 'inherit', timeout: 90000 });
+  execFileSync('docker', ['exec', name, 'nginx', '-t'], { stdio: 'inherit', timeout: 15000 });
+  const request = (url, cookie) => fetch(`http://127.0.0.1:36082${url}`, { headers: cookie ? { Cookie: cookie } : {}, signal: AbortSignal.timeout(10000) });
   for (let attempt = 0; attempt < 20; attempt++) {
     try { await request('/'); break; } catch { await new Promise(resolve => setTimeout(resolve, 200)); }
   }
   for (const url of ['/article', '/article.html', '/blog-frame/article', '/assets/content.js', '/pagefind/index.pf_fragment', '/imgs/chart.webp']) {
+    console.log(`Checking anonymous and authorized access: ${url}`);
     const denied = await request(url);
     assert.equal(denied.status, 403, url);
     assert.ok(!(await denied.text()).includes('protected article content'));
@@ -46,12 +48,21 @@ async function main() {
   assert.equal((await request('/missing', 'session=reader')).status, 404);
   assert.equal((await request('/_blog_access', 'session=reader')).status, 404);
   assert.ok(calls >= 15, 'Resource requests always re-check permission');
+  console.log(`Verified ${calls} permission checks; testing backend outage.`);
+  backend.closeAllConnections();
   await new Promise(resolve => backend.close(resolve));
   assert.equal((await request('/article', 'session=reader')).status, 500, 'Backend failure denies access');
   console.log('Article routing and resource permissions verified.');
 }
-main().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => {
+const watchdog = setTimeout(() => { console.error('Article server test timed out'); process.exit(1); }, 150000);
+main().catch(error => {
+  console.error(error);
+  try { execFileSync('docker', ['logs', name], { stdio: 'inherit', timeout: 10000 }); } catch { /* Container may not exist. */ }
+  process.exitCode = 1;
+}).finally(() => {
+  clearTimeout(watchdog);
+  backend.closeAllConnections();
   backend.close();
-  try { execFileSync('docker', ['rm', '-f', name], { stdio: 'ignore' }); } catch { /* Container may not have started. */ }
+  try { execFileSync('docker', ['rm', '-f', name], { stdio: 'ignore', timeout: 10000 }); } catch { /* Container may not have started. */ }
   fs.rmSync(tmp, { recursive: true, force: true });
 });
