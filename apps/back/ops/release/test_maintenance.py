@@ -170,6 +170,16 @@ class MaintenanceTests(unittest.TestCase):
         self.assertEqual(plan['containers'], [])
         self.assertEqual(plan['imageTags'], [])
 
+    def test_required_classic_parent_layers_are_preserved_and_retagged(self):
+        containers = [container('stock-back', 0, 'current', True)]
+        images = [dict(Id='current', Parent='parent', RepoTags=[m.REPOSITORY+':'+'a'*40]),
+                  dict(Id='parent', Parent='base', RepoTags=None),
+                  dict(Id='base', Parent='', RepoTags=None),
+                  dict(Id='unused', Parent='', RepoTags=None)]
+        plan = m.docker_plan(containers, images)
+        self.assertEqual(plan['danglingImages'], ['unused'])
+        self.assertEqual({item['image'] for item in plan['runtimeImageTags']}, {'parent', 'base'})
+
 
 if __name__ == '__main__':
     unittest.main()

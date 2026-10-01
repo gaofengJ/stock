@@ -165,6 +165,17 @@ def archive_and_remove(directory, archive_root, root):
     (directory/'stock.sql.gz').unlink()
 
 
+def image_ancestors(images, roots):
+    by_id = {item['Id']: item for item in images}
+    result, pending = set(roots), list(roots)
+    while pending:
+        parent = by_id.get(pending.pop(), {}).get('Parent')
+        if parent and parent not in result:
+            result.add(parent)
+            pending.append(parent)
+    return result
+
+
 def docker_plan(containers, images, successful_previous=None, now=None):
     # Keep exactly current + one distinct successful prior image per application.
     # Unrelated containers, including stopped ones, always protect their images.
@@ -203,6 +214,10 @@ def docker_plan(containers, images, successful_previous=None, now=None):
         else:
             # Every running or unrelated container protects its image.
             protected_images.add(item['Image'])
+    # Classic Docker builds expose parent images. A required parent is not
+    # obsolete merely because it has no tag or direct container reference.
+    unmanaged_images = {item['Id'] for item in images if any(not (RELEASE_TAG.fullmatch(tag) or ROLLBACK_TAG.fullmatch(tag)) for tag in item.get('RepoTags') or [])}
+    protected_images = image_ancestors(images, protected_images | unmanaged_images)
     tags, dangling, runtime_tags = [], [], []
     # A missing/stopped application's image family is protected as a whole.
     active = {item['Name'].lstrip('/') for item in containers if item['State']['Running']}
@@ -213,6 +228,8 @@ def docker_plan(containers, images, successful_previous=None, now=None):
                 if owners:
                     name = re.sub(r'[^a-z0-9_.-]', '-', owners[0]['Name'].lstrip('/').lower())
                     runtime_tags.append({'image': image['Id'], 'tag': 'stock-runtime-preserved:'+name+'-'+image['Id'].split(':')[-1][:12]})
+                else:
+                    runtime_tags.append({'image': image['Id'], 'tag': 'stock-runtime-preserved:dependency-'+image['Id'].split(':')[-1][:12]})
             continue
         image_tags = image.get('RepoTags') or []
         if not image_tags:
@@ -269,11 +286,19 @@ def maintenance(root, apply=False, images_only=False):
             subprocess.check_call(['docker', 'image', 'rm', tag])
         # Re-inspect after container/tag removal. Do not force-remove an image
         # that another service started using since the plan was computed.
-        for image in docker_json('image'):
-            if not image.get('RepoTags'):
-                references = {item['Image'] for item in docker_json('container')}
-                if image['Id'] not in references:
-                    subprocess.check_call(['docker', 'image', 'rm', image['Id']])
+        images = docker_json('image')
+        references = {item['Image'] for item in docker_json('container')}
+        required = image_ancestors(images, references | {item['Id'] for item in images if item.get('RepoTags')})
+        pending = {item['Id']: item for item in images if not item.get('RepoTags') and item['Id'] not in required}
+        # Remove unreferenced children before their unreferenced parent layers.
+        while pending:
+            parents = {item.get('Parent') for item in pending.values()}
+            leaves = sorted(set(pending)-parents)
+            if not leaves:
+                raise ValueError('Unexpected Docker parent-image cycle')
+            for identity in leaves:
+                subprocess.check_call(['docker', 'image', 'rm', identity])
+                del pending[identity]
     return result
 
 
