@@ -3,6 +3,12 @@ import { NEWS_SOURCES } from './news.sources';
 
 const indexes = [
   {
+    TABLE_NAME: 't_news_translation',
+    INDEX_NAME: 'PRIMARY',
+    COLUMN_NAME: 'news_id',
+    NON_UNIQUE: 0,
+  },
+  {
     TABLE_NAME: 't_news_source',
     INDEX_NAME: 'PRIMARY',
     COLUMN_NAME: 'source',
@@ -35,6 +41,12 @@ const indexes = [
 ];
 
 describe('News deployment schema', () => {
+  it('rejects a deployment without the translation migration', async () => {
+    const query = jest.fn().mockResolvedValue(indexes.slice(1));
+    await expect(checkNewsSchema({ query })).rejects.toThrow(
+      't_news_translation',
+    );
+  });
   it('rejects the old source catalog even when the old table indexes are present', async () => {
     const query = jest
       .fn()

@@ -1,9 +1,43 @@
 import { mkdtemp, writeFile, rm, rmdir } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { readBloombergFeed } from './news.bloomberg';
+import {
+  readBloombergFeed,
+  bloombergTranslation,
+  bloombergSourceHash,
+} from './news.bloomberg';
 
 describe('Bloomberg relay validation', () => {
+  it('binds a translation to exact English text and rejects swapped or oversized output', () => {
+    const item = {
+      title: 'Stocks rise',
+      content_html: '<p>Public summary</p>',
+    };
+    const translation = {
+      engine: 'argos',
+      model: 'en_zh-1.9',
+      source_hash: bloombergSourceHash(item),
+      title: '股票上涨',
+      body: '公开摘要',
+    };
+    expect(bloombergTranslation({ ...item, translation })?.title).toBe(
+      '股票上涨',
+    );
+    expect(
+      bloombergTranslation({
+        ...item,
+        content_html: 'Updated English',
+        translation,
+      }),
+    ).toBeNull();
+    expect(
+      bloombergTranslation({
+        ...item,
+        translation: { ...translation, body: '中'.repeat(12001) },
+      }),
+    ).toBeNull();
+    expect(bloombergTranslation(item)).toBeNull();
+  });
   const now = new Date('2026-10-01T06:00:00Z');
   let directory: string;
   let path: string;

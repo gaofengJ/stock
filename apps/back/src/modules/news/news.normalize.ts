@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import { NewsSource } from './news.sources';
+import { bloombergSourceHash, bloombergTranslation } from './news.bloomberg';
 
 export function plainText(value: unknown, max = 12000): string {
   if (typeof value !== 'string') return '';
@@ -81,6 +82,8 @@ export function normalizeNews(
     typeof item.id === 'string' && item.id.trim()
       ? item.id.trim().slice(0, 2048)
       : url || `${title}|${date.toISOString().slice(0, 10)}`;
+  const translation =
+    source.provider === 'bloomberg-relay' ? bloombergTranslation(item) : null;
   return {
     key: createHash('sha256').update(identity).digest('hex'),
     timeBasis: publication ? 'published' : 'collected',
@@ -89,6 +92,15 @@ export function normalizeNews(
     url,
     date,
     kind: source.kind,
+    translation: translation
+      ? {
+          ...translation,
+          title: plainText(translation.title, 512),
+          body: plainText(translation.body),
+        }
+      : null,
+    sourceHash:
+      source.provider === 'bloomberg-relay' ? bloombergSourceHash(item) : null,
   };
 }
 

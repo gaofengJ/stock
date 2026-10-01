@@ -13,6 +13,7 @@ import { ExpandedNewsSources1790832000000 } from './migrations/1790832000000-Exp
 import { NewsDisplayPolicy1790835600000 } from './migrations/1790835600000-NewsDisplayPolicy';
 import { MarketBreadth1790899200000 } from './migrations/1790899200000-MarketBreadth';
 import { ThsSectors1790985600000 } from './migrations/1790985600000-ThsSectors';
+import { NewsTranslations1791072000000 } from './migrations/1791072000000-NewsTranslations';
 
 dotenv.config({
   path:
@@ -41,6 +42,7 @@ export default new DataSource({
     NewsDisplayPolicy1790835600000,
     MarketBreadth1790899200000,
     ThsSectors1790985600000,
+    NewsTranslations1791072000000,
   ],
   migrationsTransactionMode: 'none',
   logging: false,

@@ -195,6 +195,36 @@ async function main() {
     await newsService.sync(true);
     assert((await inject('GET','/news/sources',undefined,user)).json().data.sources.some(s=>s.code==='stcn'), 'Recovered sources automatically become visible');
     assert((await inject('GET','/news?source=stcn&date=2026-10-01',undefined,user)).json().data.total>0, 'Recovered source history reappears');
+    // Translation delivery, English-only retries and editorial updates on real MySQL.
+    const { bloombergSourceHash } = require('../dist/modules/news/news.bloomberg');
+    const english = {id:'translation-fixture',title:'Stocks rise',content_html:'<p>Public summary</p>',date_published:'2026-10-01T06:00:00Z',url:'https://www.bloomberg.com/news/articles/translation-fixture'};
+    const chinese = {engine:'argos',model:'en_zh-1.9',source_hash:bloombergSourceHash(english),title:'股票上涨',body:'公开摘要'};
+    const otherFetcher = newsService.fetchSource;
+    let translatedFeed = {...english,translation:chinese};
+    newsService.fetchSource = async source => source.code==='bloomberg' ? [translatedFeed] : otherFetcher(source);
+    const collectTranslation = async () => {
+      await db.query("UPDATE t_news_source SET last_attempt=NULL,next_attempt=NULL,enabled=1 WHERE source='bloomberg'");
+      await newsService.sync(true);
+    };
+    await collectTranslation();
+    const translatedList = (await inject('GET','/news?source=bloomberg&date=2026-10-01',undefined,user)).json().data;
+    const translatedItem = translatedList.items.find(item=>item.title==='Stocks rise');
+    assert(translatedItem, 'Translated English item is visible');
+    assert.equal(translatedItem.translation.title,'股票上涨');
+    assert.equal((await inject('GET','/news/'+translatedItem.id,undefined,user)).json().data.translation.body,'公开摘要');
+    assert.equal((await inject('GET','/news?source=bloomberg&date=2026-10-01&keyword='+encodeURIComponent('公开摘要'),undefined,user)).json().data.total,1,'Chinese text is searchable');
+    translatedFeed = {...english};
+    await collectTranslation();
+    assert.equal((await newsService.detail(translatedItem.id)).translation.title,'股票上涨','English-only retry preserves unchanged translation');
+    translatedFeed = {...english,title:'Stocks fall'};
+    await collectTranslation();
+    assert.equal((await newsService.detail(translatedItem.id)).translation,null,'Changed English clears the stale translation');
+    translatedFeed = {...english,translation:chinese};
+    await collectTranslation();
+    assert.equal((await newsService.detail(translatedItem.id)).translation.title,'股票上涨','A later successful translation is upserted');
+    await db.query('DELETE FROM t_news_item WHERE id=?',[translatedItem.id]);
+    assert.equal(Number((await db.query('SELECT COUNT(*) n FROM t_news_translation WHERE news_id=?',[translatedItem.id]))[0].n),0,'Expired news cascades to its translation');
+    newsService.fetchSource = otherFetcher;
     const activity = (await inject('GET', '/admin/login-activity', undefined, admin)).json().data;
     assert.equal(activity.unread, 2, 'Registration and regular login notify; administrator login does not');
     assert.ok(activity.items.some(item => item.registered));

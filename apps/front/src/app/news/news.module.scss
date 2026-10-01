@@ -13,6 +13,10 @@
 .meta { display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 12px; margin-bottom: 8px; }
 .title { display: block; padding: 0; border: 0; background: transparent; text-align: left; font: inherit; color: var(--color-black); font-size: 16px; font-weight: 600; line-height: 1.7; cursor: pointer; overflow-wrap: anywhere; &:hover { color: var(--color-primary); } &:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; } }
 .preview { margin: 8px 0 0; font-size: 14px; line-height: 1.85; color: var(--text-secondary); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; white-space: pre-line; }
+.translationTitle { margin: 6px 0 12px; h3 { margin: 6px 0 0; font-size: 18px; line-height: 1.7; overflow-wrap: anywhere; } .title { font-size: 15px; font-weight: 500; } }
+.translationLabel { padding: 0; border: 0; background: transparent; color: var(--text-secondary); font-size: 11px; cursor: help; &:focus-visible { outline: 2px solid var(--color-primary); } }
+.translationCaption { font-size: 11px; color: var(--text-secondary); }
+.translationBody { padding-left: 10px; border-left: 2px solid var(--color-border); }
 .actions { display: flex; gap: 16px; align-items: center; margin-top: 8px; a { color: var(--color-primary); font-size: 12px; } :global(.ant-btn-link) { padding-left: 0; } }
 .star { color: #d89b1b; }
 .pagination { display: flex; justify-content: center; padding: 24px 0 8px; }

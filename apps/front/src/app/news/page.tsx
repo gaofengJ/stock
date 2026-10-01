@@ -16,7 +16,7 @@ import { api } from '@/auth/client';
 import { errorMessage } from '@/api/errors';
 import styles from './news.module.scss';
 
-interface NewsItem { id: number; source: string; sourceName: string; kind: string; title: string; body: string; originalUrl: string | null; important: boolean; publishedAt: string; timeBasis: string; favorite: boolean }
+interface NewsItem { id: number; source: string; sourceName: string; kind: string; title: string; body: string; originalUrl: string | null; important: boolean; publishedAt: string; timeBasis: string; favorite: boolean; translation?: { title: string; body: string; engine: string; model: string } | null }
 interface NewsList { items: NewsItem[]; total: number; updatedAt: string; date: string }
 interface Source { code: string; name: string; enabled: boolean; intervalSeconds: number; status: string; lastSuccess: string | null; nextAttempt: string | null; lastError: string; lastAdded: number; availabilityNote?: string; description?: string }
 interface SourceState { collecting: boolean; sources: Source[] }
@@ -209,7 +209,21 @@ export default function Page() {
                   {item.important && <Tag color="red">重点</Tag>}
                 </div>
                 <button type="button" className={styles.title} onClick={() => openDetail(item)}>{item.title}</button>
+                {item.translation && (
+                  <div className={styles.translationTitle} lang="zh-CN">
+                    <Tooltip title="自动翻译，财经术语与专有名词可能有误，以英文原文为准。" trigger={['hover', 'focus', 'click']}>
+                      <button type="button" className={styles.translationLabel}>机器翻译</button>
+                    </Tooltip>
+                    <button type="button" className={styles.title} onClick={() => openDetail(item)}>{item.translation.title}</button>
+                  </div>
+                )}
                 {item.body && item.body !== item.title && <p className={styles.preview}>{item.body}</p>}
+                {item.translation?.body && (
+                <p className={`${styles.preview} ${styles.translationBody}`} lang="zh-CN">
+                  <span className={styles.translationCaption}>机器翻译：</span>
+                  {item.translation.body}
+                </p>
+                )}
                 <div className={styles.actions}>
                   <Button size="small" type="link" onClick={() => openDetail(item)}>查看详情</Button>
                   {item.originalUrl && (
@@ -242,8 +256,21 @@ export default function Page() {
             {favoriteButton(detail)}
           </Space>
           <h2>{detail.title}</h2>
+          {detail.translation && (
+          <div className={styles.translationTitle} lang="zh-CN">
+            <span className={styles.translationCaption}>机器翻译</span>
+            <h3>{detail.translation.title}</h3>
+          </div>
+          )}
           {detailError && <Alert type="error" message={detailError} action={<Button size="small" onClick={() => openDetail(detail)}>重试</Button>} />}
           {detailLoading ? <Skeleton active /> : <p className={styles.body}>{detail.body || '请前往原文阅读完整内容。'}</p>}
+          {!detailLoading && detail.translation?.body && (
+          <p className={`${styles.body} ${styles.translationBody}`} lang="zh-CN">
+            <span className={styles.translationCaption}>机器翻译：</span>
+            {detail.translation.body}
+          </p>
+          )}
+          {detail.translation && <p className={styles.note}>自动翻译，财经术语与专有名词可能有误，以英文原文为准。</p>}
           {detail.originalUrl && <Button href={detail.originalUrl} target="_blank" rel="noopener noreferrer" icon={<ExportOutlined />}>阅读原文</Button>}
         </div>
         )}
