@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   maintenance:
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' || inputs.operation == 'inspect'
     runs-on: ubuntu-latest
     steps:
       - name: Inspect release storage and optionally reclaim build cache
@@ -42,8 +42,23 @@ jobs:
             docker images --format '{{.ID}} {{.Repository}}:{{.Tag}} {{.Size}}'
             docker ps -a --format '{{.Names}} {{.Status}} {{.Image}}'
             du -xhd1 /opt /var /home /opt/stock-release /opt/stock-blog-style
+            du -xhd1 /opt/stock-release
             python3 - <<'PY'
-            import glob, json
+            import glob, json, os, datetime
+            archives = []
+            partials = []
+            for pattern in ('/opt/stock-release/runs/*/stock.sql.gz*', '/opt/stock-release/backups/*/stock.sql.gz*'):
+                for path in sorted(glob.glob(pattern)):
+                    if os.path.islink(path) or not os.path.isfile(path):
+                        continue
+                    if path.endswith('.sha256'):
+                        continue
+                    item = {'path': path, 'bytes': os.path.getsize(path), 'modifiedAtUTC': datetime.datetime.utcfromtimestamp(os.path.getmtime(path)).isoformat()}
+                    if path.endswith('.partial'):
+                        partials.append(item)
+                    elif path.endswith('.gz'):
+                        archives.append(item)
+            print(json.dumps({'backupStorage': {'archiveCount': len(archives), 'archiveBytes': sum(item['bytes'] for item in archives), 'partialCount': len(partials), 'partialBytes': sum(item['bytes'] for item in partials), 'archives': archives, 'partials': partials}}))
             reports = sorted(glob.glob('/opt/stock-release/runs/*/preflight.json'))
             if reports:
                 report = json.load(open(reports[-1]))
