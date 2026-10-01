@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+.sector-more-link {
+  border: 0;
+  padding: 0 2px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.sector-more-link:hover { color: var(--color-primary); }
+
 body {
   color: var(--color-black);
 }

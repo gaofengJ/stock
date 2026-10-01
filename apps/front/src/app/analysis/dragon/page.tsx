@@ -11,6 +11,8 @@ import { ArrowDownOutlined, ArrowUpOutlined } from '@ant-design/icons';
 import Table from '@/components/DataTable';
 import { DragonBoard, DragonListing } from '@/api/market';
 import { changeClass, numberText } from '@/utils/format';
+import SectorFilter, { useSectorSelection } from '@/components/SectorFilter';
+import SectorLinks from '@/components/SectorLinks';
 import MarketShell from '../components/MarketShell';
 import { useMarket } from '../components/MarketContext';
 import useMarketData from '../components/useMarketData';
@@ -23,6 +25,7 @@ const money = (v: number | null) => numberText(v == null ? null : v / 10000);
 const rowKey = (r: DragonListing) => `${r.tsCode}:${r.reason}`;
 
 export default function Page() {
+  const { sector, setSector } = useSectorSelection();
   const { date, scope } = useMarket();
   const params = useSearchParams();
   const router = useRouter();
@@ -34,7 +37,7 @@ export default function Page() {
   const locateDetail = useCallback(() => detail.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), []);
   const {
     data, loading, error, retry,
-  } = useMarketData<DragonBoard>('dragon-board', { days: 20 });
+  } = useMarketData<DragonBoard>('dragon-board', { days: 20, sector });
   const selected = useMemo(() => (!loading && !error ? data?.items.find((r) => r.tsCode === code && (!linkedReason || r.reason === linkedReason)) : undefined), [loading, error, data, code, linkedReason]);
   const rows = useMemo(() => (data?.items || []).filter((r) => `${r.name} ${r.tsCode}`.toLowerCase().includes(keyword.trim().toLowerCase())
     && (direction === '全部' || (r.netAmount != null && (direction === '净买入' ? r.netAmount > 0 : r.netAmount < 0)))), [data, keyword, direction]);
@@ -43,12 +46,13 @@ export default function Page() {
   useEffect(() => {
     if (selectedKey) detail.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [selectedKey, date]);
-  const open = (r: DragonListing) => router.push(marketHref('/analysis/dragon', { date, scope }, { code: r.tsCode, reason: r.reason }), { scroll: false });
-  const clear = () => router.replace(marketHref('/analysis/dragon', { date, scope }), { scroll: false });
+  const open = (r: DragonListing) => router.push(marketHref('/analysis/dragon', { date, scope }, { ...(sector ? { sector } : {}), code: r.tsCode, reason: r.reason }), { scroll: false });
+  const clear = () => router.replace(marketHref('/analysis/dragon', { date, scope }, sector ? { sector } : {}), { scroll: false });
   return (
     <MarketShell title="龙虎榜" path="/analysis/dragon">
       <div className="dragon-board">
         <div className="dragon-board-toolbar">
+          <SectorFilter value={sector} onChange={setSector} />
           <Input.Search allowClear aria-label="搜索龙虎榜股票" placeholder="股票名称 / 代码" value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ width: 250 }} />
           <Segmented options={['全部', '净买入', '净卖出']} value={direction} onChange={(v) => setDirection(String(v))} />
           <span className="dragon-board-count">
@@ -83,6 +87,12 @@ export default function Page() {
               },
               {
                 title: '名称', dataIndex: 'name', fixed: 'left', width: 110, render: (name, r) => <Button className="dragon-stock-link" type="link" onClick={() => open(r)}>{name}</Button>,
+              },
+              {
+                title: '行业', key: 'industry', width: 160, render: (_, r) => <SectorLinks stock={r} date={date} />,
+              },
+              {
+                title: '题材', key: 'topics', width: 220, render: (_, r) => <SectorLinks stock={r} type="N" date={date} />,
               },
               {
                 title: '收盘价(元)', dataIndex: 'close', width: 105, align: 'right', render: (v) => numberText(v),

@@ -167,6 +167,11 @@ async function main() {
         "INSERT INTO t_admin_job(actor_id,actor_name,start_date,end_date,status,active_key,mode,stage) VALUES (NULL,'系统补齐',?,?,'queued','market-two-years','missing','发布后补齐最近两年') ON DUPLICATE KEY UPDATE end_date=GREATEST(end_date,VALUES(end_date))",
         [start, endDate],
       );
+      await ds.query(
+        "INSERT INTO t_admin_job(actor_id,actor_name,start_date,end_date,status,active_key,mode,stage) VALUES (NULL,'均线广度补齐',?,?,'queued','market-breadth-two-years','breadth','发布后补齐均线广度') ON DUPLICATE KEY UPDATE end_date=GREATEST(end_date,VALUES(end_date))",
+        [start, endDate],
+      );
+      await ds.query("INSERT INTO t_admin_job(actor_id,actor_name,start_date,end_date,status,active_key,mode,stage) VALUES(NULL,'同花顺板块同步',?,?,'queued','ths-sectors-two-years','sector','发布后更新同花顺板块') ON DUPLICATE KEY UPDATE end_date=GREATEST(end_date,VALUES(end_date))", [start, endDate]);
       process.stdout.write(
         JSON.stringify({ status: 'queued', start, end: endDate }) + '\n',
       );

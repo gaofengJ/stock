@@ -4,6 +4,7 @@ import { errorMessage } from '@/api/errors';
 import { Alert, Button, PaginationProps } from 'antd';
 import Table from '@/components/DataTable';
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { basicSiderMenuItems } from '@/components/Layout/config';
 import {
@@ -17,10 +18,13 @@ import { NSGetBasicStockList } from '@/api/services.types';
 import CSearchForm from '@/components/common/CSearchForm';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 
+import SectorFilter, { useSectorSelection } from '@/components/SectorFilter';
 import { useStockFilterConfigs } from './form-configs';
 import { useStockColumns } from './columns';
 
 function BasicStockPage() {
+  const { sector, setSector } = useSectorSelection();
+  const linkedDate = useSearchParams().get('date') || undefined;
   const stockFilterConfigs = useStockFilterConfigs();
   // searchParams 的初始值
   const initialSearchParams: Partial<NSGetBasicStockList.IParams> = {
@@ -33,7 +37,7 @@ function BasicStockPage() {
   const [loadError, setLoadError] = useState('');
   const { requestConfig, runLatestRequest } = useLatestRequest('basic-stock-list');
 
-  const stockColumns = useStockColumns();
+  const stockColumns = useStockColumns(linkedDate);
 
   // stockData 的初始值
   const initialStockData: {
@@ -64,7 +68,7 @@ function BasicStockPage() {
    */
   const getStocks = useCallback(() => runLatestRequest({
     request: () => getBasicStockList(
-      searchParams as NSGetBasicStockList.IParams,
+      { ...searchParams, sector, date: linkedDate } as NSGetBasicStockList.IParams,
       requestConfig,
     ),
     onStart: () => { setLoading(true); setLoadError(''); },
@@ -84,7 +88,7 @@ function BasicStockPage() {
       setStockData({ items: [], totalItems: 0 });
     },
     onFinally: () => setLoading(false),
-  }), [requestConfig, runLatestRequest, searchParams]);
+  }), [requestConfig, runLatestRequest, searchParams, sector, linkedDate]);
 
   useEffect(() => {
     getStocks();
@@ -100,6 +104,7 @@ function BasicStockPage() {
         <h1 className="page-heading">个股基本信息</h1>
         {loadError && <Alert type="error" message={loadError} showIcon action={<Button size="small" onClick={getStocks}>重试</Button>} />}
         <div className="mb-16">
+          <div className="mb-16"><SectorFilter value={sector} onChange={(value) => { setSector(value); setSearchParams((old) => ({ ...old, pageNum: 1 })); }} /></div>
           <CSearchForm
             configs={stockFilterConfigs}
             searchParams={searchParams}

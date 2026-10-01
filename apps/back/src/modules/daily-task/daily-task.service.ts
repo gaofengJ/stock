@@ -5,6 +5,8 @@ import {
   Optional,
 } from '@nestjs/common';
 import { MarketSyncService } from '@/modules/analysis/market/market-sync.service';
+import { MarketBreadthService } from '@/modules/analysis/market/market-breadth.service';
+import { SectorService } from '@/modules/analysis/market/sector.service';
 import {
   MarketDailyEntity,
   IndexDailyEntity,
@@ -51,6 +53,8 @@ export class DailyTaskService {
     private readonly source: SyncSourceService,
     private readonly writes: SyncWriteService,
     @Optional() private readonly market?: MarketSyncService,
+    @Optional() private readonly breadth?: MarketBreadthService,
+    @Optional() private readonly sectors?: SectorService,
   ) {}
 
   private withLock<T>(
@@ -564,6 +568,18 @@ export class DailyTaskService {
     );
   }
 
+  async breadthBatch(start: string, end: string) {
+    this.checkRange(start, end);
+    if (!this.breadth) throw new Error('均线广度模块未启用');
+    return this.breadth.batch(start, end);
+  }
+
+  async sectorBatch(start: string, end: string) {
+    this.checkRange(start, end);
+    if (!this.sectors) throw new Error('同花顺板块模块未启用');
+    return this.sectors.batch(start, end);
+  }
+
   private async ensureMarketDay(
     manager: EntityManager,
     date: string,
@@ -616,6 +632,19 @@ export class DailyTaskService {
     );
     await this.market!.indexes(manager, date, refresh);
     await this.market!.aggregate(manager, date);
+    // 广度在独立任务采集；技术因子的网络延迟不会拖住核心行情批次。
+    if (this.breadth) {
+      try {
+        await this.breadth.enqueue(manager, date);
+      } catch (error) {
+        this.logger.warn(`均线广度 ${date}: ${errorMessage(error)}`);
+      }
+    }
+    try {
+      await this.sectors?.enqueue(manager, date);
+    } catch (error) {
+      this.logger.warn(`同花顺板块 ${date}: ${errorMessage(error)}`);
+    }
     const next = await manager.findOneBy(TradeCalEntity, {
       preTradeDate: date,
       isOpen: 1,
@@ -647,7 +676,11 @@ export class DailyTaskService {
           order: { calDate: 'DESC' },
         });
         const last = days.find((d) => d.calDate <= cutoff);
-        if (last) await this.market!.enqueueBackfill(manager, last.calDate);
+        if (last) {
+          await this.market!.enqueueBackfill(manager, last.calDate);
+          await this.breadth?.enqueue(manager, last.calDate);
+          await this.sectors?.enqueue(manager, last.calDate);
+        }
       },
       true,
       true,

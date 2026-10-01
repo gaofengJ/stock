@@ -10,6 +10,7 @@ import { chartColors, quoteColors } from '@/colors';
 import { numberText } from '@/utils/format';
 import { ChartWindow, amountReferenceLevels, periodTotals } from './market-display';
 import ChartRange from './ChartRange';
+import { relativeChange } from './market-environment';
 
 function MarketAmountChart({
   data, window, title, dates, onWindowChange,
@@ -40,6 +41,21 @@ function MarketAmountChart({
           <strong>{numberText(data.snapshot && data.previousAmount != null ? data.snapshot.amount - data.previousAmount : null, 2, true)}</strong>
           <span>亿元</span>
         </span>
+      </div>
+      <div className="market-volume-baselines">
+        {[{ days: 5, mean: data.fiveDayAmount }, { days: 20, mean: data.twentyDayAmount }].map(({ days, mean }) => (
+          <div key={days}>
+            <span className="market-volume-baseline-label">
+              {`前${days}日均额`}
+              <HelpTooltip label={`前${days}日均额`} title={`前${days}个交易日均额，不含当日；缺失任一天则不计算。`} />
+            </span>
+            <div>
+              <strong>{numberText(mean)}</strong>
+              <span>亿元</span>
+            </div>
+            <span>{`当日较均额 ${numberText(relativeChange(data.snapshot?.amount, mean), 2, true)}%`}</span>
+          </div>
+        ))}
       </div>
       {!rows.some((r) => r.value != null) ? <Empty description="该范围暂无完整成交额数据" /> : (
         <CChart genOptions={() => ({

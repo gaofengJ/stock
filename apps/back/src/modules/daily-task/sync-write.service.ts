@@ -21,7 +21,10 @@ import { TradeCalEntity } from '../source/trade-cal/trade-cal.entity';
 import { SyncRunEntity } from './sync-run.entity';
 import { SyncDayPolicyEntity } from './sync-day-policy.entity';
 import { calculateMood, normalizeDate, shanghaiDate } from './sync.utils';
-import { MarketDailyEntity } from '../analysis/market/market.entity';
+import {
+  MarketDailyEntity,
+  MarketBreadthEntity,
+} from '../analysis/market/market.entity';
 import { StockEntity } from '../source/stock/stock.entity';
 import { marketCoverage } from './sync-source.service';
 
@@ -223,6 +226,18 @@ export class SyncWriteService {
       }
     }
     for (const date of [...affected].sort()) {
+      if (
+        rawChanged &&
+        dates.includes(date) &&
+        manager.connection.hasMetadata(MarketBreadthEntity)
+      ) {
+        await manager.delete(MarketBreadthEntity, { tradeDate: date });
+        await manager.update(
+          SyncRunEntity,
+          { task: 'market-breadth', tradeDate: date },
+          { status: 'pending', error: '当日交易样本更新，等待重算' },
+        );
+      }
       if (manager.connection.hasMetadata(MarketDailyEntity)) {
         await manager.delete(MarketDailyEntity, { tradeDate: date });
         await manager.update(

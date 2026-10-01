@@ -1,5 +1,6 @@
 import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { SectorService } from '@/modules/analysis/market/sector.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Like, Repository } from 'typeorm';
 
@@ -15,6 +16,7 @@ export class StockService {
     private readonly writes: SyncWriteService,
     @InjectRepository(StockEntity)
     private stockBasicRepository: Repository<StockEntity>,
+    @Optional() private sectors?: SectorService,
   ) {}
 
   async list({
@@ -25,6 +27,8 @@ export class StockService {
     market,
     listStatus,
     isHs,
+    sector,
+    date,
   }: StockQueryDto): Promise<Pagination<StockEntity>> {
     const queryBuilder = this.stockBasicRepository
       .createQueryBuilder('t_source_stock')
@@ -35,13 +39,26 @@ export class StockService {
         ...(listStatus && { listStatus }),
         ...(isHs && { isHs }),
       });
-    return paginate(queryBuilder, { pageNum, pageSize });
+    if (sector && this.sectors) {
+      const codes = [...(await this.sectors.codes(sector, date))];
+      queryBuilder.andWhere(
+        codes.length ? 't_source_stock.tsCode IN (:...codes)' : '1=0',
+        { codes },
+      );
+    }
+    const result = await paginate(queryBuilder, { pageNum, pageSize });
+    return new Pagination(
+      this.sectors
+        ? await this.sectors.decorate(result.items, date)
+        : result.items,
+      result.meta,
+    );
   }
 
   async detail(id: number): Promise<StockEntity> {
     const item = await this.stockBasicRepository.findOneBy({ id });
     if (!item) throw new NotFoundException('未找到该记录');
-    return item;
+    return this.sectors ? (await this.sectors.decorate([item]))[0] : item;
   }
 
   async create(dto: StockDto) {

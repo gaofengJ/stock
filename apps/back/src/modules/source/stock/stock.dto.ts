@@ -1,5 +1,11 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { IsOptional, IsString, IsDateString, IsEnum } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsDateString,
+  IsEnum,
+  Matches,
+} from 'class-validator';
 import { PagerDto } from '@/dto/pager.dto';
 import { StockEntity } from './stock.entity';
 import { EIsHs, EListStatus, EMarket } from './stock.enum';
@@ -84,6 +90,13 @@ export class StockDto extends PartialType(StockEntity) {
 }
 
 export class StockQueryDto extends PagerDto {
+  @IsOptional() @Matches(/^88[156]\d{3}\.TI$/) sector?: string;
+
+  @IsOptional()
+  @IsDateString({ strict: true })
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  date?: string;
+
   @ApiProperty({ description: '股票代码（包含交易所）' })
   @IsString()
   @IsOptional()

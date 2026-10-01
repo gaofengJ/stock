@@ -8,7 +8,10 @@ import {
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permit } from '@/modules/auth/permissions';
 import { MarketService } from './market.service';
+import { MarketBreadthService } from './market-breadth.service';
 import { DragonQueryDto, MarketQueryDto } from './market.dto';
+import { SectorService } from './sector.service';
+import { SectorQueryDto } from './sector.dto';
 
 @ApiTags('市场分析')
 @Controller('market')
@@ -20,7 +23,11 @@ import { DragonQueryDto, MarketQueryDto } from './market.dto';
   }),
 )
 export class MarketController {
-  constructor(private service: MarketService) {}
+  constructor(
+    private service: MarketService,
+    private breadthService: MarketBreadthService,
+    private sectors: SectorService,
+  ) {}
 
   @Get('status')
   @Permit(
@@ -29,10 +36,31 @@ export class MarketController {
     'analysis:limits',
     'analysis:chains',
     'analysis:dragon',
+    'analysis:sectors',
   )
   @ApiOperation({ summary: '市场数据可用日期和同步阶段' })
   status() {
     return this.service.status();
+  }
+
+  @Get('sectors')
+  @Permit('analysis:sectors')
+  sectorsBoard(@Query() q: SectorQueryDto) {
+    return this.sectors.board(q);
+  }
+
+  @Get('sector-options')
+  @Permit(
+    'analysis:sectors',
+    'analysis:limits',
+    'analysis:chains',
+    'analysis:dragon',
+    'basic:stock',
+    'strategy:read',
+    'basic:daily',
+  )
+  sectorOptions() {
+    return this.sectors.options();
   }
 
   @Get('overview')
@@ -40,6 +68,13 @@ export class MarketController {
   @ApiOperation({ summary: '大盘概览和指数趋势' })
   overview(@Query() q: MarketQueryDto) {
     return this.service.series(q);
+  }
+
+  @Get('breadth')
+  @Permit('analysis:overview')
+  @ApiOperation({ summary: '按市场范围统计复权均线广度' })
+  breadth(@Query() q: MarketQueryDto) {
+    return this.breadthService.series(q);
   }
 
   @Get('sentiment')
@@ -78,7 +113,7 @@ export class MarketController {
   }
 
   @Get('dragon-list')
-  @Permit('analysis:limits')
+  @Permit('analysis:limits', 'analysis:sectors', 'analysis:dragon')
   @ApiOperation({ summary: '当日龙虎榜上榜股票名单' })
   dragonList(@Query() q: MarketQueryDto) {
     return this.service.dragonList(q.date);

@@ -9,7 +9,9 @@ import { numberText } from '@/utils/format';
 import { useEffect, useMemo, useRef } from 'react';
 import ReactEChartsCore from 'echarts-for-react/lib/core';
 import * as echarts from 'echarts/core';
-import { LineChart, BarChart, CandlestickChart } from 'echarts/charts';
+import {
+  LineChart, BarChart, CandlestickChart, HeatmapChart,
+} from 'echarts/charts';
 import {
   GridComponent,
   DataZoomComponent,
@@ -19,6 +21,7 @@ import {
   TitleComponent,
   ToolboxComponent,
   TooltipComponent,
+  VisualMapComponent,
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import type { EChartsOption } from 'echarts-for-react/lib/types';
@@ -27,6 +30,8 @@ echarts.use([
   LineChart,
   BarChart,
   CandlestickChart,
+  HeatmapChart,
+  VisualMapComponent,
   GridComponent,
   DataZoomComponent,
   ToolboxComponent,

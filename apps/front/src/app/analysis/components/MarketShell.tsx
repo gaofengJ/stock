@@ -5,7 +5,7 @@ import {
 } from 'antd';
 import { beijingTime } from '@/utils/format';
 import dayjs from 'dayjs';
-import { BankOutlined } from '@ant-design/icons';
+import { BankOutlined, AppstoreOutlined } from '@ant-design/icons';
 import Layout from '@/components/Layout';
 import HelpTooltip from '@/components/HelpTooltip';
 import { analysisSiderMenuItems } from '@/components/Layout/config';
@@ -17,7 +17,7 @@ import { scopes } from './market-display';
 import './market.sass';
 
 export { scopes } from './market-display';
-const analysisMenu = [...(analysisSiderMenuItems || []), { key: '/analysis/dragon', label: '龙虎榜', icon: <BankOutlined /> }];
+const analysisMenu = [...(analysisSiderMenuItems || []), { key: '/analysis/sectors', label: '板块分析', icon: <AppstoreOutlined /> }, { key: '/analysis/dragon', label: '龙虎榜', icon: <BankOutlined /> }];
 const renderScopeOption = (option: { data: typeof scopes[number] }) => (
   <span className="market-scope-option">
     <span>{option.data.label}</span>
@@ -25,8 +25,8 @@ const renderScopeOption = (option: { data: typeof scopes[number] }) => (
   </span>
 );
 export default function MarketShell({
-  title, path, children,
-}: { title: string; path: string; children: React.ReactNode }) {
+  title, path, children, scopeFilter = true,
+}: { title: string; path: string; children: React.ReactNode; scopeFilter?: boolean }) {
   const {
     date, scope, status, error, select, retry,
   } = useMarket();
@@ -43,7 +43,7 @@ export default function MarketShell({
             {
               name: 'date', label: '交易日期', component: <DatePicker />, attrs: { allowClear: false, disabledDate: (d: dayjs.Dayjs) => !dates.has(d.format('YYYY-MM-DD')) },
             },
-            {
+            ...(scopeFilter ? [{
               name: 'scope',
               label: '统计范围',
               component: <Select />,
@@ -53,7 +53,7 @@ export default function MarketShell({
                 popupMatchSelectWidth: 240,
                 optionRender: renderScopeOption,
               },
-            },
+            }] : []),
           ]}
           searchParams={{ date: date ? dayjs(date) : undefined, scope }}
           setSearchParams={(v) => select({ date: v.date?.format('YYYY-MM-DD') || date, scope: v.scope })}

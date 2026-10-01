@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { SectorService } from '@/modules/analysis/market/sector.service';
 import { CommonDateDto } from '@/dto/common.dto';
 import { BizException } from '@/exceptions/biz.exception';
 import { ECustomError } from '@/types/common.enum';
@@ -13,6 +14,7 @@ export class StrategyService {
   constructor(
     private tradeCalService: TradeCalService,
     private dailyService: DailyService,
+    @Optional() private sectors?: SectorService,
   ) {}
 
   private logger = new Logger(StrategyService.name);
@@ -195,6 +197,10 @@ export class StrategyService {
         ret = [];
         break;
     }
-    return ret;
+    if (dto.sector && this.sectors) {
+      const members = await this.sectors.codes(dto.sector, date);
+      ret = ret.filter((r) => members.has(r.tsCode));
+    }
+    return this.sectors ? this.sectors.decorate(ret, date) : ret;
   }
 }

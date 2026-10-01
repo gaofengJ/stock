@@ -39,6 +39,11 @@ export class MarketQueryDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @Matches(/^88[156]\d{3}\.TI$/)
+  sector?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)

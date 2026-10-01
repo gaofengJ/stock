@@ -17,6 +17,7 @@ import {
   BseMappingEntity,
   IndexDailyEntity,
   MarketDailyEntity,
+  MarketBreadthEntity,
 } from './market.entity';
 import { MARKET_INDEXES, MARKET_SCOPES } from './market.constants';
 import { marketStats } from './market.utils';
@@ -262,6 +263,17 @@ export class MarketSyncService implements OnModuleInit {
       isOpen: 1,
     });
     for (const day of [date, next?.calDate].filter(Boolean)) {
+      if (
+        day === date &&
+        manager.connection?.hasMetadata(MarketBreadthEntity)
+      ) {
+        await manager.delete(MarketBreadthEntity, { tradeDate: day });
+        await manager.update(
+          SyncRunEntity,
+          { task: 'market-breadth', tradeDate: day },
+          { status: 'pending', error: '当日交易样本更新，等待重算' },
+        );
+      }
       await manager.delete(MarketDailyEntity, { tradeDate: day });
       await manager.update(
         SyncRunEntity,

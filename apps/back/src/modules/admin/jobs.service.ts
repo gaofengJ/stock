@@ -82,7 +82,7 @@ export class JobsService implements OnApplicationBootstrap {
     actor: CurrentUser,
     start: string,
     end: string,
-    mode: 'missing' | 'refresh' = 'missing',
+    mode: 'missing' | 'refresh' | 'breadth' | 'sector' = 'missing',
   ) {
     validRange(start, end);
     const key = createHash('sha256')
@@ -127,7 +127,7 @@ export class JobsService implements OnApplicationBootstrap {
     );
     if (!job) throw new NotFoundException('任务不存在');
     const dates = await this.db.query(
-      "SELECT task,DATE_FORMAT(trade_date,'%Y-%m-%d') tradeDate,status,daily_count dailyCount,limit_count limitCount,senti_count sentiCount,error,updated_at updatedAt FROM t_sync_run WHERE task IN ('daily','market-index','market') AND trade_date BETWEEN ? AND ? ORDER BY trade_date,task",
+      "SELECT task,DATE_FORMAT(trade_date,'%Y-%m-%d') tradeDate,status,daily_count dailyCount,limit_count limitCount,senti_count sentiCount,error,updated_at updatedAt FROM t_sync_run WHERE task IN ('daily','market-index','market','market-breadth','ths-catalog','ths-daily') AND trade_date BETWEEN ? AND ? ORDER BY trade_date,task",
       [job.startDate, job.endDate],
     );
     return { ...job, dates };
@@ -227,7 +227,7 @@ export class JobsService implements OnApplicationBootstrap {
   private async tickMarket() {
     await this.locks.run(async () => {
       const [job] = await this.db.query(
-        "SELECT *,DATE_FORMAT(start_date,'%Y-%m-%d') startDate,DATE_FORMAT(end_date,'%Y-%m-%d') endDate FROM t_admin_job WHERE status IN ('queued','running') OR (status='pending' AND active_key IS NOT NULL AND updated_at<DATE_SUB(UTC_TIMESTAMP(6),INTERVAL 5 MINUTE)) ORDER BY (actor_id IS NULL AND mode='refresh') DESC,id LIMIT 1",
+        "SELECT *,DATE_FORMAT(start_date,'%Y-%m-%d') startDate,DATE_FORMAT(end_date,'%Y-%m-%d') endDate FROM t_admin_job WHERE status IN ('queued','running') OR (status='pending' AND active_key IS NOT NULL AND updated_at<DATE_SUB(UTC_TIMESTAMP(6),INTERVAL 5 MINUTE)) ORDER BY (actor_id IS NULL AND mode='refresh') DESC,(mode IN ('breadth','sector')) ASC,(mode='sector') DESC,id LIMIT 1",
       );
       if (!job) return;
       if (job.actor_id !== null) {
@@ -248,16 +248,27 @@ export class JobsService implements OnApplicationBootstrap {
           ? JSON.parse(job.completed_dates)
           : job.completed_dates || [];
       await this.db.query(
-        "UPDATE t_admin_job SET status='running',started_at=COALESCE(started_at,UTC_TIMESTAMP(6)),stage='校验并补齐下一批，最多3个交易日' WHERE id=?",
-        [job.id],
+        "UPDATE t_admin_job SET status='running',started_at=COALESCE(started_at,UTC_TIMESTAMP(6)),stage=? WHERE id=?",
+        [
+          job.mode === 'sector'
+            ? '正在补齐同花顺成分和板块日线'
+            : '校验并补齐下一批，最多3个交易日',
+          job.id,
+        ],
       );
       try {
-        const result = await this.daily.marketBatch(
-          job.startDate,
-          job.endDate,
-          job.mode === 'refresh',
-          completed,
-        );
+        let result;
+        if (job.mode === 'sector')
+          result = await this.daily.sectorBatch(job.startDate, job.endDate);
+        else if (job.mode === 'breadth')
+          result = await this.daily.breadthBatch(job.startDate, job.endDate);
+        else
+          result = await this.daily.marketBatch(
+            job.startDate,
+            job.endDate,
+            job.mode === 'refresh',
+            completed,
+          );
         if (!result) return;
         const done = [
           ...new Set([
@@ -285,11 +296,13 @@ export class JobsService implements OnApplicationBootstrap {
           'UPDATE t_admin_job SET status=?,stage=?,completed_dates=?,error=?,active_key=?,finished_at=?,updated_at=UTC_TIMESTAMP(6) WHERE id=?',
           [
             status,
-            `已处理 ${done.length} 日，待补 ${result.remaining} 日${
-              result.protectedDates.length
-                ? `，保护 ${result.protectedDates.length} 日`
-                : ''
-            }`,
+            'stage' in result
+              ? String(result.stage)
+              : `已处理 ${done.length} 日，待补 ${result.remaining} 日${
+                  result.protectedDates.length
+                    ? `，保护 ${result.protectedDates.length} 日`
+                    : ''
+                }`,
             JSON.stringify(done),
             error,
             terminal ? null : job.active_key,

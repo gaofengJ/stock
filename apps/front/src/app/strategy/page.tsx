@@ -1,12 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { errorMessage } from '@/api/errors';
 import {
   Alert, Button, Grid, Tabs,
 } from 'antd';
-import Table from '@/components/DataTable';
 import dayjs from 'dayjs';
+import { useSearchParams } from 'next/navigation';
+import { errorMessage } from '@/api/errors';
+import Table from '@/components/DataTable';
 import Layout from '@/components/Layout';
 import { EHeaderMenuKey } from '@/components/Layout/enum';
 import { getStrategyList, getStrategyTabsList } from '@/api/services';
@@ -14,6 +15,7 @@ import { NSGetStrategyList, NSGetStrategyTabsList } from '@/api/services.types';
 import CSearchForm from '@/components/common/CSearchForm';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { useDefaultTradeDate } from '@/hooks/useDefaultTradeDate';
+import SectorFilter, { useSectorSelection } from '@/components/SectorFilter';
 
 import { useStrategyConfigs } from './form-configs';
 import { strategyColumns } from './columns';
@@ -30,6 +32,9 @@ const strategyNotes: Record<string, string> = {
 };
 
 function StrategyPage() {
+  const { sector, setSector } = useSectorSelection();
+  const linked = useSearchParams().get('date');
+  const linkedDate = /^\d{4}-\d{2}-\d{2}$/.test(linked || '') ? linked! : undefined;
   const screens = Grid.useBreakpoint();
   const [loadError, setLoadError] = useState('');
   const {
@@ -38,7 +43,7 @@ function StrategyPage() {
 
   // initialSearchParams 的初始值
   const initialSearchParams: NSGetStrategyList.IParams = {
-    date: candidate,
+    date: linkedDate || candidate,
     strategyType: '',
   };
   const [searchParams, setSearchParams] = useState<NSGetStrategyList.IParams>(initialSearchParams);
@@ -80,11 +85,12 @@ function StrategyPage() {
 
   useEffect(() => {
     if (!ready) return;
-    setSearchParams((state) => (
-      state.date === candidate ? { ...state, date: tradeDate } : state
-    ));
+    setSearchParams((state) => {
+      if (linkedDate) return { ...state, date: linkedDate };
+      return state.date === candidate ? { ...state, date: tradeDate } : state;
+    });
     setDateReady(true);
-  }, [candidate, ready, tradeDate]);
+  }, [candidate, ready, tradeDate, linkedDate]);
 
   /**
    * 切换左侧 tab
@@ -119,6 +125,7 @@ function StrategyPage() {
       request: () => getStrategyList({
         ...searchParams,
         strategyType: activedNav,
+        ...(sector ? { sector } : {}),
       }, strategyRequestConfig),
       onStart: () => { setTableLoading(true); setLoadError(''); },
       onSuccess: ({ data }) => setStrategyData({ items: data }),
@@ -134,6 +141,7 @@ function StrategyPage() {
     dateReady,
     runLatestStrategyRequest,
     searchParams,
+    sector,
     strategyRequestConfig,
   ]);
 
@@ -184,6 +192,7 @@ function StrategyPage() {
               setSearchParams={handleSetSearchParams}
             />
           </div>
+          <div className="mb-16"><SectorFilter value={sector} onChange={setSector} /></div>
           <Table
             rootClassName="strategy-table"
             rowKey="tsCode"
@@ -197,7 +206,7 @@ function StrategyPage() {
                 </div>
               ),
             }}
-            scroll={{ x: 1048 }}
+            scroll={{ x: 1448 }}
             loading={!dateError && (!dateReady || tableLoading)}
             pagination={false}
           />

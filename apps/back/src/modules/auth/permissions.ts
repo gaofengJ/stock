@@ -23,6 +23,12 @@ export const PERMISSIONS = [
     route: '/analysis/overview',
   },
   {
+    code: 'analysis:sectors',
+    name: '板块分析',
+    group: '市场分析',
+    route: '/analysis/sectors',
+  },
+  {
     code: 'analysis:senti',
     name: '市场情绪',
     group: '市场分析',

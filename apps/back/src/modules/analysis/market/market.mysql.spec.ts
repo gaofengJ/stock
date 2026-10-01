@@ -16,15 +16,23 @@ import { DailyTaskService } from '@/modules/daily-task/daily-task.service';
 import { TushareService } from '@/shared/tushare/tushare.service';
 import { Accounts1790467200000 } from '@/migrations/1790467200000-Accounts';
 import { MarketAnalysis1790553600000 } from '@/migrations/1790553600000-MarketAnalysis';
+import { MarketBreadth1790899200000 } from '@/migrations/1790899200000-MarketBreadth';
+import { ThsSectors1790985600000 } from '@/migrations/1790985600000-ThsSectors';
 import { JobsService, validRange } from '@/modules/admin/jobs.service';
 import { DataLockService } from '@/modules/admin/data-lock.service';
 import { AuthService } from '@/modules/auth/auth.service';
+import {
+  SectorEntity,
+  SectorDailyEntity,
+  SectorMembersEntity,
+} from './sector.entity';
 import { MarketSyncService } from './market-sync.service';
 import { MarketService } from './market.service';
 import {
   BseMappingEntity,
   IndexDailyEntity,
   MarketDailyEntity,
+  MarketBreadthEntity,
 } from './market.entity';
 import { MarketQueryDto } from './market.dto';
 
@@ -32,6 +40,9 @@ const mysqlDescribe = process.env.SYNC_TEST_MYSQL_PORT
   ? describe
   : describe.skip;
 const entities = [
+  SectorEntity,
+  SectorDailyEntity,
+  SectorMembersEntity,
   DailyEntity,
   LimitEntity,
   StockEntity,
@@ -43,6 +54,7 @@ const entities = [
   BseMappingEntity,
   IndexDailyEntity,
   MarketDailyEntity,
+  MarketBreadthEntity,
 ];
 const dates = [
   '2024-02-27',
@@ -180,6 +192,10 @@ mysqlDescribe('市场分析迁移、发布及持久化续跑', () => {
         await q.query(`DROP TABLE ${table}`);
       await new MarketAnalysis1790553600000().up(q);
       await new MarketAnalysis1790553600000().up(q);
+      await new MarketBreadth1790899200000().up(q);
+      await new MarketBreadth1790899200000().up(q);
+      await new ThsSectors1790985600000().up(q);
+      await new ThsSectors1790985600000().up(q);
     } finally {
       await q.release();
     }

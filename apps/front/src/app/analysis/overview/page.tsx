@@ -21,6 +21,8 @@ import { ChartWindow, pairedIndexCandles, scopeIndexes } from '../components/mar
 import IndexChart from '../components/IndexChart';
 import ChartRange from '../components/ChartRange';
 import MarketAmountChart from '../components/MarketAmountChart';
+import MarketBreadthChart from '../components/MarketBreadthChart';
+import IndexComparisonChart from '../components/IndexComparisonChart';
 
 export default function OverviewPage() {
   const {
@@ -40,7 +42,7 @@ export default function OverviewPage() {
     const visible = window.count ? candles.slice(-window.count) : candles;
     return visible.some((c) => c.value && c.volume != null);
   });
-  const range = scopes.find((s) => s.value === scope)?.label;
+  const range = scopes.find((s) => s.value === scope)?.label || '';
   return (
     <MarketShell title="大盘概览" path="/analysis/overview">
       <DataState loading={loading} error={error} retry={retry} empty={!snapshot}>
@@ -98,9 +100,13 @@ export default function OverviewPage() {
                 );
               })}
             </Row>
+            <IndexComparisonChart indexes={indexes} dates={indexDates} />
             <Row gutter={[16, 16]} className="market-amount-section">
               <Col xs={24} lg={12}>
                 <MarketAmountChart title={`${range} - 市场成交额`} data={data} dates={indexDates} window={window} onWindowChange={setWindow} />
+              </Col>
+              <Col xs={24} lg={12}>
+                <MarketBreadthChart range={range} />
               </Col>
             </Row>
             <div className="market-section-toolbar">

@@ -9,6 +9,7 @@ import { Ladder, MarketSeries } from '@/api/market';
 import Link from 'next/link';
 import { useAccount } from '@/auth/Boundary';
 import { allowedPath } from '@/auth/client';
+import SectorFilter, { useSectorSelection } from '@/components/SectorFilter';
 import { useMarket } from '../components/MarketContext';
 import { marketHref } from '../components/market-navigation';
 import { promotionTooltip } from '../components/promotion-display';
@@ -22,10 +23,11 @@ import {
 } from '../components/MarketCharts';
 
 function ChainsPage() {
+  const { sector, setSector } = useSectorSelection();
   const { date, scope } = useMarket();
   const { user } = useAccount();
   const series = useMarketData<MarketSeries>('chains', { days: 730 });
-  const ladder = useMarketData<Ladder>('ladder');
+  const ladder = useMarketData<Ladder>('ladder', { sector });
   const heights = Array.from(new Set(ladder.data?.items.map((r) => r.limitTimes) || [])).sort((a, b) => b - a);
   return (
     <MarketShell title="连板分析" path="/analysis/chains">
@@ -36,6 +38,10 @@ function ChainsPage() {
           label: '当日梯队',
           children: (
             <>
+              <div className="mb-16">
+                <SectorFilter value={sector} onChange={setSector} />
+                <span className="market-note"> 仅筛选当日梯队和昨日连板股去向</span>
+              </div>
               <DataState loading={series.loading} error={series.error} retry={series.retry} empty={!series.data?.snapshot}>
                 <Row gutter={[16, 16]} className="market-metrics">
                   {series.data?.snapshot?.upgrades.map((r) => (
@@ -69,7 +75,7 @@ function ChainsPage() {
                       {ladder.data!.items.filter((r) => r.limitTimes === height).map((r) => (
                         allowedPath(user, '/analysis/limits')
                           ? (
-                            <Link key={r.tsCode} className="market-ladder-stock" href={marketHref('/analysis/limits', { date, scope }, { keyword: r.tsCode })} title={`查看${r.name}涨停明细`}>
+                            <Link key={r.tsCode} className="market-ladder-stock" href={marketHref('/analysis/limits', { date, scope }, { ...(sector ? { sector } : {}), keyword: r.tsCode, type: 'U' })} title={`查看${r.name}涨停明细`}>
                               {r.name}
                               <span>{r.tsCode}</span>
                             </Link>

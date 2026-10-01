@@ -1,5 +1,6 @@
 import { numberText, scaledNumber, changeClass } from '@/utils/format';
 import type { ColumnsType } from 'antd/es/table/interface';
+import SectorLinks from '@/components/SectorLinks';
 
 /**
  * 设置默认值
@@ -26,8 +27,11 @@ export const limitsColumns: ColumnsType = [
     title: '所属行业',
     dataIndex: 'industry',
     key: 'industry',
-    width: 80,
-    render: renderEmptyField,
+    width: 160,
+    render: (_, row) => <SectorLinks stock={row} date={row.tradeDate} />,
+  },
+  {
+    title: '所属题材', key: 'topics', width: 220, render: (_, row) => <SectorLinks stock={row} type="N" date={row.tradeDate} />,
   },
   {
     title: '涨跌幅(%)',

@@ -1,5 +1,6 @@
 import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { SectorService } from '@/modules/analysis/market/sector.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Like, Repository } from 'typeorm';
 
@@ -26,6 +27,7 @@ export class LimitService {
     private readonly writes: SyncWriteService,
     @InjectRepository(LimitEntity)
     private LimitRepository: Repository<LimitEntity>,
+    @Optional() private sectors?: SectorService,
   ) {}
 
   async list({
@@ -59,7 +61,13 @@ export class LimitService {
         ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
       })
       .orderBy(orderField, order);
-    return paginate(queryBuilder, { pageNum, pageSize });
+    const result = await paginate(queryBuilder, { pageNum, pageSize });
+    return new Pagination(
+      this.sectors
+        ? await this.sectors.decorate(result.items, tradeDate)
+        : result.items,
+      result.meta,
+    );
   }
 
   /**
@@ -256,7 +264,9 @@ export class LimitService {
   async detail(id: number): Promise<LimitEntity> {
     const item = await this.LimitRepository.findOneBy({ id });
     if (!item) throw new NotFoundException('未找到该记录');
-    return item;
+    return this.sectors
+      ? (await this.sectors.decorate([item], item.tradeDate))[0]
+      : item;
   }
 
   async create(dto: LimitDto) {

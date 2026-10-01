@@ -6,6 +6,9 @@ export async function checkMarketSchema(db: {
     'SELECT TABLE_NAME,INDEX_NAME,COLUMN_NAME,NON_UNIQUE,SEQ_IN_INDEX FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() ORDER BY SEQ_IN_INDEX',
   );
   const expected = [
+    ['t_source_ths_sector', 'uq_ths_sector_code', ['ts_code']],
+    ['t_source_ths_members', 'uq_ths_members_date_code', ['as_of', 'ts_code']],
+    ['t_source_ths_daily', 'uq_ths_daily_date_code', ['trade_date', 'ts_code']],
     ['t_source_index_daily', 'uq_index_date_code', ['trade_date', 'ts_code']],
     [
       't_processed_market_daily',
@@ -13,6 +16,11 @@ export async function checkMarketSchema(db: {
       ['trade_date', 'scope'],
     ],
     ['t_source_bse_mapping', 'uq_bse_old', ['old_code']],
+    [
+      't_processed_market_breadth',
+      'uq_breadth_date_scope',
+      ['trade_date', 'scope'],
+    ],
   ] as const;
   const bad = expected.filter(([table, index, columns]) => {
     const found = rows.filter(
@@ -31,6 +39,6 @@ export async function checkMarketSchema(db: {
   );
   if (bad.length || columns.length !== 1)
     throw new Error(
-      '市场分析数据库结构未就绪，请先执行 MarketAnalysis1790553600000 迁移',
+      '市场分析数据库结构未就绪，请先执行市场分析、MarketBreadth1790899200000 和 ThsSectors1790985600000 迁移',
     );
 }

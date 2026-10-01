@@ -1,5 +1,6 @@
 import axios from './request';
 import type { RequestConfig } from './types';
+import type { ClassifiedStock } from './sectors';
 
 export type MarketScope = 'all' | 'hs' | 'main' | 'gem' | 'star' | 'bj';
 export interface MarketStats {
@@ -23,12 +24,23 @@ export interface IndexPoint {
 }
 export interface MarketSeries {
   status: MarketStatus; date: string | null; snapshot: MarketStats | null;
-  previousAmount?: number | null; fiveDayAmount?: number | null; updatedAt?: string;
+  previousAmount?: number | null; fiveDayAmount?: number | null; twentyDayAmount?: number | null; updatedAt?: string;
   series: { date: string; data: MarketStats | null }[];
   indexes: { code: string; name: string; series: IndexPoint[] }[];
   markets: (MarketStats & { scope: string })[];
 }
-export interface LimitRow {
+export interface BreadthMeasure {
+  above: number; eligible: number; insufficient: number; missing: number; ratio: number | null;
+}
+export interface MarketBreadth {
+  total: number; ma20: BreadthMeasure; ma60: BreadthMeasure;
+}
+export interface BreadthSeries {
+  date: string | null; snapshot: MarketBreadth | null;
+  series: { date: string; data: MarketBreadth | null }[];
+  stage: { status: string; error: string | null } | null;
+}
+export interface LimitRow extends ClassifiedStock {
   tsCode: string; name: string; industry: string | null; close: string; pctChg: string;
   amount: string | null; floatMv: string | null; turnoverRatio: string | null;
   fdAmount: string | null; firstTime: string | null; lastTime: string | null;
@@ -47,7 +59,7 @@ export interface DragonList {
   codes: string[];
   queriedAt: string;
 }
-export interface DragonListing {
+export interface DragonListing extends ClassifiedStock {
   tsCode: string; name: string; reason: string;
   close: number | null; pctChange: number | null; turnoverRate: number | null;
   lBuy: number | null; lSell: number | null; netAmount: number | null;

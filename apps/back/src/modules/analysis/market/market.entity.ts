@@ -2,6 +2,7 @@ import { Column, Entity, Index } from 'typeorm';
 import { CommonEntity } from '@/entity/common.entity';
 import { MarketScope } from './market.constants';
 import { MarketStats } from './market.utils';
+import { MarketBreadth } from './market-environment.utils';
 
 @Entity('t_source_index_daily')
 @Index('uq_index_date_code', ['tradeDate', 'tsCode'], { unique: true })
@@ -30,6 +31,16 @@ export class MarketDailyEntity extends CommonEntity {
   @Column({ length: 8 }) scope: MarketScope;
 
   @Column({ type: 'json' }) data: MarketStats;
+}
+
+@Entity('t_processed_market_breadth')
+@Index('uq_breadth_date_scope', ['tradeDate', 'scope'], { unique: true })
+export class MarketBreadthEntity extends CommonEntity {
+  @Column({ name: 'trade_date', type: 'date' }) tradeDate: string;
+
+  @Column({ length: 8 }) scope: MarketScope;
+
+  @Column({ type: 'json' }) data: MarketBreadth;
 }
 
 @Entity('t_source_bse_mapping')

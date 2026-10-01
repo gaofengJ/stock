@@ -11,6 +11,8 @@ import {
 import Table from '@/components/DataTable';
 import { changeClass, scaledNumber } from '@/utils/format';
 import { DragonList, LimitRow } from '@/api/market';
+import SectorFilter, { useSectorSelection } from '@/components/SectorFilter';
+import SectorLinks from '@/components/SectorLinks';
 import LegacyPage from './LegacyPage';
 import MarketCompatibility from '../components/MarketCompatibility';
 import MarketShell from '../components/MarketShell';
@@ -21,6 +23,7 @@ import { useMarket } from '../components/MarketContext';
 import { linkedLimitType, marketHref } from '../components/market-navigation';
 
 function LimitsPage() {
+  const { sector, setSector } = useSectorSelection();
   const params = useSearchParams();
   const linkedKeyword = params.get('keyword') || '';
   const linkedType = linkedLimitType(params.get('type'));
@@ -31,7 +34,7 @@ function LimitsPage() {
   const { date, scope } = useMarket();
   const { user } = useAccount();
   const canReadDragon = allowedPath(user, '/analysis/dragon');
-  const dragonHref = (code?: string) => marketHref('/analysis/dragon', { date, scope }, code ? { code } : {});
+  const dragonHref = (code?: string) => marketHref('/analysis/dragon', { date, scope }, { ...(sector ? { sector } : {}), ...(code ? { code } : {}) });
   const dragon = useMarketData<DragonList>('dragon-list', { days: 20 });
   const dragonCodes = new Set(dragon.data?.codes || []);
   useEffect(() => {
@@ -39,20 +42,23 @@ function LimitsPage() {
   }, [linkedKeyword, linkedType]);
   const {
     data, loading, error, retry,
-  } = useMarketData<{ ready: boolean; items: LimitRow[] }>('limits', { type, keyword, height });
+  } = useMarketData<{ ready: boolean; items: LimitRow[] }>('limits', {
+    type, keyword, height, sector,
+  });
   const raw = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : String(v));
   const amount = (v: string | null) => scaledNumber(v, 100000000);
   return (
     <MarketShell title="涨停复盘" path="/analysis/limits">
       <Tabs activeKey={type} onChange={setType} items={[{ key: 'U', label: '涨停' }, { key: 'Z', label: '炸板' }, { key: 'D', label: '跌停' }]} />
       <Space className="mb-16" wrap>
+        <SectorFilter value={sector} onChange={setSector} />
         <Input.Search allowClear placeholder="股票名称／代码" value={search} onChange={(e) => { setSearch(e.target.value); if (!e.target.value) setKeyword(''); }} onSearch={setKeyword} style={{ width: 260 }} />
         <Select allowClear placeholder="连板数" value={height} onChange={setHeight} style={{ width: 140 }} options={[{ value: 1, label: '首板' }, { value: 2, label: '二板' }, { value: 3, label: '三板' }, { value: 4, label: '四板及以上' }]} />
       </Space>
       <SectionTitle title="股票列表" description="非ST样本；涨停与炸板按收盘状态区分。缺失封板信息显示“—”。" />
       <DataState loading={loading} error={error} retry={retry} empty={!data?.ready}>
         <Table<LimitRow>
-          key={`${date}-${type}-${height}-${keyword}`}
+          key={`${date}-${type}-${height}-${keyword}-${sector}`}
           locale={{ emptyText: keyword || height ? '没有符合筛选条件的股票' : '该范围当日无此类事件' }}
           rowKey="tsCode"
           dataSource={data?.items}
@@ -68,7 +74,12 @@ function LimitsPage() {
             }, {
               title: '名称', dataIndex: 'name', fixed: 'left', width: 105,
             },
-            { title: '行业', dataIndex: 'industry', render: raw }, {
+            {
+              title: '行业', key: 'industry', width: 150, render: (_, r) => <SectorLinks stock={r} date={date} />,
+            },
+            {
+              title: '题材', key: 'topics', width: 220, render: (_, r) => <SectorLinks stock={r} type="N" date={date} />,
+            }, {
               title: '涨跌幅(%)', dataIndex: 'pctChg', align: 'right', render: (v) => <span className={changeClass(v)}>{numberText(v, 2, true)}</span>, sorter: (a, b) => Number(a.pctChg) - Number(b.pctChg),
             },
             {

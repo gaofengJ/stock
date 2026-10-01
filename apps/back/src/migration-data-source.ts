@@ -11,6 +11,8 @@ import { DragonPermission1790812800000 } from './migrations/1790812800000-Dragon
 import { RealTimeNews1790812800001 } from './migrations/1790812800001-RealTimeNews';
 import { ExpandedNewsSources1790832000000 } from './migrations/1790832000000-ExpandedNewsSources';
 import { NewsDisplayPolicy1790835600000 } from './migrations/1790835600000-NewsDisplayPolicy';
+import { MarketBreadth1790899200000 } from './migrations/1790899200000-MarketBreadth';
+import { ThsSectors1790985600000 } from './migrations/1790985600000-ThsSectors';
 
 dotenv.config({
   path:
@@ -37,6 +39,8 @@ export default new DataSource({
     RealTimeNews1790812800001,
     ExpandedNewsSources1790832000000,
     NewsDisplayPolicy1790835600000,
+    MarketBreadth1790899200000,
+    ThsSectors1790985600000,
   ],
   migrationsTransactionMode: 'none',
   logging: false,

@@ -157,7 +157,9 @@ describe('daily dragon list availability', () => {
   it('uses the same permission as limit review details', () => {
     expect(
       Reflect.getMetadata(ACCESS, MarketController.prototype.dragonList),
-    ).toEqual({ any: ['analysis:limits'] });
+    ).toEqual({
+      any: ['analysis:limits', 'analysis:sectors', 'analysis:dragon'],
+    });
   });
 
   it('shares the full snapshot with the board and keeps overlapping reasons separate', async () => {
@@ -212,6 +214,9 @@ describe('daily dragon list availability', () => {
   });
 
   it('protects the standalone board and permits existing detail access', () => {
+    expect(
+      Reflect.getMetadata(ACCESS, MarketController.prototype.breadth),
+    ).toEqual({ any: ['analysis:overview'] });
     expect(
       Reflect.getMetadata(ACCESS, MarketController.prototype.dragonBoard),
     ).toEqual({ any: ['analysis:dragon'] });

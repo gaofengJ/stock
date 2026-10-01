@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Optional } from '@nestjs/common';
 import { Between, DataSource, In, LessThanOrEqual } from 'typeorm';
 import * as dayjs from 'dayjs';
 import { createHash } from 'crypto';
@@ -17,6 +17,8 @@ import {
 import { inScope, MARKET_INDEXES, MarketScope } from './market.constants';
 import { MarketQueryDto } from './market.dto';
 import { DragonCache } from './dragon-cache';
+import { priorAmountMean } from './market-environment.utils';
+import { SectorService } from './sector.service';
 
 @Injectable()
 export class MarketService {
@@ -35,6 +37,7 @@ export class MarketService {
   constructor(
     private db: DataSource,
     private tushare: TushareService,
+    @Optional() private sectors?: SectorService,
   ) {}
 
   async status() {
@@ -89,14 +92,23 @@ export class MarketService {
     normalizeDate(date);
     const start = dayjs(date).subtract(2, 'year').format('YYYY-MM-DD');
     const calendar = await this.db.manager.find(TradeCalEntity, {
-      where: { isOpen: 1, calDate: Between(start, date) },
+      where: {
+        isOpen: 1,
+        calDate: Between(
+          dayjs(start).subtract(90, 'day').format('YYYY-MM-DD'),
+          date,
+        ),
+      },
       order: { calDate: 'DESC' },
     });
-    const visible = q.days === 730 ? calendar : calendar.slice(0, q.days);
+    const visible =
+      q.days === 730
+        ? calendar.filter((r) => r.calDate >= start)
+        : calendar.slice(0, q.days);
     const selected = new Set(visible.map((r) => r.calDate));
     const first =
-      calendar[Math.min(calendar.length - 1, visible.length + 5)]?.calDate ||
-      start;
+      calendar[Math.min(calendar.length - 1, Math.max(visible.length, 20))]
+        ?.calDate || start;
     const data = await this.db.manager.find(MarketDailyEntity, {
       where: { scope: q.scope, tradeDate: Between(first, date) },
       order: { tradeDate: 'ASC' },
@@ -108,15 +120,11 @@ export class MarketService {
         .map((r) => [r.tradeDate, r.data]),
     );
     const snapshot = ready.has(date) ? byDate.get(date) || null : null;
-    const priorDates = calendar.filter((r) => r.calDate < date).slice(0, 5);
-    const previous = byDate.get(priorDates[0]?.calDate);
-    const mean =
-      priorDates.length === 5 && priorDates.every((r) => byDate.has(r.calDate))
-        ? priorDates.reduce(
-            (sum, r) => sum + byDate.get(r.calDate)!.amount,
-            0,
-          ) / 5
-        : null;
+    const priorDates = calendar
+      .filter((r) => r.calDate < date)
+      .map((r) => r.calDate);
+    const previous = byDate.get(priorDates[0]);
+    const mean = priorAmountMean(priorDates, byDate, 5);
     const indexes = await this.db.manager.find(IndexDailyEntity, {
       where: {
         tradeDate: Between(visible[visible.length - 1]?.calDate || date, date),
@@ -135,6 +143,7 @@ export class MarketService {
       snapshot,
       previousAmount: previous?.amount ?? null,
       fiveDayAmount: mean,
+      twentyDayAmount: priorAmountMean(priorDates, byDate, 20),
       updatedAt: data.find((r) => r.tradeDate === date)?.updatedAt || null,
       series: visible
         .slice()
@@ -168,10 +177,15 @@ export class MarketService {
       tradeDate: q.date,
       limit: q.type,
     });
+    const members =
+      q.sector && this.sectors
+        ? await this.sectors.codes(q.sector, q.date)
+        : null;
     const items = list
       .filter(
         (r) =>
           inScope(r.tsCode, q.scope) &&
+          (!members || members.has(r.tsCode)) &&
           (!q.height ||
             (q.height === 4 ? r.limitTimes >= 4 : r.limitTimes === q.height)) &&
           (!q.keyword ||
@@ -185,7 +199,10 @@ export class MarketService {
           String(a.firstTime || '').localeCompare(String(b.firstTime || '')) ||
           a.tsCode.localeCompare(b.tsCode),
       );
-    return { ready: true, items };
+    return {
+      ready: true,
+      items: this.sectors ? await this.sectors.decorate(items, q.date) : items,
+    };
   }
 
   async ladder(q: MarketQueryDto) {
@@ -209,6 +226,10 @@ export class MarketService {
       tradeDate: q.date,
       limit: 'U',
     });
+    const sectorCodes =
+      q.sector && this.sectors
+        ? await this.sectors.codes(q.sector, q.date)
+        : null;
     const limits = new Map(allCurrent.map((r) => [canonical(r.tsCode), r]));
     const trading = new Map(
       (await this.db.manager.findBy(DailyEntity, { tradeDate: q.date }))
@@ -218,7 +239,12 @@ export class MarketService {
     return {
       ...current,
       transitions: old
-        .filter((r) => r.limitTimes >= 2 && inScope(r.tsCode, q.scope))
+        .filter(
+          (r) =>
+            r.limitTimes >= 2 &&
+            inScope(r.tsCode, q.scope) &&
+            (!sectorCodes || sectorCodes.has(canonical(r.tsCode))),
+        )
         .map((r) => {
           const today = limits.get(canonical(r.tsCode));
           const daily = trading.get(canonical(r.tsCode));
@@ -278,6 +304,13 @@ export class MarketService {
 
   async dragonBoard(q: MarketQueryDto) {
     const { items, queriedAt } = await this.dragonSnapshot(q.date);
+    const members =
+      q.sector && this.sectors
+        ? await this.sectors.codes(q.sector, q.date)
+        : null;
+    const decorated = this.sectors
+      ? await this.sectors.decorate(items, q.date)
+      : items;
     if (
       items.some(
         (r) => typeof r.name !== 'string' || typeof r.reason !== 'string',
@@ -291,11 +324,17 @@ export class MarketService {
         : Number(v);
     return {
       queriedAt,
-      items: items
-        .filter((r) => inScope(r.tsCode, q.scope))
+      items: decorated
+        .filter(
+          (r) =>
+            inScope(r.tsCode, q.scope) && (!members || members.has(r.tsCode)),
+        )
         .map((r) => ({
           tsCode: r.tsCode,
           name: r.name,
+          industry: r.industry || '',
+          industries: r.industries || [],
+          topics: r.topics || [],
           reason: r.reason,
           close: number(r.close),
           pctChange: number(r.pctChange),

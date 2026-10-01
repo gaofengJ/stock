@@ -1,8 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsDateString, IsEnum } from 'class-validator';
+import { IsDateString, IsEnum, IsOptional, Matches } from 'class-validator';
 import { EStrategyType } from './strategy.enum';
 
 export class StrategyListQueryDto {
+  @IsOptional() @Matches(/^88[156]\d{3}\.TI$/) sector?: string;
+
   @ApiProperty({ description: '日期' })
   @IsDateString()
   date: string;

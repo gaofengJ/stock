@@ -1,5 +1,6 @@
 import type { ColumnsType } from 'antd/es/table/interface';
 import { useOptionsState } from '@/store/useOptionsStore';
+import SectorLinks from '@/components/SectorLinks';
 
 /**
  * 设置默认值
@@ -8,7 +9,7 @@ const renderEmptyField = (val: any) => (
   val === null || val === undefined || val === '' ? '—' : val
 );
 
-export const useStockColumns = (): ColumnsType => {
+export const useStockColumns = (date?: string): ColumnsType => {
   const { allOptions } = useOptionsState();
   return [
     {
@@ -36,7 +37,11 @@ export const useStockColumns = (): ColumnsType => {
       title: '所在行业',
       dataIndex: 'industry',
       key: 'industry',
-      render: renderEmptyField,
+      width: 170,
+      render: (_, row) => <SectorLinks stock={row} date={date} />,
+    },
+    {
+      title: '所属题材', key: 'topics', width: 240, render: (_, row) => <SectorLinks stock={row} type="N" date={date} />,
     },
     {
       title: '所在区域',

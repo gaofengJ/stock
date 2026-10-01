@@ -6,6 +6,7 @@
     "test:guest-access": "node --test scripts/test-guest-access.cjs",
     "test:market-compatibility": "node --test scripts/test-market-compatibility.cjs",
     "test:display": "node --test scripts/test-display.cjs",
+    "test:market-environment": "node --test scripts/test-market-environment.cjs",
     "test:errors": "node --test scripts/test-errors.cjs",
     "dev": "next dev -p 8081",
     "build": "next build && node scripts/verify-export.cjs",
