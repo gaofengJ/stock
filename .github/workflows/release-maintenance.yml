@@ -41,6 +41,8 @@ jobs:
             docker system df
             docker images --format '{{.ID}} {{.Repository}}:{{.Tag}} {{.Size}}'
             docker ps -a --format '{{.Names}} {{.Status}} {{.Image}}'
+            docker inspect stock-front | python3 -c 'import json,sys; c=json.load(sys.stdin)[0]; print(json.dumps({"frontConfiguration":{"image":c["Image"],"ports":c["HostConfig"]["PortBindings"],"mounts":[{k:m.get(k) for k in ("Source","Destination","RW")} for m in c["Mounts"]],"networks":list(c["NetworkSettings"]["Networks"]),"restart":c["HostConfig"]["RestartPolicy"]}}))'
+            docker ps -a --format '{{.ID}}' | xargs -r docker inspect | python3 -c 'import json,sys; print(json.dumps({"containerReferences":[{"name":c["Name"],"image":c["Image"],"running":c["State"]["Running"]} for c in json.load(sys.stdin)]}))'
             python3 /opt/stock-release/tools/maintenance.py --root /opt/stock-release
             python3 - <<'PY'
             import glob, json, os
