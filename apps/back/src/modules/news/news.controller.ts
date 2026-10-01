@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -74,21 +73,9 @@ export class NewsController {
     return this.news.detail(id, req.authUser?.id);
   }
 
-  @Post(':id/favorite')
-  @Permit('news:read')
-  favorite(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
-    return this.news.favorite(id, req.authUser?.id, true);
-  }
-
   @Post(':id/read')
   @Permit('news:read')
   read(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
     return this.news.markRead(id, req.authUser?.id);
-  }
-
-  @Delete(':id/favorite')
-  @Permit('news:read')
-  unfavorite(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
-    return this.news.favorite(id, req.authUser?.id, false);
   }
 }

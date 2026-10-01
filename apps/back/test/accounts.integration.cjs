@@ -160,11 +160,8 @@ async function main() {
     assert.equal((await inject('PATCH','/news/sources/jin10',{enabled:false},admin)).statusCode, 200);
     assert.equal((await inject('GET','/news?date=2026-10-01',undefined,user)).json().data.total, 0, 'Disabled sources leave the public feed');
     assert.equal((await inject('GET','/news?date=2026-02-30',undefined,user)).statusCode, 400);
-    assert.equal((await inject('POST','/news/'+newsItem.id+'/favorite',undefined,user)).statusCode, 201);
-    assert.equal((await inject('DELETE','/news/'+newsItem.id+'/favorite',undefined,{cookie:user.cookie})).statusCode, 403, 'News mutations require CSRF');
-    assert.equal((await inject('GET','/news?favorites=true',undefined,user)).json().data.total, 1);
-    assert.equal((await inject('GET','/news?favorites=true',undefined,admin)).json().data.total, 0, 'Favorites are private to the authenticated user');
-    assert.equal((await inject('DELETE','/news/'+newsItem.id+'/favorite',undefined,user)).statusCode, 200);
+    assert.equal((await inject('POST','/news/'+newsItem.id+'/favorite',undefined,user)).statusCode, 404, 'Removed favorite endpoint');
+    assert.equal((await inject('DELETE','/news/'+newsItem.id+'/favorite',undefined,user)).statusCode, 404, 'Removed favorite endpoint');
     // Exercise real MySQL upserts, partial feed failure and retention SQL without external network.
     const newsService = app.get(NewsService);
     newsService.fetch = async (route) => {
@@ -181,8 +178,8 @@ async function main() {
     const [oldFavorite] = await db.query("SELECT id FROM t_news_item WHERE dedupe_key=REPEAT('b',64)");
     await db.query('INSERT INTO t_news_favorite(user_id,news_id,created_at) VALUES(?,?,UTC_TIMESTAMP(3))',[user.user.id,oldFavorite.id]);
     await newsService.sync(true);
-    assert.equal(Number((await db.query("SELECT COUNT(*) n FROM t_news_item WHERE dedupe_key=REPEAT('b',64)"))[0].n),1,'Retention preserves favorited news');
-    assert.equal(Number((await db.query("SELECT COUNT(*) n FROM t_news_item WHERE dedupe_key=REPEAT('c',64)"))[0].n),0,'Retention removes expired unfavorited news');
+    assert.equal(Number((await db.query("SELECT COUNT(*) n FROM t_news_item WHERE dedupe_key=REPEAT('b',64)"))[0].n),0,'Retention expires legacy favorites after 30 days');
+    assert.equal(Number((await db.query("SELECT COUNT(*) n FROM t_news_item WHERE dedupe_key=REPEAT('c',64)"))[0].n),0,'Retention removes expired news');
     assert.equal(Number((await db.query("SELECT COUNT(*) n FROM t_news_item WHERE dedupe_key=REPEAT('f',64)"))[0].n),0,'30-day retention removes 31-day news');
     assert.equal(Number((await db.query("SELECT COUNT(*) n FROM t_news_item WHERE dedupe_key=REPEAT('1',64)"))[0].n),1,'30-day retention keeps 29-day news');
     const [collected] = await db.query("SELECT published_at,time_basis FROM t_news_item WHERE source='yicai-news'");

@@ -5,7 +5,6 @@ import {
   Logger,
   NotFoundException,
   OnApplicationBootstrap,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
@@ -153,19 +152,14 @@ export class NewsService implements OnApplicationBootstrap {
   }
 
   async list(query: NewsQuery, userId?: number) {
-    const favorites = query.favorites === 'true';
-    if (favorites && !userId)
-      throw new UnauthorizedException('请登录后查看收藏');
     if (query.source && !sourceByCode(query.source))
       throw new BadRequestException('未知资讯来源');
     const clauses = [`n.source IN (${NEWS_CODES.map(() => '?').join(',')})`];
     const args: any[] = [...NEWS_CODES];
-    if (!favorites) clauses.push(DISPLAYABLE_SOURCE_SQL);
+    clauses.push(DISPLAYABLE_SOURCE_SQL);
     const date =
       query.date ||
-      (favorites
-        ? ''
-        : new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10));
+      new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
     if (query.range === 'hour') {
       clauses.push(
         'n.published_at>=DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 1 HOUR) AND n.published_at<=UTC_TIMESTAMP(3)',
@@ -251,30 +245,21 @@ export class NewsService implements OnApplicationBootstrap {
         }
       }
     }
-    const join = `${
-      favorites ? '' : 'JOIN t_news_source s ON s.source=n.source '
-    }LEFT JOIN t_news_translation t ON t.news_id=n.id LEFT JOIN t_news_rule r ON r.news_id=n.id LEFT JOIN t_news_favorite f ON f.news_id=n.id AND f.user_id=?`;
-    if (favorites) clauses.push('f.news_id IS NOT NULL');
+    const join =
+      'JOIN t_news_source s ON s.source=n.source LEFT JOIN t_news_translation t ON t.news_id=n.id LEFT JOIN t_news_rule r ON r.news_id=n.id';
     const where = clauses.join(' AND ');
     const group =
-      query.merge === 'true' && !favorites
+      query.merge === 'true'
         ? "COALESCE(r.group_key,CONCAT('id:',n.id))"
         : 'n.id';
     const groups = `SELECT MAX(n.id) id,MAX(n.published_at) newest,MAX(n.important) group_important FROM t_news_item n ${join} WHERE ${where} GROUP BY ${group}`;
     const [{ total, latestId, newCount }] = await this.db.query(
       `SELECT COUNT(*) total,COALESCE(MAX(g.id),0) latestId,COALESCE(SUM(g.id>?),0) newCount FROM (${groups}) g`,
-      [query.afterId ?? 2147483647, userId || 0, ...args],
+      [query.afterId ?? 2147483647, ...args],
     );
     const rows = await this.db.query(
-      `SELECT n.id,n.source,n.kind,n.title,LEFT(n.body,360) body,n.original_url,g.group_important important,n.published_at,n.time_basis,t.title translated_title,LEFT(t.body,360) translated_body,t.engine translation_engine,t.model translation_model,(f.news_id IS NOT NULL) favorite,(v.news_id IS NOT NULL) already_read FROM t_news_item n JOIN (${groups}) g ON g.id=n.id LEFT JOIN t_news_translation t ON t.news_id=n.id LEFT JOIN t_news_favorite f ON f.news_id=n.id AND f.user_id=? LEFT JOIN t_news_read v ON v.news_id=n.id AND v.user_id=? ORDER BY g.newest DESC,n.id DESC LIMIT ? OFFSET ?`,
-      [
-        userId || 0,
-        ...args,
-        userId || 0,
-        userId || 0,
-        query.pageSize,
-        (query.page - 1) * query.pageSize,
-      ],
+      `SELECT n.id,n.source,n.kind,n.title,LEFT(n.body,360) body,n.original_url,g.group_important important,n.published_at,n.time_basis,t.title translated_title,LEFT(t.body,360) translated_body,t.engine translation_engine,t.model translation_model,(v.news_id IS NOT NULL) already_read FROM t_news_item n JOIN (${groups}) g ON g.id=n.id LEFT JOIN t_news_translation t ON t.news_id=n.id LEFT JOIN t_news_read v ON v.news_id=n.id AND v.user_id=? ORDER BY g.newest DESC,n.id DESC LIMIT ? OFFSET ?`,
+      [...args, userId || 0, query.pageSize, (query.page - 1) * query.pageSize],
     );
     return {
       items: await this.features.decorate(
@@ -302,7 +287,6 @@ export class NewsService implements OnApplicationBootstrap {
       important: Number(row.important || 0) === 1,
       publishedAt: isoDate(row.published_at),
       timeBasis: row.time_basis || 'published',
-      favorite: Number(row.favorite || 0) === 1,
       read: Number(row.already_read || 0) === 1,
       translation: row.translated_title
         ? {
@@ -317,8 +301,8 @@ export class NewsService implements OnApplicationBootstrap {
 
   async detail(id: number, userId?: number) {
     const [row] = await this.db.query(
-      'SELECT n.*,t.title translated_title,t.body translated_body,t.engine translation_engine,t.model translation_model,(f.news_id IS NOT NULL) favorite,(v.news_id IS NOT NULL) already_read FROM t_news_item n LEFT JOIN t_news_translation t ON t.news_id=n.id LEFT JOIN t_news_favorite f ON f.news_id=n.id AND f.user_id=? LEFT JOIN t_news_read v ON v.news_id=n.id AND v.user_id=? WHERE n.id=?',
-      [userId || 0, userId || 0, id],
+      'SELECT n.*,t.title translated_title,t.body translated_body,t.engine translation_engine,t.model translation_model,(v.news_id IS NOT NULL) already_read FROM t_news_item n LEFT JOIN t_news_translation t ON t.news_id=n.id LEFT JOIN t_news_read v ON v.news_id=n.id AND v.user_id=? WHERE n.id=?',
+      [userId || 0, id],
     );
     if (!row) throw new NotFoundException('资讯不存在或已过期');
     const [item] = await this.features.decorate([this.present(row)]);
@@ -343,22 +327,6 @@ export class NewsService implements OnApplicationBootstrap {
       [id, ...item.related.map((related: any) => related.id)],
       userId,
     );
-  }
-
-  async favorite(id: number, userId: number | undefined, add: boolean) {
-    if (!userId) throw new UnauthorizedException('请登录后收藏');
-    await this.detail(id, userId);
-    if (add)
-      await this.db.query(
-        'INSERT IGNORE INTO t_news_favorite(user_id,news_id,created_at) VALUES(?,?,UTC_TIMESTAMP(3))',
-        [userId, id],
-      );
-    else
-      await this.db.query(
-        'DELETE FROM t_news_favorite WHERE user_id=? AND news_id=?',
-        [userId, id],
-      );
-    return { favorite: add };
   }
 
   private async fetch(path: string): Promise<unknown[]> {
@@ -546,7 +514,7 @@ export class NewsService implements OnApplicationBootstrap {
       // Backfill existing articles incrementally, then enrich newly collected/changed items.
       await this.features.indexBatch();
       await lock.query(
-        'DELETE FROM t_news_item WHERE id IN (SELECT id FROM (SELECT n.id FROM t_news_item n LEFT JOIN t_news_favorite f ON f.news_id=n.id WHERE n.published_at<DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 30 DAY) AND f.news_id IS NULL LIMIT 1000) expired)',
+        'DELETE FROM t_news_item WHERE published_at<DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 30 DAY) LIMIT 1000',
       );
       return true;
     } finally {

@@ -28,8 +28,6 @@ export class NewsQuery {
 
   @IsOptional() @IsIn(['true', 'false']) important?: string;
 
-  @IsOptional() @IsIn(['true', 'false']) favorites?: string;
-
   @IsOptional() @IsIn(['date', 'hour', 'today', 'three-days']) range?: string;
 
   @IsOptional() @IsIn(['true', 'false']) merge?: string;

@@ -4,7 +4,7 @@ export async function checkNewsSchema(db: {
   query: (sql: string, args?: any[]) => Promise<any>;
 }) {
   const rows = await db.query(
-    "SELECT TABLE_NAME,INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,NON_UNIQUE FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('t_news_item','t_news_source','t_news_favorite','t_news_translation','t_news_rule','t_news_stock','t_news_preference','t_news_read') ORDER BY SEQ_IN_INDEX",
+    "SELECT TABLE_NAME,INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,NON_UNIQUE FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('t_news_item','t_news_source','t_news_translation','t_news_rule','t_news_stock','t_news_preference','t_news_read') ORDER BY SEQ_IN_INDEX",
   );
   const expected = [
     { table: 't_news_source', name: 'PRIMARY', columns: ['source'] },
@@ -17,11 +17,6 @@ export async function checkNewsSchema(db: {
       table: 't_news_item',
       name: 'uq_news_source_key',
       columns: ['source', 'dedupe_key'],
-    },
-    {
-      table: 't_news_favorite',
-      name: 'PRIMARY',
-      columns: ['user_id', 'news_id'],
     },
   ];
   expected.forEach((key) => {
