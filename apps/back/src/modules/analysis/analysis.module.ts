@@ -6,8 +6,15 @@ import { ChainsModule } from './chains/chains.module';
 import { LimitsModule } from './limits/limits.module';
 import { SentiModule } from './senti/senti.module';
 import { MarketModule } from './market/market.module';
+import { IntradayCountsModule } from './market/intraday-counts.module';
 
-const modules = [ChainsModule, LimitsModule, SentiModule, MarketModule];
+const modules = [
+  ChainsModule,
+  LimitsModule,
+  SentiModule,
+  MarketModule,
+  IntradayCountsModule,
+];
 
 @Module({
   imports: [
