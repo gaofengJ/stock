@@ -1,6 +1,11 @@
 name: Collect public Bloomberg news
 on:
   workflow_dispatch:
+    inputs:
+      deliver:
+        description: Deliver translated feed to the website
+        type: boolean
+        default: true
   schedule:
     - cron: '3-59/5 * * * *'
 permissions:
@@ -11,14 +16,84 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 12
+    env:
+      ARGOS_PACKAGES_DIR: ${{ github.workspace }}/.argos/packages
+      XDG_CACHE_HOME: ${{ github.workspace }}/.argos/cache
+      XDG_DATA_HOME: ${{ github.workspace }}/.argos/data
+      ARGOS_DEVICE_TYPE: cpu
+      ARGOS_CHUNK_TYPE: MINISBD
+      ARGOS_INTRA_THREADS: '2'
+      ARGOS_INTER_THREADS: '1'
+      OMP_NUM_THREADS: '2'
     steps:
       - uses: actions/checkout@v4
       - name: Verify RSS validation and atomic delivery
-        run: python3 -m unittest discover -s .github/scripts -p test_bloomberg_relay.py
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*bloomberg*.py'
       - name: Collect public market headlines and summaries
         run: python3 .github/scripts/bloomberg_relay.py collect --file bloomberg.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Restore CPU translation runtime and English-Chinese model
+        id: runtime
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .argos-venv
+            .argos
+          key: argos-cpu-v1-${{ runner.os }}-${{ hashFiles('.github/scripts/argos-requirements.txt') }}
+      - name: Prepare offline translation runtime
+        id: prepare
+        continue-on-error: true
+        timeout-minutes: 7
+        run: |
+          if [ ! -x .argos-venv/bin/python ]; then python -m venv .argos-venv; fi
+          if [ '${{ steps.runtime.outputs.cache-hit }}' != 'true' ]; then
+            .argos-venv/bin/pip install --no-cache-dir torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+            .argos-venv/bin/pip install --no-cache-dir -r .github/scripts/argos-requirements.txt
+          fi
+          .argos-venv/bin/python .github/scripts/translate_bloomberg.py prepare
+      - name: Cache the verified CPU runtime and model
+        if: steps.prepare.outcome == 'success' && steps.runtime.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .argos-venv
+            .argos
+          key: ${{ steps.runtime.outputs.cache-primary-key }}
+      - name: Restore recent translations
+        id: translations
+        uses: actions/cache/restore@v4
+        with:
+          path: .translation-cache
+          key: bloomberg-translations-v1-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: bloomberg-translations-v1-${{ github.ref_name }}-
+      - name: Translate new or changed headlines and summaries
+        id: translate
+        if: steps.prepare.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 3
+        run: |
+          /usr/bin/time -f 'Translation peak RSS: %M KB; elapsed: %e seconds' .argos-venv/bin/python .github/scripts/translate_bloomberg.py translate --file bloomberg.json
+      - name: Save translations only when new text was translated
+        if: steps.translate.outputs.changed == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .translation-cache
+          key: ${{ steps.translations.outputs.cache-primary-key }}
+      - name: Report translation fallback and resource footprint
+        if: always() && steps.prepare.outcome != ''
+        env:
+          PREPARE_RESULT: ${{ steps.prepare.outcome }}
+          TRANSLATE_RESULT: ${{ steps.translate.outcome }}
+        run: |
+          if [ "$PREPARE_RESULT" != success ] || [ "$TRANSLATE_RESULT" != success ]; then
+            echo '::warning::Translation unavailable; original English feed will still be delivered and retried next run.'
+          fi
+          du -sh .argos-venv .argos .translation-cache 2>/dev/null || true
       - name: Upload to isolated staging directory
+        if: github.event_name != 'workflow_dispatch' || inputs.deliver
         uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -27,6 +102,7 @@ jobs:
           source: bloomberg.json,.github/scripts/bloomberg_relay.py
           target: /opt/stock-news/staging/${{ github.run_id }}
       - name: Atomically replace the validated feed
+        if: github.event_name != 'workflow_dispatch' || inputs.deliver
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}

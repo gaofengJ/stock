@@ -1,0 +1,4 @@
+argostranslate==1.11.0
+ctranslate2==4.8.2
+minisbd==0.9.5
+sentencepiece==0.2.2

@@ -130,6 +130,8 @@ describe('News service safety', () => {
       '2026-10-01 16:00:00.000',
       '%!%!_!!%',
       '%!%!_!!%',
+      '%!%!_!!%',
+      '%!%!_!!%',
     ]);
     expect(query.mock.calls[0][0]).toContain('f.news_id IS NOT NULL');
   });

@@ -9,6 +9,18 @@ const tables = [
 const total = 3 * GiB + 65536;
 
 describe('Release disk space budget', () => {
+  it('keeps the full backup without budgeting a rebuild of market tables for translations', () => {
+    expect(
+      planReleaseSpace(tables, ['NewsTranslations1791072000000']),
+    ).toMatchObject({
+      requiredFreeBytes: total * 2 + GiB,
+      spaceBudget: {
+        affectedTables: ['t_news_translation'],
+        migrationBytes: 0,
+        unprofiled: [],
+      },
+    });
+  });
   it.each([
     'ExpandedNewsSources1790832000000',
     'NewsDisplayPolicy1790835600000',

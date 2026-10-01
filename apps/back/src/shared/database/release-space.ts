@@ -9,6 +9,8 @@ const migrationTables: Record<string, readonly string[]> = {
   // Adds only source configuration rows; no business-data DDL or rebuild.
   ExpandedNewsSources1790832000000: ['t_news_source'],
   NewsDisplayPolicy1790835600000: ['t_news_source'],
+  // Creates a new child table; does not rebuild existing news or market tables.
+  NewsTranslations1791072000000: ['t_news_translation'],
   // Creates a new aggregate table without changing or rebuilding raw prices.
   MarketBreadth1790899200000: ['t_processed_market_breadth'],
   // Creates three source tables and inserts module permissions; no price-table DDL.

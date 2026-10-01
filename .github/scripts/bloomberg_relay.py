@@ -2,8 +2,10 @@
 import argparse
 import datetime as dt
 import email.utils
+import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import tempfile
 import urllib.request
@@ -22,6 +24,18 @@ def utc_now():
 
 def iso_date(value):
     return value.astimezone(dt.timezone.utc).isoformat().replace('+00:00', 'Z')
+
+
+def valid_translation(item):
+    value = item.get('translation')
+    if not isinstance(value, dict):
+        return False
+    expected = hashlib.sha256((item['title'] + '\0' + item['content_html']).encode('utf-8')).hexdigest()
+    return (value.get('engine') == 'argos' and value.get('model') == 'en_zh-1.9'
+            and value.get('source_hash') == expected
+            and isinstance(value.get('title'), str) and 1 <= len(value['title']) <= 512
+            and re.search(r'[\u3400-\u9fff]', value['title']) is not None
+            and isinstance(value.get('body'), str) and len(value['body']) <= 12000)
 
 
 def validate_feed(feed, now=None):
@@ -49,6 +63,8 @@ def validate_feed(feed, now=None):
         published = dt.datetime.strptime(item.get('date_published', ''), '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=dt.timezone.utc)
         if published.tzinfo is None or published > now + dt.timedelta(minutes=5):
             raise ValueError('Invalid publication time')
+        if 'translation' in item and not valid_translation(item):
+            item.pop('translation')
     return feed
 
 

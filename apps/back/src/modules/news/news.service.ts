@@ -177,15 +177,17 @@ export class NewsService implements OnApplicationBootstrap {
     }
     if (query.important === 'true') clauses.push('n.important=1');
     if (query.keyword?.trim()) {
-      clauses.push("(n.title LIKE ? ESCAPE '!' OR n.body LIKE ? ESCAPE '!')");
+      clauses.push(
+        "(n.title LIKE ? ESCAPE '!' OR n.body LIKE ? ESCAPE '!' OR t.title LIKE ? ESCAPE '!' OR t.body LIKE ? ESCAPE '!')",
+      );
       const pattern = `%${query.keyword
         .trim()
         .replace(/[!%_]/g, (c) => `!${c}`)}%`;
-      args.push(pattern, pattern);
+      args.push(pattern, pattern, pattern, pattern);
     }
     const join = `${
       favorites ? '' : 'JOIN t_news_source s ON s.source=n.source '
-    }LEFT JOIN t_news_favorite f ON f.news_id=n.id AND f.user_id=?`;
+    }LEFT JOIN t_news_translation t ON t.news_id=n.id LEFT JOIN t_news_favorite f ON f.news_id=n.id AND f.user_id=?`;
     if (favorites) clauses.push('f.news_id IS NOT NULL');
     const where = clauses.join(' AND ');
     const [{ total }] = await this.db.query(
@@ -193,7 +195,7 @@ export class NewsService implements OnApplicationBootstrap {
       [userId || 0, ...args],
     );
     const rows = await this.db.query(
-      `SELECT n.id,n.source,n.kind,n.title,LEFT(n.body,360) body,n.original_url,n.important,n.published_at,n.time_basis,(f.news_id IS NOT NULL) favorite FROM t_news_item n ${join} WHERE ${where} ORDER BY n.published_at DESC,n.id DESC LIMIT ? OFFSET ?`,
+      `SELECT n.id,n.source,n.kind,n.title,LEFT(n.body,360) body,n.original_url,n.important,n.published_at,n.time_basis,t.title translated_title,LEFT(t.body,360) translated_body,t.engine translation_engine,t.model translation_model,(f.news_id IS NOT NULL) favorite FROM t_news_item n ${join} WHERE ${where} ORDER BY n.published_at DESC,n.id DESC LIMIT ? OFFSET ?`,
       [userId || 0, ...args, query.pageSize, (query.page - 1) * query.pageSize],
     );
     return {
@@ -219,12 +221,20 @@ export class NewsService implements OnApplicationBootstrap {
       publishedAt: isoDate(row.published_at),
       timeBasis: row.time_basis || 'published',
       favorite: Boolean(row.favorite),
+      translation: row.translated_title
+        ? {
+            title: row.translated_title,
+            body: row.translated_body || '',
+            engine: row.translation_engine,
+            model: row.translation_model,
+          }
+        : null,
     };
   }
 
   async detail(id: number, userId?: number) {
     const [row] = await this.db.query(
-      'SELECT n.*,(f.news_id IS NOT NULL) favorite FROM t_news_item n LEFT JOIN t_news_favorite f ON f.news_id=n.id AND f.user_id=? WHERE n.id=?',
+      'SELECT n.*,t.title translated_title,t.body translated_body,t.engine translation_engine,t.model translation_model,(f.news_id IS NOT NULL) favorite FROM t_news_item n LEFT JOIN t_news_translation t ON t.news_id=n.id LEFT JOIN t_news_favorite f ON f.news_id=n.id AND f.user_id=? WHERE n.id=?',
       [userId || 0, id],
     );
     if (!row) throw new NotFoundException('资讯不存在或已过期');
@@ -310,21 +320,52 @@ export class NewsService implements OnApplicationBootstrap {
         throw new Error('Invalid feed items');
       let added = 0;
       for (const item of normalized) {
-        const result = await q.query(
-          `INSERT INTO t_news_item(source,dedupe_key,kind,title,body,original_url,important,published_at,time_basis,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE title=VALUES(title),body=VALUES(body),original_url=VALUES(original_url),important=GREATEST(important,VALUES(important)),published_at=IF(time_basis='collected' AND VALUES(time_basis)='published',VALUES(published_at),published_at),time_basis=IF(VALUES(time_basis)='published','published',time_basis),updated_at=UTC_TIMESTAMP(3)`,
-          [
-            source.code,
-            item.key,
-            item.kind,
-            item.title,
-            item.body,
-            item.url,
-            important.has(item.key) ? 1 : 0,
-            sqlDate(item.date),
-            item.timeBasis,
-          ],
-        );
-        if (result.affectedRows === 1) added += 1;
+        // Publish English changes and their matching translation as one unit.
+        if (item.sourceHash) await q.startTransaction();
+        try {
+          const result = await q.query(
+            `INSERT INTO t_news_item(source,dedupe_key,kind,title,body,original_url,important,published_at,time_basis,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE title=VALUES(title),body=VALUES(body),original_url=VALUES(original_url),important=GREATEST(important,VALUES(important)),published_at=IF(time_basis='collected' AND VALUES(time_basis)='published',VALUES(published_at),published_at),time_basis=IF(VALUES(time_basis)='published','published',time_basis),updated_at=UTC_TIMESTAMP(3)`,
+            [
+              source.code,
+              item.key,
+              item.kind,
+              item.title,
+              item.body,
+              item.url,
+              important.has(item.key) ? 1 : 0,
+              sqlDate(item.date),
+              item.timeBasis,
+            ],
+          );
+          if (item.sourceHash) {
+            // Clear an old translation if its English text changed. Missing translation
+            // on an unchanged item keeps the last good result through runner outages.
+            await q.query(
+              'DELETE t FROM t_news_translation t JOIN t_news_item n ON n.id=t.news_id WHERE n.source=? AND n.dedupe_key=? AND t.source_hash<>?',
+              [source.code, item.key, item.sourceHash],
+            );
+          }
+          if (item.translation?.title) {
+            await q.query(
+              `INSERT INTO t_news_translation(news_id,source_hash,title,body,engine,model,updated_at) SELECT id,?,?,?,?,?,UTC_TIMESTAMP(3) FROM t_news_item WHERE source=? AND dedupe_key=? ON DUPLICATE KEY UPDATE source_hash=VALUES(source_hash),title=VALUES(title),body=VALUES(body),engine=VALUES(engine),model=VALUES(model),updated_at=UTC_TIMESTAMP(3)`,
+              [
+                item.translation.sourceHash,
+                item.translation.title,
+                item.translation.body,
+                item.translation.engine,
+                item.translation.model,
+                source.code,
+                item.key,
+              ],
+            );
+          }
+          if (item.sourceHash) await q.commitTransaction();
+          if (result.affectedRows === 1) added += 1;
+        } catch (error) {
+          if (item.sourceHash && q.isTransactionActive)
+            await q.rollbackTransaction();
+          throw error;
+        }
       }
       await q.query(
         `UPDATE t_news_source SET status='ok',last_success=UTC_TIMESTAMP(3),last_error='',last_added=?,consecutive_failures=0,next_attempt=DATE_ADD(UTC_TIMESTAMP(3),INTERVAL interval_seconds SECOND) WHERE source=?`,
