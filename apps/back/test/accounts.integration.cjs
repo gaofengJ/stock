@@ -17,6 +17,7 @@ const { DragonPermission1790812800000 } = require('../dist/migrations/1790812800
 const { RealTimeNews1790812800001 } = require('../dist/migrations/1790812800001-RealTimeNews');
 const { ExpandedNewsSources1790832000000, EXPANDED_NEWS_CODES } = require('../dist/migrations/1790832000000-ExpandedNewsSources');
 const { NewsDisplayPolicy1790835600000, RETIRED_RESEARCH_CODES } = require('../dist/migrations/1790835600000-NewsDisplayPolicy');
+const { NewsTranslations1791072000000 } = require('../dist/migrations/1791072000000-NewsTranslations');
 const { NEWS_SOURCES } = require('../dist/modules/news/news.sources');
 const { NewsModule } = require('../dist/modules/news/news.module');
 const { NewsService } = require('../dist/modules/news/news.service');
@@ -88,6 +89,9 @@ async function main() {
     const displayPolicy = new NewsDisplayPolicy1790835600000();
     await displayPolicy.up(q);
     await displayPolicy.up(q);
+    const translationsMigration = new NewsTranslations1791072000000();
+    await translationsMigration.up(q);
+    await translationsMigration.up(q);
     assert.equal(Number((await db.query('SELECT COUNT(*) n FROM t_news_source WHERE source IN (?) AND enabled=1', [[...RETIRED_RESEARCH_CODES]]))[0].n), 0, 'Display policy disables retired research sources idempotently');
     assert.equal(Number((await db.query("SELECT COUNT(*) n FROM t_role_permission rp JOIN t_role r ON r.id=rp.role_id JOIN t_permission p ON p.id=rp.permission_id WHERE r.code='user' AND p.code='news:manage'"))[0].n), 0, 'Ordinary users cannot manage sources');
     const [portrait] = await db.query("SELECT avatar FROM t_user WHERE username='mufeng'");
