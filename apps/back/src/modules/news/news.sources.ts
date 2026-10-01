@@ -8,12 +8,14 @@ export interface NewsSource {
   intervalSeconds?: number;
   importantPath?: string;
   availabilityNote?: string;
+  description?: string;
 }
 
 export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'jin10',
     name: '金十数据',
+    description: '全球市场快讯，含重点消息。',
     path: '/jin10',
     kind: 'flash',
     enabled: true,
@@ -22,6 +24,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'yicai',
     name: '第一财经',
+    description: '国内财经与公司动态快讯。',
     path: '/yicai/brief',
     kind: 'flash',
     enabled: true,
@@ -29,6 +32,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'stcn',
     name: '证券时报',
+    description: '证券市场与上市公司快讯。',
     path: '/stcn/article/list/kx',
     kind: 'flash',
     enabled: true,
@@ -36,6 +40,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'yicai-news',
     name: '第一财经头条',
+    description: '第一财经头条报道。',
     path: '/yicai/headline',
     kind: 'article',
     enabled: true,
@@ -43,6 +48,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'sina',
     name: '新浪财经',
+    description: '国内外财经滚动报道。',
     path: '/sina/finance/rollnews',
     kind: 'article',
     enabled: false,
@@ -52,6 +58,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'bloomberg',
     name: '彭博市场',
+    description: '全球市场与财经报道（英文）。',
     path: '/bloomberg/markets',
     kind: 'article',
     enabled: false,
@@ -61,6 +68,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'cls',
     name: '财联社电报',
+    description: 'A股与市场实时电报，含重点消息。',
     path: '/cls/telegraph',
     kind: 'flash',
     enabled: true,
@@ -69,6 +77,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'cls-news',
     name: '财联社头条',
+    description: '财经热点与深度报道。',
     path: '/cls/depth/1000',
     kind: 'article',
     enabled: true,
@@ -77,6 +86,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'wallstreetcn',
     name: '华尔街见闻快讯',
+    description: '全球市场快讯，含重点消息。',
     path: '/wallstreetcn/live',
     kind: 'flash',
     enabled: true,
@@ -85,6 +95,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'wscn-news',
     name: '华尔街见闻资讯',
+    description: '宏观、市场与公司报道。',
     path: '/wallstreetcn/news',
     kind: 'article',
     enabled: true,
@@ -93,6 +104,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'ths',
     name: '同花顺快讯',
+    description: '7×24财经与股市快讯。',
     path: '/10jqka/realtimenews',
     kind: 'flash',
     enabled: true,
@@ -101,6 +113,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'em-search',
     name: '东方财富股市新闻',
+    description: '含“股市”关键词的公开新闻。',
     path: '/eastmoney/search/%E8%82%A1%E5%B8%82',
     kind: 'article',
     enabled: true,
@@ -111,6 +124,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'em-strategy',
     name: '东方财富策略研报',
+    description: '券商市场策略研报。',
     path: '/eastmoney/report/strategyreport',
     kind: 'article',
     enabled: true,
@@ -119,6 +133,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'em-macro',
     name: '东方财富宏观研报',
+    description: '宏观经济与政策研报。',
     path: '/eastmoney/report/macresearch',
     kind: 'article',
     enabled: true,
@@ -127,6 +142,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'em-broker',
     name: '东方财富券商晨报',
+    description: '券商晨间市场摘要。',
     path: '/eastmoney/report/brokerreport',
     kind: 'article',
     enabled: true,
@@ -135,6 +151,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'em-industry',
     name: '东方财富行业研报',
+    description: '行业趋势与研究报告。',
     path: '/eastmoney/report/industry',
     kind: 'article',
     enabled: true,
@@ -143,6 +160,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'em-stock',
     name: '东方财富个股研报',
+    description: '个股研究与公司分析。',
     path: '/eastmoney/report/stock',
     kind: 'article',
     enabled: true,
@@ -151,6 +169,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'xueqiu-today',
     name: '雪球热门话题',
+    description: '投资者热门讨论与观点。',
     path: '/xueqiu/today',
     kind: 'article',
     enabled: true,
@@ -161,6 +180,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'sina-flash',
     name: '新浪财经快讯',
+    description: '新浪7×24财经快讯。',
     path: 'https://app.cj.sina.com.cn/api/news/pc',
     provider: 'sina-flash',
     kind: 'flash',

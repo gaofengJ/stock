@@ -77,6 +77,7 @@ export class NewsService implements OnApplicationBootstrap {
           name: s.name,
           kind: s.kind,
           availabilityNote: s.availabilityNote || '',
+          description: s.description || '',
           enabled: Boolean(row?.enabled),
           intervalSeconds: Number(row?.interval_seconds || 120),
           status: row?.status || 'pending',
