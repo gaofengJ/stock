@@ -87,6 +87,7 @@ export default function Page() {
           { title: '权限数', render: (_, r) => r.permissions.length },
           {
             title: '操作',
+            width: 300,
             render: (_, r) => (
               <Space>
                 <Button onClick={() => setViewing(r)}>查看权限</Button>
