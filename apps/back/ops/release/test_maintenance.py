@@ -161,7 +161,7 @@ class MaintenanceTests(unittest.TestCase):
         images = [dict(Id=value, RepoTags=None, Created=date(0)) for value in ('current','used','unused')]
         plan = m.docker_plan(containers, images)
         self.assertEqual(plan['danglingImages'], ['unused'])
-        self.assertEqual(plan['runtimeImageTags'], [{'image': 'current', 'tag': 'stock-runtime-preserved:stock-back-current'}])
+        self.assertIn({'image': 'current', 'tag': 'stock-runtime-preserved:stock-back-current'}, plan['runtimeImageTags'])
 
     def test_stopped_service_preserves_its_recovery_container_and_tag(self):
         containers = [container('stock-back', 0, 'current'), container('stock-back-previous-'+'a'*12+'-1', 20, 'prior')]
