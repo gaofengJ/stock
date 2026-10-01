@@ -119,7 +119,7 @@ const getNavConfig = (dirs) => {
   config.sort((a, b) => a.order - b.order);
 
   // 移除临时使用的order字段
-  return config.map(({ order, ...item }) => item);
+  return [{ text: '资料首页', link: '/' }, ...config.map(({ order, ...item }) => item)];
 };
 
 const generateNavConfig = () => {

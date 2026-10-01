@@ -1,20 +1,20 @@
 import { defineConfig } from 'vitepress';
 import navConfig from '../src/nav-config.mts';
 import sidebarConfig from '../src/sidebar-config.mts';
+import articlePlugin from './article-plugin';
 
 export default defineConfig({
   cleanUrls: true,
   base: '/blog-frame/',
   lang: 'zh-CN',
-  title: "Mufeng's blog",
-  description: "木风同学的股票博客",
+  title: '市场那些事',
+  description: '交易知识与历史复盘资料库',
   head: [
-    ['link', { rel: 'icon', href: '/icon/favicon.svg' }],
-    ['link', { rel: 'stylesheet', href: '/blog-frame/pagefind/pagefind-component-ui.css' }],
-    ['script', { src: '/blog-frame/pagefind/pagefind-component-ui.js', type: 'module' }],
+    ['link', { rel: 'icon', href: '/blog-frame/imgs/fengye.png' }],
   ],
   srcDir: './src',
   lastUpdated: true,
+  markdown: { image: { lazyLoading: true }, config: md => md.use(articlePlugin) },
   themeConfig: {
     logo: '/imgs/fengye.png',
     nav: navConfig,
@@ -28,9 +28,6 @@ export default defineConfig({
       prev: '上一页',
       next: '下一页'
     },
-    editLink: {
-      pattern: '',
-      text: 'Edit this page',
-    },
+    lastUpdated: { text: '文档修改时间' },
   },
 })
