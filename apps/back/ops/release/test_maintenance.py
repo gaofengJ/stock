@@ -28,7 +28,7 @@ class MaintenanceTests(unittest.TestCase):
 
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
-        self.root = pathlib.Path(self.temp.name)
+        self.root = pathlib.Path(self.temp.name).resolve()
 
     def tearDown(self):
         self.temp.cleanup()
@@ -76,6 +76,7 @@ class MaintenanceTests(unittest.TestCase):
         self.assertTrue((failed/'stock.sql.gz').exists())
 
     def test_no_archive_means_no_backup_deletion_even_when_apply_is_enabled(self):
+        (self.root/'policy.json').write_text(json.dumps({'backupMode': 'archive'}))
         for index in range(5):
             self.backup('old-'+str(index), 10+index)
         with patch.object(m, 'docker_json', return_value=[]), patch.object(m.time, 'time', return_value=NOW):
@@ -83,6 +84,76 @@ class MaintenanceTests(unittest.TestCase):
         self.assertEqual(result['backupCleanup'], 'archive-required')
         self.assertEqual(result['archivedBackups'], 0)
         self.assertEqual(len(list(self.root.glob('backups/*/stock.sql.gz'))), 5)
+
+    def test_local_retention_counts_current_schema_plus_two_even_within_a_week(self):
+        newest = self.backup('newest', 0, ['OtherSchema'])
+        extra = self.backup('extra', 0.1, ['OtherSchema'])
+        old = self.backup('old', 0.2, phase='success')
+        current = self.backup('current', 0.3)
+        failed = self.backup('failed', 0.4, phase='migration-started')
+        # Simulate a current-version backup older than two other schema backups.
+        (old/'backup.json').unlink()
+        plan = m.local_backup_plan(self.root, {'database': 'stock', 'migrationHistory': ['Fixture1']}, NOW)
+        self.assertEqual(plan['current'], current)
+        self.assertEqual(plan['retained'], [current, newest, extra])
+        self.assertEqual(plan['candidates'], [old])
+        self.assertTrue((failed/'stock.sql.gz').exists())
+
+    def test_local_cleanup_validates_all_retained_before_any_delete(self):
+        for index in range(5):
+            self.backup('snapshot-'+str(index), 0.1+index*0.1)
+        (self.root/'backups'/'snapshot-1'/'stock.sql.gz').write_bytes(b'corrupt')
+        os.utime(str(self.root/'backups'/'snapshot-1'/'stock.sql.gz'), (NOW-0.2*m.DAY, NOW-0.2*m.DAY))
+        with patch.object(m.time, 'time', return_value=NOW), patch.object(m.subprocess, 'check_output',
+                return_value=json.dumps({'database': 'stock', 'migrationHistory': ['Fixture1']})):
+            with self.assertRaises(ValueError):
+                m.maintenance(self.root, apply=True, backups_only=True)
+        self.assertEqual(len(list(self.root.glob('backups/*/stock.sql.gz'))), 5)
+
+    def test_local_cleanup_missing_fresh_current_backup_never_deletes(self):
+        for index in range(5):
+            self.backup('old-'+str(index), 10+index)
+        with patch.object(m.time, 'time', return_value=NOW), patch.object(m.subprocess, 'check_output',
+                return_value=json.dumps({'database': 'stock', 'migrationHistory': ['Fixture1']})):
+            with self.assertRaises(ValueError):
+                m.maintenance(self.root, apply=True, backups_only=True)
+        self.assertEqual(len(list(self.root.glob('backups/*/stock.sql.gz'))), 5)
+
+    def test_local_backup_only_cleanup_removes_excess_without_touching_docker_or_metadata(self):
+        for index in range(5):
+            directory = self.backup('snapshot-'+str(index), 0.1+index*0.1)
+            (directory/'runtime.env').write_text('private-fixture')
+            (directory/'phase').write_text('success')
+        with patch.object(m.time, 'time', return_value=NOW), patch.object(m.subprocess, 'check_output',
+                return_value=json.dumps({'database': 'stock', 'migrationHistory': ['Fixture1']})), \
+                patch.object(m, 'docker_json', side_effect=AssertionError('must not inspect images')), \
+                patch.object(m.subprocess, 'check_call', side_effect=AssertionError('must not mutate Docker')):
+            dry = m.maintenance(self.root, backups_only=True)
+            self.assertEqual(dry['backupCandidates'], 2)
+            self.assertEqual(len(list(self.root.glob('backups/*/stock.sql.gz'))), 5)
+            result = m.maintenance(self.root, apply=True, backups_only=True)
+            self.assertEqual(len(result['backupRetained']), 3)
+            self.assertEqual(len(result['backupRemoved']), 2)
+            self.assertGreater(result['backupFreedBytes'], 0)
+            again = m.maintenance(self.root, apply=True, backups_only=True)
+            self.assertEqual(again['backupCandidates'], 0)
+        self.assertEqual(len(list(self.root.glob('backups/*/stock.sql.gz'))), 3)
+        self.assertEqual(len(list(self.root.glob('backups/*/stock.sql.gz.sha256'))), 3)
+        self.assertEqual(len(list(self.root.glob('backups/*/backup.json'))), 5)
+        self.assertEqual(len(list(self.root.glob('backups/*/runtime.env'))), 5)
+        self.assertEqual(len(list(self.root.glob('backups/*/cleanup.json'))), 2)
+
+    @unittest.skipUnless(os.name == 'posix', 'Linux symlink boundary')
+    def test_local_cleanup_rejects_symlinked_deletion_record(self):
+        for index in range(4):
+            self.backup('snapshot-'+str(index), 0.1+index*0.1)
+        victim = self.root/'unrelated.json'
+        victim.write_text('preserve')
+        (self.root/'backups'/'snapshot-3'/'cleanup.json').symlink_to(victim)
+        with self.assertRaises(ValueError):
+            m.local_backup_plan(self.root, {'database': 'stock', 'migrationHistory': ['Fixture1']}, NOW)
+        self.assertEqual(victim.read_text(), 'preserve')
+        self.assertEqual(len(list(self.root.glob('backups/*/stock.sql.gz'))), 4)
 
     def test_same_filesystem_archive_is_rejected_and_original_is_preserved(self):
         original = self.backup('old', 10)

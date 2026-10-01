@@ -182,8 +182,8 @@ systemctl is-active --quiet stock-release-backup.timer
 printf 'success\n' > "$RUN/phase"
 finish_phase
 start_phase release-retention
-# Maintenance cannot invalidate a healthy deployment. Failed/unarchived backup
-# copies remain protected and no runtime configuration directory is deleted.
+# Maintenance cannot invalidate a healthy deployment. Failed recovery records
+# remain protected and no runtime configuration directory is deleted.
 python3 "$ROOT/tools/maintenance.py" --root "$ROOT" --apply > "$RUN/retention.json" || echo 'Release maintenance deferred; inspect retention logs'
 finish_phase
 echo "Deployment verified: $RELEASE_SHA; backup and recovery data: $RUN"

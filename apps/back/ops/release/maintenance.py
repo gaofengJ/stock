@@ -1,6 +1,6 @@
 """Private backup verification and narrowly scoped release retention.
 
-No global Docker prune and no deletion of unarchived database backups.
+No global Docker prune. Local backups retain the current schema plus two extras.
 Invoke under the stock-back-release lock. Default invocation is read-only.
 """
 import argparse
@@ -108,6 +108,42 @@ def backup_candidates(root, now=None):
     # Keep at least three newest snapshots AND all snapshots younger than a week.
     return [item for item in backup_directories(root)[3:]
             if now - (item/'stock.sql.gz').stat().st_mtime >= 7 * DAY]
+
+
+def local_backup_plan(root, preflight, now=None):
+    """Validate all retained recovery points before allowing any deletion."""
+    root = root.resolve()
+    if preflight.get('database') != 'stock':
+        raise ValueError('Unexpected live database')
+    directories = backup_directories(root)
+    current = pathlib.Path(recent_backup(root, preflight, now)['directory'])
+    retained = [current] + [item for item in directories if item != current][:2]
+    # A damaged history backup must not cause deletion of a healthy older copy.
+    for directory in retained:
+        if directory != current:
+            verified_backup(directory)
+    candidates = [item for item in directories if item not in retained]
+    for directory in retained + candidates:
+        if directory.parent not in (root/'backups', root/'runs') or directory.resolve() != directory:
+            raise ValueError('Backup path escapes release storage')
+        for name in ('stock.sql.gz', 'stock.sql.gz.sha256', 'cleanup.json'):
+            if (directory/name).is_symlink():
+                raise ValueError('Symlinked backup cleanup rejected')
+    return dict(current=current, retained=retained, candidates=candidates)
+
+
+def remove_local_backup(directory):
+    archive = directory/'stock.sql.gz'
+    size = archive.stat().st_size
+    # Keep manifests, migration reports, logs and runtime configuration intact.
+    (directory/'cleanup.json').write_text(json.dumps(dict(
+        policy='current-schema-plus-two', bytes=size,
+        removedAt=datetime.datetime.now(datetime.timezone.utc).isoformat())))
+    archive.unlink()
+    checksum = directory/'stock.sql.gz.sha256'
+    if checksum.is_file():
+        checksum.unlink()
+    return size
 
 
 def archive_and_remove(directory, archive_root, root):
@@ -249,13 +285,18 @@ def docker_json(kind):
     return json.loads(subprocess.check_output(['docker', kind, 'inspect'] + sorted(set(ids)), universal_newlines=True))
 
 
-def maintenance(root, apply=False, images_only=False):
+def maintenance(root, apply=False, images_only=False, backups_only=False):
     if not root.is_dir():
         raise ValueError('Release directory does not exist')
     root = root.resolve()
     policy_file = root/'policy.json'
+    if policy_file.is_symlink():
+        raise ValueError('Symlinked retention policy rejected')
     policy = json.loads(policy_file.read_text()) if policy_file.is_file() else {}
     archive_root = pathlib.Path(policy['archiveRoot']) if policy.get('archiveRoot') else None
+    backup_mode = policy.get('backupMode', 'local-count')
+    if backup_mode not in ('local-count', 'archive'):
+        raise ValueError('Unsupported backup retention policy')
     successful_previous = set()
     for folder in ('runs', 'front-runs'):
         runs = root/folder
@@ -268,19 +309,42 @@ def maintenance(root, apply=False, images_only=False):
                     name = old.read_text().strip()
                     if PREVIOUS.fullmatch(name):
                         successful_previous.add(name)
-    plan = docker_plan(docker_json('container'), docker_json('image'), successful_previous)
-    candidates = [] if images_only else backup_candidates(root)
+    plan = dict(containers=[], imageTags=[], danglingImages=[], retained=[], runtimeImageTags=[])
+    if not backups_only:
+        plan = docker_plan(docker_json('container'), docker_json('image'), successful_previous)
+    local = None
+    if images_only:
+        candidates = []
+    elif backup_mode == 'local-count':
+        if backup_directories(root):
+            # Read the actual running database, rather than guessing from the
+            # newest release directory (which could describe a failed release).
+            preflight = json.loads(subprocess.check_output([
+                'docker', 'exec', 'stock-back', 'node',
+                'ops/release/database.cjs', 'backup-info'], universal_newlines=True))
+            local = local_backup_plan(root, preflight)
+        candidates = local['candidates'] if local else []
+    else:
+        candidates = backup_candidates(root)
     result = dict(plan, backupCandidates=len(candidates), archivedBackups=0,
-                  backupCleanup='skipped' if images_only else ('archive-required' if not archive_root else 'configured'), applied=apply)
+                  backupCleanup='skipped' if images_only else (backup_mode if backup_mode == 'local-count' else ('archive-required' if not archive_root else 'configured')),
+                  backupRetained=[dict(directory=str(item), role='current' if item == local['current'] else 'extra',
+                      bytes=(item/'stock.sql.gz').stat().st_size) for item in local['retained']] if local else [],
+                  backupRemoved=[], backupFreedBytes=0, applied=apply)
     if apply:
         # A running service may have lost its original tag during a previous
         # deploy. Give it an explicit local tag instead of interrupting it.
         for record in plan['runtimeImageTags']:
             subprocess.check_call(['docker', 'image', 'tag', record['image'], record['tag']])
         for directory in candidates:
-            if archive_root:
+            if backup_mode == 'local-count':
+                result['backupFreedBytes'] += remove_local_backup(directory)
+                result['backupRemoved'].append(str(directory))
+            elif archive_root:
                 archive_and_remove(directory, archive_root, root)
                 result['archivedBackups'] += 1
+        if backups_only:
+            return result
         for container in plan['containers']:
             subprocess.check_call(['docker', 'container', 'rm', container])
         for tag in plan['imageTags']:
@@ -307,14 +371,16 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--root', default='/opt/stock-release')
     parser.add_argument('--apply', action='store_true')
-    parser.add_argument('--images-only', action='store_true')
+    scope = parser.add_mutually_exclusive_group()
+    scope.add_argument('--images-only', action='store_true')
+    scope.add_argument('--backups-only', action='store_true')
     parser.add_argument('--check-backup', metavar='PREFLIGHT_JSON')
     args = parser.parse_args()
     root = pathlib.Path(args.root)
     if args.check_backup:
         result = recent_backup(root, json.loads(pathlib.Path(args.check_backup).read_text()))
     else:
-        result = maintenance(root, args.apply, args.images_only)
+        result = maintenance(root, args.apply, args.images_only, args.backups_only)
     print(json.dumps(result))
 
 

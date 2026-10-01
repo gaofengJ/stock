@@ -3,11 +3,11 @@ on:
   workflow_dispatch:
     inputs:
       operation:
-        description: '检查部署磁盘，或清理超过七天未使用的 Docker 构建缓存'
+        description: '检查磁盘，清理构建缓存、旧镜像，或保留当前数据库备份加两份历史'
         type: choice
         required: true
         default: inspect
-        options: [inspect, clean-build-cache, clean-release-images]
+        options: [inspect, clean-build-cache, clean-release-images, clean-release-backups]
 permissions:
   contents: read
 concurrency:
@@ -15,14 +15,20 @@ concurrency:
   cancel-in-progress: false
 jobs:
   maintenance:
-    if: github.ref == 'refs/heads/master' || inputs.operation == 'inspect' || inputs.operation == 'clean-release-images'
+    if: github.ref == 'refs/heads/master' || inputs.operation == 'inspect' || inputs.operation == 'clean-release-images' || inputs.operation == 'clean-release-backups'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         if: inputs.operation != 'clean-build-cache'
         with:
           sparse-checkout: apps/back/ops/release
-      - name: Upload readonly retention inspector
+      - name: Validate backup cleanup on Linux and production Python 3.5
+        if: inputs.operation == 'clean-release-backups'
+        run: |
+          python3 -m unittest discover -s apps/back/ops/release -p 'test_*.py'
+          docker run --rm --mount "type=bind,src=$PWD/apps/back/ops/release,dst=/work,readonly" --workdir /work python:3.5-slim python -m unittest discover -p 'test_*.py'
+          bash -n apps/back/ops/release/deploy.sh apps/back/ops/release/deploy-front.sh apps/back/ops/release/backup.sh apps/back/ops/release/daily-backup.sh
+      - name: Upload retention maintenance tool
         if: inputs.operation != 'clean-build-cache'
         uses: appleboy/scp-action@v1
         with:
@@ -48,6 +54,24 @@ jobs:
             flock -n 9 || { echo 'Another release is running'; exit 1; }
             case "$OPERATION" in
               inspect) ;;
+              clean-release-backups)
+                python3 - <<'PY'
+            import json, os, pathlib
+            root = pathlib.Path('/opt/stock-release')
+            policy = root/'policy.json'
+            if policy.is_symlink():
+                raise SystemExit('Symlinked retention policy rejected')
+            record = json.loads(policy.read_text()) if policy.is_file() else {}
+            record['backupMode'] = 'local-count'
+            temporary = root/'policy.json.backup-retention-new'
+            descriptor = os.open(str(temporary), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(descriptor, 'w') as stream:
+                json.dump(record, stream)
+            temporary.replace(policy)
+            PY
+                python3 /opt/stock-release/inspections/${{ github.sha }}/release/maintenance.py --root /opt/stock-release --backups-only --apply
+                install -m 700 /opt/stock-release/inspections/${{ github.sha }}/release/maintenance.py /opt/stock-release/tools/maintenance.py
+                ;;
               clean-release-images) python3 /opt/stock-release/inspections/${{ github.sha }}/release/maintenance.py --root /opt/stock-release --images-only --apply ;;
               clean-build-cache) docker builder prune --force --filter until=168h ;;
               *) echo 'Unsupported operation'; exit 1 ;;
