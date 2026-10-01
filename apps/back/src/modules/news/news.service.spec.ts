@@ -124,6 +124,7 @@ describe('News service safety', () => {
       42,
     );
     expect(query.mock.calls[0][1]).toEqual([
+      2147483647,
       42,
       ...NEWS_SOURCES.filter(isNewsSource).map((source) => source.code),
       '2026-09-30 16:00:00.000',

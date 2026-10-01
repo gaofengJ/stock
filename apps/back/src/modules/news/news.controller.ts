@@ -12,7 +12,12 @@ import {
 } from '@nestjs/common';
 import { Permit } from '../auth/permissions';
 import { AuthRequest } from '../auth/auth.service';
-import { NewsQuery, NewsSourceUpdate } from './news.dto';
+import {
+  NewsQuery,
+  NewsSourceUpdate,
+  NewsPreferences,
+  NewsStockQuery,
+} from './news.dto';
 import { NewsService } from './news.service';
 
 @Controller('news')
@@ -31,6 +36,24 @@ export class NewsController {
     return this.news.sources(
       Boolean(req.authUser?.permissions.includes('news:manage')),
     );
+  }
+
+  @Get('preferences')
+  @Permit('news:read')
+  preferences(@Req() req: AuthRequest) {
+    return this.news.preferences(req.authUser?.id);
+  }
+
+  @Patch('preferences')
+  @Permit('news:read')
+  savePreferences(@Body() dto: NewsPreferences, @Req() req: AuthRequest) {
+    return this.news.savePreferences(dto, req.authUser?.id);
+  }
+
+  @Get('stocks')
+  @Permit('news:read')
+  stockOptions(@Query() query: NewsStockQuery) {
+    return this.news.stockOptions(query);
   }
 
   @Patch('sources/:code')
@@ -55,6 +78,12 @@ export class NewsController {
   @Permit('news:read')
   favorite(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
     return this.news.favorite(id, req.authUser?.id, true);
+  }
+
+  @Post(':id/read')
+  @Permit('news:read')
+  read(@Param('id', ParseIntPipe) id: number, @Req() req: AuthRequest) {
+    return this.news.markRead(id, req.authUser?.id);
   }
 
   @Delete(':id/favorite')

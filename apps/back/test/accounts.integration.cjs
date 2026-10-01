@@ -18,6 +18,7 @@ const { RealTimeNews1790812800001 } = require('../dist/migrations/1790812800001-
 const { ExpandedNewsSources1790832000000, EXPANDED_NEWS_CODES } = require('../dist/migrations/1790832000000-ExpandedNewsSources');
 const { NewsDisplayPolicy1790835600000, RETIRED_RESEARCH_CODES } = require('../dist/migrations/1790835600000-NewsDisplayPolicy');
 const { NewsTranslations1791072000000 } = require('../dist/migrations/1791072000000-NewsTranslations');
+const { NewsReadingFeatures1791158400000 } = require('../dist/migrations/1791158400000-NewsReadingFeatures');
 const { NEWS_SOURCES } = require('../dist/modules/news/news.sources');
 const { NewsModule } = require('../dist/modules/news/news.module');
 const { NewsService } = require('../dist/modules/news/news.service');
@@ -91,6 +92,10 @@ async function main() {
     await displayPolicy.up(q);
     const translationsMigration = new NewsTranslations1791072000000();
     await translationsMigration.up(q);
+    await new NewsReadingFeatures1791158400000().up(q);
+    // Stock linkage uses the existing stock catalog in production.
+    await db.query('CREATE TABLE IF NOT EXISTS t_source_stock (ts_code VARCHAR(16),name VARCHAR(80),fullname VARCHAR(200))');
+    await db.query("INSERT INTO t_source_stock(ts_code,name,fullname) VALUES('000001.SZ','平安银行','平安银行股份有限公司')");
     await translationsMigration.up(q);
     assert.equal(Number((await db.query('SELECT COUNT(*) n FROM t_news_source WHERE source IN (?) AND enabled=1', [[...RETIRED_RESEARCH_CODES]]))[0].n), 0, 'Display policy disables retired research sources idempotently');
     assert.equal(Number((await db.query("SELECT COUNT(*) n FROM t_role_permission rp JOIN t_role r ON r.id=rp.role_id JOIN t_permission p ON p.id=rp.permission_id WHERE r.code='user' AND p.code='news:manage'"))[0].n), 0, 'Ordinary users cannot manage sources');
@@ -229,6 +234,42 @@ async function main() {
     await db.query('DELETE FROM t_news_item WHERE id=?',[translatedItem.id]);
     assert.equal(Number((await db.query('SELECT COUNT(*) n FROM t_news_translation WHERE news_id=?',[translatedItem.id]))[0].n),0,'Expired news cascades to its translation');
     newsService.fetchSource = otherFetcher;
+    // Real SQL checks for grouping, time windows, saved focus, read ownership and retention.
+    const stamp=new Date();
+    const ruleTitle='平安银行前三季度净利润同比增长10%，营业收入稳步增长';
+    await db.query("UPDATE t_news_source SET enabled=1,status='ok',last_success=UTC_TIMESTAMP(3),last_error='' WHERE source IN ('jin10','cls')");
+    const ruleIds=[];
+    for(const [i,source] of ['jin10','cls'].entries()){
+      const inserted=await db.query('INSERT INTO t_news_item(source,dedupe_key,kind,title,body,important,published_at,created_at,updated_at) VALUES(?,?,\'flash\',?,?,0,?,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))',[source,String(i+6).repeat(64),i?ruleTitle.replace('，','。'):ruleTitle,'关注平安银行与半导体业务',stamp]);
+      ruleIds.push(Number(inserted.insertId));
+    }
+    await newsService.features.indexBatch(500);
+    const prefix='/news?range=today&keyword='+encodeURIComponent('前三季度净利润');
+    const combined=(await inject('GET',prefix+'&merge=true',undefined,user)).json().data;
+    assert.equal(combined.total,1,'Grouping happens before pagination and totals');
+    assert.equal((await inject('GET',prefix+'&merge=false',undefined,user)).json().data.total,2);
+    assert.equal(combined.items[0].related.length,1);
+    assert.equal(combined.items[0].stocks[0].tsCode,'000001.SZ');
+    assert.equal((await inject('GET',prefix+'&stock=000001.SZ&merge=true',undefined,user)).json().data.total,1);
+    assert.equal((await inject('GET',prefix+'&afterId='+Math.min(...ruleIds)+'&merge=true',undefined,user)).json().data.newCount,1);
+    assert.equal((await inject('PATCH','/news/preferences',{keywords:['半导体'],stocks:['000001.SZ']},user)).statusCode,200);
+    assert.deepEqual((await inject('GET','/news/preferences',undefined,user)).json().data,{keywords:['半导体'],stocks:['000001.SZ']});
+    assert.deepEqual((await inject('GET','/news/preferences',undefined,admin)).json().data,{keywords:[],stocks:[]});
+    assert.equal((await inject('PATCH','/news/preferences',{keywords:[],stocks:['invalid']},user)).statusCode,400);
+    assert.equal((await inject('PATCH','/news/preferences',{keywords:[],stocks:[]},{cookie:user.cookie})).statusCode,403);
+    assert.equal((await inject('GET',prefix+'&watchlist=true&following=true&merge=true',undefined,user)).json().data.total,1);
+    assert.equal((await inject('GET',prefix+'&watchlist=true',undefined,admin)).json().data.total,0,'Empty watchlist matches no news');
+    assert.equal((await inject('GET','/news/stocks?q='+encodeURIComponent('平安'),undefined,user)).json().data[0].tsCode,'000001.SZ');
+    assert.equal((await inject('POST','/news/'+ruleIds[0]+'/read',undefined,user)).statusCode,201);
+    assert.equal((await inject('GET','/news/'+ruleIds[1],undefined,user)).json().data.read,true,'Read state covers group members');
+    assert.equal((await inject('GET','/news/'+ruleIds[1],undefined,admin)).json().data.read,false,'Read state is private');
+    await db.query("INSERT INTO t_news_item(source,dedupe_key,kind,title,body,important,published_at,created_at,updated_at) VALUES('jin10',REPEAT('e',64),'flash','旧时间测试','正文',0,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 2 DAY),UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))");
+    assert.equal((await inject('GET','/news?range=hour&keyword='+encodeURIComponent('旧时间测试'),undefined,user)).json().data.total,0);
+    assert.equal((await inject('GET','/news?range=three-days&keyword='+encodeURIComponent('旧时间测试'),undefined,user)).json().data.total,1);
+    await db.query('DELETE FROM t_news_item WHERE id IN (?)',[ruleIds]);
+    assert.equal(Number((await db.query('SELECT COUNT(*) n FROM t_news_rule WHERE news_id IN (?)',[ruleIds]))[0].n),0);
+    assert.equal(Number((await db.query('SELECT COUNT(*) n FROM t_news_stock WHERE news_id IN (?)',[ruleIds]))[0].n),0);
+    assert.equal(Number((await db.query('SELECT COUNT(*) n FROM t_news_read WHERE news_id IN (?)',[ruleIds]))[0].n),0);
     const activity = (await inject('GET', '/admin/login-activity', undefined, admin)).json().data;
     assert.equal(activity.unread, 2, 'Registration and regular login notify; administrator login does not');
     assert.ok(activity.items.some(item => item.registered));
