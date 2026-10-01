@@ -41,6 +41,18 @@ jobs:
             docker system df
             docker images --format '{{.ID}} {{.Repository}}:{{.Tag}} {{.Size}}'
             docker ps -a --format '{{.Names}} {{.Status}} {{.Image}}'
+            python3 /opt/stock-release/tools/maintenance.py --root /opt/stock-release
+            python3 - <<'PY'
+            import glob, json, os
+            groups = {
+                'aptDownloads': glob.glob('/var/cache/apt/archives/*.deb'),
+                'rotatedSystemLogs': glob.glob('/var/log/*.gz') + glob.glob('/var/log/*/*.gz'),
+                'rotatedApplicationLogs': glob.glob('/home/logs/*/*.gz'),
+            }
+            for group, paths in groups.items():
+                files = [{'path': path, 'bytes': os.path.getsize(path)} for path in sorted(paths) if os.path.isfile(path) and not os.path.islink(path)]
+                print(json.dumps({'cleanupInventory': group, 'bytes': sum(item['bytes'] for item in files), 'files': files}))
+            PY
             du -x -B1 -d2 / 2>/dev/null || true
             du -x -B1 -d1 /opt/stock-release /var/lib
             python3 - <<'PY'
