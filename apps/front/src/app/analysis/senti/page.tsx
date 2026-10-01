@@ -10,6 +10,7 @@ import { allowedPath } from '@/auth/client';
 import { useMarket } from '../components/MarketContext';
 import { marketHref } from '../components/market-navigation';
 import StrongFeedback from '../components/StrongFeedback';
+import IntradayCountsChart from '../components/IntradayCountsChart';
 import LegacyPage from './LegacyPage';
 import MarketCompatibility from '../components/MarketCompatibility';
 import MarketShell from '../components/MarketShell';
@@ -28,6 +29,7 @@ function SentimentPage() {
   const bins = ['≤-9%', ...Array.from({ length: 8 }, (_, i) => `${i - 9}~${i - 8}%`), '-1~0%', '0', '0~1%', ...Array.from({ length: 8 }, (_, i) => `${i + 1}~${i + 2}%`), '≥9%'];
   return (
     <MarketShell title="市场情绪" path="/analysis/senti">
+      <IntradayCountsChart />
       <DataState loading={loading} error={error} retry={retry} empty={!s}>
         {data && s && (
         <>
