@@ -747,6 +747,7 @@ mysqlDescribe('MySQL 同步事务与迁移回归', () => {
         'DragonPermission1790812800000',
         'RealTimeNews1790812800001',
         'ExpandedNewsSources1790832000000',
+        'NewsDisplayPolicy1790835600000',
       ]);
       expect(before.counts.t_source_daily).toEqual({ rows: 2, duplicates: 1 });
       expect(before.requiredFreeBytes).toBe(before.totalBytes * 4 + 1024 ** 3);

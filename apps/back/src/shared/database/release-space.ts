@@ -8,6 +8,7 @@ interface TableSize {
 const migrationTables: Record<string, readonly string[]> = {
   // Adds only source configuration rows; no business-data DDL or rebuild.
   ExpandedNewsSources1790832000000: ['t_news_source'],
+  NewsDisplayPolicy1790835600000: ['t_news_source'],
   LoginActivity1790640000000: [
     't_auth_audit',
     't_auth_activity_read',

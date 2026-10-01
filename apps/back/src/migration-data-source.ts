@@ -10,6 +10,7 @@ import { LoginActivity1790640000000 } from './migrations/1790640000000-LoginActi
 import { DragonPermission1790812800000 } from './migrations/1790812800000-DragonPermission';
 import { RealTimeNews1790812800001 } from './migrations/1790812800001-RealTimeNews';
 import { ExpandedNewsSources1790832000000 } from './migrations/1790832000000-ExpandedNewsSources';
+import { NewsDisplayPolicy1790835600000 } from './migrations/1790835600000-NewsDisplayPolicy';
 
 dotenv.config({
   path:
@@ -35,6 +36,7 @@ export default new DataSource({
     DragonPermission1790812800000,
     RealTimeNews1790812800001,
     ExpandedNewsSources1790832000000,
+    NewsDisplayPolicy1790835600000,
   ],
   migrationsTransactionMode: 'none',
   logging: false,

@@ -11,11 +11,23 @@ import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 import axios from 'axios';
 import { DataSource, QueryRunner } from 'typeorm';
-import { NEWS_SOURCES, NewsSource, sourceByCode } from './news.sources';
+import {
+  NEWS_SOURCES,
+  NewsSource,
+  sourceByCode,
+  isNewsSource,
+} from './news.sources';
 import { isoDate, normalizeNews, sqlDate } from './news.normalize';
 import { NewsQuery, NewsSourceUpdate } from './news.dto';
 import { checkNewsSchema } from './news-schema';
 import { sinaFlashItems } from './news.providers';
+import { readBloombergFeed } from './news.bloomberg';
+
+const NEWS_CODES = NEWS_SOURCES.filter(isNewsSource).map(
+  (source) => source.code,
+);
+const DISPLAYABLE_SOURCE_SQL =
+  "s.enabled=1 AND s.last_success IS NOT NULL AND s.status IN ('ok','collecting') AND s.last_error=''";
 
 @Injectable()
 export class NewsService implements OnApplicationBootstrap {
@@ -26,6 +38,8 @@ export class NewsService implements OnApplicationBootstrap {
   private readonly baseUrl: string;
 
   private readonly enabled: boolean;
+
+  private readonly bloombergFeedFile: string;
 
   constructor(
     private readonly db: DataSource,
@@ -42,6 +56,10 @@ export class NewsService implements OnApplicationBootstrap {
         config.get('NEWS_SYNC_ENABLED') ??
           process.env.NODE_ENV === 'production',
       ) === 'true';
+    this.bloombergFeedFile = String(
+      config.get('BLOOMBERG_FEED_FILE') ||
+        '/run/stock/news-feeds/bloomberg.json',
+    );
   }
 
   async onApplicationBootstrap() {
@@ -66,33 +84,44 @@ export class NewsService implements OnApplicationBootstrap {
     return { queued: true, message: '已提交采集任务，稍后刷新查看来源状态' };
   }
 
-  async sources() {
+  async sources(includeUnavailable = false) {
     const rows = await this.db.query('SELECT * FROM t_news_source');
     return {
       collecting: this.busy,
-      sources: NEWS_SOURCES.map((s) => {
-        const row = rows.find((r: any) => r.source === s.code);
-        return {
-          code: s.code,
-          name: s.name,
-          kind: s.kind,
-          availabilityNote: s.availabilityNote || '',
-          description: s.description || '',
-          enabled: Boolean(row?.enabled),
-          intervalSeconds: Number(row?.interval_seconds || 120),
-          status: row?.status || 'pending',
-          lastAttempt: isoDate(row?.last_attempt || null),
-          lastSuccess: isoDate(row?.last_success || null),
-          nextAttempt: isoDate(row?.next_attempt || null),
-          lastError: row?.last_error || '',
-          lastAdded: Number(row?.last_added || 0),
-        };
-      }),
+      sources: NEWS_SOURCES.filter(isNewsSource)
+        .map((s) => {
+          const row = rows.find((r: any) => r.source === s.code);
+          return {
+            code: s.code,
+            name: s.name,
+            kind: s.kind,
+            availabilityNote: s.availabilityNote || '',
+            description: s.description || '',
+            enabled: Boolean(row?.enabled),
+            intervalSeconds: Number(row?.interval_seconds || 120),
+            status: row?.status || 'pending',
+            lastAttempt: isoDate(row?.last_attempt || null),
+            lastSuccess: isoDate(row?.last_success || null),
+            nextAttempt: isoDate(row?.next_attempt || null),
+            lastError: row?.last_error || '',
+            lastAdded: Number(row?.last_added || 0),
+          };
+        })
+        .filter(
+          (s) =>
+            includeUnavailable ||
+            (s.enabled &&
+              s.lastSuccess &&
+              ['ok', 'collecting'].includes(s.status) &&
+              !s.lastError),
+        ),
     };
   }
 
   async updateSource(code: string, dto: NewsSourceUpdate) {
     if (!sourceByCode(code)) throw new BadRequestException('未知资讯来源');
+    if (!isNewsSource(sourceByCode(code)))
+      throw new BadRequestException('研报来源不参与实时资讯');
     const sets: string[] = [];
     const args: any[] = [];
     if (dto.enabled !== undefined) {
@@ -110,7 +139,7 @@ export class NewsService implements OnApplicationBootstrap {
       )},next_attempt=NULL WHERE source=?`,
       [...args, code],
     );
-    return this.sources();
+    return this.sources(true);
   }
 
   async list(query: NewsQuery, userId?: number) {
@@ -119,8 +148,9 @@ export class NewsService implements OnApplicationBootstrap {
       throw new UnauthorizedException('请登录后查看收藏');
     if (query.source && !sourceByCode(query.source))
       throw new BadRequestException('未知资讯来源');
-    const clauses = ['1=1'];
-    const args: any[] = [];
+    const clauses = [`n.source IN (${NEWS_CODES.map(() => '?').join(',')})`];
+    const args: any[] = [...NEWS_CODES];
+    if (!favorites) clauses.push(DISPLAYABLE_SOURCE_SQL);
     const date =
       query.date ||
       (favorites
@@ -153,8 +183,9 @@ export class NewsService implements OnApplicationBootstrap {
         .replace(/[!%_]/g, (c) => `!${c}`)}%`;
       args.push(pattern, pattern);
     }
-    const join =
-      'LEFT JOIN t_news_favorite f ON f.news_id=n.id AND f.user_id=?';
+    const join = `${
+      favorites ? '' : 'JOIN t_news_source s ON s.source=n.source '
+    }LEFT JOIN t_news_favorite f ON f.news_id=n.id AND f.user_id=?`;
     if (favorites) clauses.push('f.news_id IS NOT NULL');
     const where = clauses.join(' AND ');
     const [{ total }] = await this.db.query(
@@ -231,6 +262,8 @@ export class NewsService implements OnApplicationBootstrap {
   }
 
   private async fetchSource(source: NewsSource): Promise<unknown[]> {
+    if (source.provider === 'bloomberg-relay')
+      return readBloombergFeed(this.bloombergFeedFile);
     if (source.provider !== 'sina-flash') return this.fetch(source.path);
     const response = await axios.get('https://app.cj.sina.com.cn/api/news/pc', {
       params: { page: 1, size: 30, tag: 0 },
@@ -337,7 +370,9 @@ export class NewsService implements OnApplicationBootstrap {
         }`,
       );
       // Separate runners for concurrent workers. The named lock remains on its own connection.
-      const queue = rows.filter((row: any) => sourceByCode(row.source));
+      const queue = rows.filter((row: any) =>
+        isNewsSource(sourceByCode(row.source)),
+      );
       const workers = await Promise.allSettled(
         [0, 1].map(async () => {
           const worker = this.db.createQueryRunner();
@@ -355,7 +390,7 @@ export class NewsService implements OnApplicationBootstrap {
       if (workers.some((worker) => worker.status === 'rejected'))
         throw new Error('News database worker failed');
       await lock.query(
-        'DELETE FROM t_news_item WHERE id IN (SELECT id FROM (SELECT n.id FROM t_news_item n LEFT JOIN t_news_favorite f ON f.news_id=n.id WHERE n.published_at<DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 90 DAY) AND f.news_id IS NULL LIMIT 1000) expired)',
+        'DELETE FROM t_news_item WHERE id IN (SELECT id FROM (SELECT n.id FROM t_news_item n LEFT JOIN t_news_favorite f ON f.news_id=n.id WHERE n.published_at<DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 30 DAY) AND f.news_id IS NULL LIMIT 1000) expired)',
       );
       return true;
     } finally {
