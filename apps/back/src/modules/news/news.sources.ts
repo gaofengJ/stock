@@ -59,7 +59,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'bloomberg',
     name: '彭博市场',
-    description: '彭博公开市场新闻与摘要（英文）。',
+    description: '彭博公开市场新闻与摘要，附机器翻译，以英文原文为准。',
     path: '/bloomberg/markets',
     provider: 'bloomberg-relay',
     kind: 'article',
