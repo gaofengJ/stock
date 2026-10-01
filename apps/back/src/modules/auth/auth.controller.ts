@@ -38,6 +38,13 @@ const strict = new ValidationPipe({
 export class AuthController {
   constructor(private auth: AuthService) {}
 
+  // Authorize articles and search indexes using the existing role/trial policy.
+  @Permit('blog:read')
+  @Get('blog-access')
+  blogAccess() {
+    return { allowed: true };
+  }
+
   @Public()
   @Get('csrf')
   csrf(

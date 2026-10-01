@@ -11,7 +11,9 @@
     "dedupe:aizaibingchuan-images": "node ./scripts/dedupe-aizaibingchuan-images.mjs",
     "prepare:pagefind": "pnpm run build && node ./scripts/copy-pagefind-for-dev.mjs",
     "dev": "pnpm run gen-config && vitepress dev docs --port 8082",
-    "build": "pnpm run gen-config && vitepress build docs && pagefind --site docs/.vitepress/dist --root-selector .vp-doc",
+    "test": "node --test scripts/test-library.cjs",
+    "verify": "node scripts/verify-library.cjs",
+    "build": "pnpm run gen-config && vitepress build docs && pagefind --site docs/.vitepress/dist --root-selector .vp-doc && pnpm run verify",
     "preview": "vitepress preview docs"
   },
   "repository": {

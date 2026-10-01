@@ -3,3 +3,4 @@ const generatenavConfig = require('./generate-nav-config');
 
 generateSideBarConfig();
 generatenavConfig();
+require('./generate-library.cjs');

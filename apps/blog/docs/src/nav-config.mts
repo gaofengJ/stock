@@ -1,5 +1,9 @@
 export default [
   {
+    'text': '资料首页',
+    'link': '/'
+  },
+  {
     'text': '交易规则',
     'link': '/trading-rules/index.md',
     'activeMatch': '/trading-rules/'

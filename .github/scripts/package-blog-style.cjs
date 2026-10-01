@@ -8,6 +8,7 @@ const source = path.resolve('apps/blog/docs/.vitepress/dist');
 const target = path.resolve('.blog-style-release');
 if (fs.existsSync(target)) throw new Error('Release staging directory already exists');
 fs.mkdirSync(path.join(target, 'overlay'), { recursive: true });
+fs.copyFileSync('apps/blog/blog.nginx.conf', path.join(target, 'nginx.conf'));
 const media = /\.(webp|png|jpe?g|gif|jp2|avif|svg|ico|woff2?|ttf|otf|mp4|pdf)$/i;
 const hashes = [];
 let reusedBytes = 0;

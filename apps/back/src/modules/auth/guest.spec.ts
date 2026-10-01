@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { AuthGuard } from './auth.guard';
 import { AuthService, TRIAL_COOKIE, digest } from './auth.service';
 import { ACCESS } from './permissions';
+import { AuthController } from './auth.controller';
 
 describe('guest access and login activity', () => {
   function guardFixture(rule: any, method = 'GET', remainingMs = 100) {
@@ -35,6 +36,36 @@ describe('guest access and login activity', () => {
     await expect(
       expired.guard.canActivate(expired.context),
     ).rejects.toMatchObject({ status: 401 });
+  });
+
+  it('uses the real article access endpoint to enforce guest expiration and role permissions', async () => {
+    const rule = Reflect.getMetadata(
+      ACCESS,
+      AuthController.prototype.blogAccess,
+    );
+    expect(rule).toEqual({ any: ['blog:read'] });
+    const active = guardFixture(rule);
+    await expect(active.guard.canActivate(active.context)).resolves.toBe(true);
+    const expired = guardFixture(rule, 'GET', 0);
+    await expect(
+      expired.guard.canActivate(expired.context),
+    ).rejects.toMatchObject({ status: 401 });
+    await Promise.all(
+      [[], ['blog:read']].map(async (permissions) => {
+        const f = guardFixture(rule);
+        f.auth.session.mockResolvedValue({ user_id: 7 } as any);
+        (f.auth as any).current = jest
+          .fn()
+          .mockResolvedValue({ permissions, mustChangePassword: false });
+        if (permissions.length)
+          await expect(f.guard.canActivate(f.context)).resolves.toBe(true);
+        else
+          await expect(f.guard.canActivate(f.context)).rejects.toMatchObject({
+            status: 403,
+          });
+        expect(f.auth.trial).not.toHaveBeenCalled();
+      }),
+    );
   });
 
   it.each([
