@@ -180,6 +180,15 @@ class MaintenanceTests(unittest.TestCase):
         self.assertEqual(plan['danglingImages'], ['unused'])
         self.assertEqual({item['image'] for item in plan['runtimeImageTags']}, {'parent', 'base'})
 
+    def test_preserved_parent_tag_is_cleaned_once_no_longer_required(self):
+        tag = 'stock-runtime-preserved:dependency-'+'b'*12
+        images = [dict(Id='current', Parent='parent', RepoTags=[m.REPOSITORY+':'+'a'*40]),
+                  dict(Id='parent', Parent='', RepoTags=[tag])]
+        containers = [container('stock-back', 0, 'current', True)]
+        self.assertEqual(m.docker_plan(containers, images)['imageTags'], [])
+        images[0]['Parent'] = ''
+        self.assertEqual(m.docker_plan(containers, images)['imageTags'], [tag])
+
 
 if __name__ == '__main__':
     unittest.main()

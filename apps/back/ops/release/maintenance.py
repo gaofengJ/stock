@@ -22,6 +22,7 @@ PREVIOUS = re.compile(r'^stock-(back|front)-previous-([a-f0-9]{12})-\d+$')
 FAILED = re.compile(r'^stock-(back|front)-failed-[a-f0-9]{12}-\d+$')
 RELEASE_TAG = re.compile(r'^(' + re.escape(REPOSITORY) + '|' + re.escape(FRONT_REPOSITORY) + r'):(?:[a-f0-9]{40}|ci-[a-f0-9]{40}|latest)$')
 ROLLBACK_TAG = re.compile(r'^stock-(back|front)-rollback:[a-f0-9]{12}$')
+PRESERVED_TAG = re.compile(r'^stock-runtime-preserved:[a-z0-9_.-]+-[a-f0-9]{12}$')
 SHA = re.compile(r'^[a-f0-9]{64}$')
 DAY = 86400
 
@@ -216,7 +217,7 @@ def docker_plan(containers, images, successful_previous=None, now=None):
             protected_images.add(item['Image'])
     # Classic Docker builds expose parent images. A required parent is not
     # obsolete merely because it has no tag or direct container reference.
-    unmanaged_images = {item['Id'] for item in images if any(not (RELEASE_TAG.fullmatch(tag) or ROLLBACK_TAG.fullmatch(tag)) for tag in item.get('RepoTags') or [])}
+    unmanaged_images = {item['Id'] for item in images if any(not (RELEASE_TAG.fullmatch(tag) or ROLLBACK_TAG.fullmatch(tag) or PRESERVED_TAG.fullmatch(tag)) for tag in item.get('RepoTags') or [])}
     protected_images = image_ancestors(images, protected_images | unmanaged_images)
     tags, dangling, runtime_tags = [], [], []
     # A missing/stopped application's image family is protected as a whole.
@@ -236,7 +237,7 @@ def docker_plan(containers, images, successful_previous=None, now=None):
             dangling.append(image['Id'])
         for tag in image_tags:
             service = 'front' if tag.startswith(FRONT_REPOSITORY+':') or tag.startswith('stock-front-rollback:') else 'back'
-            if 'stock-'+service in active and (RELEASE_TAG.fullmatch(tag) or ROLLBACK_TAG.fullmatch(tag)):
+            if PRESERVED_TAG.fullmatch(tag) or ('stock-'+service in active and (RELEASE_TAG.fullmatch(tag) or ROLLBACK_TAG.fullmatch(tag))):
                 tags.append(tag)
     return {'containers': remove, 'imageTags': sorted(set(tags)), 'danglingImages': sorted(set(dangling)), 'retained': retained, 'runtimeImageTags': runtime_tags}
 
