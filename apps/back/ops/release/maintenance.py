@@ -231,7 +231,7 @@ def docker_json(kind):
     return json.loads(subprocess.check_output(['docker', kind, 'inspect'] + sorted(set(ids)), universal_newlines=True))
 
 
-def maintenance(root, apply=False):
+def maintenance(root, apply=False, images_only=False):
     if not root.is_dir():
         raise ValueError('Release directory does not exist')
     root = root.resolve()
@@ -251,9 +251,9 @@ def maintenance(root, apply=False):
                     if PREVIOUS.fullmatch(name):
                         successful_previous.add(name)
     plan = docker_plan(docker_json('container'), docker_json('image'), successful_previous)
-    candidates = backup_candidates(root)
+    candidates = [] if images_only else backup_candidates(root)
     result = dict(plan, backupCandidates=len(candidates), archivedBackups=0,
-                  backupCleanup='archive-required' if not archive_root else 'configured', applied=apply)
+                  backupCleanup='skipped' if images_only else ('archive-required' if not archive_root else 'configured'), applied=apply)
     if apply:
         # A running service may have lost its original tag during a previous
         # deploy. Give it an explicit local tag instead of interrupting it.
@@ -281,13 +281,14 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--root', default='/opt/stock-release')
     parser.add_argument('--apply', action='store_true')
+    parser.add_argument('--images-only', action='store_true')
     parser.add_argument('--check-backup', metavar='PREFLIGHT_JSON')
     args = parser.parse_args()
     root = pathlib.Path(args.root)
     if args.check_backup:
         result = recent_backup(root, json.loads(pathlib.Path(args.check_backup).read_text()))
     else:
-        result = maintenance(root, args.apply)
+        result = maintenance(root, args.apply, args.images_only)
     print(json.dumps(result))
 
 

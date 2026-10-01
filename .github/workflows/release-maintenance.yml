@@ -7,7 +7,7 @@ on:
         type: choice
         required: true
         default: inspect
-        options: [inspect, clean-build-cache]
+        options: [inspect, clean-build-cache, clean-release-images]
 permissions:
   contents: read
 concurrency:
@@ -15,15 +15,15 @@ concurrency:
   cancel-in-progress: false
 jobs:
   maintenance:
-    if: github.ref == 'refs/heads/master' || inputs.operation == 'inspect'
+    if: github.ref == 'refs/heads/master' || inputs.operation == 'inspect' || inputs.operation == 'clean-release-images'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        if: inputs.operation == 'inspect'
+        if: inputs.operation != 'clean-build-cache'
         with:
           sparse-checkout: apps/back/ops/release
       - name: Upload readonly retention inspector
-        if: inputs.operation == 'inspect'
+        if: inputs.operation != 'clean-build-cache'
         uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -48,6 +48,7 @@ jobs:
             flock -n 9 || { echo 'Another release is running'; exit 1; }
             case "$OPERATION" in
               inspect) ;;
+              clean-release-images) python3 /opt/stock-release/inspections/${{ github.sha }}/release/maintenance.py --root /opt/stock-release --images-only --apply ;;
               clean-build-cache) docker builder prune --force --filter until=168h ;;
               *) echo 'Unsupported operation'; exit 1 ;;
             esac
@@ -57,7 +58,7 @@ jobs:
             docker ps -a --format '{{.Names}} {{.Status}} {{.Image}}'
             docker inspect stock-front | python3 -c 'import json,sys; c=json.load(sys.stdin)[0]; print(json.dumps({"frontConfiguration":{"image":c["Image"],"ports":c["HostConfig"]["PortBindings"],"mounts":[{k:m.get(k) for k in ("Source","Destination","RW")} for m in c["Mounts"]],"networks":list(c["NetworkSettings"]["Networks"]),"restart":c["HostConfig"]["RestartPolicy"]}}))'
             docker ps -a --format '{{.ID}}' | xargs -r docker inspect | python3 -c 'import json,sys; print(json.dumps({"containerReferences":[{"name":c["Name"],"image":c["Image"],"running":c["State"]["Running"]} for c in json.load(sys.stdin)]}))'
-            if [ "$OPERATION" = inspect ]; then
+            if [ "$OPERATION" != clean-build-cache ]; then
               python3 /opt/stock-release/inspections/${{ github.sha }}/release/maintenance.py --root /opt/stock-release
             else
               python3 /opt/stock-release/tools/maintenance.py --root /opt/stock-release

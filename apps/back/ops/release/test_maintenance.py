@@ -92,6 +92,14 @@ class MaintenanceTests(unittest.TestCase):
             m.archive_and_remove(original, archive, self.root)
         self.assertTrue((original/'stock.sql.gz').exists())
 
+    def test_images_only_never_enters_backup_archiving(self):
+        for index in range(5):
+            self.backup('old-'+str(index), 10+index)
+        with patch.object(m, 'docker_json', return_value=[]), patch.object(m, 'backup_candidates', side_effect=AssertionError('must not inspect backups')):
+            result = m.maintenance(self.root, apply=True, images_only=True)
+        self.assertEqual(result['backupCleanup'], 'skipped')
+        self.assertEqual(len(list(self.root.glob('backups/*/stock.sql.gz'))), 5)
+
     def test_archived_copy_is_verified_before_local_copy_is_removed(self):
         original = self.backup('legacy-absolute-checksum', 10)
         expected = m.digest(original/'stock.sql.gz')
