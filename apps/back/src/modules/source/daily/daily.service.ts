@@ -168,9 +168,12 @@ export class DailyService {
    * 策略：向上跳空缺口后三连阳
    * @param dates [date4(最新), date3, date2, date1(最早)]
    */
-  async findGapThreeUp(dates: string[]): Promise<DailyEntity[]> {
+  async findGapThreeUp(
+    dates: string[],
+    sequence?: Map<string, Record<string, DailyEntity>>,
+  ): Promise<DailyEntity[]> {
     const [date4, date3, date2, date1] = dates;
-    const map = await this.getDailyDataByDates(dates);
+    const map = sequence || (await this.getDailyDataByDates(dates));
     const result: DailyEntity[] = [];
 
     map.forEach((dailyMap) => {
@@ -203,9 +206,12 @@ export class DailyService {
    * 策略：向上跳空缺口后二连阳
    * @param dates [date3(最新), date2, date1(最早)]
    */
-  async findGapTwoUp(dates: string[]): Promise<DailyEntity[]> {
+  async findGapTwoUp(
+    dates: string[],
+    sequence?: Map<string, Record<string, DailyEntity>>,
+  ): Promise<DailyEntity[]> {
     const [date3, date2, date1] = dates;
-    const map = await this.getDailyDataByDates(dates);
+    const map = sequence || (await this.getDailyDataByDates(dates));
     const result: DailyEntity[] = [];
 
     map.forEach((dailyMap) => {
@@ -235,9 +241,12 @@ export class DailyService {
    * 策略：向上跳空缺口后连续三日高换手率
    * @param dates [date4(最新), date3, date2, date1(最早)]
    */
-  async findGapThreeHighTurnover(dates: string[]): Promise<DailyEntity[]> {
+  async findGapThreeHighTurnover(
+    dates: string[],
+    sequence?: Map<string, Record<string, DailyEntity>>,
+  ): Promise<DailyEntity[]> {
     const [date4, date3, date2, date1] = dates;
-    const map = await this.getDailyDataByDates(dates);
+    const map = sequence || (await this.getDailyDataByDates(dates));
     const result: DailyEntity[] = [];
 
     map.forEach((dailyMap) => {
@@ -274,9 +283,12 @@ export class DailyService {
    * 仅量比门槛逐日降低，不要求实际量比递减、成交量不下降或收盘逐日上涨。
    * @param dates [date3(最新), date2, date1(最早)]
    */
-  async findThreeDaysHighVol(dates: string[]): Promise<DailyEntity[]> {
+  async findThreeDaysHighVol(
+    dates: string[],
+    sequence?: Map<string, Record<string, DailyEntity>>,
+  ): Promise<DailyEntity[]> {
     const [date3, date2, date1] = dates;
-    const map = await this.getDailyDataByDates(dates);
+    const map = sequence || (await this.getDailyDataByDates(dates));
     const result: DailyEntity[] = [];
 
     map.forEach((dailyMap) => {
@@ -308,9 +320,12 @@ export class DailyService {
    * 两次完整向上缺口，不要求收阳；同样适用统一成交额、收盘位置及涨停条件。
    * @param dates [date3(最新), date2, date1(最早)]
    */
-  async findContinuousGap(dates: string[]): Promise<DailyEntity[]> {
+  async findContinuousGap(
+    dates: string[],
+    sequence?: Map<string, Record<string, DailyEntity>>,
+  ): Promise<DailyEntity[]> {
     const [date3, date2, date1] = dates;
-    const map = await this.getDailyDataByDates(dates);
+    const map = sequence || (await this.getDailyDataByDates(dates));
     const result: DailyEntity[] = [];
 
     map.forEach((dailyMap) => {
@@ -340,9 +355,12 @@ export class DailyService {
    * 保留上影幅度>3%的定义，不限制D3相对D2的成交量。
    * @param dates [date3(最新), date2, date1(最早)]
    */
-  async findShadowWrap(dates: string[]): Promise<DailyEntity[]> {
+  async findShadowWrap(
+    dates: string[],
+    sequence?: Map<string, Record<string, DailyEntity>>,
+  ): Promise<DailyEntity[]> {
     const [date3, date2, date1] = dates;
-    const map = await this.getDailyDataByDates(dates);
+    const map = sequence || (await this.getDailyDataByDates(dates));
     const result: DailyEntity[] = [];
 
     map.forEach((dailyMap) => {
@@ -370,10 +388,53 @@ export class DailyService {
     return result;
   }
 
-  private async getDailyDataByDates(dates: string[]) {
+  async strategyHistory(dates: string[], visible: string[], codes?: string[]) {
+    const sequence = await this.getDailyDataByDates(dates, codes);
+    return Promise.all(
+      visible.map(async (date) => {
+        const window = dates
+          .filter((d) => d <= date)
+          .slice(-4)
+          .reverse();
+        const hits = new Map<string, string[]>();
+        const checks: [string, Promise<DailyEntity[]>][] = [
+          ['gapThreeUp', this.findGapThreeUp(window, sequence)],
+          ['gapTwoUp', this.findGapTwoUp(window.slice(0, 3), sequence)],
+          [
+            'gapThreeHighTurnover',
+            this.findGapThreeHighTurnover(window, sequence),
+          ],
+          [
+            'threeDaysHighVol',
+            this.findThreeDaysHighVol(window.slice(0, 3), sequence),
+          ],
+          [
+            'continuousGap',
+            this.findContinuousGap(window.slice(0, 3), sequence),
+          ],
+          ['shadowWrap', this.findShadowWrap(window.slice(0, 3), sequence)],
+        ];
+        const results = await Promise.all(checks.map(([, result]) => result));
+        results.forEach((rows, i) =>
+          rows.forEach((row) =>
+            hits.set(row.tsCode, [
+              ...(hits.get(row.tsCode) || []),
+              checks[i][0],
+            ]),
+          ),
+        );
+        return { date, hits, complete: window.length === 4 };
+      }),
+    );
+  }
+
+  private async getDailyDataByDates(dates: string[], codes?: string[]) {
+    if (codes && !codes.length)
+      return new Map<string, Record<string, DailyEntity>>();
     const list = await this.DailyRepository.find({
       where: {
         tradeDate: In(dates),
+        ...(codes ? { tsCode: In(codes) } : {}),
       },
       // Strategy screening only needs a subset of columns. Restricting the
       // projection avoids fetching the whole wide row set across the network.

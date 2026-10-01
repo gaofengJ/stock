@@ -70,6 +70,8 @@ describe('同花顺板块数据与口径', () => {
     expect(r.items[0].five).toBeCloseTo((120.45 / 100.25 - 1) * 100);
     expect(r.items[0].twenty).toBeNull();
     expect(r.items[0].limitUp).toBe(1);
+    expect(r.items[0].amount).toBe(0.001);
+    expect(r.items[0].amountShare).toBe(100);
     expect(r.items[0].asOf).toBe('2026-10-01');
   });
   test('股票行业不回退到旧来源，策略筛选沿用同花顺成分关系', async () => {
@@ -85,6 +87,7 @@ describe('同花顺板块数据与口径', () => {
         await service.decorate([{ tsCode: '600000.SH', industry: '旧分类' }])
       )[0],
     ).toMatchObject({ industry: '', industries: [], topics: [] });
+    jest.spyOn(service, 'board').mockResolvedValue({ items: [] } as any);
     jest.spyOn(service, 'codes').mockResolvedValue(new Set(['600000.SH']));
     const strategy = new StrategyService({} as any, {} as any, service);
     jest
@@ -100,6 +103,30 @@ describe('同花顺板块数据与口径', () => {
     });
     expect(result.map((r) => r.tsCode)).toEqual(['600000.SH']);
     expect(service.codes).toHaveBeenCalledWith('881101.TI', '2026-09-30');
+  });
+  test('补充的板块背景查询失败不阻断策略选股', async () => {
+    const service = new SectorService(
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+    );
+    jest.spyOn(service, 'links').mockResolvedValue(new Map());
+    jest.spyOn(service, 'board').mockRejectedValue(new Error('板块暂不可用'));
+    const result = await service.candidateContext(
+      [{ tsCode: '600000.SH' }],
+      '2026-09-30',
+    );
+    expect(result).toEqual([
+      {
+        tsCode: '600000.SH',
+        industry: '',
+        industries: [],
+        topics: [],
+        sectorPerformance: [],
+        sectorContextReady: false,
+      },
+    ]);
   });
   test('只纳入标准行业和实际概念，排除细分行业、其他分类和指数样本', () => {
     expect(primarySector({ tsCode: '881101.TI', type: 'I' })).toBe(true);

@@ -6,9 +6,10 @@ import {
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Alert, Button, Card, Col, Empty, Input, Row, Segmented, Space, Tabs,
+  Alert, Button, Card, Col, Empty, Input, Row, Segmented, Space, Tabs, Popover,
 } from 'antd';
 import { SectorBoard, SectorMember, SectorRow } from '@/api/sectors';
+import { StrategySignals } from '@/api/market';
 import { useAccount } from '@/auth/Boundary';
 import { allowedPath } from '@/auth/client';
 import { changeClass, numberText, scaledNumber } from '@/utils/format';
@@ -38,6 +39,14 @@ export default function Page() {
   const request = useMarketData<SectorBoard>('sectors', {
     kind, code, period, days: 730, scope: 'all',
   });
+  const signals = useMarketData<StrategySignals & { date: string; counts: { code: string; count: number; strategies: { key: string; count: number }[] }[] }>('sector-signals', { scope: 'all', days: 20 }, allowedPath(user, '/strategy'));
+  const signalsReady = !signals.loading && !signals.error && signals.data?.date === date && signals.data.readyDates.includes(date);
+  const counts = new Map(signals.data?.counts.map((r) => [r.code, r]) || []);
+  const strategyLabels = new Map(signals.data?.strategies.map((r) => [r.key, r.label]) || []);
+  const stockSignals = new Map(signals.data?.items.map((r) => [r.tsCode, r.strategies]) || []);
+  const strategyHref = (strategyType: string, sectorCode: string, stockCode?: string) => `/strategy/?${new URLSearchParams({
+    date, sector: sectorCode, strategyType, ...(stockCode ? { code: stockCode } : {}),
+  })}`;
   const dragon = useMarketData<{codes:string[]}>('dragon-list', { scope: 'all' });
   const dragonCodes = useMemo(() => new Set(dragon.data?.codes || []), [dragon.data?.codes]);
   const { retry } = request;
@@ -112,6 +121,58 @@ export default function Page() {
       },
     },
     {
+      title: '成交额(亿元)', dataIndex: 'amount', align: 'right' as const, width: 135, render: (v: number | null) => numberText(v),
+    },
+    {
+      title: (
+        <span>
+          成交额占比
+          <HelpTooltip label="成交额占比" title="成分股成交额占全部A股比例；题材成分可重叠，不能相加。" />
+        </span>
+      ),
+      dataIndex: 'amountShare',
+      align: 'right' as const,
+      width: 130,
+      render: (v: number | null) => `${numberText(v)}${v == null ? '' : '%'}`,
+    },
+    {
+      title: '最高连板', dataIndex: 'maxHeight', align: 'right' as const, width: 100, render: (v: number | null, r: SectorRow) => (v && allowedPath(user, '/analysis/chains') ? <Link href={jump('/analysis/chains', r.code)}>{v}</Link> : v ?? '—'),
+    },
+    ...(allowedPath(user, '/strategy') ? [{
+      title: (
+        <span>
+          策略命中
+          <HelpTooltip label="策略命中" title="命中任一现行策略的股票数，同一股票只计一次。" />
+        </span>
+      ),
+      key: 'signals',
+      align: 'right' as const,
+      width: 130,
+      render: (_: unknown, r: SectorRow) => {
+        if (!signalsReady) return signals.error ? <Button type="link" onClick={signals.retry}>重试</Button> : '待更新';
+        const hit = counts.get(r.code);
+        return hit?.count ? (
+          <Popover
+            title="当日策略命中"
+            content={(
+              <Space direction="vertical">
+                {hit.strategies.map((s) => (
+                  <Link key={s.key} href={strategyHref(s.key, r.code)}>
+                    {strategyLabels.get(s.key)}
+                    ：
+                    {s.count}
+                    只
+                  </Link>
+                ))}
+              </Space>
+)}
+          >
+            <Button type="link">{hit.count}</Button>
+          </Popover>
+        ) : (hit?.count ?? '—');
+      },
+    }] : []),
+    {
       title: '有成交／成分', key: 'members', align: 'right' as const, width: 130, render: (_: unknown, r: SectorRow) => (r.memberCount == null ? '—' : `${r.traded ?? '—'}／${r.memberCount}`),
     },
     {
@@ -150,7 +211,7 @@ export default function Page() {
       {data?.job && data.job.status !== 'success' && <Alert className="mb-16" type={data.job.status === 'failed' ? 'warning' : 'info'} showIcon message={data.job.status === 'failed' ? '板块数据同步失败，请查看数据同步任务' : `板块数据补齐中：${data.job.stage}`} />}
       <DataState loading={request.loading} error={request.error} retry={request.retry} empty={!data}>
         <SectionTitle title="强弱排行" description="成分统计显示快照日期，不代表历史时点的完整成分。" />
-        <Table<SectorRow> rowKey="code" size="small" pagination={false} bordered maxBodyHeight={480} minBodyHeight={280} scroll={{ x: 1260 }} dataSource={rows} columns={tableColumns} rowClassName={(r) => (r.code === code ? 'sector-selected' : '')} locale={{ emptyText: keyword ? '没有符合条件的板块' : '板块目录正在补齐' }} />
+        <Table<SectorRow> rowKey="code" size="small" pagination={false} bordered maxBodyHeight={480} minBodyHeight={280} scroll={{ x: 1730 }} dataSource={rows} columns={tableColumns} rowClassName={(r) => (r.code === code ? 'sector-selected' : '')} locale={{ emptyText: keyword ? '没有符合条件的板块' : '板块目录正在补齐' }} />
         <Row gutter={[16, 16]} className="sector-rotation-row">
           <Col xs={24} xl={24}>
             <Card title={(
@@ -197,7 +258,7 @@ export default function Page() {
               pagination={false}
               maxBodyHeight={480}
               minBodyHeight={280}
-              scroll={{ x: 1150 }}
+              scroll={{ x: 1430 }}
               dataSource={detail.members}
               columns={[
                 { title: '代码', dataIndex: 'tsCode', width: 115 }, { title: '名称', dataIndex: 'name', width: 115 },
@@ -217,6 +278,17 @@ export default function Page() {
                 {
                   title: '涨停', dataIndex: 'limitUp', align: 'center', render: (v:boolean, r) => (v && allowedPath(user, '/analysis/limits') ? <Link href={jump('/analysis/limits', detail.code, { keyword: r.tsCode, type: 'U' })}>查看</Link> : '—'),
                 },
+                ...(allowedPath(user, '/strategy') ? [{
+                  title: '策略命中',
+                  key: 'signals',
+                  width: 220,
+                  render: (_: unknown, r: SectorMember) => (!signalsReady ? '待更新' : (
+                    <Space wrap>
+                      {(stockSignals.get(r.tsCode) || []).map((key) => <Link key={key} href={strategyHref(key, detail.code, r.tsCode)}>{strategyLabels.get(key)}</Link>)}
+                      {!stockSignals.get(r.tsCode)?.length && '—'}
+                    </Space>
+                  )),
+                }] : []),
                 {
                   title: '龙虎榜',
                   key: 'dragon',

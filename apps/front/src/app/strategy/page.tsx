@@ -20,6 +20,7 @@ import SectorFilter, { useSectorSelection } from '@/components/SectorFilter';
 import { useStrategyConfigs } from './form-configs';
 import { strategyColumns } from './columns';
 
+import CandidateEnvironment from './CandidateEnvironment';
 import './strategy.sass';
 
 const strategyNotes: Record<string, string> = {
@@ -33,7 +34,10 @@ const strategyNotes: Record<string, string> = {
 
 function StrategyPage() {
   const { sector, setSector } = useSectorSelection();
-  const linked = useSearchParams().get('date');
+  const urlParams = useSearchParams();
+  const linked = urlParams.get('date');
+  const linkedStrategy = urlParams.get('strategyType');
+  const linkedCode = /^\d{6}\.(SH|SZ|BJ)$/.test(urlParams.get('code') || '') ? urlParams.get('code') : null;
   const linkedDate = /^\d{4}-\d{2}-\d{2}$/.test(linked || '') ? linked! : undefined;
   const screens = Grid.useBreakpoint();
   const [loadError, setLoadError] = useState('');
@@ -108,7 +112,7 @@ function StrategyPage() {
     onSuccess: ({ data }) => {
       if (!data.length) setTableLoading(false);
       setNavList(data);
-      setActivedNav(data[0]?.key || '');
+      setActivedNav(data.find((r) => r.key === linkedStrategy)?.key || data[0]?.key || '');
     },
     onError: (error) => {
       setLoadError(errorMessage(error, '策略加载失败，请重试'));
@@ -117,7 +121,7 @@ function StrategyPage() {
       setActivedNav('');
       setStrategyData({ items: [] });
     },
-  }), [runLatestTabsRequest, tabsRequestConfig]);
+  }), [runLatestTabsRequest, tabsRequestConfig, linkedStrategy]);
 
   const getStrategy = useCallback(() => {
     if (!dateReady || !searchParams.date || !activedNav) return;
@@ -193,10 +197,12 @@ function StrategyPage() {
             />
           </div>
           <div className="mb-16"><SectorFilter value={sector} onChange={setSector} /></div>
+          <CandidateEnvironment date={searchParams.date || ''} />
+          {linkedCode && <Alert className="mb-16" type="info" message={`定位股票 ${linkedCode}`} action={<Button size="small" onClick={() => { const params = new URLSearchParams(urlParams.toString()); params.delete('code'); window.history.replaceState(null, '', `?${params}`); }}>显示全部</Button>} />}
           <Table
             rootClassName="strategy-table"
             rowKey="tsCode"
-            dataSource={strategyData.items}
+            dataSource={linkedCode ? strategyData.items.filter((r) => r.tsCode === linkedCode) : strategyData.items}
             columns={strategyColumns}
             bordered
             locale={{
@@ -206,7 +212,7 @@ function StrategyPage() {
                 </div>
               ),
             }}
-            scroll={{ x: 1448 }}
+            scroll={{ x: 1748 }}
             loading={!dateError && (!dateReady || tableLoading)}
             pagination={false}
           />

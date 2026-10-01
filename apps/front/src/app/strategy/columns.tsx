@@ -1,6 +1,70 @@
-import { numberText, scaledNumber } from '@/utils/format';
+import { numberText, scaledNumber, changeClass } from '@/utils/format';
 import type { ColumnsType } from 'antd/es/table/interface';
 import SectorLinks from '@/components/SectorLinks';
+import Link from 'next/link';
+import { Popover, Space } from 'antd';
+import { useAccount } from '@/auth/Boundary';
+import { allowedPath } from '@/auth/client';
+
+interface SectorPerformance { code: string; name: string; type: string; asOf: string; day: number | null; five: number | null; twenty: number | null; maxHeight: number | null }
+
+function SectorContext({ sectors, date, ready }: { sectors?: SectorPerformance[]; date: string; ready?: boolean }) {
+  const { user } = useAccount();
+  if (ready === false) return <span>背景暂不可用</span>;
+  if (!sectors?.length) return <span>—</span>;
+  const details = sectors.map((s) => (
+    <div key={s.code}>
+      {allowedPath(user, '/analysis/sectors') ? (
+        <Link href={`/analysis/sectors/?${new URLSearchParams({
+          date, scope: 'all', kind: s.type, code: s.code,
+        })}`}
+        >
+          {s.name}
+        </Link>
+      ) : s.name}
+      <Space size={12} wrap>
+        <span>
+          当日
+          <span className={changeClass(s.day)}>
+            {numberText(s.day, 2, true)}
+            {s.day == null ? '' : '%'}
+          </span>
+        </span>
+        <span>
+          5日
+          <span className={changeClass(s.five)}>
+            {numberText(s.five, 2, true)}
+            {s.five == null ? '' : '%'}
+          </span>
+        </span>
+        <span>
+          最高
+          {numberText(s.maxHeight, 0)}
+          板
+        </span>
+        <span>
+          成分截至
+          {s.asOf}
+        </span>
+      </Space>
+    </div>
+  ));
+  return (
+    <Popover title="同花顺板块背景" content={<Space direction="vertical" style={{ maxWidth: 'min(700px, 85vw)', maxHeight: 400, overflow: 'auto' }}>{details}</Space>}>
+      <span style={{ cursor: 'pointer' }}>
+        {sectors[0].name}
+        {' '}
+        <span className={changeClass(sectors[0].day)}>
+          {numberText(sectors[0].day, 2, true)}
+          {sectors[0].day == null ? '' : '%'}
+        </span>
+        （
+        {sectors.length}
+        个板块）
+      </span>
+    </Popover>
+  );
+}
 
 /**
  * 设置默认值
@@ -27,6 +91,9 @@ export const strategyColumns: ColumnsType = [
   },
   {
     title: '题材', key: 'topics', width: 240, render: (_, r) => <SectorLinks stock={r} type="N" date={r.tradeDate} />,
+  },
+  {
+    title: '板块背景', key: 'context', width: 280, render: (_, r) => <SectorContext sectors={r.sectorPerformance} date={r.tradeDate} ready={r.sectorContextReady} />,
   },
   {
     title: '开盘价(元)',

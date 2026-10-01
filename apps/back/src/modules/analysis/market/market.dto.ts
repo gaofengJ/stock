@@ -13,6 +13,11 @@ import { Type } from 'class-transformer';
 import { MARKET_SCOPES, MarketScope } from './market.constants';
 
 export class MarketQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsIn([1, 5, 10, 20])
+  trajectoryDays?: number;
+
   @ApiPropertyOptional({ example: '2026-09-24' })
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
@@ -49,6 +54,9 @@ export class MarketQueryDto {
   @Min(1)
   @Max(100)
   height?: number;
+}
+export class ResearchQueryDto extends MarketQueryDto {
+  @IsOptional() @Matches(/^\d{6}\.(SH|SZ|BJ)$/) code?: string;
 }
 export class DragonQueryDto {
   @ApiPropertyOptional({ example: '2026-09-24' })

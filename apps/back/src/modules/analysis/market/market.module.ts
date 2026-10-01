@@ -4,6 +4,7 @@ import { MarketService } from './market.service';
 import { MarketSyncService } from './market-sync.service';
 import { MarketBreadthService } from './market-breadth.service';
 import { SectorService } from './sector.service';
+import { MarketResearchService } from './market-research.service';
 
 @Global()
 @Module({
@@ -13,6 +14,7 @@ import { SectorService } from './sector.service';
     MarketSyncService,
     MarketBreadthService,
     SectorService,
+    MarketResearchService,
   ],
   exports: [MarketSyncService, MarketBreadthService, SectorService],
 })

@@ -30,6 +30,8 @@ type SectorLink = { code: string; name: string; type: 'I' | 'N'; asOf: string };
 export class SectorService {
   private readonly memberCache = new AsyncTtlCache(30000);
 
+  private readonly boardCache = new AsyncTtlCache(30000);
+
   constructor(
     private db: DataSource,
     private source: TushareService,
@@ -347,7 +349,7 @@ export class SectorService {
   async decorate<T extends { tsCode?: string; industry?: any }>(
     rows: T[],
     date?: string,
-  ): Promise<T[]> {
+  ): Promise<(T & { industries: SectorLink[]; topics: SectorLink[] })[]> {
     const links = await this.links(
       rows.map((r) => r.tsCode!).filter(Boolean),
       date,
@@ -430,6 +432,63 @@ export class SectorService {
   }
 
   async board(q: SectorQueryDto) {
+    return this.boardCache.getOrCreate(JSON.stringify(q), () =>
+      this.calculateBoard(q),
+    );
+  }
+
+  async signalCounts(date: string, hits: Map<string, string[]>) {
+    const snapshots = await this.snapshots(date);
+    return snapshots.map((snapshot) => {
+      const codes = [...new Set(snapshot.members.map((r) => r.code))];
+      const strategies = [
+        ...new Set(codes.flatMap((code) => hits.get(code) || [])),
+      ].map((key) => ({
+        key,
+        count: codes.filter((code) => hits.get(code)?.includes(key)).length,
+      }));
+      return {
+        code: snapshot.tsCode,
+        count: codes.filter((code) => hits.has(code)).length,
+        strategies,
+      };
+    });
+  }
+
+  async candidateContext<T extends { tsCode: string }>(
+    rows: T[],
+    date: string,
+  ) {
+    if (!rows.length) return rows;
+    const decorated = await this.decorate(rows, date);
+    const boards = await Promise.all(
+      (['I', 'N'] as const).map((kind) =>
+        this.board({
+          date,
+          kind,
+          period: 1,
+          days: 20,
+          scope: 'all',
+        } as SectorQueryDto),
+      ),
+    ).catch(() => null);
+    const metrics = new Map(
+      (boards || []).flatMap((b) => b.items).map((s) => [s.code, s]),
+    );
+    return decorated.map((row) => ({
+      ...row,
+      sectorContextReady: !!boards,
+      sectorPerformance: [...row.industries, ...row.topics].map((link) => ({
+        ...link,
+        day: metrics.get(link.code)?.day ?? null,
+        five: metrics.get(link.code)?.five ?? null,
+        twenty: metrics.get(link.code)?.twenty ?? null,
+        maxHeight: metrics.get(link.code)?.maxHeight ?? null,
+      })),
+    }));
+  }
+
+  private async calculateBoard(q: SectorQueryDto) {
     if (!q.date) throw new BadRequestException('请选择交易日');
     normalizeDate(q.date);
     const { date } = q;
@@ -505,6 +564,13 @@ export class SectorService {
     const upCodes = new Set(
       stockDataReady ? limits.map((r) => canonical(r.tsCode)) : [],
     );
+    const heights = new Map(
+      limits.map((r) => [canonical(r.tsCode), r.limitTimes || 0]),
+    );
+    const totalAmount = [...stocks.values()].reduce(
+      (sum, r) => sum + Number(r.amount),
+      0,
+    );
     const membersByCode = new Map(members.map((s) => [s.tsCode, s]));
     const items = sectors.map((s) => {
       const snapshot = membersByCode.get(s.tsCode);
@@ -529,6 +595,23 @@ export class SectorService {
         limitUp:
           snapshot && stockDataReady
             ? snapshot.members.filter((m) => upCodes.has(m.code)).length
+            : null,
+        amount:
+          snapshot && stockDataReady
+            ? traded.reduce((sum, r) => sum + Number(r!.amount), 0) / 100000
+            : null,
+        amountShare:
+          snapshot && stockDataReady && totalAmount > 0
+            ? (traded.reduce((sum, r) => sum + Number(r!.amount), 0) /
+                totalAmount) *
+              100
+            : null,
+        maxHeight:
+          snapshot && stockDataReady
+            ? Math.max(
+                0,
+                ...snapshot.members.map((m) => heights.get(m.code) || 0),
+              )
             : null,
       };
     });

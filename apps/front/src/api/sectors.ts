@@ -7,6 +7,7 @@ export interface SectorRow {
   code: string; name: string; type: 'I' | 'N'; asOf: string | null;
   day: number | null; five: number | null; twenty: number | null;
   memberCount: number | null; traded: number | null; upRatio: number | null; limitUp: number | null;
+  amount: number | null; amountShare: number | null; maxHeight: number | null;
 }
 export interface SectorMember extends ClassifiedStock {
   tsCode: string; name: string; close: string | null; pctChg: string | null; amount: string | null; limitUp: boolean;
