@@ -41,8 +41,8 @@ jobs:
             docker system df
             docker images --format '{{.ID}} {{.Repository}}:{{.Tag}} {{.Size}}'
             docker ps -a --format '{{.Names}} {{.Status}} {{.Image}}'
-            du -xhd1 /opt /var /home /opt/stock-release /opt/stock-blog-style
-            du -xhd1 /opt/stock-release
+            du -x -B1 -d2 / 2>/dev/null || true
+            du -x -B1 -d1 /opt/stock-release /var/lib
             python3 - <<'PY'
             import glob, json, os, datetime
             archives = []
