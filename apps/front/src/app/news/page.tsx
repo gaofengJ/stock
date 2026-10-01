@@ -7,7 +7,7 @@ import {
   Alert, Button, Checkbox, DatePicker, Drawer, Empty, Input, Pagination, Segmented, Select, Skeleton, Space, Switch, Tag, Tooltip, message,
 } from 'antd';
 import {
-  ReloadOutlined, SettingOutlined, StarFilled, StarOutlined, ExportOutlined,
+  ReloadOutlined, SettingOutlined, StarFilled, StarOutlined, ExportOutlined, InfoCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import CommonLayout from '@/components/Layout';
@@ -18,7 +18,7 @@ import styles from './news.module.scss';
 
 interface NewsItem { id: number; source: string; sourceName: string; kind: string; title: string; body: string; originalUrl: string | null; important: boolean; publishedAt: string; timeBasis: string; favorite: boolean }
 interface NewsList { items: NewsItem[]; total: number; updatedAt: string; date: string }
-interface Source { code: string; name: string; enabled: boolean; intervalSeconds: number; status: string; lastSuccess: string | null; nextAttempt: string | null; lastError: string; lastAdded: number; availabilityNote?: string }
+interface Source { code: string; name: string; enabled: boolean; intervalSeconds: number; status: string; lastSuccess: string | null; nextAttempt: string | null; lastError: string; lastAdded: number; availabilityNote?: string; description?: string }
 interface SourceState { collecting: boolean; sources: Source[] }
 const chinaDate = () => new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
 const formatTime = (date: string | null, full = false) => (date ? new Intl.DateTimeFormat('zh-CN', {
@@ -119,6 +119,8 @@ export default function Page() {
     setSyncBusy(true);
     try { const result = await api<{ message: string }>('/news/sync', 'POST'); message.success(result.message); loadSources(); } catch (e) { message.error(errorMessage(e)); } finally { setSyncBusy(false); }
   };
+  const selectedSource = sources.sources.find((s) => s.code === source);
+  const sourceTip = selectedSource?.description ? `${selectedSource.name}：${selectedSource.description}` : '快讯、财经报道、研报与热门讨论。';
   const failed = sources.sources.filter((s) => s.enabled && s.status === 'error');
   const successful = sources.sources.filter((s) => s.enabled && s.status === 'ok').length;
   let emptyText = '当天暂无资讯，采集后将在这里显示，也可选择其他日期';
@@ -157,7 +159,12 @@ export default function Page() {
         </div>
         <div className={styles.filters}>
           <Segmented value={kind} options={[{ label: '全部资讯', value: '' }, { label: '快讯', value: 'flash' }, { label: '报道', value: 'article' }]} onChange={(v) => { setKind(String(v)); setPage(1); }} />
-          <Select aria-label="资讯来源" showSearch optionFilterProp="label" value={source} className={styles.sourceSelect} options={[{ label: '全部来源', value: '' }, ...sources.sources.map((s) => ({ label: s.name, value: s.code }))]} onChange={(v) => { setSource(v); setPage(1); }} />
+          <Space size={0}>
+            <Select aria-label="资讯来源" showSearch optionFilterProp="label" value={source} popupMatchSelectWidth={240} className={styles.sourceSelect} options={[{ label: '全部来源', value: '' }, ...sources.sources.map((s) => ({ label: s.name, value: s.code }))]} onChange={(v) => { setSource(v); setPage(1); }} />
+            <Tooltip title={sourceTip} trigger={['hover', 'focus', 'click']}>
+              <Button type="text" size="small" aria-label="来源内容说明" icon={<InfoCircleOutlined />} />
+            </Tooltip>
+          </Space>
           <DatePicker aria-label="资讯日期" allowClear={false} disabled={favorites} value={dayjs(date)} disabledDate={(d) => d.format('YYYY-MM-DD') > chinaDate()} onChange={(d) => { if (d) { setDate(d.format('YYYY-MM-DD')); setPage(1); } }} />
           <Input.Search placeholder="搜索标题或正文" aria-label="搜索资讯" allowClear maxLength={80} className={styles.search} onSearch={(v) => { setKeyword(v.trim()); setPage(1); }} />
           <Checkbox checked={important} onChange={(e) => { setImportant(e.target.checked); setPage(1); }}>仅重点</Checkbox>
@@ -251,7 +258,14 @@ export default function Page() {
         {sources.sources.map((s) => (
           <section key={s.code} className={styles.sourceCard}>
             <div className={styles.sourceTitle}>
-              <strong>{s.name}</strong>
+              <Space size={4}>
+                <strong>{s.name}</strong>
+                {s.description && (
+                  <Tooltip title={s.description} trigger={['hover', 'focus', 'click']}>
+                    <Button type="text" size="small" aria-label={`${s.name}内容说明`} icon={<InfoCircleOutlined />} />
+                  </Tooltip>
+                )}
+              </Space>
               <Space>
                 <Tag color={sourceColor(s)}>{!s.enabled ? '未启用' : statusText[s.status] || '等待采集'}</Tag>
                 {manager && <Switch aria-label={`启用${s.name}`} checked={s.enabled} loading={configBusy === s.code} disabled={Boolean(configBusy)} onChange={(v) => updateSource(s, { enabled: v })} />}
