@@ -320,42 +320,51 @@ export class NewsService implements OnApplicationBootstrap {
         throw new Error('Invalid feed items');
       let added = 0;
       for (const item of normalized) {
-        const result = await q.query(
-          `INSERT INTO t_news_item(source,dedupe_key,kind,title,body,original_url,important,published_at,time_basis,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE title=VALUES(title),body=VALUES(body),original_url=VALUES(original_url),important=GREATEST(important,VALUES(important)),published_at=IF(time_basis='collected' AND VALUES(time_basis)='published',VALUES(published_at),published_at),time_basis=IF(VALUES(time_basis)='published','published',time_basis),updated_at=UTC_TIMESTAMP(3)`,
-          [
-            source.code,
-            item.key,
-            item.kind,
-            item.title,
-            item.body,
-            item.url,
-            important.has(item.key) ? 1 : 0,
-            sqlDate(item.date),
-            item.timeBasis,
-          ],
-        );
-        if (result.affectedRows === 1) added += 1;
-        if (item.sourceHash) {
-          // Clear an old translation if its English text changed. Missing translation
-          // on an unchanged item keeps the last good result through runner outages.
-          await q.query(
-            'DELETE t FROM t_news_translation t JOIN t_news_item n ON n.id=t.news_id WHERE n.source=? AND n.dedupe_key=? AND t.source_hash<>?',
-            [source.code, item.key, item.sourceHash],
-          );
-        }
-        if (item.translation?.title) {
-          await q.query(
-            `INSERT INTO t_news_translation(news_id,source_hash,title,body,engine,model,updated_at) SELECT id,?,?,?,?,?,UTC_TIMESTAMP(3) FROM t_news_item WHERE source=? AND dedupe_key=? ON DUPLICATE KEY UPDATE source_hash=VALUES(source_hash),title=VALUES(title),body=VALUES(body),engine=VALUES(engine),model=VALUES(model),updated_at=UTC_TIMESTAMP(3)`,
+        // Publish English changes and their matching translation as one unit.
+        if (item.sourceHash) await q.startTransaction();
+        try {
+          const result = await q.query(
+            `INSERT INTO t_news_item(source,dedupe_key,kind,title,body,original_url,important,published_at,time_basis,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE title=VALUES(title),body=VALUES(body),original_url=VALUES(original_url),important=GREATEST(important,VALUES(important)),published_at=IF(time_basis='collected' AND VALUES(time_basis)='published',VALUES(published_at),published_at),time_basis=IF(VALUES(time_basis)='published','published',time_basis),updated_at=UTC_TIMESTAMP(3)`,
             [
-              item.translation.sourceHash,
-              item.translation.title,
-              item.translation.body,
-              item.translation.engine,
-              item.translation.model,
               source.code,
               item.key,
+              item.kind,
+              item.title,
+              item.body,
+              item.url,
+              important.has(item.key) ? 1 : 0,
+              sqlDate(item.date),
+              item.timeBasis,
             ],
           );
+          if (item.sourceHash) {
+            // Clear an old translation if its English text changed. Missing translation
+            // on an unchanged item keeps the last good result through runner outages.
+            await q.query(
+              'DELETE t FROM t_news_translation t JOIN t_news_item n ON n.id=t.news_id WHERE n.source=? AND n.dedupe_key=? AND t.source_hash<>?',
+              [source.code, item.key, item.sourceHash],
+            );
+          }
+          if (item.translation?.title) {
+            await q.query(
+              `INSERT INTO t_news_translation(news_id,source_hash,title,body,engine,model,updated_at) SELECT id,?,?,?,?,?,UTC_TIMESTAMP(3) FROM t_news_item WHERE source=? AND dedupe_key=? ON DUPLICATE KEY UPDATE source_hash=VALUES(source_hash),title=VALUES(title),body=VALUES(body),engine=VALUES(engine),model=VALUES(model),updated_at=UTC_TIMESTAMP(3)`,
+              [
+                item.translation.sourceHash,
+                item.translation.title,
+                item.translation.body,
+                item.translation.engine,
+                item.translation.model,
+                source.code,
+                item.key,
+              ],
+            );
+          }
+          if (item.sourceHash) await q.commitTransaction();
+          if (result.affectedRows === 1) added += 1;
+        } catch (error) {
+          if (item.sourceHash && q.isTransactionActive)
+            await q.rollbackTransaction();
+          throw error;
         }
       }
       await q.query(
