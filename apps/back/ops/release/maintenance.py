@@ -173,7 +173,7 @@ def docker_plan(containers, images, failed_prefixes, now=None):
     for item in containers:
         match = PREVIOUS.fullmatch(item['Name'].lstrip('/'))
         eligible = (match and item['Id'] not in newest and not item['State']['Running']
-                    and now-timestamp(item['Created']) >= 7*DAY and match[1] not in failed_prefixes)
+                    and now-timestamp(item['Created']) >= 7*DAY and match.group(1) not in failed_prefixes)
         if eligible:
             remove.append(item['Id'])
         else:
