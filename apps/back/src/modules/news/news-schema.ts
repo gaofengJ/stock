@@ -1,3 +1,5 @@
+import { NEWS_SOURCES } from './news.sources';
+
 export async function checkNewsSchema(db: {
   query: (sql: string, args?: any[]) => Promise<any>;
 }) {
@@ -30,4 +32,11 @@ export async function checkNewsSchema(db: {
     )
       throw new Error(`News migration required: ${key.table}.${key.name}`);
   });
+  const sources = await db.query('SELECT source FROM t_news_source');
+  if (
+    NEWS_SOURCES.some(
+      (source) => !sources.some((row: any) => row.source === source.code),
+    )
+  )
+    throw new Error('News source configuration migration required');
 }

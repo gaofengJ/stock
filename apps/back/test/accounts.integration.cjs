@@ -15,6 +15,8 @@ const { MarketAnalysis1790553600000 } = require('../dist/migrations/179055360000
 const { LoginActivity1790640000000 } = require('../dist/migrations/1790640000000-LoginActivity');
 const { DragonPermission1790812800000 } = require('../dist/migrations/1790812800000-DragonPermission');
 const { RealTimeNews1790812800001 } = require('../dist/migrations/1790812800001-RealTimeNews');
+const { ExpandedNewsSources1790832000000, EXPANDED_NEWS_CODES } = require('../dist/migrations/1790832000000-ExpandedNewsSources');
+const { NEWS_SOURCES } = require('../dist/modules/news/news.sources');
 const { NewsModule } = require('../dist/modules/news/news.module');
 const { NewsService } = require('../dist/modules/news/news.service');
 const { ConfigModule } = require('@nestjs/config');
@@ -66,7 +68,21 @@ async function main() {
     const newsMigration = new RealTimeNews1790812800001();
     await newsMigration.up(q);
     await newsMigration.up(q);
-    assert.equal(Number((await db.query('SELECT COUNT(*) n FROM t_news_source'))[0].n), 6);
+    assert.equal(Number((await db.query('SELECT COUNT(*) n FROM t_news_source'))[0].n), NEWS_SOURCES.length);
+    // Upgrade an already deployed six-source installation; the old migration does not run again.
+    await db.query('DELETE FROM t_news_source WHERE source IN (?)', [[...EXPANDED_NEWS_CODES]]);
+    await db.query("UPDATE t_news_source SET enabled=0,interval_seconds=300 WHERE source='jin10'");
+    const expandedNews = new ExpandedNewsSources1790832000000();
+    await expandedNews.up(q);
+    assert.equal(Number((await db.query('SELECT COUNT(*) n FROM t_news_source'))[0].n), NEWS_SOURCES.length);
+    assert.equal(Number((await db.query("SELECT interval_seconds FROM t_news_source WHERE source='cls-news'"))[0].interval_seconds), 600);
+    await db.query("UPDATE t_news_source SET enabled=0,interval_seconds=120 WHERE source='cls'");
+    await expandedNews.up(q);
+    const [preservedSource] = await db.query("SELECT enabled,interval_seconds FROM t_news_source WHERE source='cls'");
+    assert.equal(Number(preservedSource.enabled), 0);
+    assert.equal(Number(preservedSource.interval_seconds), 120);
+    assert.equal(Number((await db.query("SELECT interval_seconds FROM t_news_source WHERE source='jin10'"))[0].interval_seconds), 300);
+    await db.query("UPDATE t_news_source SET enabled=1,interval_seconds=120 WHERE source='jin10'");
     assert.equal(Number((await db.query("SELECT COUNT(*) n FROM t_role_permission rp JOIN t_role r ON r.id=rp.role_id JOIN t_permission p ON p.id=rp.permission_id WHERE r.code='user' AND p.code='news:manage'"))[0].n), 0, 'Ordinary users cannot manage sources');
     const [portrait] = await db.query("SELECT avatar FROM t_user WHERE username='mufeng'");
     assert.match(portrait.avatar, /^auto-bull-(red|pink|gold|green|blue|purple|coffee)-(star|heart|flower|bow)$/);
@@ -126,8 +142,11 @@ async function main() {
     const newsService = app.get(NewsService);
     newsService.fetch = async (route) => {
       if (route.startsWith('/stcn')) throw new Error('Fixture upstream failure');
-      return [{id:'fixture-'+route,title:'采集测试',content_html:'<p>安全正文</p>',date_published:route==='/yicai/headline'?null:new Date().toISOString(),url:'https://example.com/news'}];
+      if (route === '/10jqka/realtimenews/%E9%87%8D%E8%A6%81') throw new Error('Fixture important feed failure');
+      const identity = route === '/wallstreetcn/live/global/2' ? '/wallstreetcn/live' : route;
+      return [{id:'fixture-'+identity,title:'采集测试',content_html:'<p>安全正文</p>',date_published:route==='/yicai/headline'?null:new Date().toISOString(),url:'https://example.com/news'}];
     };
+    newsService.fetchSource = async source => newsService.fetch(source.path);
     await db.query("INSERT INTO t_news_item(source,dedupe_key,kind,title,body,important,published_at,created_at,updated_at) VALUES('jin10',REPEAT('b',64),'flash','旧收藏','正文',0,'2020-01-01',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3)),('jin10',REPEAT('c',64),'flash','旧未收藏','正文',0,'2020-01-01',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))");
     const [oldFavorite] = await db.query("SELECT id FROM t_news_item WHERE dedupe_key=REPEAT('b',64)");
     await db.query('INSERT INTO t_news_favorite(user_id,news_id,created_at) VALUES(?,?,UTC_TIMESTAMP(3))',[user.user.id,oldFavorite.id]);
@@ -140,6 +159,8 @@ async function main() {
     assert.equal(failedSource.status, 'error');
     const [goodSource] = await db.query("SELECT * FROM t_news_source WHERE source='yicai'");
     assert.equal(goodSource.status, 'ok');
+    assert.equal(Number((await db.query("SELECT COUNT(*) n FROM t_news_item WHERE source='wallstreetcn' AND important=1"))[0].n), 1, 'Important feed matches the regular item without inserting a duplicate');
+    assert.equal((await db.query("SELECT status FROM t_news_source WHERE source='ths'"))[0].status, 'ok', 'Important feed failure does not interrupt ordinary collection');
     const beforeCount = Number((await db.query('SELECT COUNT(*) n FROM t_news_item'))[0].n);
     await db.query('UPDATE t_news_source SET last_attempt=NULL,next_attempt=NULL');
     await newsService.sync(true);

@@ -9,6 +9,19 @@ const tables = [
 const total = 3 * GiB + 65536;
 
 describe('Release disk space budget', () => {
+  it('keeps the full backup while budgeting only source configuration for news expansion', () => {
+    const sourceTables = [...tables, { name: 't_news_source', bytes: 16384 }];
+    expect(
+      planReleaseSpace(sourceTables, ['ExpandedNewsSources1790832000000']),
+    ).toMatchObject({
+      requiredFreeBytes: (total + 16384) * 2 + 16384 * 2 + GiB,
+      spaceBudget: {
+        migrationBytes: 16384 * 2,
+        affectedTables: ['t_news_source'],
+        unprofiled: [],
+      },
+    });
+  });
   it('reserves a full backup but only account-table workspace for login activity', () => {
     expect(
       planReleaseSpace(tables, ['LoginActivity1790640000000']),

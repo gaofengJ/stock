@@ -67,10 +67,11 @@ export function normalizeNews(
   const title = plainText(item.title, 512) || body.slice(0, 160);
   if (!title) return null;
   const url = safeUrl(item.url);
-  const date =
-    typeof item.date_published === 'string'
-      ? new Date(item.date_published)
-      : now;
+  const publication =
+    typeof item.date_published === 'string' && item.date_published.trim()
+      ? item.date_published
+      : null;
+  const date = publication ? new Date(publication) : now;
   if (
     !Number.isFinite(date.getTime()) ||
     date.getTime() > now.getTime() + 300000
@@ -82,8 +83,7 @@ export function normalizeNews(
       : url || `${title}|${date.toISOString().slice(0, 10)}`;
   return {
     key: createHash('sha256').update(identity).digest('hex'),
-    timeBasis:
-      typeof item.date_published === 'string' ? 'published' : 'collected',
+    timeBasis: publication ? 'published' : 'collected',
     title,
     body,
     url,
