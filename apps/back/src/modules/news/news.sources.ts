@@ -4,11 +4,12 @@ export interface NewsSource {
   path: string;
   kind: 'flash' | 'article';
   enabled: boolean;
-  provider?: 'rsshub' | 'sina-flash';
+  provider?: 'rsshub' | 'sina-flash' | 'bloomberg-relay';
   intervalSeconds?: number;
   importantPath?: string;
   availabilityNote?: string;
   description?: string;
+  category?: 'research';
 }
 
 export const NEWS_SOURCES: readonly NewsSource[] = [
@@ -58,12 +59,14 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'bloomberg',
     name: '彭博市场',
-    description: '全球市场与财经报道（英文）。',
+    description: '彭博公开市场新闻与摘要（英文）。',
     path: '/bloomberg/markets',
+    provider: 'bloomberg-relay',
     kind: 'article',
-    enabled: false,
+    enabled: true,
+    intervalSeconds: 300,
     availabilityNote:
-      '当前服务器 DNS 解析异常，校正地址后 TLS 连接仍中断；需要可访问彭博的采集网络。',
+      '境外任务每 5 分钟采集官方公开 RSS，展示标题、摘要和原文链接；调度可能延迟。',
   },
   {
     code: 'cls',
@@ -127,7 +130,8 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
     description: '券商市场策略研报。',
     path: '/eastmoney/report/strategyreport',
     kind: 'article',
-    enabled: true,
+    enabled: false,
+    category: 'research',
     intervalSeconds: 1800,
   },
   {
@@ -136,7 +140,8 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
     description: '宏观经济与政策研报。',
     path: '/eastmoney/report/macresearch',
     kind: 'article',
-    enabled: true,
+    enabled: false,
+    category: 'research',
     intervalSeconds: 1800,
   },
   {
@@ -145,7 +150,8 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
     description: '券商晨间市场摘要。',
     path: '/eastmoney/report/brokerreport',
     kind: 'article',
-    enabled: true,
+    enabled: false,
+    category: 'research',
     intervalSeconds: 1800,
   },
   {
@@ -154,7 +160,8 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
     description: '行业趋势与研究报告。',
     path: '/eastmoney/report/industry',
     kind: 'article',
-    enabled: true,
+    enabled: false,
+    category: 'research',
     intervalSeconds: 1800,
   },
   {
@@ -163,7 +170,8 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
     description: '个股研究与公司分析。',
     path: '/eastmoney/report/stock',
     kind: 'article',
-    enabled: true,
+    enabled: false,
+    category: 'research',
     intervalSeconds: 1800,
   },
   {
@@ -191,3 +199,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
 ];
 export const sourceByCode = (code: string) =>
   NEWS_SOURCES.find((s) => s.code === code);
+
+export const isNewsSource = (
+  source: NewsSource | undefined,
+): source is NewsSource => Boolean(source && source.category !== 'research');

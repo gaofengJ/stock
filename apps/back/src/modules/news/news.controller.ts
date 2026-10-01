@@ -27,8 +27,10 @@ export class NewsController {
 
   @Get('sources')
   @Permit('news:read')
-  sources() {
-    return this.news.sources();
+  sources(@Req() req: AuthRequest) {
+    return this.news.sources(
+      Boolean(req.authUser?.permissions.includes('news:manage')),
+    );
   }
 
   @Patch('sources/:code')

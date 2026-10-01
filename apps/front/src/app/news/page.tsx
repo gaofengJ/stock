@@ -119,10 +119,12 @@ export default function Page() {
     setSyncBusy(true);
     try { const result = await api<{ message: string }>('/news/sync', 'POST'); message.success(result.message); loadSources(); } catch (e) { message.error(errorMessage(e)); } finally { setSyncBusy(false); }
   };
-  const selectedSource = sources.sources.find((s) => s.code === source);
-  const sourceTip = selectedSource?.description ? `${selectedSource.name}：${selectedSource.description}` : '快讯、财经报道、研报与热门讨论。';
-  const failed = sources.sources.filter((s) => s.enabled && s.status === 'error');
-  const successful = sources.sources.filter((s) => s.enabled && s.status === 'ok').length;
+  const availableSources = sources.sources.filter((s) => s.enabled && s.lastSuccess && ['ok', 'collecting'].includes(s.status) && !s.lastError);
+  useEffect(() => {
+    if (source && !sources.sources.some((s) => s.code === source && s.enabled && s.lastSuccess && ['ok', 'collecting'].includes(s.status) && !s.lastError)) { setSource(''); setPage(1); }
+  }, [source, sources]);
+  const selectedSource = availableSources.find((s) => s.code === source);
+  const sourceTip = selectedSource?.description ? `${selectedSource.name}：${selectedSource.description}` : '市场快讯、财经报道与热门讨论。';
   let emptyText = '当天暂无资讯，采集后将在这里显示，也可选择其他日期';
   if (source || keyword || important) emptyText = '当前筛选条件下暂无资讯';
   if (favorites) emptyText = '暂无收藏，点击资讯旁的星标即可收藏';
@@ -160,7 +162,7 @@ export default function Page() {
         <div className={styles.filters}>
           <Segmented value={kind} options={[{ label: '全部资讯', value: '' }, { label: '快讯', value: 'flash' }, { label: '报道', value: 'article' }]} onChange={(v) => { setKind(String(v)); setPage(1); }} />
           <Space size={0}>
-            <Select aria-label="资讯来源" showSearch optionFilterProp="label" value={source} popupMatchSelectWidth={240} className={styles.sourceSelect} options={[{ label: '全部来源', value: '' }, ...sources.sources.map((s) => ({ label: s.name, value: s.code }))]} onChange={(v) => { setSource(v); setPage(1); }} />
+            <Select aria-label="资讯来源" showSearch optionFilterProp="label" value={source} popupMatchSelectWidth={240} className={styles.sourceSelect} options={[{ label: '全部来源', value: '' }, ...availableSources.map((s) => ({ label: s.name, value: s.code }))]} onChange={(v) => { setSource(v); setPage(1); }} />
             <Tooltip title={sourceTip} trigger={['hover', 'focus', 'click']}>
               <Button type="text" size="small" aria-label="来源内容说明" icon={<InfoCircleOutlined />} />
             </Tooltip>
@@ -182,15 +184,13 @@ export default function Page() {
             {keyword ? ` · 关键词：${keyword}` : ''}
           </span>
           <span>
-            {successful}
+            {availableSources.length}
             {' '}
-            个来源正常
-            {` · 共 ${sources.sources.length} 个订阅入口`}
+            个可用来源
             {data ? ` · 页面更新 ${formatTime(data.updatedAt)}` : ''}
             {auto && page === 1 && !favorites ? ' · 每 30 秒刷新' : ' · 自动更新列表已暂停'}
           </span>
         </div>
-        {failed.length > 0 && <Alert className={styles.alert} type="warning" showIcon message={`${failed.map((s) => s.name).join('、')}暂不可用，已采集的资讯仍可查看，系统会自动重试。`} action={<Button size="small" onClick={() => setSettings(true)}>查看状态</Button>} />}
         {error && <Alert className={styles.alert} type="error" showIcon message={error} description={data ? '当前显示上次成功加载的资讯。' : undefined} action={<Button size="small" onClick={() => load()}>重试</Button>} />}
         <section className={styles.list} aria-label="资讯列表" aria-busy={loading}>
           {loading && !data ? <div className={styles.skeleton}><Skeleton active paragraph={{ rows: 5 }} /></div> : null}
@@ -288,8 +288,7 @@ export default function Page() {
               ) : null}
             </p>
             {s.lastError && <Alert showIcon type="warning" message={s.lastError} />}
-            {s.availabilityNote && <p className={styles.note}>{s.availabilityNote}</p>}
-            {s.code === 'bloomberg' && <p className={styles.note}>境外来源的可用性取决于服务器网络和来源访问限制。</p>}
+            {manager && s.availabilityNote && <p className={styles.note}>{s.availabilityNote}</p>}
             {manager && (
             <div className={styles.interval}>
               采集间隔

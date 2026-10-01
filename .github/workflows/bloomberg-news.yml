@@ -1,0 +1,38 @@
+name: Collect public Bloomberg news
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '3-59/5 * * * *'
+permissions:
+  contents: read
+concurrency:
+  group: stock-bloomberg-news
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify RSS validation and atomic delivery
+        run: python3 -m unittest discover -s .github/scripts -p test_bloomberg_relay.py
+      - name: Collect public market headlines and summaries
+        run: python3 .github/scripts/bloomberg_relay.py collect --file bloomberg.json
+      - name: Upload to isolated staging directory
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: bloomberg.json,.github/scripts/bloomberg_relay.py
+          target: /opt/stock-news/staging/${{ github.run_id }}
+      - name: Atomically replace the validated feed
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          command_timeout: 2m
+          script: |
+            set -eu
+            python3 /opt/stock-news/staging/${{ github.run_id }}/.github/scripts/bloomberg_relay.py receive --file /opt/stock-news/staging/${{ github.run_id }}/bloomberg.json

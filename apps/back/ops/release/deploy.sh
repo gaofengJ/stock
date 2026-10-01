@@ -125,8 +125,9 @@ db migrate > "$RUN/migration.jsonl"
 start_phase database-verify
 db verify > "$RUN/verification.json"
 start_phase start-new-service
+install -d -m 755 /opt/stock-news/feeds
 new_started=1
-docker run --restart unless-stopped --add-host host.docker.internal:172.17.0.1 --mount "type=bind,src=$ENV_FILE,dst=/run/stock/runtime.env,readonly" -e APP_ENV_FILE=/run/stock/runtime.env -e SYNC_ON_STARTUP=false -d -p 3000:3000 -v /home/logs/stock-back:/usr/src/app/apps/back/logs --name stock-back "$IMAGE"
+docker run --restart unless-stopped --add-host host.docker.internal:172.17.0.1 --mount "type=bind,src=$ENV_FILE,dst=/run/stock/runtime.env,readonly" --mount "type=bind,src=/opt/stock-news/feeds,dst=/run/stock/news-feeds,readonly" -e APP_ENV_FILE=/run/stock/runtime.env -e SYNC_ON_STARTUP=false -d -p 3000:3000 -v /home/logs/stock-back:/usr/src/app/apps/back/logs --name stock-back "$IMAGE"
 if docker network inspect stock-news >/dev/null 2>&1; then
   docker network connect stock-news stock-back
 fi

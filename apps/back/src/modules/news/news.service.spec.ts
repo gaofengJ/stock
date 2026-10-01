@@ -2,9 +2,65 @@ import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { NewsService } from './news.service';
 import { NewsQuery } from './news.dto';
+import { NEWS_SOURCES, isNewsSource } from './news.sources';
 
 describe('News service safety', () => {
   const config = new ConfigService({ NEWS_SYNC_ENABLED: 'false' });
+  it('hides retired, failed, disabled and never-collected subscriptions from readers', async () => {
+    const success = new Date('2026-10-01T00:00:00Z');
+    const rows = [
+      { source: 'jin10', enabled: 1, status: 'ok', last_success: success },
+      {
+        source: 'yicai',
+        enabled: 1,
+        status: 'collecting',
+        last_success: success,
+      },
+      {
+        source: 'stcn',
+        enabled: 1,
+        status: 'error',
+        last_success: success,
+        last_error: 'Unavailable',
+      },
+      {
+        source: 'wallstreetcn',
+        enabled: 1,
+        status: 'collecting',
+        last_success: success,
+        last_error: 'Retrying',
+      },
+      {
+        source: 'yicai-news',
+        enabled: 1,
+        status: 'pending',
+        last_success: null,
+      },
+      { source: 'bloomberg', enabled: 0, status: 'ok', last_success: success },
+      { source: 'em-stock', enabled: 1, status: 'ok', last_success: success },
+    ];
+    const service = new NewsService(
+      { query: jest.fn().mockResolvedValue(rows) } as unknown as DataSource,
+      config,
+    );
+    expect((await service.sources()).sources.map((s) => s.code)).toEqual([
+      'jin10',
+      'yicai',
+    ]);
+    const managed = (await service.sources(true)).sources;
+    expect(managed.find((s) => s.code === 'stcn')?.lastError).toBe(
+      'Unavailable',
+    );
+    expect(managed.some((s) => s.code === 'em-stock')).toBe(false);
+  });
+  it('rejects attempts to re-enable retired research subscriptions', async () => {
+    const query = jest.fn();
+    const service = new NewsService({ query } as unknown as DataSource, config);
+    await expect(
+      service.updateSource('em-stock', { enabled: true }),
+    ).rejects.toThrow('研报来源');
+    expect(query).not.toHaveBeenCalled();
+  });
   it('does not release another collector’s named lock', async () => {
     const runner = {
       connect: jest.fn(),
@@ -69,6 +125,7 @@ describe('News service safety', () => {
     );
     expect(query.mock.calls[0][1]).toEqual([
       42,
+      ...NEWS_SOURCES.filter(isNewsSource).map((source) => source.code),
       '2026-09-30 16:00:00.000',
       '2026-10-01 16:00:00.000',
       '%!%!_!!%',
