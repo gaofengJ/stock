@@ -4,7 +4,7 @@ import { marketRequest } from '@/api/market';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { useMarket } from './MarketContext';
 
-export default function useMarketData<T>(endpoint: string, extra: Record<string, unknown> = {}) {
+export default function useMarketData<T>(endpoint: string, extra: Record<string, unknown> = {}, enabled = true) {
   const {
     date, scope, days: selectedDays, status,
   } = useMarket();
@@ -21,7 +21,7 @@ export default function useMarketData<T>(endpoint: string, extra: Record<string,
   const requestKey = JSON.stringify([endpoint, date, scope, days, extraKey, revision, attempt]);
   const [loadedKey, setLoadedKey] = useState('');
   useEffect(() => {
-    if (!date) return;
+    if (!date || !enabled) return;
     runLatestRequest({
       request: () => marketRequest<T>(endpoint, {
         date, scope, days, ...JSON.parse(extraKey),
@@ -31,10 +31,10 @@ export default function useMarketData<T>(endpoint: string, extra: Record<string,
       onError: (e) => setError(errorMessage(e, '数据加载失败')),
       onFinally: () => { setLoadedKey(requestKey); setLoading(false); },
     });
-  }, [requestKey, attempt, endpoint, date, scope, days, extraKey, revision, requestConfig, runLatestRequest]);
+  }, [requestKey, attempt, endpoint, date, scope, days, extraKey, revision, requestConfig, runLatestRequest, enabled]);
   return {
     data,
-    loading: loading || loadedKey !== requestKey,
+    loading: enabled && (loading || loadedKey !== requestKey),
     error: loadedKey === requestKey ? error : '',
     retry,
   };

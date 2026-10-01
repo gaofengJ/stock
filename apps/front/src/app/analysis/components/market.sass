@@ -268,3 +268,31 @@ a.market-ladder-stock:hover, a.market-ladder-stock:focus-visible
     margin-inline-start: 0
   .market-page .market-chart .ant-card-head-title
     flex-basis: 100%
+
+.feedback-details
+  margin: 16px 0 24px
+  .ant-card
+    height: 100%
+.feedback-selected > td
+  background: var(--color-surface-muted) !important
+.trajectory-cell
+  display: flex
+  flex-direction: column
+  align-items: center
+  gap: 4px
+  min-height: 64px
+  width: 100%
+  border: 0
+  background: transparent
+  cursor: pointer
+  font-variant-numeric: tabular-nums
+  .trajectory-state
+    font-size: 12px
+    color: var(--text-secondary)
+  small
+    min-height: 14px
+    font-size: 11px
+    color: var(--color-primary)
+  &:hover, &:focus-visible
+    background: var(--color-surface-muted)
+    outline: 1px solid var(--color-border)

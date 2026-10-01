@@ -66,3 +66,11 @@ export interface DragonListing extends ClassifiedStock {
 }
 export interface DragonBoard { items: DragonListing[]; queriedAt: string }
 export const marketRequest = <T>(endpoint: string, params: Record<string, unknown> = {}, config: RequestConfig = {}) => axios.get<T>(`/analysis/market/${endpoint}`, { params, ...config });
+
+export interface FeedbackMember { tsCode: string; name: string; pctChg: number | null; highOpen: boolean; previousHeight: number | null; height: number | null; excluded: string }
+export interface FeedbackGroup { key: string; name: string; ready: boolean; total: number; sample: number; excluded: number; average: number | null; median: number | null; riseRate: number | null; highOpenRate: number | null; distribution: number[]; members: FeedbackMember[] }
+export interface FeedbackBoard { date: string; previousDate: string | null; ready: boolean; groups: FeedbackGroup[] }
+export interface StrategySignals { dates: string[]; readyDates: string[]; strategies: { key: string; label: string }[]; items: { date: string; tsCode: string; strategies: string[] }[] }
+export interface TrajectoryCell { date: string; state: string; height: number | null; pctChg: number | null; close?: number; amount?: number }
+export interface TrajectoryRow extends ClassifiedStock { tsCode: string; name: string; cells: TrajectoryCell[] }
+export interface TrajectoryBoard { date: string; dates: string[]; ready: boolean; items: TrajectoryRow[] }

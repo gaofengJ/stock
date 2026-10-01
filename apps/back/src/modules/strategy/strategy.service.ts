@@ -201,6 +201,6 @@ export class StrategyService {
       const members = await this.sectors.codes(dto.sector, date);
       ret = ret.filter((r) => members.has(r.tsCode));
     }
-    return this.sectors ? this.sectors.decorate(ret, date) : ret;
+    return this.sectors ? this.sectors.candidateContext(ret, date) : ret;
   }
 }

@@ -9,9 +9,10 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permit } from '@/modules/auth/permissions';
 import { MarketService } from './market.service';
 import { MarketBreadthService } from './market-breadth.service';
-import { DragonQueryDto, MarketQueryDto } from './market.dto';
+import { DragonQueryDto, MarketQueryDto, ResearchQueryDto } from './market.dto';
 import { SectorService } from './sector.service';
 import { SectorQueryDto } from './sector.dto';
+import { MarketResearchService } from './market-research.service';
 
 @ApiTags('市场分析')
 @Controller('market')
@@ -27,7 +28,32 @@ export class MarketController {
     private service: MarketService,
     private breadthService: MarketBreadthService,
     private sectors: SectorService,
+    private research: MarketResearchService,
   ) {}
+
+  @Get('feedback')
+  @Permit('analysis:senti')
+  feedback(@Query() q: MarketQueryDto) {
+    return this.research.feedback(q);
+  }
+
+  @Get('trajectories')
+  @Permit('analysis:chains')
+  trajectories(@Query() q: ResearchQueryDto) {
+    return this.research.trajectories(q);
+  }
+
+  @Get('strategy-signals')
+  @Permit('strategy:read')
+  signals(@Query() q: ResearchQueryDto) {
+    return this.research.signals(q);
+  }
+
+  @Get('candidate-environment')
+  @Permit('strategy:read')
+  environment(@Query() q: MarketQueryDto) {
+    return this.research.environment(q);
+  }
 
   @Get('status')
   @Permit(
@@ -41,6 +67,12 @@ export class MarketController {
   @ApiOperation({ summary: '市场数据可用日期和同步阶段' })
   status() {
     return this.service.status();
+  }
+
+  @Get('sector-signals')
+  @Permit('strategy:read')
+  sectorSignals(@Query() q: MarketQueryDto) {
+    return this.research.sectorSignals(q);
   }
 
   @Get('sectors')
