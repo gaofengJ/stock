@@ -50,6 +50,51 @@ describe('Release disk space budget', () => {
     });
   });
 
+  it('keeps the full backup without reserving a raw-price rebuild for new market tables', () => {
+    const marketTables = [
+      ...tables,
+      { name: 't_permission', bytes: 16384 },
+      { name: 't_role_permission', bytes: 16384 },
+    ];
+    expect(
+      planReleaseSpace(marketTables, [
+        'MarketBreadth1790899200000',
+        'ThsSectors1790985600000',
+      ]),
+    ).toMatchObject({
+      requiredFreeBytes: (total + 32768) * 2 + 32768 * 2 + GiB,
+      spaceBudget: {
+        backupBytes: (total + 32768) * 2,
+        migrationBytes: 32768 * 2,
+        reserveBytes: GiB,
+        mode: 'affected-tables',
+        unprofiled: [],
+      },
+    });
+  });
+
+  it('also budgets existing market tables when recovering a partially applied migration', () => {
+    const marketTables = [
+      ...tables,
+      { name: 't_processed_market_breadth', bytes: 16384 },
+      { name: 't_source_ths_sector', bytes: 16384 },
+      { name: 't_source_ths_members', bytes: 32768 },
+      { name: 't_source_ths_daily', bytes: GiB },
+      { name: 't_permission', bytes: 16384 },
+      { name: 't_role_permission', bytes: 16384 },
+    ];
+    const marketBytes = GiB + 98304;
+    expect(
+      planReleaseSpace(marketTables, [
+        'MarketBreadth1790899200000',
+        'ThsSectors1790985600000',
+      ]),
+    ).toMatchObject({
+      requiredFreeBytes: (total + marketBytes) * 2 + marketBytes * 2 + GiB,
+      spaceBudget: { migrationBytes: marketBytes * 2, unprofiled: [] },
+    });
+  });
+
   it('falls back conservatively when a new migration has no reviewed profile', () => {
     expect(
       planReleaseSpace(tables, [
