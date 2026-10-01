@@ -74,7 +74,8 @@ jobs:
         if: steps.prepare.outcome == 'success'
         continue-on-error: true
         timeout-minutes: 3
-        run: /usr/bin/time -f 'Translation peak RSS: %M KB; elapsed: %e seconds' .argos-venv/bin/python .github/scripts/translate_bloomberg.py translate --file bloomberg.json
+        run: |
+          /usr/bin/time -f 'Translation peak RSS: %M KB; elapsed: %e seconds' .argos-venv/bin/python .github/scripts/translate_bloomberg.py translate --file bloomberg.json
       - name: Save translations only when new text was translated
         if: steps.translate.outputs.changed == 'true'
         uses: actions/cache/save@v4
