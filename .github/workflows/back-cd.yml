@@ -115,6 +115,7 @@ jobs:
         env:
           SYNC_TEST_MYSQL_PORT: 3306
           SYNC_TEST_MYSQL_PASSWORD: ci-local-only
+      - run: node --test apps/back/ops/backfill-intraday-counts.test.cjs
       - name: Account integration and legacy migration
         working-directory: apps/back
         env:

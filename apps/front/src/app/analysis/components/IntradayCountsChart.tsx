@@ -53,7 +53,7 @@ export default function IntradayCountsChart() {
       title={(
         <span className="market-section-title">
           连日盘中涨跌家数
-          <HelpTooltip label="连日盘中涨跌家数" title="固定展示财联社全市场口径，不随页面统计范围切换。交易时段每5分钟采集上涨、下跌家数，包含ST。横轴连续排列交易时段，午休压缩，缺失采样和跨日之间留空；悬停可查看采集日期和时间。历史从接入后积累，最多保留30个交易日。" />
+          <HelpTooltip label="连日盘中涨跌家数" title="全市场含ST，不随页面统计范围切换。实时数据来自财联社，每5分钟采集；接入前历史使用新浪或东方财富未复权5分钟收盘价对比平台日线昨收重建，逐股校验每天收盘价，个股分钟数据不保存。历史时点为09:35–11:30、13:05–15:00。午休压缩，缺失时点和跨日之间留空，最多保留30个交易日。" />
         </span>
       )}
       extra={(
@@ -76,12 +76,13 @@ export default function IntradayCountsChart() {
       className="market-chart"
     >
       <p className="market-note">
-        财联社全市场 · 每5分钟采集 · 保留30个交易日
-        {latest && ` · 最新采集：${beijingTime(latest.collectedAt)}`}
+        {visible?.source || '财联社'}
+        {' · 全市场 · 每5分钟 · 保留30个交易日'}
+        {latest && ` · 最新时点：${latest.date} ${latest.time}`}
       </p>
       {error && loadedKey === requestKey && <Alert type="warning" showIcon message={error} description={visible?.points.length ? '以下为上次成功读取的记录。' : undefined} action={<Button size="small" onClick={retry}>重试</Button>} />}
       {loading && !visible && <LoadingOverlay />}
-      {!loading && !error && !rows.length && <Empty description="暂无盘中记录，交易时段开始采集后将自动显示；历史从接入后积累。" />}
+      {!loading && !error && !rows.length && <Empty description="暂无盘中记录，历史补齐或交易时段采集完成后将自动显示。" />}
       {rows.length > 0 && (
         <CChart
           height={360}
@@ -97,6 +98,8 @@ export default function IntradayCountsChart() {
                 return [
                   `${row.date} ${row.time}（北京时间）`,
                   row.point ? `上涨：${numberText(row.point.up, 0)}只\n下跌：${numberText(row.point.down, 0)}只` : '该时点未采集',
+                  row.point && (row.point.source === 'history_5m' ? '来源：历史5分钟行情重建' : '来源：财联社实时采集'),
+                  row.point && `入库：${beijingTime(row.point.collectedAt)}`,
                 ].join('\n');
               },
             },

@@ -35,3 +35,14 @@ test('empty history has no invented points and a single sample is visible', () =
   assert.equal(rows.length, 1);
   assert.equal(rows[0].point.down, 2824);
 });
+
+test('historical five-minute bar ends have 48 slots and no artificial midday gap', () => {
+  const rows = intradayPlot([
+    { ...point('2026-09-30', '09:35'), source: 'history_5m' },
+    { ...point('2026-09-30', '15:00'), source: 'history_5m' },
+  ], ['2026-09-30']);
+  assert.equal(rows.length, 48);
+  assert.equal(rows[0].time, '09:35');
+  assert.equal(rows[24].time, '13:05');
+  assert.equal(rows.some((row) => row.time === '13:00'), false);
+});
