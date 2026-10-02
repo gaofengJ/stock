@@ -352,6 +352,7 @@ export class TrendService {
     const [snapshots, policies, runs, raw] = await Promise.all([
       this.db.manager.find(TrendFactorEntity, {
         where: { tradeDate: In(dates) },
+        select: ['tradeDate'],
       }),
       this.db.manager.find(SyncDayPolicyEntity, {
         where: { tradeDate: In(dates) },
@@ -430,40 +431,48 @@ export class TrendService {
     );
     const points = new Map<string, Map<string, TrendPoint>>();
     const unavailable = new Map<string, Set<string>>();
-    for (const snapshot of snapshots)
-      for (const [
-        code,
-        open,
-        close,
-        high,
-        low,
-        basis,
-        conversion,
-      ] of snapshot.data) {
-        if (!candidateCodes.has(code)) continue;
-        if (open == null || close == null || high == null || low == null) {
-          if (!unavailable.has(code)) unavailable.set(code, new Set());
-          unavailable.get(code)!.add(snapshot.tradeDate);
-          continue;
-        }
-        if (!points.has(code)) points.set(code, new Map());
-        const row = rawMap.get(code)?.get(snapshot.tradeDate);
-        const volume = row?.vol;
-        points.get(code)!.set(snapshot.tradeDate, {
-          date: snapshot.tradeDate,
+    // Bound all-market JSON memory while retaining only candidate price points.
+    const factorDates = candidateCodes.size ? [...snapshotDates] : [];
+    for (let offset = 0; offset < factorDates.length; offset += 12) {
+      const batch = await this.db.manager.find(TrendFactorEntity, {
+        where: { tradeDate: In(factorDates.slice(offset, offset + 12)) },
+        select: ['tradeDate', 'data'],
+      });
+      for (const snapshot of batch)
+        for (const [
+          code,
           open,
           close,
           high,
           low,
           basis,
           conversion,
-          vol: volume == null ? undefined : Number(volume),
-          eligible: row
-            ? hasValidStrategySequence([row]) &&
-              meetsCommonStrategyConditions([row])
-            : false,
-        });
-      }
+        ] of snapshot.data) {
+          if (!candidateCodes.has(code)) continue;
+          if (open == null || close == null || high == null || low == null) {
+            if (!unavailable.has(code)) unavailable.set(code, new Set());
+            unavailable.get(code)!.add(snapshot.tradeDate);
+            continue;
+          }
+          if (!points.has(code)) points.set(code, new Map());
+          const row = rawMap.get(code)?.get(snapshot.tradeDate);
+          const volume = row?.vol;
+          points.get(code)!.set(snapshot.tradeDate, {
+            date: snapshot.tradeDate,
+            open,
+            close,
+            high,
+            low,
+            basis,
+            conversion,
+            vol: volume == null ? undefined : Number(volume),
+            eligible: row
+              ? hasValidStrategySequence([row]) &&
+                meetsCommonStrategyConditions([row])
+              : false,
+          });
+        }
+    }
     const readyByStrategy: Record<string, string[]> = Object.fromEntries(
       keys.map((key) => [key, []]),
     );
@@ -481,15 +490,13 @@ export class TrendService {
       }
     if (missingPairs.length) {
       const missingDates = [...new Set(missingPairs.map((p) => p.date))];
-      const suspended = await this.db.manager.find(DailyEntity, {
-        where: {
-          tsCode: In(
-            identity.expand([...new Set(missingPairs.map((p) => p.code))]),
-          ),
-          tradeDate: In(missingDates),
-        },
-        select: ['tsCode', 'tradeDate', 'open', 'close', 'high', 'low', 'vol'],
-      });
+      const suspended: DailyEntity[] = await this.db.query(
+        "SELECT ts_code tsCode,DATE_FORMAT(trade_date,'%Y-%m-%d') tradeDate,open,close,high,low,vol FROM t_source_daily WHERE ts_code IN (?) AND trade_date IN (?)",
+        [
+          identity.expand([...new Set(missingPairs.map((p) => p.code))]),
+          missingDates,
+        ],
+      );
       const reported = new Set(
         suspended
           .filter((row) =>
