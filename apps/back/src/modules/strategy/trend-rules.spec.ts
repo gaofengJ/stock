@@ -8,6 +8,7 @@ import {
   fiveMaState,
   requiredTrendDays,
   TrendPoint,
+  normalizeTrendSeries,
 } from './trend-rules';
 
 const point = (i: number, close = 9, vol = 100): TrendPoint => ({
@@ -17,6 +18,28 @@ const point = (i: number, close = 9, vol = 100): TrendPoint => ({
   high: close + 1,
   low: close - 1,
   vol,
+});
+test('北交所换码的不同复权基准只按已验证比例衔接，未知比例不拼接', () => {
+  const old = { ...point(0, 10), basis: '830001.BJ' };
+  const current = { ...point(1, 20), basis: '920001.BJ', conversion: 2 };
+  expect(normalizeTrendSeries([old, current], '920001.BJ', 2)?.[0]?.close).toBe(
+    20,
+  );
+  expect(
+    normalizeTrendSeries(
+      [old, { ...current, conversion: undefined }],
+      '920001.BJ',
+      2,
+    ),
+  ).toBeNull();
+  expect(
+    normalizeTrendSeries(
+      [old, { ...current, conversion: undefined }],
+      '920001.BJ',
+      1,
+    )?.[0],
+  ).toBeUndefined();
+  expect(normalizeTrendSeries([old], '920001.BJ', 1)?.[0]?.close).toBe(10);
 });
 const breakout = () => [
   ...Array.from({ length: 20 }, (_, i) => point(i)),

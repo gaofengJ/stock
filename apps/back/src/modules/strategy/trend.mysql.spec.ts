@@ -312,4 +312,32 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
       ).data[0][0],
     ).toBe('000001.SZ');
   });
+  test('北交所四价同比例的复权基准差异保留新代码并记录转换比例', async () => {
+    await db.manager.insert(BseMappingEntity, {
+      oldCode: '830001.BJ',
+      newCode: '920001.BJ',
+    });
+    const data = response();
+    data.data.items = [
+      ['920001.BJ', '20260121', 5, 5.5, 6, 5],
+      ['830001.BJ', '20260121', 10, 11, 12, 10],
+      ...Array.from({ length: 20 }, (_, i) => [
+        `${String(i + 1).padStart(6, '0')}.SZ`,
+        '20260121',
+        10,
+        11,
+        12,
+        10,
+      ]),
+    ];
+    source.queryData.mockResolvedValue(data);
+    await service.syncDay(db.manager, latest, true);
+    expect(
+      (
+        await db.manager.findOneByOrFail(TrendFactorEntity, {
+          tradeDate: latest,
+        })
+      ).data.find((row) => row[0] === '920001.BJ'),
+    ).toEqual(['920001.BJ', 5, 5.5, 6, 5, '920001.BJ', 0.5]);
+  });
 });

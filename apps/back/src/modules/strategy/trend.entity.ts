@@ -8,6 +8,8 @@ export type TrendFactor = [
   number | null,
   number | null,
   number | null,
+  string?,
+  number?,
 ];
 @Entity('t_source_strategy_factor')
 @Index('uq_strategy_factor_date', ['tradeDate'], { unique: true })

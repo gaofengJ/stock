@@ -39,7 +39,41 @@ export type TrendPoint = {
   low: number;
   vol?: number;
   eligible?: boolean;
+  basis?: string;
+  conversion?: number;
 };
+// Code changes can reset the provider's HFQ baseline. Only bridge two bases
+// when the same day's four prices confirm a uniform conversion.
+export function normalizeTrendSeries(
+  points: (TrendPoint | undefined)[],
+  canonical: string,
+  required: number,
+) {
+  const conversion = [...points].reverse().find((p) => p?.conversion)
+    ?.conversion;
+  const normalized = points.map((p) => {
+    if (!p || !conversion || !p.basis || p.basis === canonical) return p;
+    return {
+      ...p,
+      basis: canonical,
+      open: p.open * conversion,
+      close: p.close * conversion,
+      high: p.high * conversion,
+      low: p.low * conversion,
+    };
+  });
+  const bases = new Set(
+    normalized
+      .slice(-required)
+      .filter(Boolean)
+      .map((p) => p!.basis || canonical),
+  );
+  if (bases.size > 1) return null;
+  const [basis] = bases;
+  return normalized.map((p) =>
+    p && (p.basis || canonical) !== basis ? undefined : p,
+  );
+}
 export type TrendEvidence = {
   breakoutPrice?: number;
   breakoutPct?: number;

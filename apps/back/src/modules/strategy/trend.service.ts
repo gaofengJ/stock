@@ -36,6 +36,7 @@ import {
   TrendOptions,
   TrendPoint,
   TREND_DEFAULTS,
+  normalizeTrendSeries,
 } from './trend-rules';
 
 @Injectable()
@@ -126,23 +127,48 @@ export class TrendService {
           )
         )
           throw new Error('复权行情价格无效');
-        const tuple = [code, ...prices.map(Number)] as [
-          string,
-          number,
-          number,
-          number,
-          number,
+        const tuple: TrendFactor = [
+          code,
+          Number(prices[0]),
+          Number(prices[1]),
+          Number(prices[2]),
+          Number(prices[3]),
         ];
+        if (code.endsWith('.BJ')) tuple[5] = row.ts_code;
         if (
-          tuple[3] + 1e-8 < Math.max(tuple[1], tuple[2]) ||
-          tuple[4] - 1e-8 > Math.min(tuple[1], tuple[2])
+          tuple[3]! + 1e-8 < Math.max(tuple[1]!, tuple[2]!) ||
+          tuple[4]! - 1e-8 > Math.min(tuple[1]!, tuple[2]!)
         )
           throw new Error('复权行情四价异常');
-        if (
-          data.has(code) &&
-          JSON.stringify(data.get(code)) !== JSON.stringify(tuple)
-        )
-          throw new Error('北交所新旧代码复权行情冲突');
+        const previousTuple = data.get(code);
+        if (previousTuple) {
+          const different = [1, 2, 3, 4].some(
+            (i) => previousTuple[i] !== tuple[i],
+          );
+          if (different) {
+            if (
+              !previousTuple[1] ||
+              previousTuple[5] === row.ts_code ||
+              !tuple[5]
+            )
+              throw new Error('北交所新旧代码复权行情冲突');
+            const newer = row.ts_code === code ? tuple : previousTuple;
+            const older = row.ts_code === code ? previousTuple : tuple;
+            const ratio = Number(newer[2]) / Number(older[2]);
+            if (
+              [1, 2, 3, 4].some(
+                (i) =>
+                  Math.abs(Number(newer[i]) / Number(older[i]) / ratio - 1) >
+                  1e-5,
+              )
+            )
+              throw new Error('北交所新旧代码复权行情冲突');
+            newer[6] = ratio;
+            data.set(code, newer);
+            continue;
+          }
+          if (previousTuple[5] === code) continue;
+        }
         data.set(code, tuple);
       }
       const previous = await manager.findOneBy(TrendFactorEntity, {
@@ -405,7 +431,15 @@ export class TrendService {
     const points = new Map<string, Map<string, TrendPoint>>();
     const unavailable = new Map<string, Set<string>>();
     for (const snapshot of snapshots)
-      for (const [code, open, close, high, low] of snapshot.data) {
+      for (const [
+        code,
+        open,
+        close,
+        high,
+        low,
+        basis,
+        conversion,
+      ] of snapshot.data) {
         if (!candidateCodes.has(code)) continue;
         if (open == null || close == null || high == null || low == null) {
           if (!unavailable.has(code)) unavailable.set(code, new Set());
@@ -421,6 +455,8 @@ export class TrendService {
           close,
           high,
           low,
+          basis,
+          conversion,
           vol: volume == null ? undefined : Number(volume),
           eligible: row
             ? hasValidStrategySequence([row]) &&
@@ -533,7 +569,9 @@ export class TrendService {
             missing += 1;
             continue;
           }
-          const evidence = evaluateTrend(key, series, options);
+          const normalized = normalizeTrendSeries(series, code, required);
+          if (!normalized) continue;
+          const evidence = evaluateTrend(key, normalized, options);
           if (evidence)
             selected.push(
               Object.assign(new DailyEntity(), today, {
