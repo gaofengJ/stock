@@ -21,7 +21,12 @@ export function intradayPlot(points: IntradayCountPoint[], dates: string[]): Int
   const bySlot = new Map(points.map((point) => [`${point.date} ${point.time}`, point]));
   const latest = points.at(-1);
   return dates.flatMap((date, dayIndex) => {
-    const times = sessionTimes.filter((time) => date !== latest?.date || time <= latest.time);
+    const dayPoints = points.filter((point) => point.date === date);
+    const historyOnly = dayPoints.length > 0 && dayPoints.every((point) => point.source === 'history_5m');
+    const times = sessionTimes.filter((time) => (
+      (!historyOnly || (time !== '09:30' && time !== '13:00'))
+      && (date !== latest?.date || time <= latest.time)
+    ));
     const rows = times.map((time, index) => ({
       label: `${date} ${time}`, date, time, point: bySlot.get(`${date} ${time}`) || null, first: index === 0,
     }));

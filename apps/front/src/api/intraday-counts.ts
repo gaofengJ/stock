@@ -4,6 +4,7 @@ export interface IntradayCountPoint {
   up: number;
   down: number;
   collectedAt: string;
+  source?: 'cls' | 'history_5m';
 }
 
 export interface IntradayCounts {

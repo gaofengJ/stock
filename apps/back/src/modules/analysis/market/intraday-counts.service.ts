@@ -139,12 +139,19 @@ export class IntradayCountsService implements OnApplicationBootstrap {
     );
     const rows = dates.length
       ? await this.db.query(
-          "SELECT DATE_FORMAT(trade_date,'%Y-%m-%d') date,TIME_FORMAT(sample_time,'%H:%i') time,up_count,down_count,collected_at FROM t_market_intraday_counts WHERE trade_date>=? AND trade_date<=? ORDER BY trade_date,sample_time",
+          "SELECT DATE_FORMAT(trade_date,'%Y-%m-%d') date,TIME_FORMAT(sample_time,'%H:%i') time,up_count,down_count,collected_at,source FROM t_market_intraday_counts WHERE trade_date>=? AND trade_date<=? ORDER BY trade_date,sample_time",
           [dates[dates.length - 1].date, end],
         )
       : [];
+    const sources = new Set(rows.map((row: any) => row.source || 'cls'));
+    let source = '财联社';
+    if (sources.has('history_5m')) {
+      source = sources.has('cls')
+        ? '财联社实时 / 历史行情重建'
+        : '5分钟行情历史重建';
+    }
     return {
-      source: '财联社',
+      source,
       scope: 'all',
       intervalMinutes: INTRADAY_INTERVAL_MINUTES,
       retentionDays: INTRADAY_RETENTION_DAYS,
@@ -156,6 +163,7 @@ export class IntradayCountsService implements OnApplicationBootstrap {
         up: Number(row.up_count),
         down: Number(row.down_count),
         collectedAt: new Date(row.collected_at).toISOString(),
+        source: row.source || 'cls',
       })),
     };
   }

@@ -18,6 +18,7 @@ import { NewsReadingFeatures1791158400000 } from './migrations/1791158400000-New
 import { StockIdentity1791244800000 } from './migrations/1791244800000-StockIdentity';
 import { IntradayCounts1791331200000 } from './migrations/1791331200000-IntradayCounts';
 import { StrategyTrend1791417600000 } from './migrations/1791417600000-StrategyTrend';
+import { IntradayCountsSource1791504000001 } from './migrations/1791504000001-IntradayCountsSource';
 
 dotenv.config({
   path:
@@ -51,6 +52,7 @@ export default new DataSource({
     StockIdentity1791244800000,
     IntradayCounts1791331200000,
     StrategyTrend1791417600000,
+    IntradayCountsSource1791504000001,
   ],
   migrationsTransactionMode: 'none',
   logging: false,

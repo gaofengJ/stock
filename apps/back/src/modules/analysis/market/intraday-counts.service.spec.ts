@@ -168,4 +168,34 @@ describe('财联社盘中涨跌家数', () => {
     });
     expect(test.fetch).not.toHaveBeenCalled();
   });
+
+  it('历史重建和实时采样分别返回来源，混合查询不误标为财联社', async () => {
+    const test = fixture();
+    test.db.query
+      .mockResolvedValueOnce([{ date: '2026-09-30' }])
+      .mockResolvedValueOnce([
+        {
+          date: '2026-09-30',
+          time: '09:35',
+          up_count: 2000,
+          down_count: 3000,
+          collected_at: now,
+          source: 'history_5m',
+        },
+        {
+          date: '2026-09-30',
+          time: '09:40',
+          up_count: 2100,
+          down_count: 2900,
+          collected_at: now,
+          source: 'cls',
+        },
+      ]);
+    const result = await test.service.series(new IntradayCountsQueryDto());
+    expect(result.source).toBe('财联社实时 / 历史行情重建');
+    expect(
+      result.points.map((point: { source: string }) => point.source),
+    ).toEqual(['history_5m', 'cls']);
+    expect(test.fetch).not.toHaveBeenCalled();
+  });
 });
