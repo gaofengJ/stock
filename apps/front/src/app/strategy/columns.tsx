@@ -177,3 +177,31 @@ export const strategyColumns: ColumnsType = [
     render: (val) => scaledNumber(val, 10000),
   },
 ];
+
+export function trendColumns(strategy: string): ColumnsType {
+  const field = (name: string, title: string, suffix = '', signed = false, digits = 2): ColumnsType[number] => ({
+    key: name,
+    title,
+    width: 130,
+    align: 'right',
+    render: (_, row) => (row.trendEvidence?.[name] == null ? '—' : `${numberText(row.trendEvidence[name], digits, signed)}${suffix}`),
+  });
+  if (strategy === 'volumeBreakout') return [field('breakoutPct', '突破幅度', '%', true), field('volumeMultiple', '成交量／基准均量', '倍')];
+  if (strategy === 'breakoutPullback') {
+    return [
+      {
+        key: 'breakoutDate', title: '突破日', width: 120, render: (_, row) => row.trendEvidence?.breakoutDate || '—',
+      },
+      field('pullbackPct', '低点距突破位', '%', true), field('contractionRatio', '回踩均量／突破量', '倍'),
+    ];
+  }
+  if (strategy === 'fiveMaUp') {
+    return [
+      {
+        key: 'streak', title: '顺上持续', width: 110, align: 'right', render: (_, row) => (row.trendEvidence ? `${row.trendEvidence.streakCapped ? '≥' : ''}${row.trendEvidence.streak}日` : '—'),
+      },
+      field('aboveMa5Pct', '收盘偏离MA5', '%', true),
+    ];
+  }
+  return [];
+}

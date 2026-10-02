@@ -31,6 +31,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { DataLockInterceptor } from './modules/admin/data-lock.interceptor';
 import { NewsModule } from './modules/news/news.module';
 import { StockIdentityModule } from './modules/source/stock/stock-identity.module';
+import { TrendModule } from './modules/strategy/trend.module';
 
 @Module({
   imports: [
@@ -112,6 +113,7 @@ import { StockIdentityModule } from './modules/source/stock/stock-identity.modul
      * 策略选股
      */
     StrategyModule,
+    TrendModule,
     /**
      * 基础数据模块
      */

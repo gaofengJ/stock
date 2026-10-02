@@ -40,9 +40,11 @@ export default function Page() {
     kind, code, period, days: 730, scope: 'all',
   });
   const signals = useMarketData<StrategySignals & { date: string; counts: { code: string; count: number; strategies: { key: string; count: number }[] }[] }>('sector-signals', { scope: 'all', days: 20 }, allowedPath(user, '/strategy'));
-  const signalsReady = !signals.loading && !signals.error && signals.data?.date === date && signals.data.readyDates.includes(date);
+  const signalsReady = !signals.loading && !signals.error && signals.data?.date === date
+    && Object.values(signals.data.readyByStrategy || { legacy: signals.data.readyDates }).some((dates) => dates.includes(date));
   const counts = new Map(signals.data?.counts.map((r) => [r.code, r]) || []);
   const strategyLabels = new Map(signals.data?.strategies.map((r) => [r.key, r.label]) || []);
+  const pendingStrategies = signals.data?.strategies.filter((s) => !(signals.data?.readyByStrategy?.[s.key] || signals.data?.readyDates || []).includes(date)) || [];
   const stockSignals = new Map(signals.data?.items.map((r) => [r.tsCode, r.strategies]) || []);
   const strategyHref = (strategyType: string, sectorCode: string, stockCode?: string) => `/strategy/?${new URLSearchParams({
     date, sector: sectorCode, strategyType, ...(stockCode ? { code: stockCode } : {}),
@@ -192,6 +194,13 @@ export default function Page() {
   ];
   return (
     <MarketShell title="板块分析" path="/analysis/sectors" scopeFilter={false}>
+      {signalsReady && !!pendingStrategies.length && (
+      <p className="market-note">
+        策略命中按默认参数统计；
+        {pendingStrategies.map((s) => s.label).join('、')}
+        数据待补齐，暂未计入。
+      </p>
+      )}
       <Tabs activeKey={kind} onChange={(value) => { setKeyword(''); router.replace(marketHref('/analysis/sectors', { date, scope: 'all' }, { kind: value }), { scroll: false }); }} items={[{ key: 'I', label: '行业' }, { key: 'N', label: '题材' }]} />
       <div className="sector-toolbar">
         <Space wrap>

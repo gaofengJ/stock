@@ -184,6 +184,8 @@ async function main() {
         [start, endDate],
       );
       await ds.query("INSERT INTO t_admin_job(actor_id,actor_name,start_date,end_date,status,active_key,mode,stage) VALUES(NULL,'同花顺板块同步',?,?,'queued','ths-sectors-two-years','sector','发布后更新同花顺板块') ON DUPLICATE KEY UPDATE end_date=GREATEST(end_date,VALUES(end_date))", [start, endDate]);
+      const factorStart = require('dayjs')(start).subtract(8, 'month').format('YYYY-MM-DD');
+      await ds.query("INSERT INTO t_admin_job(actor_id,actor_name,start_date,end_date,status,active_key,mode,stage) VALUES(NULL,'策略复权行情补齐',?,?,'queued','strategy-factor-history','technical','发布后补齐策略复权行情') ON DUPLICATE KEY UPDATE end_date=GREATEST(end_date,VALUES(end_date))", [factorStart, endDate]);
       process.stdout.write(
         JSON.stringify({ status: 'queued', start, end: endDate }) + '\n',
       );

@@ -104,6 +104,68 @@ describe('策略关联范围和就绪状态', () => {
       ).toEqual({ any: ['strategy:read'] });
     });
   });
+  test('新策略独立就绪，旧策略缺数据时不隐藏已完成的新策略命中', async () => {
+    const { service } = setup(false);
+    const trends = {
+      history: jest.fn().mockResolvedValue({
+        readyByStrategy: {
+          volumeBreakout: [dates[0]],
+          breakoutPullback: [],
+          fiveMaUp: [],
+        },
+        items: [
+          {
+            date: dates[0],
+            key: 'volumeBreakout',
+            rows: [{ tsCode: '600001.SH' }],
+          },
+        ],
+      }),
+    };
+    (service as any).trends = trends;
+    const result = await service.signals({
+      date: dates[0],
+      scope: 'hs',
+    } as any);
+    expect(result.readyDates).toEqual([]);
+    expect(result.readyByStrategy).toMatchObject({
+      gapTwoUp: [],
+      volumeBreakout: [dates[0]],
+      fiveMaUp: [],
+    });
+    expect(result.items).toEqual([
+      { date: dates[0], tsCode: '600001.SH', strategies: ['volumeBreakout'] },
+    ]);
+    expect(trends.history).toHaveBeenCalledWith(
+      [dates[0]],
+      ['volumeBreakout', 'breakoutPullback', 'fiveMaUp'],
+      {},
+      undefined,
+    );
+  });
+  test('新旧策略共同命中同一股票合并显示，趋势标记保持默认参数', async () => {
+    const { service } = setup(true);
+    (service as any).trends = {
+      history: jest.fn().mockResolvedValue({
+        readyByStrategy: { fiveMaUp: [dates[0]] },
+        items: [
+          { date: dates[0], key: 'fiveMaUp', rows: [{ tsCode: '600001.SH' }] },
+        ],
+      }),
+    };
+    const result = await service.signals({
+      date: dates[0],
+      scope: 'hs',
+      code: '600001.SH',
+    } as any);
+    expect(result.items).toEqual([
+      {
+        date: dates[0],
+        tsCode: '600001.SH',
+        strategies: ['gapTwoUp', 'fiveMaUp'],
+      },
+    ]);
+  });
   test('板块命中数按股票去重，逐策略数量仍保留；无命中为0', async () => {
     const service = new SectorService(
       {} as any,

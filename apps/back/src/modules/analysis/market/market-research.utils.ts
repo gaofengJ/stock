@@ -21,6 +21,9 @@ export type ResearchLimit = Pick<
   'tradeDate' | 'tsCode' | 'name' | 'limit' | 'limitTimes'
 >;
 export const STRATEGY_LABELS: Record<string, string> = {
+  volumeBreakout: '放量突破',
+  breakoutPullback: '缩量回踩企稳',
+  fiveMaUp: '五线顺上新形成',
   gapThreeUp: '缺口后三连阳',
   gapTwoUp: '缺口后二连阳',
   gapThreeHighTurnover: '缺口后三日高换手',

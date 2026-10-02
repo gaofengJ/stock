@@ -2,6 +2,9 @@
  * 策略类型
  */
 export enum EStrategyType {
+  volumeBreakout = 'volumeBreakout',
+  breakoutPullback = 'breakoutPullback',
+  fiveMaUp = 'fiveMaUp',
   /**
    * 向上跳空缺口后三连阳
    */

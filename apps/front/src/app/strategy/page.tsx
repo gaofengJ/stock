@@ -18,7 +18,8 @@ import { useDefaultTradeDate } from '@/hooks/useDefaultTradeDate';
 import SectorFilter, { useSectorSelection } from '@/components/SectorFilter';
 
 import { useStrategyConfigs } from './form-configs';
-import { strategyColumns } from './columns';
+import { strategyColumns, trendColumns } from './columns';
+import TrendParameters, { isTrendStrategy, trendDefaults, TrendOptions } from './TrendParameters';
 
 import CandidateEnvironment from './CandidateEnvironment';
 import StrategyRules from './StrategyRules';
@@ -68,6 +69,8 @@ function StrategyPage() {
   } = useLatestRequest('strategy-list');
 
   const [activedNav, setActivedNav] = useState('');
+  const [parameters, setParameters] = useState<Record<string, TrendOptions>>({});
+  const trendOptions = parameters[activedNav] || trendDefaults;
   const [navList, setNavList] = useState<NSGetStrategyTabsList.IRes>([]);
 
   const limitsFilterConfigs = useStrategyConfigs();
@@ -123,6 +126,7 @@ function StrategyPage() {
         ...searchParams,
         strategyType: activedNav,
         ...(sector ? { sector } : {}),
+        ...(isTrendStrategy(activedNav) ? trendOptions : {}),
       }, strategyRequestConfig),
       onStart: () => { setTableLoading(true); setLoadError(''); },
       onSuccess: ({ data }) => setStrategyData({ items: data }),
@@ -141,6 +145,7 @@ function StrategyPage() {
     searchParams,
     sector,
     strategyRequestConfig,
+    trendOptions,
   ]);
 
   useEffect(() => {
@@ -164,7 +169,8 @@ function StrategyPage() {
           items={navList}
           onChange={handleClickTabs}
         />
-        <StrategyRules strategy={activedNav} />
+        <StrategyRules strategy={activedNav} options={trendOptions} />
+        {isTrendStrategy(activedNav) && <TrendParameters key={activedNav} strategy={activedNav} value={trendOptions} onChange={(value) => setParameters((state) => ({ ...state, [activedNav]: value }))} />}
         {/* 防止内容撑开宽度: w-0 设置了元素的基础宽度为 0，防止内容影响元素的初始宽度。通常，flexbox 元素的宽度会根据内容自动扩展，但 w-0 强制宽度为 0，使得元素完全依赖 flex-grow 进行扩展 */}
         <div className="strategy-results">
           <div className="mb-16">
@@ -184,7 +190,7 @@ function StrategyPage() {
             rootClassName="strategy-table"
             rowKey="tsCode"
             dataSource={linkedCode ? strategyData.items.filter((r) => r.tsCode === linkedCode) : strategyData.items}
-            columns={strategyColumns}
+            columns={[...strategyColumns.slice(0, 2), ...trendColumns(activedNav), ...strategyColumns.slice(2)]}
             bordered
             locale={{
               emptyText: (
