@@ -431,13 +431,23 @@ export class TrendService {
     );
     const points = new Map<string, Map<string, TrendPoint>>();
     const unavailable = new Map<string, Set<string>>();
-    // Bound all-market JSON memory while retaining only candidate price points.
+    // Read three small batches concurrently to reduce database round trips,
+    // bounding all-market JSON memory to 36 dates rather than the full history.
     const factorDates = candidateCodes.size ? [...snapshotDates] : [];
-    for (let offset = 0; offset < factorDates.length; offset += 12) {
-      const batch = await this.db.manager.find(TrendFactorEntity, {
-        where: { tradeDate: In(factorDates.slice(offset, offset + 12)) },
-        select: ['tradeDate', 'data'],
-      });
+    for (let offset = 0; offset < factorDates.length; offset += 36) {
+      const batch = (
+        await Promise.all(
+          [0, 12, 24]
+            .map((step) => factorDates.slice(offset + step, offset + step + 12))
+            .filter((chunk) => chunk.length)
+            .map((chunk) =>
+              this.db.manager.find(TrendFactorEntity, {
+                where: { tradeDate: In(chunk) },
+                select: ['tradeDate', 'data'],
+              }),
+            ),
+        )
+      ).flat();
       for (const snapshot of batch)
         for (const [
           code,

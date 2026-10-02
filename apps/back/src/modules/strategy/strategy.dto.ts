@@ -83,17 +83,17 @@ export class StrategyListQueryDto {
   @IsOptional() @IsIn(['new', 'current']) fiveMaMode?: 'new' | 'current';
 
   @IsOptional()
-  @Transform(({ value }) => queryBoolean(value))
+  @Transform(({ obj, key }) => queryBoolean(obj[key]))
   @IsBoolean()
   aboveMa5?: boolean;
 
   @IsOptional()
-  @Transform(({ value }) => queryBoolean(value))
+  @Transform(({ obj, key }) => queryBoolean(obj[key]))
   @IsBoolean()
   bullish?: boolean;
 
   @IsOptional()
-  @Transform(({ value }) => queryBoolean(value))
+  @Transform(({ obj, key }) => queryBoolean(obj[key]))
   @IsBoolean()
   expandingVolume?: boolean;
 }
