@@ -127,7 +127,7 @@ function StrategyPage() {
         strategyType: activedNav,
         ...(sector ? { sector } : {}),
         ...(isTrendStrategy(activedNav) ? trendOptions : {}),
-      }, strategyRequestConfig),
+      }, { ...strategyRequestConfig, timeout: 90000 }),
       onStart: () => { setTableLoading(true); setLoadError(''); },
       onSuccess: ({ data }) => setStrategyData({ items: data }),
       onError: (error) => {

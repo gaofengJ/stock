@@ -1,12 +1,33 @@
+import 'reflect-metadata';
 import { ExecutionContext, RequestTimeoutException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { firstValueFrom, NEVER, of } from 'rxjs';
 import { delay } from 'rxjs/operators';
 import { QUERY_TIMEOUT_MS } from '@/decorators/query-timeout.decorator';
 import { NO_TIMEOUT_INTERCEPTOR_KEY } from '@/decorators/no-timeout.decorator';
+import { StrategyController } from '@/modules/strategy/strategy.controller';
+import { MarketController } from '@/modules/analysis/market/market.controller';
 import { TimeoutInterceptor } from './timeout.interceptor';
 
 describe('查询等待上限', () => {
+  test('只有策略列表及策略联动使用60秒上限', () => {
+    [
+      StrategyController.prototype.list,
+      MarketController.prototype.signals,
+      MarketController.prototype.sectorSignals,
+    ].forEach((handler) => {
+      expect(Reflect.getMetadata(QUERY_TIMEOUT_MS, handler)).toBe(60000);
+    });
+    expect(
+      Reflect.getMetadata(
+        QUERY_TIMEOUT_MS,
+        StrategyController.prototype.tabsList,
+      ),
+    ).toBeUndefined();
+    expect(
+      Reflect.getMetadata(QUERY_TIMEOUT_MS, MarketController.prototype.status),
+    ).toBeUndefined();
+  });
   beforeEach(() => jest.useFakeTimers());
   afterEach(() => jest.useRealTimers());
   const context = { getHandler: () => () => {} } as unknown as ExecutionContext;
