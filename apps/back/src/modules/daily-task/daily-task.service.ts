@@ -27,6 +27,7 @@ import { DailyEntity } from '../source/daily/daily.entity';
 import { LimitEntity } from '../source/limit/limit.entity';
 import { StockEntity } from '../source/stock/stock.entity';
 import { StockIdentityService } from '../source/stock/stock-identity.service';
+import { TrendService } from '../strategy/trend.service';
 import { TradeCalEntity } from '../source/trade-cal/trade-cal.entity';
 import { ActiveFundsEntity } from '../source/active-funds/active-funds.entity';
 import { SentiEntity } from '../processed/senti/senti.entity';
@@ -57,6 +58,7 @@ export class DailyTaskService {
     @Optional() private readonly breadth?: MarketBreadthService,
     @Optional() private readonly sectors?: SectorService,
     @Optional() private readonly identity?: StockIdentityService,
+    @Optional() private readonly trends?: TrendService,
   ) {}
 
   private withLock<T>(
@@ -592,6 +594,12 @@ export class DailyTaskService {
     return this.breadth.batch(start, end);
   }
 
+  async technicalBatch(start: string, end: string) {
+    this.checkRange(start, end);
+    if (!this.trends) throw new Error('趋势策略模块未启用');
+    return this.trends.batch(start, end);
+  }
+
   async sectorBatch(start: string, end: string) {
     this.checkRange(start, end);
     if (!this.sectors) throw new Error('同花顺板块模块未启用');
@@ -663,6 +671,11 @@ export class DailyTaskService {
     } catch (error) {
       this.logger.warn(`同花顺板块 ${date}: ${errorMessage(error)}`);
     }
+    try {
+      await this.trends?.enqueue(manager, date);
+    } catch (e) {
+      this.logger.warn(`策略复权行情补齐排队失败: ${e.message}`);
+    }
     const next = await manager.findOneBy(TradeCalEntity, {
       preTradeDate: date,
       isOpen: 1,
@@ -698,6 +711,7 @@ export class DailyTaskService {
           await this.market!.enqueueBackfill(manager, last.calDate);
           await this.breadth?.enqueue(manager, last.calDate);
           await this.sectors?.enqueue(manager, last.calDate);
+          await this.trends?.enqueue(manager, last.calDate);
         }
       },
       true,

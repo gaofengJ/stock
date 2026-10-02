@@ -94,7 +94,7 @@ export default function Page() {
           >
             <DatePicker.RangePicker allowClear />
           </Form.Item>
-          <Form.Item name="mode" label="方式"><Select style={{ width: 180 }} options={[{ value: 'missing', label: '仅补缺失数据' }, { value: 'refresh', label: '重新采集并计算' }, { value: 'breadth', label: '仅补均线广度' }, { value: 'sector', label: '同花顺板块与成分' }]} /></Form.Item>
+          <Form.Item name="mode" label="方式"><Select style={{ width: 180 }} options={[{ value: 'missing', label: '仅补缺失数据' }, { value: 'refresh', label: '重新采集并计算' }, { value: 'breadth', label: '仅补均线广度' }, { value: 'sector', label: '同花顺板块与成分' }, { value: 'technical', label: '策略复权行情' }]} /></Form.Item>
           <Button type="primary" loading={busy} htmlType="submit">
             提交同步任务
           </Button>
@@ -216,7 +216,7 @@ export default function Page() {
                   title: '阶段',
                   dataIndex: 'task',
                   render: (v) => ({
-                    daily: '个股行情', 'market-index': '指数日线', market: '市场汇总', 'market-breadth': '均线广度', 'ths-catalog': '同花顺目录', 'ths-daily': '同花顺板块行情',
+                    daily: '个股行情', 'market-index': '指数日线', market: '市场汇总', 'market-breadth': '均线广度', 'ths-catalog': '同花顺目录', 'ths-daily': '同花顺板块行情', 'strategy-factor': '策略复权行情',
                   }[v as string] || v),
                 },
                 {

@@ -8,6 +8,8 @@ import { DailyService } from '../source/daily/daily.service';
 import { StrategyListQueryDto } from './strategy.dto';
 import { EStrategyType } from './strategy.enum';
 import { DailyEntity } from '../source/daily/daily.entity';
+import { TrendService } from './trend.service';
+import { TREND_KEYS, TrendKey } from './trend-rules';
 
 @Injectable()
 export class StrategyService {
@@ -15,6 +17,7 @@ export class StrategyService {
     private tradeCalService: TradeCalService,
     private dailyService: DailyService,
     @Optional() private sectors?: SectorService,
+    @Optional() private trends?: TrendService,
   ) {}
 
   private logger = new Logger(StrategyService.name);
@@ -164,6 +167,9 @@ export class StrategyService {
         label: '向上跳空上影反包',
         key: EStrategyType.shadowWrap,
       },
+      { label: '放量突破阶段高点', key: EStrategyType.volumeBreakout },
+      { label: '突破后缩量回踩企稳', key: EStrategyType.breakoutPullback },
+      { label: '五线顺上', key: EStrategyType.fiveMaUp },
     ];
     return ret;
   }
@@ -174,6 +180,15 @@ export class StrategyService {
   async list(dto: StrategyListQueryDto) {
     const { date, strategyType } = dto;
     let ret: DailyEntity[] = [];
+    if (TREND_KEYS.includes(strategyType as TrendKey)) {
+      if (!this.trends) throw new Error('趋势策略模块尚未启用');
+      ret = await this.trends.list(date, strategyType as TrendKey, dto);
+      if (dto.sector && this.sectors) {
+        const members = await this.sectors.codes(dto.sector, date);
+        ret = ret.filter((r) => members.has(r.tsCode));
+      }
+      return this.sectors ? this.sectors.candidateContext(ret, date) : ret;
+    }
     switch (strategyType) {
       case EStrategyType.gapThreeUp:
         ret = await this.gapThreeUp(date);

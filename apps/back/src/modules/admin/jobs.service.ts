@@ -82,7 +82,12 @@ export class JobsService implements OnApplicationBootstrap {
     actor: CurrentUser,
     start: string,
     end: string,
-    mode: 'missing' | 'refresh' | 'breadth' | 'sector' = 'missing',
+    mode:
+      | 'missing'
+      | 'refresh'
+      | 'breadth'
+      | 'sector'
+      | 'technical' = 'missing',
   ) {
     validRange(start, end);
     const key = createHash('sha256')
@@ -127,7 +132,7 @@ export class JobsService implements OnApplicationBootstrap {
     );
     if (!job) throw new NotFoundException('任务不存在');
     const dates = await this.db.query(
-      "SELECT task,DATE_FORMAT(trade_date,'%Y-%m-%d') tradeDate,status,daily_count dailyCount,limit_count limitCount,senti_count sentiCount,error,updated_at updatedAt FROM t_sync_run WHERE task IN ('daily','market-index','market','market-breadth','ths-catalog','ths-daily') AND trade_date BETWEEN ? AND ? ORDER BY trade_date,task",
+      "SELECT task,DATE_FORMAT(trade_date,'%Y-%m-%d') tradeDate,status,daily_count dailyCount,limit_count limitCount,senti_count sentiCount,error,updated_at updatedAt FROM t_sync_run WHERE task IN ('daily','market-index','market','market-breadth','ths-catalog','ths-daily','strategy-factor') AND trade_date BETWEEN ? AND ? ORDER BY trade_date,task",
       [job.startDate, job.endDate],
     );
     return { ...job, dates };
@@ -227,7 +232,7 @@ export class JobsService implements OnApplicationBootstrap {
   private async tickMarket() {
     await this.locks.run(async () => {
       const [job] = await this.db.query(
-        "SELECT *,DATE_FORMAT(start_date,'%Y-%m-%d') startDate,DATE_FORMAT(end_date,'%Y-%m-%d') endDate FROM t_admin_job WHERE status IN ('queued','running') OR (status='pending' AND active_key IS NOT NULL AND updated_at<DATE_SUB(UTC_TIMESTAMP(6),INTERVAL 5 MINUTE)) ORDER BY (actor_id IS NULL AND mode='refresh') DESC,(mode IN ('breadth','sector')) ASC,(mode='sector') DESC,id LIMIT 1",
+        "SELECT *,DATE_FORMAT(start_date,'%Y-%m-%d') startDate,DATE_FORMAT(end_date,'%Y-%m-%d') endDate FROM t_admin_job WHERE status IN ('queued','running') OR (status='pending' AND active_key IS NOT NULL AND updated_at<DATE_SUB(UTC_TIMESTAMP(6),INTERVAL 5 MINUTE)) ORDER BY (actor_id IS NULL AND mode='refresh') DESC,(mode IN ('breadth','sector','technical')) ASC,(mode='sector') DESC,id LIMIT 1",
       );
       if (!job) return;
       if (job.actor_id !== null) {
@@ -260,6 +265,8 @@ export class JobsService implements OnApplicationBootstrap {
         let result;
         if (job.mode === 'sector')
           result = await this.daily.sectorBatch(job.startDate, job.endDate);
+        else if (job.mode === 'technical')
+          result = await this.daily.technicalBatch(job.startDate, job.endDate);
         else if (job.mode === 'breadth')
           result = await this.daily.breadthBatch(job.startDate, job.endDate);
         else

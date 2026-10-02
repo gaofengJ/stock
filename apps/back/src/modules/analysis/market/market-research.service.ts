@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Optional } from '@nestjs/common';
+import { TrendService } from '@/modules/strategy/trend.service';
+import { TREND_KEYS } from '@/modules/strategy/trend-rules';
 import { DataSource, In, LessThanOrEqual } from 'typeorm';
 import { DailyEntity } from '@/modules/source/daily/daily.entity';
 import { DailyService } from '@/modules/source/daily/daily.service';
@@ -29,6 +31,7 @@ export class MarketResearchService {
     private db: DataSource,
     private daily: DailyService,
     private sectors: SectorService,
+    @Optional() private trends?: TrendService,
   ) {}
 
   private async calendar(q: MarketQueryDto, take: number) {
@@ -185,29 +188,59 @@ export class MarketResearchService {
           );
         })
       : [];
+    const items = results.flatMap((result) => {
+      if (!result.complete || !readyDates.includes(result.date)) return [];
+      const merged = new Map<string, string[]>();
+      result.hits.forEach((strategies, code) => {
+        const tsCode = canonical(code);
+        if (!inScope(tsCode, q.scope)) return;
+        merged.set(tsCode, [
+          ...new Set([...(merged.get(tsCode) || []), ...strategies]),
+        ]);
+      });
+      return [...merged].map(([tsCode, strategies]) => ({
+        date: result.date,
+        tsCode,
+        strategies,
+      }));
+    });
+    const readyByStrategy = Object.fromEntries(
+      Object.keys(STRATEGY_LABELS).map((strategy) => [
+        strategy,
+        TREND_KEYS.includes(strategy as any) ? ([] as string[]) : readyDates,
+      ]),
+    );
+    if (this.trends) {
+      let codes: string[] | undefined = q.code ? [q.code] : undefined;
+      if (!codes && count > 1) {
+        const events = await this.db.manager.find(LimitEntity, {
+          where: { tradeDate: In(dates), limit: In(['U', 'Z']) },
+          select: ['tsCode'],
+        });
+        codes = [...new Set(events.map((r) => r.tsCode))];
+      }
+      const trend = await this.trends.history(dates, TREND_KEYS, {}, codes);
+      Object.assign(readyByStrategy, trend.readyByStrategy);
+      trend.items.forEach(({ date, key: strategy, rows }) =>
+        rows.forEach((row) => {
+          if (!inScope(row.tsCode, q.scope)) return;
+          const item = items.find(
+            (r) => r.date === date && r.tsCode === row.tsCode,
+          );
+          if (item) item.strategies.push(strategy);
+          else items.push({ date, tsCode: row.tsCode, strategies: [strategy] });
+        }),
+      );
+    }
     return {
       dates,
       readyDates,
+      readyByStrategy,
       strategies: Object.entries(STRATEGY_LABELS).map(([strategy, label]) => ({
         key: strategy,
         label,
       })),
-      items: results.flatMap((result) => {
-        if (!result.complete || !readyDates.includes(result.date)) return [];
-        const merged = new Map<string, string[]>();
-        result.hits.forEach((strategies, code) => {
-          const tsCode = canonical(code);
-          if (!inScope(tsCode, q.scope)) return;
-          merged.set(tsCode, [
-            ...new Set([...(merged.get(tsCode) || []), ...strategies]),
-          ]);
-        });
-        return [...merged].map(([tsCode, strategies]) => ({
-          date: result.date,
-          tsCode,
-          strategies,
-        }));
-      }),
+      items,
     };
   }
 
@@ -217,7 +250,9 @@ export class MarketResearchService {
       scope: 'all',
       trajectoryDays: 1,
     });
-    const counts = signals.readyDates.includes(q.date!)
+    const counts = Object.values(signals.readyByStrategy).some((dates) =>
+      dates.includes(q.date!),
+    )
       ? await this.sectors.signalCounts(
           q.date!,
           new Map(signals.items.map((r) => [r.tsCode, r.strategies])),

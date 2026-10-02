@@ -12,11 +12,9 @@ export class SyncJobDto {
 
   @IsDateString() endDate: string;
 
-  @IsOptional() @IsIn(['missing', 'refresh', 'breadth', 'sector']) mode:
-    | 'missing'
-    | 'refresh'
-    | 'breadth'
-    | 'sector' = 'missing';
+  @IsOptional()
+  @IsIn(['missing', 'refresh', 'breadth', 'sector', 'technical'])
+  mode: 'missing' | 'refresh' | 'breadth' | 'sector' | 'technical' = 'missing';
 }
 export class LogsQueryDto extends PageDto {
   @IsOptional() @IsString() startDate?: string;
