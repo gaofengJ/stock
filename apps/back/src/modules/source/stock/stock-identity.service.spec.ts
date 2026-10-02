@@ -97,6 +97,29 @@ describe('股票历史身份与策略数据完整性', () => {
     expect(identity.name('000001.SZ', '2026-10-02')).toBe('ST新名称');
   });
 
+  it('只补实际候选的历史名称，无关未知股票不触发查询且仍保持未知', async () => {
+    const registry = {
+      ...snapshot,
+      data: {
+        stocks: snapshot.data.stocks.slice(0, 2),
+        names: snapshot.data.names.filter((row) => row.tsCode === '000001.SZ'),
+      },
+    };
+    const manager = {
+      findOneBy: jest.fn().mockResolvedValue(registry),
+      find: jest.fn().mockResolvedValue([]),
+    };
+    const api = { queryData: jest.fn() };
+    const service = new StockIdentityService(
+      { manager } as unknown as DataSource,
+      api as unknown as TushareService,
+    );
+    const identity = await service.load(['2026-09-30'], ['000001.SZ']);
+    expect(identity.name('000001.SZ', '2026-09-30')).toBe('正常旧名称');
+    expect(identity.name('000002.SZ', '2026-09-30')).toBe('');
+    expect(api.queryData).not.toHaveBeenCalled();
+  });
+
   it('上游错误、缺字段、行截断不能覆盖历史快照', () => {
     expect(() => readIdentityRows({ code: -1 }, ['ts_code'])).toThrow();
     expect(() =>
@@ -227,12 +250,21 @@ describe('股票历史身份与策略数据完整性', () => {
       data: { stocks: [snapshot.data.stocks[0]], names: [] },
     });
     const saved = new Map<string, StockHistoryEntity>([['identity', registry]]);
+    const builder: Record<string, jest.Mock> = {
+      insert: jest.fn().mockReturnThis(),
+      into: jest.fn().mockReturnThis(),
+      values: jest.fn((value) => {
+        saved.set(value.snapshotKey, value);
+        return builder;
+      }),
+      orUpdate: jest.fn().mockReturnThis(),
+      updateEntity: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({}),
+    };
     const manager = {
       findOneBy: jest.fn((_, q) => Promise.resolve(saved.get(q.snapshotKey))),
       find: jest.fn().mockResolvedValue([]),
-      upsert: jest.fn((_, value) => {
-        saved.set(value.snapshotKey, value);
-      }),
+      createQueryBuilder: jest.fn().mockReturnValue(builder),
     };
     const api = {
       queryData: jest.fn().mockResolvedValue({

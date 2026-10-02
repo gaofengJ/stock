@@ -95,6 +95,85 @@ mysqlDescribe('股票历史元数据 MySQL 迁移与就绪校验', () => {
     expect(await db.manager.count(StockHistoryEntity)).toBe(1);
   });
 
+  it('已有不完整的名称缓存重复补齐时，无变化的upsert不会要求生成id', async () => {
+    const registry = await db.manager.findOneByOrFail(StockHistoryEntity, {
+      snapshotKey: 'identity',
+    });
+    await db.manager.save(StockHistoryEntity, {
+      ...registry,
+      data: {
+        stocks: [
+          ...registry.data.stocks,
+          { ...registry.data.stocks[0], tsCode: '000002.SZ' },
+        ],
+        names: [],
+      },
+    });
+    const cached = await db.manager.save(StockHistoryEntity, {
+      snapshotKey: 'day:2026-09-30',
+      asOf: registry.asOf,
+      data: { stocks: [], names: [] },
+    });
+    const api = {
+      queryData: jest.fn().mockResolvedValue({
+        code: 0,
+        data: {
+          fields: ['ts_code', 'name', 'trade_date'],
+          items: [['000001.SZ', '历史正常名称', '20260930']],
+        },
+      }),
+    };
+    const service = new StockIdentityService(
+      db,
+      api as unknown as TushareService,
+    );
+    for (let i = 0; i < 2; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      const identity = await service.load(['2026-09-30']);
+      expect(identity.name('000001.SZ', '2026-09-30')).toBe('历史正常名称');
+      expect(identity.name('000002.SZ', '2026-09-30')).toBe('');
+    }
+    expect(api.queryData).toHaveBeenCalledTimes(1);
+    const supplement = await db.manager.findOneByOrFail(StockHistoryEntity, {
+      snapshotKey: cached.snapshotKey,
+    });
+    await db.manager.save(StockHistoryEntity, {
+      ...supplement,
+      data: { ...supplement.data, checkedAt: '1970-01-01T00:00:00.000Z' },
+    });
+    await service.load(['2026-09-30']);
+    expect(api.queryData).toHaveBeenCalledTimes(2);
+    const changed = await db.manager.findOneByOrFail(StockHistoryEntity, {
+      snapshotKey: 'identity',
+    });
+    await db.manager.save(StockHistoryEntity, {
+      ...changed,
+      asOf: '2026-10-03',
+    });
+    api.queryData.mockResolvedValueOnce({
+      code: 0,
+      data: {
+        fields: ['ts_code', 'name', 'trade_date'],
+        items: [
+          ['000001.SZ', '历史正常名称', '20260930'],
+          ['000002.SZ', '补齐历史名称', '20260930'],
+        ],
+      },
+    });
+    expect(
+      (await service.load(['2026-09-30'])).name('000002.SZ', '2026-09-30'),
+    ).toBe('补齐历史名称');
+    expect(api.queryData).toHaveBeenCalledTimes(3);
+    expect(
+      (
+        await db.manager.findOneByOrFail(StockHistoryEntity, {
+          snapshotKey: cached.snapshotKey,
+        })
+      ).id,
+    ).toBe(cached.id);
+    expect(await db.manager.count(StockHistoryEntity)).toBe(2);
+  });
+
   it('SQL日期及计数核对正确，缺失PE保留NULL；删除一行后拒绝筛选', async () => {
     await db.manager.insert(
       DailyEntity,

@@ -300,12 +300,8 @@ export class TrendService {
       visible[visible.length - 1],
       need + visible.length - 1 + (keys.includes('fiveMaUp') ? 9 : 0),
     );
-    const identity = await this.identity.load(
-      keys.includes('breakoutPullback')
-        ? dates.slice(-((options.pullbackDays || 10) + visible.length))
-        : visible,
-    );
-    const expanded = codes ? identity.expand(codes) : undefined;
+    const baseIdentity = await this.identity.load([]);
+    const expanded = codes ? baseIdentity.expand(codes) : undefined;
     // Necessary signal-day conditions reduce the all-market read; raw SQL avoids
     // hydrating thousands of unused entity objects on each parameter change.
     const fields = this.db.manager
@@ -325,6 +321,19 @@ export class TrendService {
             }`,
             expanded ? [visible, expanded] : [visible],
           );
+    // Supplement historical names only for actual candidates. Unrelated,
+    // inactive registry entries must not trigger repeated upstream lookups.
+    const identity = await this.identity.load(
+      keys.includes('breakoutPullback')
+        ? dates.slice(-((options.pullbackDays || 10) + visible.length))
+        : visible,
+      [
+        ...new Set(
+          visibleRows.map((row) => baseIdentity.canonical(row.tsCode)),
+        ),
+      ],
+      this.db.manager,
+    );
     const eligibleCodes = identity.expand([
       ...new Set(
         visibleRows
@@ -487,6 +496,14 @@ export class TrendService {
       keys.map((key) => [key, []]),
     );
     const missingPairs: { code: string; date: string }[] = [];
+    // Reuse successful completeness checks only within this request. Every
+    // new request still checks published daily data and date protections.
+    const verifiedDailyDates = new Set<string>();
+    const assertDailyReady = async (checkDates: string[]) => {
+      if (checkDates.every((date) => verifiedDailyDates.has(date))) return;
+      await this.identity.assertReady(checkDates);
+      checkDates.forEach((date) => verifiedDailyDates.add(date));
+    };
     const firstIndex = Math.max(0, dates.indexOf(visible[0]) - need + 1);
     for (const code of candidateCodes)
       for (const date of dates.slice(firstIndex)) {
@@ -518,7 +535,7 @@ export class TrendService {
       );
       // A missing factor row is only a suspension when a complete daily batch
       // explicitly contains its zero-price, zero-volume placeholder.
-      await this.identity.assertReady([
+      await assertDailyReady([
         ...new Set([...missingDates, ...dates.slice(-3)]),
       ]);
       for (const pair of missingPairs)
@@ -560,7 +577,7 @@ export class TrendService {
           index + 1,
         );
         try {
-          await this.identity.assertReady(
+          await assertDailyReady(
             rawDays.length >= 3 ? rawDays : dates.slice(index - 2, index + 1),
           );
         } catch (e) {

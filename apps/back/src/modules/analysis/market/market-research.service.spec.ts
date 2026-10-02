@@ -104,6 +104,38 @@ describe('策略关联范围和就绪状态', () => {
       ).toEqual({ any: ['strategy:read'] });
     });
   });
+  test('旧策略计算未完成时，新策略也会启动，完成后再合并结果', async () => {
+    const { service, daily } = setup(true);
+    let release: (value: any) => void;
+    daily.strategyHistory.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+    );
+    const trends = {
+      history: jest.fn().mockResolvedValue({
+        readyByStrategy: { fiveMaUp: [dates[0]] },
+        items: [
+          { date: dates[0], key: 'fiveMaUp', rows: [{ tsCode: '600001.SH' }] },
+        ],
+      }),
+    };
+    (service as any).trends = trends;
+    const pending = service.signals({ date: dates[0], scope: 'hs' } as any);
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve);
+    });
+    try {
+      expect(daily.strategyHistory).toHaveBeenCalledTimes(1);
+      expect(trends.history).toHaveBeenCalledTimes(1);
+    } finally {
+      release!([{ date: dates[0], complete: true, hits: new Map() }]);
+    }
+    expect((await pending).items).toEqual([
+      { date: dates[0], tsCode: '600001.SH', strategies: ['fiveMaUp'] },
+    ]);
+  });
   test('新策略独立就绪，旧策略缺数据时不隐藏已完成的新策略命中', async () => {
     const { service } = setup(false);
     const trends = {
