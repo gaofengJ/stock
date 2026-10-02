@@ -26,5 +26,7 @@ export class StockHistoryEntity extends CommonEntity {
   @Column({ type: 'json' }) data: {
     stocks: HistoricalStock[];
     names: HistoricalName[];
+    checkedCodes?: string[];
+    checkedAt?: string;
   };
 }

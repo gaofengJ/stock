@@ -9,14 +9,15 @@ import { Reflector } from '@nestjs/core';
 import { Observable, TimeoutError, throwError } from 'rxjs';
 import { catchError, timeout } from 'rxjs/operators';
 import { NO_TIMEOUT_INTERCEPTOR_KEY } from '@/decorators/no-timeout.decorator';
+import { QUERY_TIMEOUT_MS } from '@/decorators/query-timeout.decorator';
 
 @Injectable()
 export class TimeoutInterceptor implements NestInterceptor {
   constructor(private readonly reflector: Reflector) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const time = 1000 * 15; // 设置超时时间为15s
     const handler = context.getHandler();
+    const time = this.reflector.get<number>(QUERY_TIMEOUT_MS, handler) ?? 15000;
     const noTimeoutInterceptor = this.reflector.get<boolean>(
       NO_TIMEOUT_INTERCEPTOR_KEY,
       handler,

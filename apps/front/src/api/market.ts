@@ -65,7 +65,11 @@ export interface DragonListing extends ClassifiedStock {
   lBuy: number | null; lSell: number | null; netAmount: number | null;
 }
 export interface DragonBoard { items: DragonListing[]; queriedAt: string }
-export const marketRequest = <T>(endpoint: string, params: Record<string, unknown> = {}, config: RequestConfig = {}) => axios.get<T>(`/analysis/market/${endpoint}`, { params, ...config });
+export const marketRequest = <T>(endpoint: string, params: Record<string, unknown> = {}, config: RequestConfig = {}) => axios.get<T>(`/analysis/market/${endpoint}`, {
+  ...(['strategy-signals', 'sector-signals'].includes(endpoint) ? { timeout: 90000 } : {}),
+  params,
+  ...config,
+});
 
 export interface FeedbackMember { tsCode: string; name: string; pctChg: number | null; highOpen: boolean; previousHeight: number | null; height: number | null; excluded: string }
 export interface FeedbackGroup { key: string; name: string; ready: boolean; total: number; sample: number; excluded: number; average: number | null; median: number | null; riseRate: number | null; highOpenRate: number | null; distribution: number[]; members: FeedbackMember[] }

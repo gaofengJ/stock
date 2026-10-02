@@ -449,7 +449,7 @@ export class DailyService {
       return new Map<string, Record<string, DailyEntity>>();
     if (checkReady && this.identity) await this.identity.assertReady(dates);
     const identity = this.identity
-      ? await this.identity.load(dates)
+      ? await this.identity.load(dates, codes, this.DailyRepository.manager)
       : undefined;
     const expandedCodes = codes && identity ? identity.expand(codes) : codes;
     const list = await this.DailyRepository.find({

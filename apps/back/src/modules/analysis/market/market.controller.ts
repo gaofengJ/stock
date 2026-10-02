@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Permit } from '@/modules/auth/permissions';
+import { QueryTimeout } from '@/decorators/query-timeout.decorator';
 import { MarketService } from './market.service';
 import { MarketBreadthService } from './market-breadth.service';
 import { DragonQueryDto, MarketQueryDto, ResearchQueryDto } from './market.dto';
@@ -44,6 +45,7 @@ export class MarketController {
   }
 
   @Get('strategy-signals')
+  @QueryTimeout(60000)
   @Permit('strategy:read')
   signals(@Query() q: ResearchQueryDto) {
     return this.research.signals(q);
@@ -70,6 +72,7 @@ export class MarketController {
   }
 
   @Get('sector-signals')
+  @QueryTimeout(60000)
   @Permit('strategy:read')
   sectorSignals(@Query() q: MarketQueryDto) {
     return this.research.sectorSignals(q);

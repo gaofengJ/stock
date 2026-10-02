@@ -175,7 +175,7 @@ export class StockIdentityService {
     );
   }
 
-  async load(dates: string[], manager = this.db.manager) {
+  async load(dates: string[], codes?: string[], manager = this.db.manager) {
     const [snapshot, mapping] = await Promise.all([
       manager.findOneBy(StockHistoryEntity, { snapshotKey: 'identity' }),
       manager.find(BseMappingEntity),
@@ -183,6 +183,8 @@ export class StockIdentityService {
     if (!snapshot || dates.some((date) => date > snapshot.asOf))
       throw new ConflictException('股票历史信息尚未同步完整，请稍后重试');
     const identity = identityIndex(snapshot, mapping);
+    const requested =
+      codes && new Set(codes.map((code) => identity.canonical(code)));
     const extras: HistoricalName[] = [];
     // Some namechange histories end in 2006 without the subsequent name.
     // Fill only uncovered code/date pairs from a historical daily catalog,
@@ -192,7 +194,10 @@ export class StockIdentityService {
         snapshot.data.stocks
           .map((row) => identity.canonical(row.tsCode))
           .filter(
-            (code) => identity.listed(code, date) && !identity.name(code, date),
+            (code) =>
+              (!requested || requested.has(code)) &&
+              identity.listed(code, date) &&
+              !identity.name(code, date),
           ),
       );
       if (!missing.size) continue;
@@ -200,7 +205,22 @@ export class StockIdentityService {
       const cached = await manager.findOneBy(StockHistoryEntity, {
         snapshotKey,
       });
-      const covered = new Set(cached?.data.names.map((row) => row.tsCode));
+      // A successful catalog may not contain an inactive code. Keep its name
+      // unknown, but avoid repeating the same lookup on every chart request.
+      // Retry after one day, or immediately after the registry changes.
+      const checkedAge = cached?.data.checkedAt
+        ? Date.now() - Date.parse(cached.data.checkedAt)
+        : NaN;
+      const checked =
+        cached?.asOf === snapshot.asOf &&
+        checkedAge >= 0 &&
+        checkedAge < 86400000
+          ? cached.data.checkedCodes || []
+          : [];
+      const covered = new Set([
+        ...(cached?.data.names.map((row) => row.tsCode) || []),
+        ...checked,
+      ]);
       let names = cached?.data.names || [];
       if ([...missing].some((code) => !covered.has(code))) {
         const response = await this.tushare.queryData(
@@ -220,7 +240,7 @@ export class StockIdentityService {
           )
         )
           throw new ConflictException('历史股票名称补数异常');
-        names = rows
+        const supplements = rows
           .filter((row: Record<string, any>) =>
             missing.has(identity.canonical(row.ts_code)),
           )
@@ -230,11 +250,29 @@ export class StockIdentityService {
             startDate: date,
             endDate: date,
           }));
-        await manager.upsert(
-          StockHistoryEntity,
-          { snapshotKey, asOf: snapshot.asOf, data: { stocks: [], names } },
-          ['snapshotKey'],
-        );
+        names = [
+          ...names.filter((row) => !missing.has(row.tsCode)),
+          ...supplements,
+        ];
+        // We only need the persisted supplement. A duplicate no-op upsert can
+        // return insertId=0, so do not ask TypeORM to hydrate a generated id.
+        await manager
+          .createQueryBuilder()
+          .insert()
+          .into(StockHistoryEntity)
+          .values({
+            snapshotKey,
+            asOf: snapshot.asOf,
+            data: {
+              stocks: [],
+              names,
+              checkedCodes: [...new Set([...checked, ...missing])],
+              checkedAt: new Date().toISOString(),
+            },
+          })
+          .orUpdate(['as_of', 'data'], ['snapshot_key'])
+          .updateEntity(false)
+          .execute();
       }
       extras.push(...names);
     }
@@ -291,6 +329,7 @@ export class StockIdentityService {
   async decorate(rows: DailyEntity[], manager: EntityManager) {
     const identity = await this.load(
       [...new Set(rows.map((row) => row.tradeDate))],
+      [...new Set(rows.map((row) => row.tsCode))],
       manager,
     );
     return rows.map(

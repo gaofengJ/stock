@@ -158,8 +158,8 @@ export class MarketResearchService {
           .slice(0, 4)
           .every((r) => ready.has(r.calDate)),
     );
-    const results = readyDates.length
-      ? await this.cache.getOrCreate(key, async () => {
+    const legacy = readyDates.length
+      ? this.cache.getOrCreate(key, async () => {
           // Limit history queries to the trajectory universe. Daily all-market
           // counts use necessary last-day conditions shared by every strategy.
           let codes: string[];
@@ -187,7 +187,24 @@ export class MarketResearchService {
             [...new Set(codes)],
           );
         })
-      : [];
+      : Promise.resolve([]);
+    const trendService = this.trends;
+    const [results, trend] = await Promise.all([
+      legacy,
+      trendService
+        ? (async () => {
+            let codes: string[] | undefined = q.code ? [q.code] : undefined;
+            if (!codes && count > 1) {
+              const events = await this.db.manager.find(LimitEntity, {
+                where: { tradeDate: In(dates), limit: In(['U', 'Z']) },
+                select: ['tsCode'],
+              });
+              codes = [...new Set(events.map((r) => r.tsCode))];
+            }
+            return trendService.history(dates, TREND_KEYS, {}, codes);
+          })()
+        : Promise.resolve(null),
+    ]);
     const items = results.flatMap((result) => {
       if (!result.complete || !readyDates.includes(result.date)) return [];
       const merged = new Map<string, string[]>();
@@ -210,16 +227,7 @@ export class MarketResearchService {
         TREND_KEYS.includes(strategy as any) ? ([] as string[]) : readyDates,
       ]),
     );
-    if (this.trends) {
-      let codes: string[] | undefined = q.code ? [q.code] : undefined;
-      if (!codes && count > 1) {
-        const events = await this.db.manager.find(LimitEntity, {
-          where: { tradeDate: In(dates), limit: In(['U', 'Z']) },
-          select: ['tsCode'],
-        });
-        codes = [...new Set(events.map((r) => r.tsCode))];
-      }
-      const trend = await this.trends.history(dates, TREND_KEYS, {}, codes);
+    if (trend) {
       Object.assign(readyByStrategy, trend.readyByStrategy);
       trend.items.forEach(({ date, key: strategy, rows }) =>
         rows.forEach((row) => {
