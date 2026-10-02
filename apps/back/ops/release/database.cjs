@@ -145,6 +145,7 @@ async function main() {
       process.stdout.write(JSON.stringify({ phase: 'after', ...after }) + '\n');
     } else if (action === 'verify') {
       await checkSyncSchema(ds);
+      await require('../../dist/modules/analysis/market/intraday-counts-schema').checkIntradayCountsSchema(ds);
       await require('../../dist/modules/news/news-schema').checkNewsSchema(ds);
       await require('../../dist/modules/analysis/market/market-schema').checkMarketSchema(
         ds,

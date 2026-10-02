@@ -16,7 +16,8 @@ import { ThsSectors1790985600000 } from './migrations/1790985600000-ThsSectors';
 import { NewsTranslations1791072000000 } from './migrations/1791072000000-NewsTranslations';
 import { NewsReadingFeatures1791158400000 } from './migrations/1791158400000-NewsReadingFeatures';
 import { StockIdentity1791244800000 } from './migrations/1791244800000-StockIdentity';
-import { StrategyTrend1791331200000 } from './migrations/1791331200000-StrategyTrend';
+import { IntradayCounts1791331200000 } from './migrations/1791331200000-IntradayCounts';
+import { StrategyTrend1791417600000 } from './migrations/1791417600000-StrategyTrend';
 
 dotenv.config({
   path:
@@ -48,7 +49,8 @@ export default new DataSource({
     NewsTranslations1791072000000,
     NewsReadingFeatures1791158400000,
     StockIdentity1791244800000,
-    StrategyTrend1791331200000,
+    IntradayCounts1791331200000,
+    StrategyTrend1791417600000,
   ],
   migrationsTransactionMode: 'none',
   logging: false,

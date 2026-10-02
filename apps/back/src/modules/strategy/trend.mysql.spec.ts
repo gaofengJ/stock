@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { Connection, createConnection } from 'mysql2/promise';
 import { DataSource } from 'typeorm';
-import { StrategyTrend1791331200000 } from '@/migrations/1791331200000-StrategyTrend';
+import { StrategyTrend1791417600000 } from '@/migrations/1791417600000-StrategyTrend';
 import { DailyEntity } from '@/modules/source/daily/daily.entity';
 import { StockIdentityService } from '@/modules/source/stock/stock-identity.service';
 import { TradeCalEntity } from '@/modules/source/trade-cal/trade-cal.entity';
@@ -81,8 +81,8 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
     await db.query('DROP TABLE t_source_strategy_factor');
     const runner = db.createQueryRunner();
     try {
-      await new StrategyTrend1791331200000().up(runner);
-      await new StrategyTrend1791331200000().up(runner);
+      await new StrategyTrend1791417600000().up(runner);
+      await new StrategyTrend1791417600000().up(runner);
     } finally {
       await runner.release();
     }

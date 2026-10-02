@@ -72,6 +72,7 @@ async function check(path, cookie, needsRows = false, expectedStatus = 200) {
     await check('/api/admin/users?pageSize=1', cookie);
     await check('/api/admin/sync-jobs?pageSize=1', cookie);
     await check('/api/admin/logs?pageSize=1', cookie);
+    await check('/api/analysis/market/intraday-counts?days=10', cookie);
     await check(
       '/api/basic/trade-cal/list?year=' + date.slice(0, 4),
       null,

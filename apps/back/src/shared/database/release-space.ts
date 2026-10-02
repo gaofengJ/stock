@@ -4,7 +4,8 @@ interface TableSize {
 }
 
 const migrationTables: Record<string, readonly string[]> = {
-  StrategyTrend1791331200000: ['t_source_strategy_factor'],
+  IntradayCounts1791331200000: ['t_market_intraday_counts'],
+  StrategyTrend1791417600000: ['t_source_strategy_factor'],
   StockIdentity1791244800000: ['t_source_stock_history'],
   ReliableSync1790380800000: [],
   Accounts1790467200000: [],
@@ -60,7 +61,8 @@ const migrationOperations: Record<
   string,
   'create' | 'data' | 'schema' | 'full-database'
 > = {
-  StrategyTrend1791331200000: 'create',
+  IntradayCounts1791331200000: 'create',
+  StrategyTrend1791417600000: 'create',
   StockIdentity1791244800000: 'create',
   ReliableSync1790380800000: 'full-database',
   Accounts1790467200000: 'full-database',

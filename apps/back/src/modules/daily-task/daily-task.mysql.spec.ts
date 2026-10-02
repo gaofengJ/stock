@@ -753,7 +753,8 @@ mysqlDescribe('MySQL 同步事务与迁移回归', () => {
         'NewsTranslations1791072000000',
         'NewsReadingFeatures1791158400000',
         'StockIdentity1791244800000',
-        'StrategyTrend1791331200000',
+        'IntradayCounts1791331200000',
+        'StrategyTrend1791417600000',
       ]);
       expect(before.counts.t_source_daily).toEqual({ rows: 2, duplicates: 1 });
       expect(before.requiredFreeBytes).toBe(before.totalBytes * 4 + 1024 ** 3);
