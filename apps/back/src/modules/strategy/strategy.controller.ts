@@ -2,6 +2,7 @@ import { Permit } from '@/modules/auth/permissions';
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiResult } from '@/decorators/api-result.decorator';
+import { QueryTimeout } from '@/decorators/query-timeout.decorator';
 
 import { StrategyService } from './strategy.service';
 import { TabItem } from './strategy.entity';
@@ -24,6 +25,7 @@ export class StrategyController {
 
   @Permit('strategy:read')
   @Get('/list')
+  @QueryTimeout(60000)
   @ApiOperation({ summary: '策略选股结果列表' })
   @ApiResult({ type: [DailyEntity] })
   list(@Query() dto: StrategyListQueryDto) {
