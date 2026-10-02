@@ -229,20 +229,26 @@ describe('五线顺上', () => {
 
 describe('策略参数校验', () => {
   const dto = (extra: any) =>
-    plainToInstance(StrategyListQueryDto, {
-      date: '2026-09-30',
-      strategyType: 'fiveMaUp',
-      ...extra,
-    });
+    plainToInstance(
+      StrategyListQueryDto,
+      {
+        date: '2026-09-30',
+        strategyType: 'fiveMaUp',
+        ...extra,
+      },
+      { enableImplicitConversion: true },
+    );
   test('false字符串不会误转为true，合法数值参数能转换', async () => {
     const query = dto({
       aboveMa5: 'false',
       bullish: 'true',
+      expandingVolume: 'false',
       breakoutDays: '20',
     });
     expect(query).toMatchObject({
       aboveMa5: false,
       bullish: true,
+      expandingVolume: false,
       breakoutDays: 20,
     });
     expect(await validate(query)).toEqual([]);
