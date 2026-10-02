@@ -5,7 +5,7 @@ import { DataSource } from 'typeorm';
 import { Connection, createConnection } from 'mysql2/promise';
 import axios from 'axios';
 import { IntradayCounts1791331200000 } from '@/migrations/1791331200000-IntradayCounts';
-import { IntradayCountsSource1791417600000 } from '@/migrations/1791417600000-IntradayCountsSource';
+import { IntradayCountsSource1791504000001 } from '@/migrations/1791504000001-IntradayCountsSource';
 import { IntradayCountsService } from './intraday-counts.service';
 import { IntradayCountsQueryDto } from './intraday-counts.dto';
 import { checkIntradayCountsSchema } from './intraday-counts-schema';
@@ -50,8 +50,8 @@ mysqlDescribe('盘中涨跌家数持久化、幂等采样与历史清理', () =>
       const migration = new IntradayCounts1791331200000();
       await migration.up(runner);
       await migration.up(runner);
-      await new IntradayCountsSource1791417600000().up(runner);
-      await new IntradayCountsSource1791417600000().up(runner);
+      await new IntradayCountsSource1791504000001().up(runner);
+      await new IntradayCountsSource1791504000001().up(runner);
       await runner.query(
         'CREATE TABLE t_source_trade_cal(cal_date DATE PRIMARY KEY,is_open TINYINT NOT NULL)',
       );

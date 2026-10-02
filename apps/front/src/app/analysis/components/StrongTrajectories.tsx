@@ -32,12 +32,14 @@ export default function StrongTrajectories() {
   const data = request.data?.date === date ? request.data : null;
   const signalMap = useMemo(() => new Map(signals.data?.items.map((r) => [`${r.date}:${r.tsCode}`, r.strategies]) || []), [signals.data]);
   const labels = new Map(signals.data?.strategies.map((r) => [r.key, r.label]) || []);
-  const readySignals = new Set(!signals.loading && !signals.error ? signals.data?.readyDates || [] : []);
+  const readySignals = new Set(!signals.loading && !signals.error ? Object.values(signals.data?.readyByStrategy || { legacy: signals.data?.readyDates || [] }).flat() : []);
+  const pendingSignals = (day: string) => signals.data?.strategies.filter((s) => !(signals.data?.readyByStrategy?.[s.key] || signals.data?.readyDates || []).includes(day)) || [];
   const selectedSignals = detail && readySignals.has(detail.cell.date) ? signalMap.get(`${detail.cell.date}:${detail.row.tsCode}`) || [] : [];
   const signalText = (day: string) => {
     if (signals.loading) return '加载中…';
     if (signals.error) return '加载失败';
     if (!readySignals.has(day)) return '策略数据待更新';
+    if (pendingSignals(day).length) return '部分策略待更新';
     return '未命中';
   };
   const recapType = (state: string) => {
@@ -57,7 +59,7 @@ export default function StrongTrajectories() {
           {code && <Link href={marketHref('/analysis/chains', { date, scope }, { view: 'trajectory' })}>显示全部股票</Link>}
         </Space>
       </div>
-      {showSignals && <p className="market-note">{signals.loading ? '策略标记加载中…' : signals.error || '★ 表示命中策略，点击查看；未完成日线显示“待更新”。'}</p>}
+      {showSignals && <p className="market-note">{signals.loading ? '策略标记加载中…' : signals.error || '★ 表示命中默认参数策略，点击查看；数据未补齐显示“待更新”。'}</p>}
       <DataState loading={request.loading} error={request.error} retry={request.retry} empty={!data?.ready}>
         <Table<TrajectoryRow>
           rowKey="tsCode"
@@ -95,7 +97,7 @@ export default function StrongTrajectories() {
                       {numberText(cell.pctChg, 2, true)}
                       {cell.pctChg == null ? '' : '%'}
                     </span>
-                    {showSignals && <small>{readySignals.has(day) && hits.length ? `★ ${hits.length}` : signalText(day).replace('未命中', '')}</small>}
+                    {showSignals && <small>{readySignals.has(day) && hits.length ? `★ ${hits.length}${pendingSignals(day).length ? ' / 待更新' : ''}` : signalText(day).replace('未命中', '')}</small>}
                   </button>
                 );
               },
@@ -128,6 +130,12 @@ export default function StrongTrajectories() {
               {selectedSignals.map((key) => <Link key={key} href={`/strategy/?${new URLSearchParams({ date: detail.cell.date, strategyType: key, code: detail.row.tsCode })}`}><Tag>{labels.get(key) || key}</Tag></Link>)}
               {!selectedSignals.length && signalText(detail.cell.date)}
             </Space>
+            {!!selectedSignals.length && !!pendingSignals(detail.cell.date).length && (
+            <p className="market-note">
+              {pendingSignals(detail.cell.date).map((s) => s.label).join('、')}
+              数据待补齐
+            </p>
+            )}
           </>
           )}
         </>

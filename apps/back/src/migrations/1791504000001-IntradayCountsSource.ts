@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class IntradayCountsSource1791417600000 implements MigrationInterface {
-  name = 'IntradayCountsSource1791417600000';
+export class IntradayCountsSource1791504000001 implements MigrationInterface {
+  name = 'IntradayCountsSource1791504000001';
 
   async up(q: QueryRunner): Promise<void> {
     const [column] = await q.query(

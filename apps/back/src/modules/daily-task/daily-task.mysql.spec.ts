@@ -754,7 +754,8 @@ mysqlDescribe('MySQL 同步事务与迁移回归', () => {
         'NewsReadingFeatures1791158400000',
         'StockIdentity1791244800000',
         'IntradayCounts1791331200000',
-        'IntradayCountsSource1791417600000',
+        'StrategyTrend1791417600000',
+        'IntradayCountsSource1791504000001',
       ]);
       expect(before.counts.t_source_daily).toEqual({ rows: 2, duplicates: 1 });
       expect(before.requiredFreeBytes).toBe(before.totalBytes * 4 + 1024 ** 3);
