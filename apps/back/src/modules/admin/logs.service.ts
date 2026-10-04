@@ -5,7 +5,7 @@ import { DataSource } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as dayjs from 'dayjs';
-import { logLines } from './log-lines';
+import { reverseLogLines } from './log-lines';
 import { LogsQueryDto } from './admin.dto';
 import { redact } from '../auth/redact';
 import { validRange } from './jobs.service';
@@ -29,6 +29,11 @@ export function logRange(q: LogsQueryDto) {
 }
 @Injectable()
 export class LogsService {
+  private readonly summaries = new Map<
+    string,
+    { expires: number; value: any }
+  >();
+
   constructor(private db: DataSource) {}
 
   async application(q: LogsQueryDto) {
@@ -51,7 +56,7 @@ export class LogsService {
       const filename = path.join(logDirectory(), `stock-back.${date}.log`);
       if (!fs.existsSync(filename)) continue;
       availableDates.push(date);
-      const lines = logLines(filename, budget);
+      const lines = reverseLogLines(filename, budget);
       try {
         for await (const line of lines) {
           if (!line.trim()) continue;
@@ -134,26 +139,18 @@ export class LogsService {
 
   async stats(q: LogsQueryDto) {
     const { start, end } = logRange(q);
-    const { levels, trend, availableDates, retentionDays, truncated } =
-      await this.application(q);
+    const key = `${start}:${end}`;
+    const cached = this.summaries.get(key);
+    if (cached && cached.expires > Date.now()) return cached.value;
     const sync = await this.db.query(
-      'SELECT status,COUNT(*) count FROM t_admin_job WHERE created_at>=? AND created_at<DATE_ADD(?,INTERVAL 1 DAY) GROUP BY status',
+      "SELECT CASE WHEN actor_id IS NULL THEN 'scheduled' ELSE 'manual' END source,status,COUNT(*) count FROM t_admin_job WHERE created_at>=? AND created_at<DATE_ADD(?,INTERVAL 1 DAY) GROUP BY source,status",
       [new Date(`${start}T00:00:00+08:00`), new Date(`${end}T00:00:00+08:00`)],
     );
-    const scheduled = await this.db.query(
-      "SELECT result status,COUNT(*) count FROM t_auth_audit WHERE action='sync.scheduled' AND result IN ('success','failed','pending') AND created_at>=? AND created_at<DATE_ADD(?,INTERVAL 1 DAY) GROUP BY result",
-      [new Date(`${start}T00:00:00+08:00`), new Date(`${end}T00:00:00+08:00`)],
-    );
-    return {
-      levels,
-      trend,
-      availableDates,
-      retentionDays,
-      sync: [
-        ...sync.map((row: any) => ({ ...row, source: 'manual' })),
-        ...scheduled.map((row: any) => ({ ...row, source: 'scheduled' })),
-      ],
-      truncated,
-    };
+    // Count jobs once, not scheduled invocation audit events (a different unit).
+    const value = { sync, generatedAt: new Date().toISOString() };
+    if (this.summaries.size >= 32)
+      this.summaries.delete(this.summaries.keys().next().value);
+    this.summaries.set(key, { expires: Date.now() + 30000, value });
+    return value;
   }
 }

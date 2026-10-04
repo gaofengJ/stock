@@ -11,9 +11,11 @@ import { api } from '@/auth/client';
 import { TeamOutlined } from '@ant-design/icons';
 import PageHeading from '@/auth/PageHeading';
 import AccountAvatar from '@/auth/AccountAvatar';
+import { useAccount } from '@/auth/Boundary';
 
 const fail = (e: unknown) => message.error(errorMessage(e));
 export default function Page() {
+  const { user } = useAccount();
   const { runLatestRequest } = useLatestRequest('admin-users');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -30,6 +32,12 @@ export default function Page() {
   const [form] = Form.useForm();
   const [resetForm] = Form.useForm();
   const [createForm] = Form.useForm();
+  const isAdmin = !!user?.roles.some((r) => r.code === 'admin');
+  const grantable = (role: any) => isAdmin || (role.code !== 'admin' && role.permissions.every((p: string) => user?.permissions.includes(p) && user.catalog.some((c) => c.code === p && c.group !== '管理后台')));
+  const manageable = (account: any) => isAdmin || (account.id !== user?.id && account.roles.every((r: any) => {
+    const role = roles.find((x) => x.id === r.id);
+    return role && grantable(role);
+  }));
   const load = useCallback(async () => {
     const q = new URLSearchParams({
       page: String(page),
@@ -72,6 +80,7 @@ export default function Page() {
   return (
     <>
       <PageHeading title="用户管理" description="管理站点成员、账户状态与角色授权。" icon={<TeamOutlined />} />
+      {!isAdmin && <Alert type="info" showIcon message="可管理自身权限范围内的普通账户。自己的账户请使用个人设置；管理账户及管理权限由系统管理员维护。" style={{ marginBottom: 16 }} />}
       <div className="account-toolbar">
         <Input.Search
           placeholder="搜索用户名"
@@ -165,6 +174,7 @@ export default function Page() {
               <Space>
                 <Button
                   size="small"
+                  disabled={!manageable(r)}
                   onClick={() => {
                     setEditing(r);
                     form.setFieldsValue({
@@ -178,6 +188,7 @@ export default function Page() {
                 </Button>
                 <Button
                   size="small"
+                  disabled={!manageable(r)}
                   onClick={() => {
                     setReset(r);
                     resetForm.resetFields();
@@ -221,7 +232,7 @@ export default function Page() {
           <Form.Item name="roleIds" label="角色（可多选）">
             <Select
               mode="multiple"
-              options={roles.map((r) => ({ value: r.id, label: r.name }))}
+              options={roles.filter(grantable).map((r) => ({ value: r.id, label: r.name }))}
             />
           </Form.Item>
         </Form>

@@ -25,6 +25,9 @@ const permissionName = (permission: Permission) => (permission.code === 'news:ma
 
 export default function Page() {
   const { user } = useAccount();
+  const isAdmin = !!user?.roles.some((r) => r.code === 'admin');
+  const grantable = (code: string) => isAdmin || !!(user?.permissions.includes(code) && user.catalog.some((p) => p.code === code && p.group !== '管理后台'));
+  const editable = (role: Role) => role.code !== 'admin' && (isAdmin || (!user?.roles.some((r) => r.id === role.id) && role.permissions.every(grantable)));
   const { runLatestRequest } = useLatestRequest('admin-roles');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -52,6 +55,7 @@ export default function Page() {
   return (
     <>
       <PageHeading title="角色管理" description="按模块配置权限，让每位成员拥有合适的访问范围。" icon={<SafetyCertificateOutlined />} />
+      {!isAdmin && <Alert type="info" showIcon message="只能配置自己已有的业务权限，不能修改自己所属角色。管理权限由系统管理员授予。" style={{ marginBottom: 16 }} />}
       <Typography.Paragraph type="secondary">
         一个用户可拥有多个角色，权限取并集。调整后，下次接口请求即生效。
       </Typography.Paragraph>
@@ -92,7 +96,7 @@ export default function Page() {
               <Space>
                 <Button onClick={() => setViewing(r)}>查看权限</Button>
                 <Button
-                  disabled={r.code === 'admin'}
+                  disabled={!editable(r)}
                   onClick={() => {
                     form.setFieldsValue(r);
                     setEditing(r);
@@ -111,7 +115,7 @@ export default function Page() {
                     }
                   }}
                 >
-                  <Button danger disabled={!!r.builtin || !!r.users.length}>
+                  <Button danger disabled={!!r.builtin || !!r.users.length || !editable(r)}>
                     删除
                   </Button>
                 </Popconfirm>
@@ -215,7 +219,7 @@ export default function Page() {
                     {user?.catalog
                       .filter((p) => p.group === group)
                       .map((p) => (
-                        <Checkbox key={p.code} value={p.code} disabled={editing?.code === 'user' && p.group === '管理后台'}>
+                        <Checkbox key={p.code} value={p.code} disabled={!grantable(p.code) || (editing?.code === 'user' && p.group === '管理后台')}>
                           {permissionName(p)}
                         </Checkbox>
                       ))}

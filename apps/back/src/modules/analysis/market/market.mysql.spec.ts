@@ -16,6 +16,7 @@ import { DailyTaskService } from '@/modules/daily-task/daily-task.service';
 import { TushareService } from '@/shared/tushare/tushare.service';
 import { Accounts1790467200000 } from '@/migrations/1790467200000-Accounts';
 import { MarketAnalysis1790553600000 } from '@/migrations/1790553600000-MarketAnalysis';
+import { AdminJobControls1791676800000 } from '@/migrations/1791676800000-AdminJobControls';
 import { MarketBreadth1790899200000 } from '@/migrations/1790899200000-MarketBreadth';
 import { ThsSectors1790985600000 } from '@/migrations/1790985600000-ThsSectors';
 import { JobsService, validRange } from '@/modules/admin/jobs.service';
@@ -196,6 +197,7 @@ mysqlDescribe('市场分析迁移、发布及持久化续跑', () => {
       await new MarketBreadth1790899200000().up(q);
       await new ThsSectors1790985600000().up(q);
       await new ThsSectors1790985600000().up(q);
+      await new AdminJobControls1791676800000().up(q);
     } finally {
       await q.release();
     }

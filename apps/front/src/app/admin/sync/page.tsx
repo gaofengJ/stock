@@ -4,13 +4,14 @@ import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { errorMessage } from '@/api/errors';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert, Button, DatePicker, Descriptions, Drawer, Form, Select, Space, Tag, Typography, message,
+  Alert, Button, DatePicker, Descriptions, Drawer, Form, Popconfirm, Select, Space, Tag, Typography, message,
 } from 'antd';
 import Table from '@/components/DataTable';
 import { useAccount } from '@/auth/Boundary';
 import { api } from '@/auth/client';
 import { SyncOutlined } from '@ant-design/icons';
 import PageHeading from '@/auth/PageHeading';
+import { startJobPolling } from './job-polling';
 
 const labels: Record<string, string> = {
   queued: '等待执行',
@@ -19,6 +20,10 @@ const labels: Record<string, string> = {
   pending: '待补齐',
   failed: '失败',
   interrupted: '已中断',
+  paused: '已暂停',
+  pausing: '正在暂停',
+  cancelled: '已取消',
+  cancelling: '正在取消',
 };
 export default function Page() {
   const { user } = useAccount();
@@ -30,6 +35,8 @@ export default function Page() {
   const [page, setPage] = useState(1);
   const [detail, setDetail] = useState<any>(null);
   const [selected, setSelected] = useState<number | null>(null);
+  const [detailVersion, setDetailVersion] = useState(0);
+  const [detailError, setDetailError] = useState('');
   const [busy, setBusy] = useState(false);
   const fail = (e: unknown) => message.error(errorMessage(e));
   const load = useCallback(async () => {
@@ -50,17 +57,23 @@ export default function Page() {
   }, [load]);
   useEffect(() => {
     if (!selected) return undefined;
-    const read = () => api(`/admin/sync-jobs/${selected}`).then(setDetail).catch(fail);
-    read();
-    const t = setInterval(read, 5000);
-    return () => clearInterval(t);
-  }, [selected]);
+    setDetail(null);
+    setDetailError('');
+    return startJobPolling({
+      read: () => api(`/admin/sync-jobs/${selected}`),
+      onValue: (value) => { setDetail(value); setDetailError(''); },
+      onError: (error) => setDetailError(errorMessage(error)),
+      visible: () => !document.hidden,
+    });
+  }, [selected, detailVersion]);
   const submit = async (startDate: string, endDate: string, mode = 'missing') => {
     setBusy(true);
     try {
       const job = await api('/admin/sync-jobs', 'POST', { startDate, endDate, mode });
-      message.success(`任务已提交：${job.id}`);
+      message.success(`任务 #${job.id}：${labels[job.status] || job.status}`);
+      setDetail(null);
       setSelected(job.id);
+      setDetailVersion((v) => v + 1);
       await load();
     } catch (e) {
       fail(e);
@@ -68,13 +81,22 @@ export default function Page() {
       setBusy(false);
     }
   };
+  const control = async (id: number, action: 'pause' | 'cancel' | 'retry') => {
+    setBusy(true);
+    try {
+      const job = await api(`/admin/sync-jobs/${id}/control`, 'POST', { action });
+      message.success(`任务 #${id}：${labels[job.status]}`);
+      setDetailVersion((v) => v + 1);
+      await load();
+    } catch (e) { fail(e); } finally { setBusy(false); }
+  };
   return (
     <>
       <PageHeading title="数据同步" description="按日更新行情，或补齐指定日期范围的数据。" icon={<SyncOutlined />} />
       <Alert
         type="info"
         showIcon
-        message="任务在服务器串行执行，可以关闭页面。完成日期表示已执行；是否完整请查看各日期的数据状态。"
+        message="任务在服务器串行执行，可以关闭页面。暂停和取消在当前批次结束后生效；累计失败 5 次后停止自动重试，可手动重试。"
         style={{ marginBottom: 20 }}
       />
       {user?.permissions.includes('sync:run') && (
@@ -141,6 +163,8 @@ export default function Page() {
             ),
           },
           { title: '阶段', dataIndex: 'stage' },
+          { title: '失败次数', dataIndex: 'retryCount' },
+          { title: '下次重试', dataIndex: 'nextRetryAt', render: (v) => (v ? new Date(v).toLocaleString() : '—') },
           {
             title: '操作',
             render: (_, r) => (
@@ -149,18 +173,27 @@ export default function Page() {
                   onClick={() => {
                     setDetail(null);
                     setSelected(r.id);
+                    setDetailVersion((v) => v + 1);
                   }}
                 >
                   详情
                 </Button>
                 {user?.permissions.includes('sync:run')
-                  && ['failed', 'pending', 'interrupted'].includes(r.status) && (
+                  && ['failed', 'pending', 'interrupted', 'paused'].includes(r.status) && (
                     <Button
                       loading={busy}
-                      onClick={() => submit(r.startDate, r.endDate, r.mode)}
+                      onClick={() => control(r.id, 'retry')}
                     >
-                      重新提交
+                      {r.status === 'paused' ? '继续执行' : '立即重试'}
                     </Button>
+                )}
+                {user?.permissions.includes('sync:run') && ['queued', 'pending', 'running'].includes(r.status) && (
+                  <Button disabled={busy} onClick={() => control(r.id, 'pause')}>暂停</Button>
+                )}
+                {user?.permissions.includes('sync:run') && ['queued', 'pending', 'running', 'paused', 'pausing'].includes(r.status) && (
+                  <Popconfirm title="取消此任务？已保存的数据会保留。" onConfirm={() => control(r.id, 'cancel')}>
+                    <Button danger disabled={busy}>取消</Button>
+                  </Popconfirm>
                 )}
               </Space>
             ),
@@ -176,6 +209,8 @@ export default function Page() {
           setDetail(null);
         }}
       >
+        {detailError && <Alert type="error" message={detailError} showIcon />}
+        {!detail && !detailError && <Typography.Paragraph>加载中…</Typography.Paragraph>}
         {detail && (
           <>
             <Descriptions
@@ -187,6 +222,9 @@ export default function Page() {
                   children: labels[detail.status],
                 },
                 { key: 'stage', label: '阶段', children: detail.stage },
+                { key: 'failures', label: '失败次数', children: `${detail.retry_count || 0} / ${detail.maxFailures}` },
+                { key: 'retry', label: '下次重试', children: detail.next_retry_at ? new Date(detail.next_retry_at).toLocaleString() : '—' },
+                { key: 'progress', label: '最近进展', children: detail.last_progress_at ? new Date(detail.last_progress_at).toLocaleString() : '尚无完成记录' },
                 {
                   key: 'dates',
                   label: '实际执行日期',
