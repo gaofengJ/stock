@@ -37,6 +37,45 @@ function parseEastmoneyBars(text) {
   return parseBars(`=(${JSON.stringify(bars)});`);
 }
 
+function parseThsBars(text) {
+  const match = text.match(/^\s*quotebridge_v6_line_hs_\d{6}_30_last(?:\d+)?\((\{[\s\S]*\})\)\s*;?\s*$/);
+  if (!match) throw new Error('Invalid THS five-minute response');
+  const data = JSON.parse(match[1]).data;
+  if (typeof data !== 'string' || !data) throw new Error('Missing THS bars');
+  const bars = data.split(';').filter(Boolean).map((line) => {
+    const [stamp, open, high, low, close, volume] = line.split(',');
+    if (!/^\d{12}$/.test(stamp) || !Number.isFinite(Number(volume)) || Number(volume) < 0)
+      throw new Error('Invalid THS bar');
+    return { day: `${stamp.slice(0, 4)}-${stamp.slice(4, 6)}-${stamp.slice(6, 8)} ${stamp.slice(8, 10)}:${stamp.slice(10, 12)}:00`, open, high, low, close, volume };
+  });
+  return parseBars(`=(${JSON.stringify(bars)});`);
+}
+
+async function fetchContributions(code, daily, dates, { preferThs = false, interval = 1000, fetchImpl = fetch, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) } = {}) {
+  const [number, exchange] = code.split('.');
+  const eastmoney = new URL('https://push2his.eastmoney.com/api/qt/stock/kline/get');
+  eastmoney.search = new URLSearchParams({ secid: `${exchange === 'SH' ? '1' : '0'}.${number}`, fields1: 'f1,f2,f3,f4,f5,f6', fields2: 'f51,f52,f53,f54,f55,f56,f57', klt: '5', fqt: '0', beg: dates[0].replaceAll('-', ''), end: dates.at(-1).replaceAll('-', ''), lmt: '1970', ut: '7eea3edcaed734bea9cbfc24409ed9894' }).toString();
+  const sources = {
+    sina: { url: `https://quotes.sina.cn/cn/api/jsonp_v2.php/=/CN_MarketDataService.getKLineData?symbol=${exchange.toLowerCase()}${number}&scale=5&ma=no&datalen=1970`, parser: parseBars, referer: 'https://finance.sina.com.cn/' },
+    eastmoney: { url: eastmoney.toString(), parser: parseEastmoneyBars, referer: 'https://quote.eastmoney.com/' },
+    ths: { url: `https://d.10jqka.com.cn/v6/line/hs_${number}/30/last1800.js`, parser: parseThsBars, referer: `https://stockpage.10jqka.com.cn/${number}/` },
+  };
+  const errors = [];
+  for (const provider of preferThs ? ['ths', 'sina', 'eastmoney'] : ['sina', 'eastmoney', 'ths']) {
+    if (errors.length) await sleep(interval);
+    const source = sources[provider];
+    try {
+      const response = await fetchImpl(source.url, { signal: AbortSignal.timeout(20000), headers: { 'User-Agent': 'Mozilla/5.0', Referer: source.referer } });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      // Every provider must pass the same coverage and daily-close checks before aggregation.
+      return { provider, contribution: contributions(source.parser(await response.text()), daily) };
+    } catch (error) {
+      errors.push(`${provider}: ${error.cause?.code || error.message}`);
+    }
+  }
+  throw new Error(errors.join('; '));
+}
+
 function contributions(bars, daily) {
   const byDate = new Map();
   for (const bar of bars) {
@@ -119,25 +158,7 @@ async function main() {
       attempted += 1;
       const start = Date.now();
       try {
-        const [number, exchange] = code.split('.');
-        const symbol = `${exchange.toLowerCase()}${number}`;
-        let contribution;
-        let provider = 'sina';
-        try {
-          const response = await fetch(`https://quotes.sina.cn/cn/api/jsonp_v2.php/=/CN_MarketDataService.getKLineData?symbol=${symbol}&scale=5&ma=no&datalen=1970`, { signal: AbortSignal.timeout(20000), headers: { 'User-Agent': 'Mozilla/5.0', Referer: 'https://finance.sina.com.cn/' } });
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          contribution = contributions(parseBars(await response.text()), daily);
-        } catch {
-          // Independent historical source fills actual missing bars, never guessed prices.
-          await new Promise((resolve) => setTimeout(resolve, interval));
-          provider = 'eastmoney';
-          const secid = `${exchange === 'SH' ? '1' : '0'}.${number}`;
-          const url = new URL('https://push2his.eastmoney.com/api/qt/stock/kline/get');
-          url.search = new URLSearchParams({ secid, fields1: 'f1,f2,f3,f4,f5,f6', fields2: 'f51,f52,f53,f54,f55,f56,f57', klt: '5', fqt: '0', beg: dates[0].replaceAll('-', ''), end: dates.at(-1).replaceAll('-', ''), lmt: '1970', ut: '7eea3edcaed734bea9cbfc24409ed9894' }).toString();
-          const response = await fetch(url, { signal: AbortSignal.timeout(20000) });
-          if (!response.ok) throw new Error(`Backup HTTP ${response.status}`);
-          contribution = contributions(parseEastmoneyBars(await response.text()), daily);
-        }
+        const { provider, contribution } = await fetchContributions(code, daily, dates, { preferThs: args.includes('--prefer-ths'), interval });
         for (const day of contribution) day.changes.forEach((direction, index) => {
           const point = state.counts[day.date][index];
           point.samples += 1;
@@ -180,5 +201,5 @@ async function main() {
     console.log(JSON.stringify({ phase: 'finished', complete: state.complete, done: state.done.length, failed: Object.keys(state.failed).length }));
   } finally { await db.end(); }
 }
-module.exports = { TIMES, parseBars, parseEastmoneyBars, contributions };
+module.exports = { TIMES, parseBars, parseEastmoneyBars, parseThsBars, contributions, fetchContributions };
 if (require.main === module) main().catch((error) => { console.error(error.message); process.exitCode = 1; });
