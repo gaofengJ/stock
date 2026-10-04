@@ -1,7 +1,10 @@
 import { Column, Entity, Index } from 'typeorm';
 import { CommonEntity } from '@/entity/common.entity';
+import { StockEntity } from './stock.entity';
 
 export interface HistoricalStock {
+  profile?: Partial<StockEntity>;
+  listStatus?: string;
   tsCode: string;
   name: string;
   listDate: string;

@@ -13,6 +13,7 @@ import { changeClass, scaledNumber } from '@/utils/format';
 import { DragonList, LimitRow } from '@/api/market';
 import SectorFilter, { useSectorSelection } from '@/components/SectorFilter';
 import SectorLinks from '@/components/SectorLinks';
+import { RiskTags, StockLink, useWorkbench } from '../../basic/components/workbench';
 import LegacyPage from './LegacyPage';
 import MarketCompatibility from '../components/MarketCompatibility';
 import MarketShell from '../components/MarketShell';
@@ -32,6 +33,7 @@ function LimitsPage() {
   const [height, setHeight] = useState<number | undefined>();
   const [stock, setStock] = useState<LimitRow | null>(null);
   const { date, scope } = useMarket();
+  const risks = useWorkbench('risk', { date }, !!date);
   const { user } = useAccount();
   const canReadDragon = allowedPath(user, '/analysis/dragon');
   const dragonHref = (code?: string) => marketHref('/analysis/dragon', { date, scope }, { ...(sector ? { sector } : {}), ...(code ? { code } : {}) });
@@ -72,7 +74,10 @@ function LimitsPage() {
             {
               title: '代码', dataIndex: 'tsCode', fixed: 'left', width: 115,
             }, {
-              title: '名称', dataIndex: 'name', fixed: 'left', width: 105,
+              title: '名称', dataIndex: 'name', fixed: 'left', width: 105, render: (v, r) => <StockLink code={r.tsCode} name={v} date={date} />,
+            },
+            {
+              title: '风险提示', key: 'risks', width: 150, render: (_, r) => <RiskTags data={risks.data} code={r.tsCode} date={date} />,
             },
             {
               title: '行业', key: 'industry', width: 150, render: (_, r) => <SectorLinks stock={r} date={date} />,

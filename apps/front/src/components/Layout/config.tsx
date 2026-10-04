@@ -83,6 +83,7 @@ export const analysisSiderMenuItems: MenuProps['items'] = [
  * 基础数据 侧边栏 items
  */
 export const basicSiderMenuItems: MenuProps['items'] = [
+  { key: '/basic/stock/risk', label: '风险与交易状态', icon: <ProfileOutlined /> },
   {
     key: EBasicAsideMenuKey.basicDaily,
     label: '每日交易数据',

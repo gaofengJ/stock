@@ -161,7 +161,7 @@ export class StockEntity extends CommonEntity {
   @Column({
     name: 'act_name',
     type: 'varchar',
-    length: 16,
+    length: 512,
     nullable: true,
     comment: '实控人名称',
   })

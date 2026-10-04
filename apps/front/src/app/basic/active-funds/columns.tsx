@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { ColumnsType } from 'antd/es/table/interface';
 import { normalizeOrg } from '@/utils/active-funds';
 
@@ -19,7 +20,7 @@ export const useActiveFundsColumns = (selectedOrg = ''): ColumnsType => [
     render: (val: string[]) => (
       <div className="flex items-center flex-wrap mt-[-8px] py-16">
         {val.map((i) => (
-          <span key={i} className={`active-funds-org${normalizeOrg(i) === normalizeOrg(selectedOrg) ? ' is-selected' : ''}`}>{i}</span>
+          <Link href={`/basic/active-funds/detail/?org=${encodeURIComponent(i)}`} key={i} className={`active-funds-org${normalizeOrg(i) === normalizeOrg(selectedOrg) ? ' is-selected' : ''}`}>{i}</Link>
         ))}
       </div>
     ),

@@ -5,6 +5,7 @@ interface TableSize {
 
 const migrationTables: Record<string, readonly string[]> = {
   AdminJobControls1791676800000: ['t_admin_job'],
+  BasicWorkbench1791763200000: ['t_source_basic_snapshot', 't_source_stock'],
   MarketInsights1791590400000: [
     't_processed_stock_insight',
     't_source_ths_hot',
@@ -68,6 +69,7 @@ const migrationOperations: Record<
   'create' | 'data' | 'schema' | 'full-database'
 > = {
   AdminJobControls1791676800000: 'schema',
+  BasicWorkbench1791763200000: 'schema',
   MarketInsights1791590400000: 'create',
   IntradayCountsSource1791504000001: 'schema',
   IntradayCounts1791331200000: 'create',

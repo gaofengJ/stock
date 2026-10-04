@@ -1,6 +1,7 @@
 import type { ColumnsType } from 'antd/es/table/interface';
 import { useOptionsState } from '@/store/useOptionsStore';
 import SectorLinks from '@/components/SectorLinks';
+import { StockLink } from '../components/workbench';
 
 /**
  * 设置默认值
@@ -16,6 +17,7 @@ export const useStockColumns = (date?: string): ColumnsType => {
       title: '股票代码',
       dataIndex: 'symbol',
       key: 'symbol',
+      render: (_, row) => <StockLink code={row.tsCode} date={date} />,
       fixed: 'left',
       width: 120,
     },
@@ -23,6 +25,7 @@ export const useStockColumns = (date?: string): ColumnsType => {
       title: '股票名称',
       dataIndex: 'name',
       key: 'name',
+      render: (value, row) => <StockLink code={row.tsCode} name={value} date={date} />,
       fixed: 'left',
       width: 120,
     },

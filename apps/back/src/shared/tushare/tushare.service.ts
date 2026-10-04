@@ -155,6 +155,8 @@ export class TushareService {
         'list_date',
         'delist_date',
         'is_hs',
+        'act_name',
+        'act_ent_type',
       ].join(','),
     );
   }
