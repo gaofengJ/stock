@@ -14,6 +14,8 @@ import { DragonQueryDto, MarketQueryDto, ResearchQueryDto } from './market.dto';
 import { SectorService } from './sector.service';
 import { SectorQueryDto } from './sector.dto';
 import { MarketResearchService } from './market-research.service';
+import { InsightService } from '../../strategy/insight.service';
+import { ExtremesDto } from '../../strategy/insight.dto';
 
 @ApiTags('市场分析')
 @Controller('market')
@@ -30,7 +32,14 @@ export class MarketController {
     private breadthService: MarketBreadthService,
     private sectors: SectorService,
     private research: MarketResearchService,
+    private insights: InsightService,
   ) {}
+
+  @Get('extremes')
+  @Permit('analysis:overview')
+  extremes(@Query() q: ExtremesDto) {
+    return this.insights.extremes(q.date, q.scope, q.period, q.days);
+  }
 
   @Get('feedback')
   @Permit('analysis:senti')

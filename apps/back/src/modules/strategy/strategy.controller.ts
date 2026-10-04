@@ -8,11 +8,35 @@ import { StrategyService } from './strategy.service';
 import { TabItem } from './strategy.entity';
 import { StrategyListQueryDto, StrategyChartQueryDto } from './strategy.dto';
 import { DailyEntity } from '../source/daily/daily.entity';
+import { InsightService } from './insight.service';
+import { InsightDateDto, PerformanceDto } from './insight.dto';
 
 @ApiTags('策略选股')
 @Controller('strategy')
 export class StrategyController {
-  constructor(private readonly strategyService: StrategyService) {}
+  constructor(
+    private readonly strategyService: StrategyService,
+    private insights: InsightService,
+  ) {}
+
+  @Permit('strategy:read')
+  @Get('/comparison')
+  comparison(@Query() q: InsightDateDto) {
+    return this.insights.comparison(q.date);
+  }
+
+  @Permit('strategy:read')
+  @Get('/performance')
+  @QueryTimeout(60000)
+  performance(@Query() q: PerformanceDto) {
+    return this.insights.performance(q.date, q.strategyType, q.days, q.sector);
+  }
+
+  @Permit('strategy:read')
+  @Get('/popularity')
+  popularity(@Query() q: InsightDateDto) {
+    return this.insights.popularity(q.date);
+  }
 
   @Permit('strategy:read')
   @Get('/tabs-list')

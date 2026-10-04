@@ -144,6 +144,10 @@ async function main() {
       }
       process.stdout.write(JSON.stringify({ phase: 'after', ...after }) + '\n');
     } else if (action === 'verify') {
+      for (const table of ['t_processed_stock_insight', 't_source_ths_hot']) {
+        const columns = await ds.query('SHOW COLUMNS FROM ' + q(table));
+        if (!columns.some(c => c.Field === 'trade_date') || !columns.some(c => c.Field === 'data')) throw new Error('Insight schema incomplete: ' + table);
+      }
       await checkSyncSchema(ds);
       await require('../../dist/modules/analysis/market/intraday-counts-schema').checkIntradayCountsSchema(ds);
       await require('../../dist/modules/news/news-schema').checkNewsSchema(ds);
@@ -186,6 +190,10 @@ async function main() {
       );
       await ds.query("INSERT INTO t_admin_job(actor_id,actor_name,start_date,end_date,status,active_key,mode,stage) VALUES(NULL,'同花顺板块同步',?,?,'queued','ths-sectors-two-years','sector','发布后更新同花顺板块') ON DUPLICATE KEY UPDATE end_date=GREATEST(end_date,VALUES(end_date))", [start, endDate]);
       const factorStart = require('dayjs')(start).subtract(8, 'month').format('YYYY-MM-DD');
+      const insightDates = await ds.query("SELECT DATE_FORMAT(cal_date,'%Y-%m-%d') date FROM t_source_trade_cal WHERE is_open=1 AND cal_date<=? ORDER BY cal_date DESC LIMIT 60", [endDate]);
+      for (const mode of ['insights', 'hot']) {
+        if (insightDates.length) await ds.query("INSERT INTO t_admin_job(actor_id,actor_name,start_date,end_date,status,active_key,mode,stage) VALUES(NULL,?,?,?,'queued',?,?,'发布后补齐观察数据') ON DUPLICATE KEY UPDATE start_date=LEAST(start_date,VALUES(start_date)),end_date=GREATEST(end_date,VALUES(end_date))", [mode === 'hot' ? '同花顺日终人气' : '市场与策略观察统计', insightDates.at(-1).date, endDate, 'stock-' + mode + '-history', mode]);
+      }
       await ds.query("INSERT INTO t_admin_job(actor_id,actor_name,start_date,end_date,status,active_key,mode,stage) VALUES(NULL,'策略复权行情补齐',?,?,'queued','strategy-factor-history','technical','发布后补齐策略复权行情') ON DUPLICATE KEY UPDATE end_date=GREATEST(end_date,VALUES(end_date))", [factorStart, endDate]);
       process.stdout.write(
         JSON.stringify({ status: 'queued', start, end: endDate }) + '\n',
