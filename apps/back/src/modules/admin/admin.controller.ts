@@ -16,7 +16,7 @@ import { AuthRequest } from '../auth/auth.service';
 import { PageDto } from '../auth/auth.dto';
 import { JobsService } from './jobs.service';
 import { LogsService } from './logs.service';
-import { LogsQueryDto, SyncJobDto } from './admin.dto';
+import { JobControlDto, LogsQueryDto, SyncJobDto } from './admin.dto';
 
 @Controller('admin')
 @UsePipes(
@@ -60,6 +60,16 @@ export class AdminController {
   @Get('logs')
   applications(@Query() q: LogsQueryDto) {
     return this.logs.application(q);
+  }
+
+  @Permit('sync:run')
+  @Post('sync-jobs/:id/control')
+  control(
+    @Req() req: AuthRequest,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: JobControlDto,
+  ) {
+    return this.jobs.control(req.authUser!, id, dto.action);
   }
 
   @Permit('logs:read')

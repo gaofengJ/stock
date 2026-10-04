@@ -1,6 +1,7 @@
 /* eslint-disable no-restricted-syntax, no-await-in-loop -- Ordered database operations and bounded streams must execute sequentially. */
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -16,6 +17,7 @@ import { DailyTaskService } from '../daily-task/daily-task.service';
 import { AuthService, CurrentUser } from '../auth/auth.service';
 import { PageDto } from '../auth/auth.dto';
 import { DataLockService } from './data-lock.service';
+import { JobControl, MAX_JOB_FAILURES, retryOutcome } from './job-policy';
 
 export function validRange(start: string, end: string) {
   for (const d of [start, end])
@@ -47,11 +49,12 @@ export class JobsService implements OnApplicationBootstrap {
   async onApplicationBootstrap() {
     if (this.daily.marketEnabled) {
       try {
-        await this.locks.run(() =>
-          this.db.query(
+        await this.locks.run(async () => {
+          await this.settleStoppedJobs();
+          await this.db.query(
             "UPDATE t_admin_job SET status='queued',stage='服务重启，从已记录进度继续' WHERE status='running'",
-          ),
-        );
+          );
+        });
       } catch (e) {
         if (e.status !== 409) throw e;
       }
@@ -59,6 +62,7 @@ export class JobsService implements OnApplicationBootstrap {
     }
     try {
       await this.locks.run(async () => {
+        await this.settleStoppedJobs();
         const interrupted = await this.db.query(
           "SELECT id,actor_id,actor_name FROM t_admin_job WHERE status='running'",
         );
@@ -121,7 +125,7 @@ export class JobsService implements OnApplicationBootstrap {
       'SELECT COUNT(*) total FROM t_admin_job',
     );
     const items = await this.db.query(
-      'SELECT id,mode,actor_name actorName,DATE_FORMAT(start_date,"%Y-%m-%d") startDate,DATE_FORMAT(end_date,"%Y-%m-%d") endDate,status,stage,started_at startedAt,finished_at finishedAt,created_at createdAt,error FROM t_admin_job ORDER BY id DESC LIMIT ? OFFSET ?',
+      'SELECT id,mode,actor_name actorName,DATE_FORMAT(start_date,"%Y-%m-%d") startDate,DATE_FORMAT(end_date,"%Y-%m-%d") endDate,status,stage,retry_count retryCount,next_retry_at nextRetryAt,last_progress_at lastProgressAt,started_at startedAt,finished_at finishedAt,created_at createdAt,error FROM t_admin_job ORDER BY id DESC LIMIT ? OFFSET ?',
       [q.pageSize, (q.page - 1) * q.pageSize],
     );
     return { items, total: Number(total) };
@@ -137,7 +141,153 @@ export class JobsService implements OnApplicationBootstrap {
       "SELECT task,DATE_FORMAT(trade_date,'%Y-%m-%d') tradeDate,status,daily_count dailyCount,limit_count limitCount,senti_count sentiCount,error,updated_at updatedAt FROM t_sync_run WHERE task IN ('daily','market-index','market','market-breadth','ths-catalog','ths-daily','strategy-factor','stock-insight','ths-hot') AND trade_date BETWEEN ? AND ? ORDER BY trade_date,task",
       [job.startDate, job.endDate],
     );
-    return { ...job, dates };
+    return { ...job, dates, maxFailures: MAX_JOB_FAILURES };
+  }
+
+  async control(actor: CurrentUser, id: number, action: JobControl) {
+    try {
+      return await this.db.transaction(async (m) => {
+        const [job] = await m.query(
+          'SELECT *,DATE_FORMAT(start_date,"%Y-%m-%d") startDate,DATE_FORMAT(end_date,"%Y-%m-%d") endDate FROM t_admin_job WHERE id=? FOR UPDATE',
+          [id],
+        );
+        if (!job) throw new NotFoundException('任务不存在');
+        let status: string;
+        if (action === 'retry') {
+          if (
+            !['pending', 'paused', 'failed', 'interrupted'].includes(job.status)
+          )
+            throw new ConflictException('当前任务不能重试，请刷新状态');
+          const key =
+            job.active_key ||
+            createHash('sha256')
+              .update(`${job.mode}:${job.startDate}:${job.endDate}`)
+              .digest('hex');
+          status = 'queued';
+          await m.query(
+            "UPDATE t_admin_job SET status='queued',stage='已重新排队，将继续校验并补齐',retry_count=0,next_retry_at=NULL,finished_at=NULL,error=NULL,active_key=? WHERE id=?",
+            [key, id],
+          );
+        } else {
+          const allowed =
+            action === 'pause'
+              ? ['queued', 'pending', 'running']
+              : ['queued', 'pending', 'running', 'paused', 'pausing'];
+          if (!allowed.includes(job.status))
+            throw new ConflictException('当前任务不能执行此操作，请刷新状态');
+          const running = ['running', 'pausing'].includes(job.status);
+          if (action === 'pause') status = running ? 'pausing' : 'paused';
+          else status = running ? 'cancelling' : 'cancelled';
+          let stage = action === 'pause' ? '已暂停' : '已取消';
+          if (running) stage = '已收到请求，当前批次结束后停止';
+          await m.query(
+            'UPDATE t_admin_job SET status=?,stage=?,next_retry_at=NULL,active_key=?,finished_at=? WHERE id=?',
+            [
+              status,
+              stage,
+              status === 'cancelled' ? null : job.active_key,
+              status === 'cancelled' ? new Date() : null,
+              id,
+            ],
+          );
+        }
+        await this.auth.audit(
+          actor,
+          `sync.${action}`,
+          id,
+          'success',
+          { status },
+          m,
+        );
+        return { id, status };
+      });
+    } catch (e) {
+      if (e.code === 'ER_DUP_ENTRY')
+        throw new ConflictException('相同范围已有任务，请先处理该任务');
+      throw e;
+    }
+  }
+
+  // Only call while holding the global worker lock: no batch can still be writing.
+  private async settleStoppedJobs() {
+    await this.db.query(
+      "UPDATE t_admin_job SET status='paused',stage='已暂停',next_retry_at=NULL WHERE status='pausing'",
+    );
+    await this.db.query(
+      "UPDATE t_admin_job SET status='cancelled',stage='已取消',next_retry_at=NULL,active_key=NULL,finished_at=UTC_TIMESTAMP(6) WHERE status='cancelling'",
+    );
+    if (this.daily.marketEnabled)
+      await this.db.query(
+        "UPDATE t_admin_job SET status='queued',stage='从已记录进度继续' WHERE status='running'",
+      );
+  }
+
+  private async finish(
+    job: any,
+    status: string,
+    completed: string[],
+    error: string | null,
+    stage: string,
+  ) {
+    return this.db.transaction(async (m) => {
+      const [current] = await m.query(
+        'SELECT status,retry_count,completed_dates FROM t_admin_job WHERE id=? FOR UPDATE',
+        [job.id],
+      );
+      let requestedStatus = status;
+      if (current.status === 'pausing') requestedStatus = 'paused';
+      if (current.status === 'cancelling') requestedStatus = 'cancelled';
+      if (['paused', 'cancelled'].includes(current.status))
+        requestedStatus = current.status;
+      const outcome = retryOutcome(
+        requestedStatus,
+        Number(current.retry_count || 0),
+      );
+      const finalStatus = outcome.status;
+      const terminal = ['success', 'failed', 'cancelled'].includes(finalStatus);
+      const finalError = outcome.exhausted
+        ? `${
+            error || '部分数据仍未补齐'
+          }\n已达到 ${MAX_JOB_FAILURES} 次失败上限，请检查后手动重试`
+        : error;
+      const stages: Record<string, string> = {
+        paused: '已暂停',
+        cancelled: '已取消',
+      };
+      const previous = JSON.stringify(
+        typeof current.completed_dates === 'string'
+          ? JSON.parse(current.completed_dates)
+          : current.completed_dates || [],
+      );
+      await m.query(
+        'UPDATE t_admin_job SET status=?,stage=?,completed_dates=?,error=?,retry_count=?,next_retry_at=?,active_key=?,finished_at=?,last_progress_at=IF(?,UTC_TIMESTAMP(6),last_progress_at),updated_at=UTC_TIMESTAMP(6) WHERE id=?',
+        [
+          finalStatus,
+          stages[finalStatus] ||
+            (outcome.exhausted ? '重试已停止，等待人工处理' : stage),
+          JSON.stringify(completed),
+          finalError ? String(redact(finalError)).slice(0, 2000) : null,
+          outcome.failures,
+          finalStatus === 'pending' ? outcome.nextRetryAt : null,
+          terminal ? null : job.active_key,
+          terminal ? new Date() : null,
+          previous !== JSON.stringify(completed),
+          job.id,
+        ],
+      );
+      if (terminal)
+        await this.auth.audit(
+          job.actor_id === null
+            ? null
+            : { id: job.actor_id, username: job.actor_name },
+          'sync.complete',
+          job.id,
+          finalStatus,
+          { error: finalError },
+          m,
+        );
+      return finalStatus;
+    });
   }
 
   @Interval(5000)
@@ -150,8 +300,9 @@ export class JobsService implements OnApplicationBootstrap {
         return;
       }
       await this.locks.run(async () => {
+        await this.settleStoppedJobs();
         const [job] = await this.db.query(
-          "SELECT *,DATE_FORMAT(start_date,'%Y-%m-%d') startDate,DATE_FORMAT(end_date,'%Y-%m-%d') endDate FROM t_admin_job WHERE status='queued' ORDER BY id LIMIT 1",
+          "SELECT *,DATE_FORMAT(start_date,'%Y-%m-%d') startDate,DATE_FORMAT(end_date,'%Y-%m-%d') endDate FROM t_admin_job WHERE status='queued' OR (status='pending' AND active_key IS NOT NULL AND retry_count<5 AND COALESCE(next_retry_at,DATE_ADD(updated_at,INTERVAL 5 MINUTE))<=UTC_TIMESTAMP(6)) ORDER BY id LIMIT 1",
         );
         if (!job) return;
         // Recheck permission after queuing; revoked users must not execute later.
@@ -160,30 +311,38 @@ export class JobsService implements OnApplicationBootstrap {
           if (!u.permissions.includes('sync:run') || u.mustChangePassword)
             throw new Error('提交者已失去同步权限');
         } catch {
-          await this.db.query(
-            "UPDATE t_admin_job SET status='failed',active_key=NULL,error='提交者已失去同步权限',finished_at=UTC_TIMESTAMP(6) WHERE id=?",
-            [job.id],
-          );
-          await this.auth.audit(
-            { id: job.actor_id, username: job.actor_name },
-            'sync.complete',
-            job.id,
+          await this.finish(
+            job,
             'failed',
-            { reason: '提交者已失去同步权限' },
+            typeof job.completed_dates === 'string'
+              ? JSON.parse(job.completed_dates)
+              : job.completed_dates || [],
+            '提交者已失去同步权限',
+            '执行失败',
           );
           return;
         }
-        await this.db.query(
-          "UPDATE t_admin_job SET status='running',stage='准备基础数据',started_at=UTC_TIMESTAMP(6) WHERE id=?",
+        const claim = await this.db.query(
+          "UPDATE t_admin_job SET status='running',stage='准备基础数据',next_retry_at=NULL,started_at=COALESCE(started_at,UTC_TIMESTAMP(6)) WHERE id=? AND status IN ('queued','pending')",
           [job.id],
         );
-        const completed: string[] = [];
+        if (!claim.affectedRows) return;
+        const completed: string[] =
+          typeof job.completed_dates === 'string'
+            ? JSON.parse(job.completed_dates)
+            : job.completed_dates || [];
         const progress = async (date: string) => {
-          completed.push(date);
+          if (!completed.includes(date)) completed.push(date);
           await this.db.query(
-            'UPDATE t_admin_job SET stage=?,completed_dates=? WHERE id=?',
+            'UPDATE t_admin_job SET stage=?,completed_dates=?,last_progress_at=UTC_TIMESTAMP(6) WHERE id=?',
             [`已完成 ${date}`, JSON.stringify(completed), job.id],
           );
+          const [state] = await this.db.query(
+            'SELECT status FROM t_admin_job WHERE id=?',
+            [job.id],
+          );
+          if (['pausing', 'cancelling'].includes(state.status))
+            throw new Error('任务已请求停止');
         };
         let status = 'success';
         let error: string | null = null;
@@ -202,26 +361,12 @@ export class JobsService implements OnApplicationBootstrap {
           status = 'failed';
           error = String(redact(e.message || '同步失败')).slice(0, 2000);
         }
-        await this.db.query(
-          'UPDATE t_admin_job SET status=?,stage=?,error=?,finished_at=UTC_TIMESTAMP(6),active_key=NULL WHERE id=?',
-          [
-            status,
-            (
-              {
-                success: '执行完成',
-                pending: '执行结束，部分数据待补齐',
-              } as Record<string, string>
-            )[status] || '执行失败',
-            error,
-            job.id,
-          ],
-        );
-        await this.auth.audit(
-          { id: job.actor_id, username: job.actor_name },
-          'sync.complete',
-          job.id,
+        await this.finish(
+          job,
           status,
-          { completedDates: completed, error },
+          completed,
+          error,
+          status === 'success' ? '执行完成' : '执行结束，请查看数据状态',
         );
       });
     } catch (e) {
@@ -233,8 +378,9 @@ export class JobsService implements OnApplicationBootstrap {
 
   private async tickMarket() {
     await this.locks.run(async () => {
+      await this.settleStoppedJobs();
       const [job] = await this.db.query(
-        "SELECT *,DATE_FORMAT(start_date,'%Y-%m-%d') startDate,DATE_FORMAT(end_date,'%Y-%m-%d') endDate FROM t_admin_job WHERE status IN ('queued','running') OR (status='pending' AND active_key IS NOT NULL AND updated_at<DATE_SUB(UTC_TIMESTAMP(6),INTERVAL 5 MINUTE)) ORDER BY (actor_id IS NULL AND mode='refresh') DESC,(mode IN ('breadth','sector','technical','insights','hot')) ASC,(mode='sector') DESC,id LIMIT 1",
+        "SELECT *,DATE_FORMAT(start_date,'%Y-%m-%d') startDate,DATE_FORMAT(end_date,'%Y-%m-%d') endDate FROM t_admin_job WHERE status='queued' OR (status='pending' AND active_key IS NOT NULL AND retry_count<5 AND COALESCE(next_retry_at,DATE_ADD(updated_at,INTERVAL 5 MINUTE))<=UTC_TIMESTAMP(6)) ORDER BY (actor_id IS NULL AND mode='refresh') DESC,(mode IN ('breadth','sector','technical','insights','hot')) ASC,(mode='sector') DESC,id LIMIT 1",
       );
       if (!job) return;
       if (job.actor_id !== null) {
@@ -243,9 +389,14 @@ export class JobsService implements OnApplicationBootstrap {
           if (!user.permissions.includes('sync:run') || user.mustChangePassword)
             throw new Error('提交者已失去同步权限');
         } catch {
-          await this.db.query(
-            "UPDATE t_admin_job SET status='failed',active_key=NULL,error='提交者已失去同步权限',finished_at=UTC_TIMESTAMP(6) WHERE id=?",
-            [job.id],
+          await this.finish(
+            job,
+            'failed',
+            typeof job.completed_dates === 'string'
+              ? JSON.parse(job.completed_dates)
+              : job.completed_dates || [],
+            '提交者已失去同步权限',
+            '执行失败',
           );
           return;
         }
@@ -254,8 +405,8 @@ export class JobsService implements OnApplicationBootstrap {
         typeof job.completed_dates === 'string'
           ? JSON.parse(job.completed_dates)
           : job.completed_dates || [];
-      await this.db.query(
-        "UPDATE t_admin_job SET status='running',started_at=COALESCE(started_at,UTC_TIMESTAMP(6)),stage=? WHERE id=?",
+      const claim = await this.db.query(
+        "UPDATE t_admin_job SET status='running',next_retry_at=NULL,started_at=COALESCE(started_at,UTC_TIMESTAMP(6)),stage=? WHERE id=? AND status IN ('queued','pending')",
         [
           job.mode === 'sector'
             ? '正在补齐同花顺成分和板块日线'
@@ -263,6 +414,7 @@ export class JobsService implements OnApplicationBootstrap {
           job.id,
         ],
       );
+      if (!claim.affectedRows) return;
       try {
         let result;
         if (job.mode === 'sector')
@@ -284,7 +436,7 @@ export class JobsService implements OnApplicationBootstrap {
             job.mode === 'refresh',
             completed,
           );
-        if (!result) return;
+        if (!result) throw new Error('采集未返回结果，等待重试');
         const done = [
           ...new Set([
             ...completed,
@@ -299,7 +451,6 @@ export class JobsService implements OnApplicationBootstrap {
         let status = result.remaining ? 'queued' : 'success';
         if (result.failures.length) status = 'pending';
         if (permanent || blocked) status = 'failed';
-        const terminal = status === 'success' || status === 'failed';
         const error =
           [
             ...result.failures,
@@ -307,44 +458,23 @@ export class JobsService implements OnApplicationBootstrap {
               ? [`主动删除保护：${result.protectedDates.join('、')}`]
               : []),
           ].join('\n') || null;
-        await this.db.query(
-          'UPDATE t_admin_job SET status=?,stage=?,completed_dates=?,error=?,active_key=?,finished_at=?,updated_at=UTC_TIMESTAMP(6) WHERE id=?',
-          [
-            status,
-            'stage' in result
-              ? String(result.stage)
-              : `已处理 ${done.length} 日，待补 ${result.remaining} 日${
-                  result.protectedDates.length
-                    ? `，保护 ${result.protectedDates.length} 日`
-                    : ''
-                }`,
-            JSON.stringify(done),
-            error,
-            terminal ? null : job.active_key,
-            terminal ? new Date() : null,
-            job.id,
-          ],
+        await this.finish(
+          job,
+          status,
+          done,
+          error,
+          'stage' in result
+            ? String(result.stage)
+            : `已处理 ${done.length} 日，待补 ${result.remaining} 日`,
         );
-        if (terminal)
-          await this.auth.audit(
-            job.actor_id === null
-              ? null
-              : { id: job.actor_id, username: job.actor_name },
-            'sync.complete',
-            job.id,
-            status,
-            { error },
-          );
       } catch (e) {
         const permanent = permanentSyncError(e);
-        await this.db.query(
-          'UPDATE t_admin_job SET status=?,error=?,active_key=?,updated_at=UTC_TIMESTAMP(6) WHERE id=?',
-          [
-            permanent ? 'failed' : 'pending',
-            String(redact(e.message)).slice(0, 2000),
-            permanent ? null : job.active_key,
-            job.id,
-          ],
+        await this.finish(
+          job,
+          permanent ? 'failed' : 'pending',
+          completed,
+          String(redact(e.message)).slice(0, 2000),
+          permanent ? '执行失败' : '等待重试',
         );
       }
     });

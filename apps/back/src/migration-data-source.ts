@@ -20,6 +20,7 @@ import { IntradayCounts1791331200000 } from './migrations/1791331200000-Intraday
 import { StrategyTrend1791417600000 } from './migrations/1791417600000-StrategyTrend';
 import { IntradayCountsSource1791504000001 } from './migrations/1791504000001-IntradayCountsSource';
 import { MarketInsights1791590400000 } from './migrations/1791590400000-MarketInsights';
+import { AdminJobControls1791676800000 } from './migrations/1791676800000-AdminJobControls';
 
 dotenv.config({
   path:
@@ -55,6 +56,7 @@ export default new DataSource({
     StrategyTrend1791417600000,
     IntradayCountsSource1791504000001,
     MarketInsights1791590400000,
+    AdminJobControls1791676800000,
   ],
   migrationsTransactionMode: 'none',
   logging: false,

@@ -18,6 +18,8 @@ export default function Page() {
   const [page, setPage] = useState(1);
   const [data, setData] = useState<any>({ items: [] });
   const [stats, setStats] = useState<any>(null);
+  const [statsError, setStatsError] = useState('');
+  const [statsVersion, setStatsVersion] = useState(0);
   const [detail, setDetail] = useState<any>(null);
   const { runLatestRequest } = useLatestRequest('admin-logs');
   const [loading, setLoading] = useState(true);
@@ -25,18 +27,26 @@ export default function Page() {
   const load = useCallback(() => runLatestRequest({
     request: async () => {
       const q = new URLSearchParams({ ...query, page: String(page), pageSize: '20' });
-      const result = await api(`/admin/${tab}?${q}`);
-      const summary = await api(`/admin/stats?${new URLSearchParams({ startDate: query.startDate || dayjs().format('YYYY-MM-DD'), endDate: query.endDate || dayjs().format('YYYY-MM-DD') })}`);
-      return { result, summary };
+      return api(`/admin/${tab}?${q}`);
     },
     onStart: () => { setLoading(true); setLoadError(''); },
-    onSuccess: ({ result, summary }) => { setData(result); setStats(summary); },
+    onSuccess: setData,
     onError: (e) => setLoadError(errorMessage(e)),
     onFinally: () => setLoading(false),
   }), [tab, query, page, runLatestRequest]);
   useEffect(() => {
     load();
   }, [load]);
+  useEffect(() => {
+    let disposed = false;
+    setStats(null);
+    setStatsError('');
+    const startDate = query.startDate || dayjs().format('YYYY-MM-DD');
+    api(`/admin/stats?${new URLSearchParams({ startDate, endDate: query.endDate || startDate })}`)
+      .then((value) => { if (!disposed) setStats(value); })
+      .catch((error) => { if (!disposed) setStatsError(errorMessage(error)); });
+    return () => { disposed = true; };
+  }, [query.startDate, query.endDate, statsVersion]);
   return (
     <>
       <PageHeading title="日志分析" description="检索应用日志与操作记录，了解系统运行情况。" icon={<FileSearchOutlined />} />
@@ -44,7 +54,7 @@ export default function Page() {
         type="info"
         showIcon
         message={`默认查询当天，每次最多 7 天。应用日志保留 ${
-          stats?.retentionDays || '配置指定'
+          (tab === 'logs' && data.retentionDays) || '配置指定'
         } 天；操作审计保留 90 天。`}
         style={{ marginBottom: 20 }}
       />
@@ -106,54 +116,61 @@ export default function Page() {
         <Button htmlType="submit" type="primary">
           查询
         </Button>
-        <Button onClick={load}>刷新</Button>
+        <Button onClick={() => { load(); setStatsVersion((v) => v + 1); }}>刷新</Button>
       </Form>
-      {stats && (
+      {(stats || (tab === 'logs' && data.levels)) && (
         <div className="account-stats">
-          <Card size="small" title="日志级别分布">
-            {Object.entries(stats.levels).map(([k, v]) => (
-              <div key={k} className="account-stat-line">
-                <span>{k}</span>
-                <strong>{String(v)}</strong>
-              </div>
-            ))}
-          </Card>
-          <Card size="small" title="每日错误趋势">
-            {Object.keys(stats.trend).length
-              ? Object.entries(stats.trend).map(([k, v]) => (
-                <div key={k} className="account-stat-line">
-                  <span>{k}</span>
-                  <strong>{String(v)}</strong>
-                </div>
-              ))
-              : '暂无错误'}
-          </Card>
-          <Card size="small" title="同步任务统计">
-            {stats.sync.length
+          {tab === 'logs' && data.levels && (
+            <>
+              <Card size="small" title="日志级别分布">
+                {Object.entries(data.levels).map(([k, v]) => (
+                  <div key={k} className="account-stat-line">
+                    <span>{k}</span>
+                    <strong>{String(v)}</strong>
+                  </div>
+                ))}
+              </Card>
+              <Card size="small" title="每日错误趋势">
+                {Object.keys(data.trend).length
+                  ? Object.entries(data.trend).map(([k, v]) => (
+                    <div key={k} className="account-stat-line">
+                      <span>{k}</span>
+                      <strong>{String(v)}</strong>
+                    </div>
+                  ))
+                  : '暂无错误'}
+              </Card>
+            </>
+          )}
+          <Card size="small" title="同步任务数（统计缓存 30 秒）">
+            {stats?.sync.length
               ? stats.sync.map((r: any) => (
                 <div key={`${r.source}:${r.status}`} className="account-stat-line">
                   <span>
-                    {r.source === 'scheduled' ? '定时 · ' : '人工 · '}
+                    {r.source === 'scheduled' ? '自动 · ' : '人工 · '}
                     {({
-                      success: '成功', pending: '待补齐', failed: '失败', interrupted: '中断', running: '执行中', queued: '排队中',
+                      success: '成功', pending: '待补齐', failed: '失败', interrupted: '中断', running: '执行中', queued: '排队中', paused: '已暂停', pausing: '正在暂停', cancelled: '已取消', cancelling: '正在取消',
                     } as Record<string, string>)[r.status] || r.status}
                   </span>
                   <strong>{r.count}</strong>
                 </div>
               ))
-              : '暂无任务'}
+              : '暂无任务统计'}
           </Card>
         </div>
       )}
+      {statsError && <Alert type="warning" message={`任务统计暂不可用：${statsError}`} />}
+      {tab === 'logs' && (
       <Typography.Paragraph type="secondary">
         所选范围内可用应用日志：
-        {stats?.availableDates?.join('、') || '无'}
+        {data.availableDates?.join('、') || '无'}
         {data.malformed ? `；已跳过坏日志行：${data.malformed}` : ''}
       </Typography.Paragraph>
-      {(data.truncated || stats?.truncated) && (
+      )}
+      {data.truncated && (
         <Alert
           type="warning"
-          message="日志超过单次 128 MB 扫描上限，当前列表与统计为部分结果，请缩小日期范围。"
+          message="日志超过单次 128 MB 扫描上限，已优先读取最新记录；日志列表与级别统计为部分结果，请缩小日期范围。"
         />
       )}
       <Tabs
