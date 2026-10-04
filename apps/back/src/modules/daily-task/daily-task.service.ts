@@ -28,6 +28,7 @@ import { LimitEntity } from '../source/limit/limit.entity';
 import { StockEntity } from '../source/stock/stock.entity';
 import { StockIdentityService } from '../source/stock/stock-identity.service';
 import { TrendService } from '../strategy/trend.service';
+import { InsightService } from '../strategy/insight.service';
 import { TradeCalEntity } from '../source/trade-cal/trade-cal.entity';
 import { ActiveFundsEntity } from '../source/active-funds/active-funds.entity';
 import { SentiEntity } from '../processed/senti/senti.entity';
@@ -59,6 +60,7 @@ export class DailyTaskService {
     @Optional() private readonly sectors?: SectorService,
     @Optional() private readonly identity?: StockIdentityService,
     @Optional() private readonly trends?: TrendService,
+    @Optional() private readonly insights?: InsightService,
   ) {}
 
   private withLock<T>(
@@ -600,6 +602,10 @@ export class DailyTaskService {
     return this.trends.batch(start, end);
   }
 
+  async insightBatch(start: string, end: string, hot = false) {
+    return this.insights?.batch(start, end, hot);
+  }
+
   async sectorBatch(start: string, end: string) {
     this.checkRange(start, end);
     if (!this.sectors) throw new Error('同花顺板块模块未启用');
@@ -673,6 +679,7 @@ export class DailyTaskService {
     }
     try {
       await this.trends?.enqueue(manager, date);
+      await this.insights?.enqueue(manager, date);
     } catch (e) {
       this.logger.warn(`策略复权行情补齐排队失败: ${e.message}`);
     }
@@ -712,6 +719,7 @@ export class DailyTaskService {
           await this.breadth?.enqueue(manager, last.calDate);
           await this.sectors?.enqueue(manager, last.calDate);
           await this.trends?.enqueue(manager, last.calDate);
+          await this.insights?.enqueue(manager, last.calDate);
         }
       },
       true,

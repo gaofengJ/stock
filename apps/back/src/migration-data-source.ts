@@ -19,6 +19,7 @@ import { StockIdentity1791244800000 } from './migrations/1791244800000-StockIden
 import { IntradayCounts1791331200000 } from './migrations/1791331200000-IntradayCounts';
 import { StrategyTrend1791417600000 } from './migrations/1791417600000-StrategyTrend';
 import { IntradayCountsSource1791504000001 } from './migrations/1791504000001-IntradayCountsSource';
+import { MarketInsights1791590400000 } from './migrations/1791590400000-MarketInsights';
 
 dotenv.config({
   path:
@@ -53,6 +54,7 @@ export default new DataSource({
     IntradayCounts1791331200000,
     StrategyTrend1791417600000,
     IntradayCountsSource1791504000001,
+    MarketInsights1791590400000,
   ],
   migrationsTransactionMode: 'none',
   logging: false,

@@ -23,6 +23,7 @@ import ChartRange from '../components/ChartRange';
 import MarketAmountChart from '../components/MarketAmountChart';
 import MarketBreadthChart from '../components/MarketBreadthChart';
 import IndexComparisonChart from '../components/IndexComparisonChart';
+import MarketExtremes from '../components/MarketExtremes';
 
 export default function OverviewPage() {
   const {
@@ -107,6 +108,9 @@ export default function OverviewPage() {
               </Col>
               <Col xs={24} lg={12}>
                 <MarketBreadthChart range={range} />
+              </Col>
+              <Col xs={24} lg={12}>
+                <MarketExtremes range={range} />
               </Col>
             </Row>
             <div className="market-section-toolbar">

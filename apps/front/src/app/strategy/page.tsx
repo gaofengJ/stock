@@ -18,11 +18,12 @@ import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { useDefaultTradeDate } from '@/hooks/useDefaultTradeDate';
 import SectorFilter from '@/components/SectorFilter';
 import { strategyColumns, trendColumns } from './columns';
-import TrendParameters, { isTrendStrategy } from './TrendParameters';
+import TrendParameters, { isTrendStrategy, trendDefaults } from './TrendParameters';
 import { readStrategyOptions, writeStrategyOptions, validStrategyDate } from './strategy-state';
 import CandidateEnvironment from './CandidateEnvironment';
 import StrategyRules from './StrategyRules';
 import StockChart from './StockChart';
+import { CandidateComparison, SignalPerformance, PopularityChanges } from './InsightPanels';
 import './strategy.sass';
 
 const defaultColumns = ['pctChg', 'close', 'amount', 'turnoverRateF', 'industry'];
@@ -39,6 +40,8 @@ function StrategyPage() {
   const [tableLoading, setTableLoading] = useState(true);
   const [items, setItems] = useState<NSGetStrategyList.IRes>([]);
   const [selectedStock, setSelectedStock] = useState<any>(null);
+  const [view, setView] = useState('candidates');
+  const [observation, setObservation] = useState<any>(null);
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
   const { requestConfig: tabsConfig, runLatestRequest: runTabs } = useLatestRequest('strategy-tabs');
   const { requestConfig, runLatestRequest } = useLatestRequest('strategy-list');
@@ -74,7 +77,7 @@ function StrategyPage() {
     });
   }, [date, strategy, sector, options, requestConfig, runLatestRequest]);
   useEffect(() => { getTabs(); }, [getTabs]);
-  useEffect(() => { getList(); setSelectedStock(null); }, [getList]);
+  useEffect(() => { getList(); setSelectedStock(null); setObservation(null); }, [getList]);
   useEffect(() => {
     if (date && strategy && (!params.get('date') || !params.get('strategyType'))) updateQuery({});
   }, [date, strategy, params, updateQuery]);
@@ -107,34 +110,45 @@ function StrategyPage() {
           <SectorFilter value={sector} onChange={(value) => updateQuery({ sector: value, code: undefined })} />
         </Space>
         <CandidateEnvironment date={date} />
-        <div className="strategy-result-toolbar">
-          <Space wrap>
-            <strong>{tableLoading ? '正在筛选' : `共筛出 ${items.length} 只`}</strong>
-            {(keyword || linkedCode) && (
-            <span>
-              当前显示
-              {filtered.length}
-              {' '}
-              只
-            </span>
-            )}
-            <Input aria-label="搜索股票" allowClear placeholder="股票代码 / 名称" value={keyword} style={{ width: 220 }} onChange={(event) => updateQuery({ q: event.target.value })} />
-          </Space>
-          <Select aria-label="展示列" mode="multiple" maxTagCount={0} maxTagPlaceholder={() => '展示列'} style={{ width: 150 }} value={visibleColumns} onChange={setVisibleColumns} options={strategyColumns.slice(2).map((column) => ({ value: String(column.key), label: String(column.title) }))} />
-        </div>
-        {linkedCode && <Alert className="mb-16" type="info" message={`定位股票 ${linkedCode}`} action={<Button onClick={() => updateQuery({ code: undefined })}>显示全部</Button>} />}
-        <Table
-          rootClassName="strategy-table"
-          rowKey="tsCode"
-          dataSource={filtered}
-          columns={columns}
-          bordered
-          locale={{ emptyText: loadError || (keyword || linkedCode ? '当前筛选中未找到该股票' : '当前条件没有符合的股票') }}
-          scroll={{ x: 'max-content' }}
-          loading={!dateError && (!date || tableLoading)}
-          pagination={false}
-        />
+        <Tabs activeKey={view} onChange={setView} items={[{ key: 'candidates', label: '候选列表' }, { key: 'comparison', label: '横向比较' }, { key: 'performance', label: '信号后续表现' }, { key: 'popularity', label: '同花顺人气变化' }]} />
+        {view === 'popularity' && <Alert type="info" className="mb-16" message="人气榜覆盖全市场，跟随交易日期，不受策略和行业筛选影响。" />}
+        {(view === 'candidates' || view === 'comparison') && (
+        <>
+          <div className="strategy-result-toolbar">
+            <Space wrap>
+              <strong>{tableLoading ? '正在筛选' : `共筛出 ${items.length} 只`}</strong>
+              {(keyword || linkedCode) && (
+              <span>
+                当前显示
+                {filtered.length}
+                {' '}
+                只
+              </span>
+              )}
+              <Input aria-label="搜索股票" allowClear placeholder="股票代码 / 名称" value={keyword} style={{ width: 220 }} onChange={(event) => updateQuery({ q: event.target.value })} />
+            </Space>
+            {view === 'candidates' && <Select aria-label="展示列" mode="multiple" maxTagCount={0} maxTagPlaceholder={() => '展示列'} style={{ width: 150 }} value={visibleColumns} onChange={setVisibleColumns} options={strategyColumns.slice(2).map((column) => ({ value: String(column.key), label: String(column.title) }))} />}
+          </div>
+          {linkedCode && <Alert className="mb-16" type="info" message={`定位股票 ${linkedCode}`} action={<Button onClick={() => updateQuery({ code: undefined })}>显示全部</Button>} />}
+          {view === 'candidates' ? (
+            <Table
+              rootClassName="strategy-table"
+              rowKey="tsCode"
+              dataSource={filtered}
+              columns={columns}
+              bordered
+              locale={{ emptyText: loadError || (keyword || linkedCode ? '当前筛选中未找到该股票' : '当前条件没有符合的股票') }}
+              scroll={{ x: 'max-content' }}
+              loading={!dateError && (!date || tableLoading)}
+              pagination={false}
+            />
+          ) : <CandidateComparison key={`${date}-${strategy}-${sector || ''}`} date={date} candidates={tableLoading ? [] : filtered} strategies={navList} onStock={setSelectedStock} />}
+        </>
+        )}
+        {view === 'performance' && <SignalPerformance date={date} strategy={strategy} sector={sector} onStock={(row) => setObservation({ ...row, tsCode: row.code })} />}
+        {view === 'popularity' && <PopularityChanges date={date} />}
         <StockChart stock={selectedStock} date={date} strategy={strategy} options={options} onClose={() => setSelectedStock(null)} />
+        <StockChart stock={observation} date={observation?.date || date} strategy={strategy} options={trendDefaults} onClose={() => setObservation(null)} />
       </div>
     </Layout>
   );

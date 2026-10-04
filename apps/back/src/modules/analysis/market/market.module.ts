@@ -1,4 +1,10 @@
 import { Global, Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { InsightService } from '../../strategy/insight.service';
+import {
+  StockInsightEntity,
+  ThsHotEntity,
+} from '../../strategy/insight.entity';
 import { MarketController } from './market.controller';
 import { MarketService } from './market.service';
 import { MarketSyncService } from './market-sync.service';
@@ -8,6 +14,7 @@ import { MarketResearchService } from './market-research.service';
 
 @Global()
 @Module({
+  imports: [TypeOrmModule.forFeature([StockInsightEntity, ThsHotEntity])],
   controllers: [MarketController],
   providers: [
     MarketService,
@@ -15,7 +22,13 @@ import { MarketResearchService } from './market-research.service';
     MarketBreadthService,
     SectorService,
     MarketResearchService,
+    InsightService,
   ],
-  exports: [MarketSyncService, MarketBreadthService, SectorService],
+  exports: [
+    MarketSyncService,
+    MarketBreadthService,
+    SectorService,
+    InsightService,
+  ],
 })
 export class MarketModule {}
