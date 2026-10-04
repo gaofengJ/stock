@@ -2,6 +2,11 @@
 import 'reflect-metadata';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
+import { ACCESS } from '@/modules/auth/permissions';
+import { TradeCalController } from '@/modules/basic/trade-cal/trade-cal.controller';
+import { WorkbenchController } from '@/modules/basic/workbench/workbench.controller';
+import { StrategyController } from '@/modules/strategy/strategy.controller';
+import { MarketController } from '@/modules/analysis/market/market.controller';
 import { HoldingsDto } from './review.dto';
 import { capStatus, ma5Observation } from './review-rules';
 import { ReviewService } from './review.service';
@@ -9,6 +14,7 @@ import {
   announcementCategories,
   observedRisk,
   safeAnnouncementUrl,
+  stockBoard,
 } from '../basic/workbench/risk-rules';
 
 const series = (prices: (number | null)[]) =>
@@ -17,6 +23,21 @@ const series = (prices: (number | null)[]) =>
     close,
   }));
 describe('personal review', () => {
+  it('allows review-only accounts to load calendar, chart, environment and risk dependencies', () => {
+    [
+      TradeCalController.prototype.list,
+      StrategyController.prototype.chart,
+      MarketController.prototype.environment,
+      WorkbenchController.prototype.risk,
+      WorkbenchController.prototype.riskDetail,
+    ].forEach((handler) => {
+      expect(Reflect.getMetadata(ACCESS, handler).any).toContain('review:read');
+    });
+    expect(stockBoard('689009.SH')).toBe('科创板');
+    expect(stockBoard('688001.SH')).toBe('科创板');
+    expect(stockBoard('300001.SZ')).toBe('创业板');
+    expect(stockBoard('920001.BJ')).toBe('北交所');
+  });
   it('uses ten-thousand-CNY units and does not turn missing caps into small caps', () => {
     expect(capStatus('1999999')).toBe('within');
     expect(capStatus(2000000)).toBe('outside');

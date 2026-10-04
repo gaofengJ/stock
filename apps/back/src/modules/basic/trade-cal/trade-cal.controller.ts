@@ -22,6 +22,7 @@ export class TradeCalController {
     'analysis:chains',
     'analysis:limits',
     'strategy:read',
+    'review:read',
     'market:read',
   )
   @Get('/list')

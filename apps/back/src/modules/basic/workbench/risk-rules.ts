@@ -35,7 +35,7 @@ export const RISK_CHECKLIST = [
 
 export function stockBoard(code: string) {
   if (code.endsWith('.BJ')) return '北交所';
-  if (/^688/.test(code)) return '科创板';
+  if (/^68[89]/.test(code)) return '科创板';
   if (/^30/.test(code)) return '创业板';
   return code.endsWith('.SH') ? '沪市主板' : '深市主板';
 }
