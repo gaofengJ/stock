@@ -468,6 +468,7 @@ export class DailyService {
         'high',
         'low',
         'preClose',
+        'pctChg',
         'vol',
         'amount',
         'upLimit',

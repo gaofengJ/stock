@@ -1,8 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
 import {
-  Alert, Button, Grid, Tabs,
+  useCallback, useEffect, useMemo, useState,
+} from 'react';
+import {
+  Alert, Button, DatePicker, Grid, Input, Select, Space, Tabs,
 } from 'antd';
 import dayjs from 'dayjs';
 import { useSearchParams } from 'next/navigation';
@@ -12,201 +14,129 @@ import Layout from '@/components/Layout';
 import { EHeaderMenuKey } from '@/components/Layout/enum';
 import { getStrategyList, getStrategyTabsList } from '@/api/services';
 import { NSGetStrategyList, NSGetStrategyTabsList } from '@/api/services.types';
-import CSearchForm from '@/components/common/CSearchForm';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { useDefaultTradeDate } from '@/hooks/useDefaultTradeDate';
-import SectorFilter, { useSectorSelection } from '@/components/SectorFilter';
-
-import { useStrategyConfigs } from './form-configs';
+import SectorFilter from '@/components/SectorFilter';
 import { strategyColumns, trendColumns } from './columns';
-import TrendParameters, { isTrendStrategy, trendDefaults, TrendOptions } from './TrendParameters';
-
+import TrendParameters, { isTrendStrategy } from './TrendParameters';
+import { readStrategyOptions, writeStrategyOptions, validStrategyDate } from './strategy-state';
 import CandidateEnvironment from './CandidateEnvironment';
 import StrategyRules from './StrategyRules';
+import StockChart from './StockChart';
 import './strategy.sass';
 
+const defaultColumns = ['pctChg', 'close', 'amount', 'turnoverRateF', 'industry'];
+
 function StrategyPage() {
-  const { sector, setSector } = useSectorSelection();
-  const urlParams = useSearchParams();
-  const linked = urlParams.get('date');
-  const linkedStrategy = urlParams.get('strategyType');
-  const linkedCode = /^\d{6}\.(SH|SZ|BJ)$/.test(urlParams.get('code') || '') ? urlParams.get('code') : null;
-  const linkedDate = /^\d{4}-\d{2}-\d{2}$/.test(linked || '') ? linked! : undefined;
+  const params = useSearchParams();
+  const query = params.toString();
   const screens = Grid.useBreakpoint();
-  const [loadError, setLoadError] = useState('');
   const {
-    candidate, ready, tradeDate, error: dateError, retry: retryDate,
+    ready, tradeDate, error: dateError, retry: retryDate,
   } = useDefaultTradeDate();
-
-  // initialSearchParams 的初始值
-  const initialSearchParams: NSGetStrategyList.IParams = {
-    date: linkedDate || candidate,
-    strategyType: '',
-  };
-  const [searchParams, setSearchParams] = useState<NSGetStrategyList.IParams>(initialSearchParams);
-  const [dateReady, setDateReady] = useState(false);
-
-  /**
-   * 更新 searchParams 的值
-   */
-  const handleSetSearchParams = (val: any) => {
-    if (!val.date?.isValid()) return;
-    setSearchParams((state) => ({
-      ...state,
-      ...val,
-      date: val.date.format('YYYY-MM-DD'),
-    }));
-  };
-
-  const [tableLoading, setTableLoading] = useState(true);
-  const {
-    requestConfig: tabsRequestConfig,
-    runLatestRequest: runLatestTabsRequest,
-  } = useLatestRequest('strategy-tabs');
-  const {
-    requestConfig: strategyRequestConfig,
-    runLatestRequest: runLatestStrategyRequest,
-  } = useLatestRequest('strategy-list');
-
-  const [activedNav, setActivedNav] = useState('');
-  const [parameters, setParameters] = useState<Record<string, TrendOptions>>({});
-  const trendOptions = parameters[activedNav] || trendDefaults;
   const [navList, setNavList] = useState<NSGetStrategyTabsList.IRes>([]);
-
-  const limitsFilterConfigs = useStrategyConfigs();
-
-  // limitsData 的初始值
-  const initialLimitsData: {
-    items: NSGetStrategyList.IRes;
-  } = {
-    items: [],
-  };
-  const [strategyData, setStrategyData] = useState(initialLimitsData);
-
-  useEffect(() => {
-    if (!ready) { setDateReady(false); return; }
-    setSearchParams((state) => {
-      if (linkedDate) return { ...state, date: linkedDate };
-      return state.date === candidate ? { ...state, date: tradeDate } : state;
-    });
-    setDateReady(true);
-  }, [candidate, ready, tradeDate, linkedDate]);
-
-  /**
-   * 切换左侧 tab
-   */
-  const handleClickTabs = (activedNav: string) => {
-    setActivedNav(activedNav);
-  };
-
-  /**
-   * 获取 navList
-   */
-  const getNavList = useCallback(() => runLatestTabsRequest({
-    request: () => getStrategyTabsList(tabsRequestConfig),
-    onStart: () => { setLoadError(''); setTableLoading(true); },
-    onSuccess: ({ data }) => {
-      if (!data.length) setTableLoading(false);
-      setNavList(data);
-      setActivedNav(data.find((r) => r.key === linkedStrategy)?.key || data[0]?.key || '');
-    },
-    onError: (error) => {
-      setLoadError(errorMessage(error, '策略加载失败，请重试'));
-      setTableLoading(false);
-      setNavList([]);
-      setActivedNav('');
-      setStrategyData({ items: [] });
-    },
-  }), [runLatestTabsRequest, tabsRequestConfig, linkedStrategy]);
-
-  const getStrategy = useCallback(() => {
-    if (!ready || !dateReady || !searchParams.date || !activedNav) return;
-    runLatestStrategyRequest({
+  const [loadError, setLoadError] = useState('');
+  const [tableLoading, setTableLoading] = useState(true);
+  const [items, setItems] = useState<NSGetStrategyList.IRes>([]);
+  const [selectedStock, setSelectedStock] = useState<any>(null);
+  const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
+  const { requestConfig: tabsConfig, runLatestRequest: runTabs } = useLatestRequest('strategy-tabs');
+  const { requestConfig, runLatestRequest } = useLatestRequest('strategy-list');
+  const strategy = navList.find((row) => row.key === params.get('strategyType'))?.key || navList[0]?.key || '';
+  const date = validStrategyDate(params.get('date')) || (ready ? tradeDate : '');
+  const sector = params.get('sector') || undefined;
+  const keyword = params.get('q') || '';
+  const linkedCode = /^\d{6}\.(SH|SZ|BJ)$/.test(params.get('code') || '') ? params.get('code') : null;
+  const optionKey = JSON.stringify(readStrategyOptions(params));
+  const options = useMemo(() => JSON.parse(optionKey), [optionKey]);
+  const updateQuery = useCallback((changes: Record<string, string | undefined>) => {
+    const next = new URLSearchParams(query);
+    Object.entries(changes).forEach(([key, value]) => { if (value) next.set(key, value); else next.delete(key); });
+    if (!next.has('date') && date) next.set('date', date);
+    if (!next.has('strategyType') && strategy) next.set('strategyType', strategy);
+    window.history.replaceState(null, '', `?${next}`);
+  }, [query, date, strategy]);
+  const getTabs = useCallback(() => runTabs({
+    request: () => getStrategyTabsList(tabsConfig),
+    onSuccess: ({ data }) => { setNavList(data); if (!data.length) setTableLoading(false); },
+    onError: (error) => { setLoadError(errorMessage(error, '策略加载失败')); setTableLoading(false); },
+  }), [runTabs, tabsConfig]);
+  const getList = useCallback(() => {
+    if (!date || !strategy) return;
+    runLatestRequest({
       request: () => getStrategyList({
-        ...searchParams,
-        strategyType: activedNav,
-        ...(sector ? { sector } : {}),
-        ...(isTrendStrategy(activedNav) ? trendOptions : {}),
-      }, { ...strategyRequestConfig, timeout: 90000 }),
-      onStart: () => { setTableLoading(true); setLoadError(''); },
-      onSuccess: ({ data }) => setStrategyData({ items: data }),
-      onError: (error) => {
-        setLoadError(errorMessage(error, '策略加载失败，请重试'));
-        setTableLoading(false);
-        setStrategyData({ items: [] });
-      },
+        date, strategyType: strategy, ...(sector ? { sector } : {}), ...(isTrendStrategy(strategy) ? options : {}),
+      }, { ...requestConfig, timeout: 90000 }),
+      onStart: () => { setLoadError(''); setTableLoading(true); },
+      onSuccess: ({ data }) => setItems(data),
+      onError: (error) => { setItems([]); setLoadError(errorMessage(error, '策略加载失败，请重试')); },
       onFinally: () => setTableLoading(false),
     });
-  }, [
-    activedNav,
-    dateReady,
-    ready,
-    runLatestStrategyRequest,
-    searchParams,
-    sector,
-    strategyRequestConfig,
-    trendOptions,
-  ]);
-
+  }, [date, strategy, sector, options, requestConfig, runLatestRequest]);
+  useEffect(() => { getTabs(); }, [getTabs]);
+  useEffect(() => { getList(); setSelectedStock(null); }, [getList]);
   useEffect(() => {
-    getNavList();
-  }, [getNavList]);
-
-  useEffect(() => {
-    getStrategy();
-  }, [getStrategy]);
-
+    if (date && strategy && (!params.get('date') || !params.get('strategyType'))) updateQuery({});
+  }, [date, strategy, params, updateQuery]);
+  const filtered = items.filter((row) => (!linkedCode || row.tsCode === linkedCode)
+    && (!keyword || `${row.tsCode} ${row.name}`.toLowerCase().includes(keyword.trim().toLowerCase())));
+  const columns = [
+    ...strategyColumns.slice(0, 2).map((column) => ({
+      ...column,
+      fixed: 'left' as const,
+      width: column.key === 'tsCode' ? 104 : 120,
+      render: (value: string, row: any) => <Button type="link" className="strategy-stock-link" onClick={() => setSelectedStock(row)}>{column.key === 'tsCode' ? value.split('.')[0] : value}</Button>,
+    })),
+    ...trendColumns(strategy),
+    ...strategyColumns.slice(2).filter((column) => visibleColumns.includes(String(column.key))),
+  ];
   return (
     <Layout showAsideMenu={false} headerMenuActive={EHeaderMenuKey.strategy}>
       <div className="p-16 rounded-[6px] bg-bg-white">
         <h1 className="page-heading">策略选股</h1>
-        {dateError && <Alert type="error" message={dateError} showIcon action={<Button size="small" onClick={retryDate}>重试</Button>} />}
-        {loadError && <Alert type="error" message={loadError} showIcon action={<Button size="small" onClick={() => { if (navList.length) getStrategy(); else getNavList(); }}>重试</Button>} />}
-        <Tabs
-          tabPosition="top"
-          size={screens.md ? 'middle' : 'small'}
-          activeKey={activedNav}
-          items={navList}
-          onChange={handleClickTabs}
-        />
-        <StrategyRules strategy={activedNav} options={trendOptions} />
-        {isTrendStrategy(activedNav) && <TrendParameters key={activedNav} strategy={activedNav} value={trendOptions} onChange={(value) => setParameters((state) => ({ ...state, [activedNav]: value }))} />}
-        {/* 防止内容撑开宽度: w-0 设置了元素的基础宽度为 0，防止内容影响元素的初始宽度。通常，flexbox 元素的宽度会根据内容自动扩展，但 w-0 强制宽度为 0，使得元素完全依赖 flex-grow 进行扩展 */}
-        <div className="strategy-results">
-          <div className="mb-16">
-            <CSearchForm
-              configs={limitsFilterConfigs}
-              searchParams={{
-                ...searchParams,
-                date: dayjs(searchParams.date),
-              }}
-              setSearchParams={handleSetSearchParams}
-            />
-          </div>
-          <div className="mb-16"><SectorFilter value={sector} onChange={setSector} /></div>
-          <CandidateEnvironment date={ready && dateReady ? searchParams.date || '' : ''} />
-          {linkedCode && <Alert className="mb-16" type="info" message={`定位股票 ${linkedCode}`} action={<Button size="small" onClick={() => { const params = new URLSearchParams(urlParams.toString()); params.delete('code'); window.history.replaceState(null, '', `?${params}`); }}>显示全部</Button>} />}
-          <Table
-            rootClassName="strategy-table"
-            rowKey="tsCode"
-            dataSource={linkedCode ? strategyData.items.filter((r) => r.tsCode === linkedCode) : strategyData.items}
-            columns={[...strategyColumns.slice(0, 2), ...trendColumns(activedNav), ...strategyColumns.slice(2)]}
-            bordered
-            locale={{
-              emptyText: (
-                <div className="min-h-240 leading-[240px]">
-                  {tableLoading ? '加载中…' : (loadError || '当前日期没有符合该策略的股票')}
-                </div>
-              ),
-            }}
-            scroll={{ x: 1748 }}
-            loading={!dateError && (!dateReady || tableLoading)}
-            pagination={false}
-          />
+        {dateError && !date && <Alert type="error" message={dateError} showIcon action={<Button onClick={retryDate}>重试</Button>} />}
+        {loadError && <Alert type="error" message={loadError} showIcon action={<Button onClick={() => { if (navList.length) getList(); else getTabs(); }}>重试</Button>} />}
+        <Tabs size={screens.md ? 'middle' : 'small'} activeKey={strategy} items={navList} onChange={(key) => updateQuery({ ...writeStrategyOptions(), strategyType: key, code: undefined })} />
+        <StrategyRules strategy={strategy} options={options} />
+        {isTrendStrategy(strategy) && <TrendParameters key={`${strategy}-${optionKey}`} strategy={strategy} value={options} onChange={(value) => updateQuery({ ...writeStrategyOptions(value), code: undefined })} />}
+        <Space className="mb-16" size={[24, 12]} wrap>
+          <Space>
+            <span>交易日期</span>
+            <DatePicker aria-label="交易日期" value={date ? dayjs(date) : null} allowClear={false} onChange={(value) => { if (value) updateQuery({ date: value.format('YYYY-MM-DD'), code: undefined }); }} />
+          </Space>
+          <SectorFilter value={sector} onChange={(value) => updateQuery({ sector: value, code: undefined })} />
+        </Space>
+        <CandidateEnvironment date={date} />
+        <div className="strategy-result-toolbar">
+          <Space wrap>
+            <strong>{tableLoading ? '正在筛选' : `共筛出 ${items.length} 只`}</strong>
+            {(keyword || linkedCode) && (
+            <span>
+              当前显示
+              {filtered.length}
+              {' '}
+              只
+            </span>
+            )}
+            <Input aria-label="搜索股票" allowClear placeholder="股票代码 / 名称" value={keyword} style={{ width: 220 }} onChange={(event) => updateQuery({ q: event.target.value })} />
+          </Space>
+          <Select aria-label="展示列" mode="multiple" maxTagCount={0} maxTagPlaceholder={() => '展示列'} style={{ width: 150 }} value={visibleColumns} onChange={setVisibleColumns} options={strategyColumns.slice(2).map((column) => ({ value: String(column.key), label: String(column.title) }))} />
         </div>
+        {linkedCode && <Alert className="mb-16" type="info" message={`定位股票 ${linkedCode}`} action={<Button onClick={() => updateQuery({ code: undefined })}>显示全部</Button>} />}
+        <Table
+          rootClassName="strategy-table"
+          rowKey="tsCode"
+          dataSource={filtered}
+          columns={columns}
+          bordered
+          locale={{ emptyText: loadError || (keyword || linkedCode ? '当前筛选中未找到该股票' : '当前条件没有符合的股票') }}
+          scroll={{ x: 'max-content' }}
+          loading={!dateError && (!date || tableLoading)}
+          pagination={false}
+        />
+        <StockChart stock={selectedStock} date={date} strategy={strategy} options={options} onClose={() => setSelectedStock(null)} />
       </div>
     </Layout>
   );
 }
-
 export default StrategyPage;

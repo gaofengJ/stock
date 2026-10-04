@@ -97,3 +97,8 @@ export class StrategyListQueryDto {
   @IsBoolean()
   expandingVolume?: boolean;
 }
+
+export class StrategyChartQueryDto extends StrategyListQueryDto {
+  @Matches(/^\d{6}\.(SH|SZ|BJ)$/)
+  code: string;
+}

@@ -48,6 +48,100 @@ export class TrendService {
     private writes: SyncWriteService,
   ) {}
 
+  async chart(
+    dto: TrendOptions & { date: string; code: string; strategyType: string },
+  ) {
+    const dates = await this.calendar(dto.date, 260);
+    const identity = await this.identity.load([]);
+    const code = identity.canonical(dto.code);
+    const codes = identity.expand([code]);
+    const adjusted = TREND_KEYS.includes(dto.strategyType as TrendKey);
+    const rows: any[] = await this.db.query(
+      `SELECT DATE_FORMAT(d.trade_date,'%Y-%m-%d') date,d.ts_code code,d.open,d.close,d.high,d.low,d.vol
+       FROM t_source_daily d JOIN t_sync_run r ON r.trade_date=d.trade_date AND r.task='daily' AND r.status='success'
+       LEFT JOIN t_sync_day_policy p ON p.trade_date=d.trade_date
+       WHERE d.ts_code IN (?) AND d.trade_date IN (?) AND p.trade_date IS NULL ORDER BY d.trade_date`,
+      [codes, dates],
+    );
+    const raw = new Map<string, any>();
+    rows.forEach((row) => {
+      const previous = raw.get(row.date);
+      if (
+        previous &&
+        ['open', 'close', 'high', 'low', 'vol'].some(
+          (key) => Number(previous[key]) !== Number(row[key]),
+        )
+      )
+        throw new ConflictException('股票新旧代码日线冲突');
+      raw.set(row.date, row);
+    });
+    let points: (TrendPoint | undefined)[];
+    if (adjusted) {
+      // MySQL 5.7-compatible projection: transfer only this stock's tuple.
+      const factors: any[] = await this.db.query(
+        `SELECT date,JSON_EXTRACT(data,LEFT(code_path,LENGTH(code_path)-3)) tuple FROM
+         (SELECT DATE_FORMAT(f.trade_date,'%Y-%m-%d') date,f.data,
+         JSON_UNQUOTE(JSON_SEARCH(f.data,'one',?,NULL,'$[*][0]')) code_path FROM t_source_strategy_factor f
+         JOIN t_sync_run r ON r.trade_date=f.trade_date AND r.task='strategy-factor' AND r.status='success'
+         LEFT JOIN t_sync_day_policy p ON p.trade_date=f.trade_date
+         WHERE f.trade_date IN (?) AND p.trade_date IS NULL) matched WHERE code_path IS NOT NULL`,
+        [code, dates],
+      );
+      const byDate = new Map(
+        factors.map((row) => {
+          const [, open, close, high, low, basis, conversion] =
+            typeof row.tuple === 'string' ? JSON.parse(row.tuple) : row.tuple;
+          return [
+            row.date,
+            { date: row.date, open, close, high, low, basis, conversion },
+          ];
+        }),
+      );
+      points = dates.map((date) => byDate.get(date));
+      const normalized = normalizeTrendSeries(points, code, points.length);
+      if (!normalized)
+        throw new ConflictException('复权价格基准不一致，暂不能展示K线');
+      points = normalized;
+    } else points = dates.map((date) => raw.get(date));
+    const series = dates.map((date, i) => {
+      const point = points[i];
+      const volume = raw.get(date)?.vol;
+      const valid =
+        point &&
+        (['open', 'close', 'high', 'low'] as const).every(
+          (key) =>
+            Number.isFinite(Number(point[key])) && Number(point[key]) > 0,
+        ) &&
+        Number(volume) > 0;
+      return {
+        date,
+        open: valid ? Number(point.open) : null,
+        close: valid ? Number(point.close) : null,
+        high: valid ? Number(point.high) : null,
+        low: valid ? Number(point.low) : null,
+        vol: valid ? Number(volume) : null,
+      };
+    });
+    const hit = adjusted
+      ? await this.history(
+          [dto.date],
+          [dto.strategyType as TrendKey],
+          dto,
+          [code],
+          true,
+        )
+      : null;
+    return {
+      code,
+      date: dto.date,
+      basis: adjusted ? '后复权' : '不复权',
+      series,
+      evidence:
+        hit?.items[0]?.rows.find((row) => row.tsCode === code)?.trendEvidence ||
+        null,
+    };
+  }
+
   async syncDay(manager: EntityManager, date: string, refresh = false) {
     normalizeDate(date);
     if (await this.writes.excluded(manager, date))
@@ -350,14 +444,15 @@ export class TrendService {
       ),
     ]);
     const volumeDates = dates
+      // Historical visible days still supply baseline volumes even when their
+      // close or turnover fails the signal-day candidate conditions.
       .slice(
         -(
           (keys.includes('breakoutPullback') ? options.pullbackDays || 10 : 0) +
           (options.volumeDays || 5) +
           visible.length
         ),
-      )
-      .filter((date) => !visible.includes(date));
+      );
     const [snapshots, policies, runs, raw] = await Promise.all([
       this.db.manager.find(TrendFactorEntity, {
         where: { tradeDate: In(dates) },

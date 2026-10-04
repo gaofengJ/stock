@@ -6,7 +6,7 @@ import { QueryTimeout } from '@/decorators/query-timeout.decorator';
 
 import { StrategyService } from './strategy.service';
 import { TabItem } from './strategy.entity';
-import { StrategyListQueryDto } from './strategy.dto';
+import { StrategyListQueryDto, StrategyChartQueryDto } from './strategy.dto';
 import { DailyEntity } from '../source/daily/daily.entity';
 
 @ApiTags('策略选股')
@@ -31,5 +31,13 @@ export class StrategyController {
   list(@Query() dto: StrategyListQueryDto) {
     const ret = this.strategyService.list(dto);
     return ret;
+  }
+
+  @Permit('strategy:read')
+  @Get('/chart')
+  @QueryTimeout(60000)
+  @ApiOperation({ summary: '选股信号对应的个股日K与成交量' })
+  chart(@Query() dto: StrategyChartQueryDto) {
+    return this.strategyService.chart(dto);
   }
 }
