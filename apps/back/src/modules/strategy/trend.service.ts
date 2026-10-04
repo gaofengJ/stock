@@ -77,26 +77,38 @@ export class TrendService {
     });
     let points: (TrendPoint | undefined)[];
     if (adjusted) {
-      // MySQL 5.7-compatible projection: transfer only this stock's tuple.
-      const factors: any[] = await this.db.query(
-        `SELECT date,JSON_EXTRACT(data,LEFT(code_path,LENGTH(code_path)-3)) tuple FROM
-         (SELECT DATE_FORMAT(f.trade_date,'%Y-%m-%d') date,f.data,
-         JSON_UNQUOTE(JSON_SEARCH(f.data,'one',?,NULL,'$[*][0]')) code_path FROM t_source_strategy_factor f
-         JOIN t_sync_run r ON r.trade_date=f.trade_date AND r.task='strategy-factor' AND r.status='success'
-         LEFT JOIN t_sync_day_policy p ON p.trade_date=f.trade_date
-         WHERE f.trade_date IN (?) AND p.trade_date IS NULL) matched WHERE code_path IS NOT NULL`,
-        [code, dates],
+      // Bound snapshot memory and avoid MySQL 5.7 repeatedly scanning each JSON
+      // array with JSON_SEARCH when opening an individual stock.
+      const published: { date: string }[] = await this.db.query(
+        "SELECT DATE_FORMAT(f.trade_date,'%Y-%m-%d') date FROM t_source_strategy_factor f JOIN t_sync_run r ON r.trade_date=f.trade_date AND r.task='strategy-factor' AND r.status='success' LEFT JOIN t_sync_day_policy p ON p.trade_date=f.trade_date WHERE f.trade_date IN (?) AND p.trade_date IS NULL",
+        [dates],
       );
-      const byDate = new Map(
-        factors.map((row) => {
-          const [, open, close, high, low, basis, conversion] =
-            typeof row.tuple === 'string' ? JSON.parse(row.tuple) : row.tuple;
-          return [
-            row.date,
-            { date: row.date, open, close, high, low, basis, conversion },
-          ];
-        }),
-      );
+      const byDate = new Map<string, TrendPoint>();
+      for (let offset = 0; offset < published.length; offset += 12) {
+        const snapshots = await this.db.manager.find(TrendFactorEntity, {
+          where: {
+            tradeDate: In(
+              published.slice(offset, offset + 12).map((row) => row.date),
+            ),
+          },
+          select: ['tradeDate', 'data'],
+        });
+        for (const snapshot of snapshots) {
+          const tuple = snapshot.data.find((row) => row[0] === code);
+          if (!tuple || tuple.slice(1, 5).some((value) => value == null))
+            continue;
+          const [, open, close, high, low, basis, conversion] = tuple;
+          byDate.set(snapshot.tradeDate, {
+            date: snapshot.tradeDate,
+            open: open!,
+            close: close!,
+            high: high!,
+            low: low!,
+            basis,
+            conversion,
+          });
+        }
+      }
       points = dates.map((date) => byDate.get(date));
       const normalized = normalizeTrendSeries(points, code, points.length);
       if (!normalized)
