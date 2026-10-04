@@ -399,9 +399,40 @@ export class InsightService {
                     this.revision(d, revisions)),
             ),
         );
+        // An absent historical day-end snapshot must not block older dates or
+        // consume provider quota every five minutes. Keep the gap, retry daily.
+        const recentGaps =
+          hot && pending.length
+            ? await manager.find(SyncRunEntity, {
+                where: {
+                  task: 'ths-hot',
+                  tradeDate: In(pending),
+                  status: 'failed',
+                },
+              })
+            : [];
+        const deferred = new Set(
+          recentGaps
+            .filter(
+              (r) =>
+                r.tradeDate < shanghaiDate() &&
+                r.error === '数据源返回空快照' &&
+                Date.now() - new Date(r.updatedAt).getTime() <
+                  24 * 60 * 60 * 1000,
+            )
+            .map((r) => r.tradeDate),
+        );
+        const actionable = pending.filter((d) => !deferred.has(d));
         const completed: string[] = [];
-        const failures: string[] = [];
-        for (const date of pending.slice(0, 3)) {
+        const failures: string[] =
+          !actionable.length && deferred.size
+            ? [
+                `日终人气数据待源端补齐，24小时后重试：${[...deferred].join(
+                  '、',
+                )}`,
+              ]
+            : [];
+        for (const date of actionable.slice(0, 3)) {
           try {
             if (hot) await this.syncHot(manager, date);
             else await this.buildDay(manager, date, revisions);
