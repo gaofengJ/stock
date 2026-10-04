@@ -41,6 +41,7 @@ export default function EventCalendar({ date, onDate, code }: { date: string; on
       <Table
         loading={state.loading}
         pagination={false}
+        virtual={(state.data?.items?.length || 0) > 300}
         scroll={{ x: 1000 }}
         dataSource={(state.data?.items || []).filter((r: any) => !type || r.type === type)}
         rowKey={(r: any) => `${r.tsCode}-${r.type}-${r.eventDate}-${r.reportDate}-${r.holder_name}-${r.announcedAt}-${r.detail}`}

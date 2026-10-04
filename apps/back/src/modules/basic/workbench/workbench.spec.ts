@@ -102,7 +102,7 @@ describe('basic workbench temporal and source safety', () => {
         fetchedAt: '2026-09-30',
         message: null,
         rows:
-          source === 'share_float'
+          source === 'share_float' && params.start_date === '20261001'
             ? [
                 {
                   ts_code: '000001.SZ',
@@ -131,6 +131,13 @@ describe('basic workbench temporal and source safety', () => {
     );
     const data = await service.events({ date: '2026-09-30', days: '7' });
     expect(data.items).toHaveLength(1);
+    const unlockCalls = cache.read.mock.calls.filter(
+      ([api]) => api === 'share_float',
+    );
+    expect(unlockCalls).toHaveLength(7);
+    expect(
+      unlockCalls.every(([, params]) => params.start_date === params.end_date),
+    ).toBe(true);
     expect(data.items[0].detail).toContain('10.00万股');
     expect(data.nextTradeDate).toBe('2026-10-09');
     const forecastCalls = cache.read.mock.calls.filter(

@@ -294,7 +294,6 @@ export class WorkbenchService {
         if (period <= endDate) periods.add(period);
       }
     const requests: [string, Record<string, unknown>, string][] = [
-      ['share_float', { start_date: startDate, end_date: endDate }, '解禁'],
       ...[...periods].map(
         (period): [string, Record<string, unknown>, string] => [
           'disclosure_date',
@@ -310,6 +309,12 @@ export class WorkbenchService {
       d.format('YYYY-MM-DD') <= end;
       d = d.add(1, 'day')
     ) {
+      // Unlocks can exceed 100,000 holder rows in a month; keep source snapshots bounded by day.
+      requests.push([
+        'share_float',
+        { start_date: d.format('YYYYMMDD'), end_date: d.format('YYYYMMDD') },
+        '解禁',
+      ]);
       requests.push([
         'dividend',
         { ex_date: d.format('YYYYMMDD') },
