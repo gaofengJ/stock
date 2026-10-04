@@ -1,0 +1,9 @@
+.basic-workbench { min-height: calc(100vh - 100px); }
+.basic-workbench .ant-card { margin-bottom: 16px; }
+.basic-muted { color: var(--text-secondary); font-size: 12px; }
+.basic-stats { display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 16px; margin: 16px 0; }
+.basic-stat { padding: 16px; border: 1px solid var(--color-border, #454952); border-radius: 8px; }
+.basic-stat strong { display: block; font-size: 22px; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.basic-toolbar { display:flex; flex-wrap:wrap; gap:16px; align-items:center; margin-bottom:16px; }
+.basic-profile-heading { display:flex; flex-wrap:wrap; justify-content:space-between; gap:16px; margin-bottom:20px; }
+.basic-company-text { line-height:1.9; white-space:pre-wrap; }

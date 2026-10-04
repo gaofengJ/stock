@@ -58,7 +58,9 @@ export class PagerDto {
   @ApiProperty({ enum: Order })
   @IsEnum(Order)
   @IsOptional()
-  @Transform(({ value }) => (value === 'asc' ? Order.ASC : Order.DESC))
+  @Transform(({ value }) =>
+    String(value).toLowerCase() === 'asc' ? Order.ASC : Order.DESC,
+  )
   order?: Order;
 
   @Allow() // 使用 Allow 装饰器，允许 _t 属性存在而不进行验证

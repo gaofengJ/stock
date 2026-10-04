@@ -146,6 +146,8 @@ export class StockIdentityService {
       });
     const stocks = [
       ...listed.map((row) => ({
+        profile: row,
+        listStatus: row.listStatus || 'L',
         tsCode: row.tsCode,
         name: row.name,
         listDate: row.listDate,
@@ -154,6 +156,13 @@ export class StockIdentityService {
       ...archived
         .filter((row) => stockCode.test(row.ts_code))
         .map((row) => ({
+          profile: Object.fromEntries(
+            Object.entries(row).map(([key, value]) => [
+              key.replace(/_([a-z])/g, (_, c) => c.toUpperCase()),
+              value,
+            ]),
+          ),
+          listStatus: row.list_status || (row.delist_date ? 'D' : 'P'),
           tsCode: row.ts_code,
           name: row.name,
           listDate: sourceDate(row.list_date),

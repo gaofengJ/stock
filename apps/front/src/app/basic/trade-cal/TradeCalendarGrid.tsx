@@ -12,11 +12,12 @@ import { NSGetBasicTradeCalList } from '@/api/services.types';
 interface IProps {
   items: NSGetBasicTradeCalList.IRes;
   year: string;
+  onSelect: (date: string) => void;
 }
 
 const monthArr = Array.from({ length: 12 }, (_, index) => index);
 
-const TradeCalendarGrid = ({ items, year }: IProps) => {
+const TradeCalendarGrid = ({ items, year, onSelect }: IProps) => {
   const tradeCalMap = useMemo(() => {
     const result: Record<string, boolean> = {};
     items.forEach((item) => {
@@ -59,7 +60,7 @@ const TradeCalendarGrid = ({ items, year }: IProps) => {
         >
           <span className="date-cell-text-number">{date.get('date')}</span>
           <div className="date-cell-text-lunar">
-            {displayHoliday || solarTerm || lunar}
+            {tradeCalMap[date.format('YYYY-MM-DD')] === undefined ? '?' : displayHoliday || solarTerm || lunar}
           </div>
         </div>
       ),
@@ -74,6 +75,7 @@ const TradeCalendarGrid = ({ items, year }: IProps) => {
             <div className="trade-cal-calendar-month">{month + 1}</div>
             <Calendar
               fullscreen={false}
+              onSelect={(value, info) => { if (info.source === 'date') onSelect(value.format('YYYY-MM-DD')); }}
               fullCellRender={cellRender}
               rootClassName="trade-cal-calendar"
               value={dayjs(`${year}-${month + 1}-01`)}

@@ -731,6 +731,9 @@ mysqlDescribe('MySQL 同步事务与迁移回归', () => {
           `ALTER TABLE ${probe}.${key.table} DROP INDEX ${key.name}`,
         );
       }
+      await admin.query(
+        `CREATE TABLE ${probe}.t_source_stock (ts_code VARCHAR(12) NOT NULL PRIMARY KEY, act_name VARCHAR(16) NULL) ENGINE=InnoDB`,
+      );
       await probeDb.initialize();
       await probeDb.manager.insert(DailyEntity, [
         daily('2024-06-28'),
@@ -757,6 +760,7 @@ mysqlDescribe('MySQL 同步事务与迁移回归', () => {
         'StrategyTrend1791417600000',
         'IntradayCountsSource1791504000001',
         'MarketInsights1791590400000',
+        'BasicWorkbench1791676800000',
       ]);
       expect(before.counts.t_source_daily).toEqual({ rows: 2, duplicates: 1 });
       expect(before.requiredFreeBytes).toBe(before.totalBytes * 4 + 1024 ** 3);
@@ -773,6 +777,20 @@ mysqlDescribe('MySQL 同步事务与迁移回归', () => {
         database: probe,
       });
       expect(cli('migrate')[0].pending).toEqual([]);
+      expect(
+        await probeDb.query("SHOW COLUMNS FROM t_source_stock LIKE 'act_name'"),
+      ).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ Type: 'varchar(512)' }),
+        ]),
+      );
+      expect(
+        await probeDb.query('SHOW COLUMNS FROM t_source_basic_snapshot'),
+      ).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ Field: 'data', Type: 'json' }),
+        ]),
+      );
       expect(
         await probeDb.query('SHOW COLUMNS FROM t_auth_activity_read'),
       ).toEqual(

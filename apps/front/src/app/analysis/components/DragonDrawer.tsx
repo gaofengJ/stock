@@ -14,7 +14,7 @@ import { getBasicActiveFundsList } from '@/api/services';
 import { NSGetBasicActiveFundsList } from '@/api/services.types';
 import { useAccount } from '@/auth/Boundary';
 import { allowedPath } from '@/auth/client';
-import { activeFundsHref, matchingFunds } from '@/utils/active-funds';
+import { matchingFunds } from '@/utils/active-funds';
 import { changeClass } from '@/utils/format';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { numberText } from './MarketCharts';
@@ -23,17 +23,21 @@ import './dragon.sass';
 type Seat = DragonData['seats'][number];
 const money = (value: number | null) => numberText(value == null ? null : value / 10000);
 
-function SeatName({ org, funds }: { org: string; funds: NSGetBasicActiveFundsList.IRes }) {
+function SeatName({ org, funds, date }: { org: string; funds: NSGetBasicActiveFundsList.IRes; date: string }) {
+  const { user } = useAccount();
   const matched = matchingFunds(funds, org);
+  if (!allowedPath(user, '/basic/active-funds')) return <span>{org}</span>;
   return matched.length ? (
     <div className="dragon-org">
-      <Link href={activeFundsHref(org)} title="查看基础数据中的关联营业部">{org}</Link>
+      <Link href={`/basic/active-funds/detail/?org=${encodeURIComponent(org)}&date=${date}`} title="查看基础数据中的关联营业部">{org}</Link>
       <div>{matched.map((fund) => <Tag key={fund.name}>{fund.name}</Tag>)}</div>
     </div>
-  ) : <span className="dragon-org">{org}</span>;
+  ) : <Link href={`/basic/active-funds/detail/?org=${encodeURIComponent(org)}&date=${date}`} className="dragon-org">{org}</Link>;
 }
 
-function SeatTable({ seats, side, funds }: { seats: Seat[]; side: string; funds: NSGetBasicActiveFundsList.IRes }) {
+function SeatTable({
+  seats, side, funds, date,
+}: { seats: Seat[]; side: string; funds: NSGetBasicActiveFundsList.IRes; date: string }) {
   const field = side === '0' ? 'buy' : 'sell';
   const rows = [...seats].sort((a, b) => (b[field] ?? -Infinity) - (a[field] ?? -Infinity));
   const maxAmount = Math.max(0, ...rows.map((r) => r[field] || 0));
@@ -64,7 +68,7 @@ function SeatTable({ seats, side, funds }: { seats: Seat[]; side: string; funds:
             title: '营业部 / 席位',
             dataIndex: 'exalter',
             width: 310,
-            render: (org: string) => <SeatName org={org} funds={funds} />,
+            render: (org: string) => <SeatName date={date} org={org} funds={funds} />,
           },
           ...[{ key: 'buy' as const, title: '买入', className: 'quote-up' }, { key: 'sell' as const, title: '卖出', className: 'quote-down' }, { key: 'netBuy' as const, title: '净买入', className: '' }].map((column) => ({
             title: column.title,
@@ -86,7 +90,7 @@ function SeatTable({ seats, side, funds }: { seats: Seat[]; side: string; funds:
           <div className="dragon-mobile-seat" key={`${row.side}:${row.exalter}`}>
             <div className="dragon-mobile-name">
               <span className="dragon-rank">{index + 1}</span>
-              <SeatName org={row.exalter} funds={funds} />
+              <SeatName date={date} org={row.exalter} funds={funds} />
             </div>
             <div className="dragon-mobile-amounts">
               <div>
@@ -188,7 +192,7 @@ export function DragonDetails({
               ))}
               <div className="dragon-seat-grid">
                 {['0', '1', ...(data?.seats.some((r) => r.reason === reason && !['0', '1'].includes(String(r.side))) ? ['other'] : [])].map((side) => (
-                  <SeatTable key={side} side={side} funds={canReadFunds ? funds : []} seats={data?.seats.filter((r) => r.reason === reason && (side === 'other' ? !['0', '1'].includes(String(r.side)) : String(r.side) === side)) || []} />
+                  <SeatTable date={date} key={side} side={side} funds={canReadFunds ? funds : []} seats={data?.seats.filter((r) => r.reason === reason && (side === 'other' ? !['0', '1'].includes(String(r.side)) : String(r.side) === side)) || []} />
                 ))}
               </div>
             </>

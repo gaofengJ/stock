@@ -1,5 +1,12 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { IsDateString, IsOptional, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsDateString,
+  IsOptional,
+  IsString,
+  IsIn,
+  Matches,
+} from 'class-validator';
 import { PagerDto } from '@/dto/pager.dto';
 import { DailyEntity } from './daily.entity';
 
@@ -133,6 +140,14 @@ export class DailyDto extends PartialType(DailyEntity) {
 }
 
 export class DailyQueryDto extends PagerDto {
+  @IsOptional()
+  @IsIn(['all', 'hs', 'main', 'gem', 'star', 'bj'])
+  scope?: string;
+
+  @IsOptional() @Matches(/^88[156]\d{3}\.TI$/) sector?: string;
+
+  @IsOptional() @IsIn(['traded', 'all']) tradingState?: string;
+
   @ApiProperty({ description: '开始时间' })
   @IsDateString()
   @IsOptional()
@@ -159,6 +174,8 @@ export class DailyQueryDto extends PagerDto {
 
   @ApiProperty({ description: '过滤字段' })
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   fields?: string[];
 }
 

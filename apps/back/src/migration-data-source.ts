@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import * as dotenv from 'dotenv';
 import { DataSource } from 'typeorm';
+import { BasicWorkbench1791676800000 } from './migrations/1791676800000-BasicWorkbench';
 import { ReliableSync1790380800000 } from './migrations/1790380800000-ReliableSync';
 import { SyncSafety1790380800001 } from './migrations/1790380800001-SyncSafety';
 import { Accounts1790467200000 } from './migrations/1790467200000-Accounts';
@@ -55,6 +56,7 @@ export default new DataSource({
     StrategyTrend1791417600000,
     IntradayCountsSource1791504000001,
     MarketInsights1791590400000,
+    BasicWorkbench1791676800000,
   ],
   migrationsTransactionMode: 'none',
   logging: false,

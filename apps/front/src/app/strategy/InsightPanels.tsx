@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert, Button, Card, Col, Empty, Modal, Row, Segmented, Select, Space, Tag,
 } from 'antd';
@@ -186,29 +186,38 @@ export function SignalPerformance({
   );
 }
 
-export function PopularityChanges({ date }: { date: string }) {
+export function PopularityChanges({ date, code }: { date: string; code?: string | null }) {
   const state = useInsight<Popularity>('popularity', { date });
   const [filter, setFilter] = useState('all');
+  const [focusCode, setFocusCode] = useState(code || '');
+  useEffect(() => { setFocusCode(code || ''); }, [code]);
   const [selected, setSelected] = useState<HotRow | null>(null);
   const { data } = state;
-  const rows = data?.items.filter((r) => filter === 'all' || (filter === 'new' && r.state === 'new') || (filter === 'up' && (r.change || 0) > 0) || (filter === 'down' && (r.change || 0) < 0)) || [];
+  const rows = data?.items.filter((r) => !focusCode || r.code === focusCode).filter((r) => filter === 'all' || (filter === 'new' && r.state === 'new') || (filter === 'up' && (r.change || 0) > 0) || (filter === 'down' && (r.change || 0) < 0)) || [];
   const current = data?.items.find((r) => r.code === selected?.code);
   return (
     <div className="strategy-insight-panel">
       <Space wrap className="mb-16">
         <strong>同花顺日终热股 Top100</strong>
+        {focusCode && (
+        <Space>
+          <span>{focusCode}</span>
+          <Button size="small" onClick={() => setFocusCode('')}>查看全部</Button>
+        </Space>
+        )}
         <span>{data?.rankTime || '日终榜单待更新'}</span>
         <HelpTooltip label="人气变化口径" title="对比上一交易日日终榜单，数字为上升／下降名次；热度不作为默认选股条件。" />
       </Space>
       {data?.ready && (!data.complete || !data.previousReady) && <Alert className="mb-16" type="info" message={`当日返回 ${data.count}/100 条。前后榜单有缺位时，仅比较已有排名，不将缺数据判为新上榜或离榜。`} />}
       {data && !data.ready && <Alert className="mb-16" type={data.stage?.status === 'failed' ? 'warning' : 'info'} message={data.stage?.status === 'failed' ? '日终人气数据暂不可用，请查看同步任务。' : '日终人气数据正在补齐。'} />}
       <Segmented className="mb-16" aria-label="人气变化筛选" value={filter} onChange={(v) => setFilter(String(v))} options={[{ label: '全部', value: 'all' }, { label: '排名上升', value: 'up' }, { label: '排名下降', value: 'down' }, { label: '新上榜', value: 'new' }, { label: '离榜', value: 'exit' }]} />
-      {filter === 'exit' ? <Table rowKey="code" pagination={false} dataSource={data?.exited || []} locale={{ emptyText: !data?.complete ? '当日榜单不完整，暂不判断离榜' : '没有离榜股票' }} columns={[{ title: '股票', dataIndex: 'name' }, { title: '代码', dataIndex: 'code' }, { title: '上一交易日排名', dataIndex: 'rank' }]} />
+      {filter === 'exit' ? <Table rowKey="code" pagination={false} dataSource={data?.exited.filter((r) => !focusCode || r.code === focusCode) || []} locale={{ emptyText: !data?.complete ? '当日榜单不完整，暂不判断离榜' : '没有离榜股票' }} columns={[{ title: '股票', dataIndex: 'name' }, { title: '代码', dataIndex: 'code' }, { title: '上一交易日排名', dataIndex: 'rank' }]} />
         : (
           <Table
             rowKey="code"
             pagination={false}
             dataSource={rows}
+            locale={{ emptyText: focusCode ? '该股票未出现在所选日期的已取得榜单中' : '暂无记录' }}
             maxBodyHeight={560}
             minBodyHeight={360}
             columns={[

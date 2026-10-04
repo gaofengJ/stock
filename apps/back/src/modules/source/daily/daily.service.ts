@@ -1,3 +1,5 @@
+import { SectorService } from '@/modules/analysis/market/sector.service';
+import { BseMappingEntity } from '@/modules/analysis/market/market.entity';
 import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
 import {
   ConflictException,
@@ -6,13 +8,14 @@ import {
   Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, In, Like, Not, Repository } from 'typeorm';
+import { Between, In, Not, Repository } from 'typeorm';
 
 import * as dayjs from 'dayjs';
 import { paginate } from '@/helper/paginate/index';
 import { Pagination } from '@/helper/paginate/pagination';
 import { Order } from '@/dto/pager.dto';
 import { SentiUpDownCountEntity } from '@/modules/analysis/senti/senti.entity';
+import { StockHistoryEntity } from '../stock/stock-history.entity';
 
 import { DailyEntity } from './daily.entity';
 import { DailyDto, DailyQueryDto, DailyUpdateDto } from './daily.dto';
@@ -30,6 +33,7 @@ export class DailyService {
     @InjectRepository(DailyEntity)
     private DailyRepository: Repository<DailyEntity>,
     @Optional() private readonly identity?: StockIdentityService,
+    @Optional() private readonly sectors?: SectorService,
   ) {}
 
   async list({
@@ -40,11 +44,21 @@ export class DailyService {
     endDate,
     tsCode,
     name,
+    scope,
+    sector,
+    tradingState = 'traded',
+    orderField = 'tsCode',
+    order,
     fields = [], // 默认值为空数组
   }: DailyQueryDto): Promise<Pagination<DailyEntity>> {
     let queryBuilder =
       this.DailyRepository.createQueryBuilder('t_source_daily');
 
+    const allowed = new Set(
+      this.DailyRepository.metadata.columns.map((c) => c.propertyName),
+    );
+    if (!allowed.has(orderField) || fields.some((field) => !allowed.has(field)))
+      throw new ConflictException('不支持的排序或显示字段');
     // 如果 fields 数组不为空，则使用 select 语句
     if (fields.length > 0) {
       queryBuilder = queryBuilder.select(
@@ -56,11 +70,94 @@ export class DailyService {
       ...(tradeDate && { tradeDate }),
       ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
       ...(tradeDate && { tradeDate }),
-      ...(tsCode && { tsCode: Like(`%${tsCode}%`) }),
-      ...(name && { name: Like(`%${name}%`) }),
-      amount: Not(0), // 排除成交量为 0 的股票，例如暂停交易的股票、各类ETF
+      ...(tradingState === 'traded' && { amount: Not(0) }),
     });
-    return paginate(queryBuilder, { pageNum, pageSize });
+    if (tsCode || name) {
+      const [mappings, history] = await Promise.all([
+        this.DailyRepository.manager.find(BseMappingEntity),
+        this.DailyRepository.manager.findOneBy(StockHistoryEntity, {
+          snapshotKey: 'identity',
+        }),
+      ]);
+      const aliases = mappings
+        .filter(
+          (m) =>
+            tsCode &&
+            (m.oldCode.includes(tsCode) || m.newCode.includes(tsCode)),
+        )
+        .flatMap((m) => [m.oldCode, m.newCode]);
+      if (tsCode)
+        queryBuilder.andWhere(
+          `(t_source_daily.tsCode LIKE :code${
+            aliases.length ? ' OR t_source_daily.tsCode IN (:...aliases)' : ''
+          })`,
+          { code: `%${tsCode}%`, aliases },
+        );
+      if (name) {
+        const codes = [
+          ...new Set(
+            (history?.data.names || [])
+              .filter((n) => n.name.includes(name))
+              .map((n) => n.tsCode),
+          ),
+        ];
+        queryBuilder.andWhere(
+          `(t_source_daily.name LIKE :name${
+            codes.length ? ' OR t_source_daily.tsCode IN (:...names)' : ''
+          })`,
+          { name: `%${name}%`, names: codes },
+        );
+      }
+    }
+    const scopeSql: Record<string, string> = {
+      hs: "t_source_daily.tsCode REGEXP '^(60|00|30|68)'",
+      main: "t_source_daily.tsCode REGEXP '^(60|00)'",
+      gem: "t_source_daily.tsCode LIKE '30%'",
+      star: "t_source_daily.tsCode LIKE '68%'",
+      bj: "t_source_daily.tsCode LIKE '%.BJ'",
+    };
+    if (scope && scopeSql[scope]) queryBuilder.andWhere(scopeSql[scope]);
+    if (sector && this.sectors) {
+      const codes = [...(await this.sectors.codes(sector, tradeDate))];
+      queryBuilder.andWhere(
+        codes.length ? 't_source_daily.tsCode IN (:...sectorCodes)' : '1=0',
+        { sectorCodes: codes },
+      );
+    }
+    queryBuilder.orderBy(`t_source_daily.${orderField}`, order || 'ASC');
+    if (orderField !== 'tsCode')
+      queryBuilder.addOrderBy('t_source_daily.tsCode', 'ASC');
+    if (orderField !== 'tradeDate')
+      queryBuilder.addOrderBy('t_source_daily.tradeDate', 'DESC');
+    const result = await paginate(queryBuilder, { pageNum, pageSize });
+    const items = result.items.map((row) => {
+      const noQuote =
+        Number(row.amount) === 0 &&
+        Number(row.open) === 0 &&
+        Number(row.close) === 0;
+      const clean: any = {
+        ...row,
+        quoteState: noQuote ? '无成交行情' : '有成交行情',
+      };
+      if (noQuote)
+        [
+          'open',
+          'high',
+          'low',
+          'close',
+          'change',
+          'pctChg',
+          'vol',
+          'amount',
+        ].forEach((field) => {
+          clean[field] = null;
+        });
+      return clean;
+    });
+    return new Pagination(
+      this.sectors ? await this.sectors.decorate(items, tradeDate) : items,
+      result.meta,
+    );
   }
 
   /**

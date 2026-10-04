@@ -1,9 +1,10 @@
 'use client';
 
 import Loading from '@/components/Loading';
+import { useSearchParams } from 'next/navigation';
 
 import { errorMessage } from '@/api/errors';
-import { Alert, Button } from 'antd';
+import { Alert, Button, Tabs } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import dynamic from 'next/dynamic';
@@ -16,6 +17,7 @@ import { NSGetBasicTradeCalList } from '@/api/services.types';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 
 import CSearchForm from '@/components/common/CSearchForm';
+import EventCalendar from '../components/EventCalendar';
 import { useTradeCalConfigs } from './form-configs';
 import './limits.sass';
 
@@ -27,6 +29,9 @@ const TradeCalendarGrid = dynamic(() => import('./TradeCalendarGrid'), {
 });
 
 function BasicTradeCalPage() {
+  const params = useSearchParams();
+  const [date, setDate] = useState(params.get('date') || dayjs().format('YYYY-MM-DD'));
+  const [view, setView] = useState(params.has('date') || params.has('code') ? 'events' : 'calendar');
   // searchParams 的初始值
   const initialSearchParams: NSGetBasicTradeCalList.IParams = {
     year: dayjs().format('YYYY'),
@@ -94,9 +99,11 @@ function BasicTradeCalPage() {
       asideMenuActive={EBasicAsideMenuKey.basicTradeCal}
     >
       <div className="p-16 rounded-[6px] bg-bg-white">
-        <h1 className="page-heading">交易日历</h1>
+        <h1 className="page-heading">交易与事件日历</h1>
+        <Tabs activeKey={view} onChange={setView} items={[{ key: 'calendar', label: '交易日历' }, { key: 'events', label: '事件日历' }]} />
+        {view === 'events' && <EventCalendar date={date} onDate={setDate} code={params.get('code') || undefined} />}
         {loadError && <Alert type="error" message={loadError} showIcon action={<Button size="small" onClick={getTradeCal}>重试</Button>} />}
-        <div className="mb-16">
+        <div className="mb-16" style={{ display: view === 'calendar' ? undefined : 'none' }}>
           <CSearchForm
             configs={tradeCalConfigs}
             searchParams={{
@@ -106,13 +113,15 @@ function BasicTradeCalPage() {
             setSearchParams={handleSetSearchParams}
           />
         </div>
-        <div className="h-[calc(100vh-176px)] overflow-y-auto overflow-x-hidden">
+        <div className="overflow-y-auto overflow-x-hidden" style={{ display: view === 'calendar' ? undefined : 'none' }}>
+          <p className="basic-muted">圆形标记为交易日，未标记为休市，“?”为尚未更新。点击日期查看事件及行情。</p>
           {!loadError && (loading ? (
             <Loading />
           ) : (
             <TradeCalendarGrid
               items={tradeCalData.items}
               year={searchParams.year}
+              onSelect={(value) => { setDate(value); setView('events'); }}
             />
           ))}
         </div>

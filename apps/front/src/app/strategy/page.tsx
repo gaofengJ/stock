@@ -23,6 +23,7 @@ import { readStrategyOptions, writeStrategyOptions, validStrategyDate } from './
 import CandidateEnvironment from './CandidateEnvironment';
 import StrategyRules from './StrategyRules';
 import StockChart from './StockChart';
+import { RiskTags, StockLink, useWorkbench } from '../basic/components/workbench';
 import { CandidateComparison, SignalPerformance, PopularityChanges } from './InsightPanels';
 import './strategy.sass';
 
@@ -40,7 +41,7 @@ function StrategyPage() {
   const [tableLoading, setTableLoading] = useState(true);
   const [items, setItems] = useState<NSGetStrategyList.IRes>([]);
   const [selectedStock, setSelectedStock] = useState<any>(null);
-  const [view, setView] = useState('candidates');
+  const [view, setView] = useState(['candidates', 'comparison', 'performance', 'popularity'].includes(params.get('view') || '') ? params.get('view')! : 'candidates');
   const [observation, setObservation] = useState<any>(null);
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
   const { requestConfig: tabsConfig, runLatestRequest: runTabs } = useLatestRequest('strategy-tabs');
@@ -83,6 +84,7 @@ function StrategyPage() {
   }, [date, strategy, params, updateQuery]);
   const filtered = items.filter((row) => (!linkedCode || row.tsCode === linkedCode)
     && (!keyword || `${row.tsCode} ${row.name}`.toLowerCase().includes(keyword.trim().toLowerCase())));
+  const riskState = useWorkbench('risk', { date }, !!date);
   const columns = [
     ...strategyColumns.slice(0, 2).map((column) => ({
       ...column,
@@ -90,6 +92,12 @@ function StrategyPage() {
       width: column.key === 'tsCode' ? 104 : 120,
       render: (value: string, row: any) => <Button type="link" className="strategy-stock-link" onClick={() => setSelectedStock(row)}>{column.key === 'tsCode' ? value.split('.')[0] : value}</Button>,
     })),
+    {
+      title: '风险提示', key: 'risks', width: 150, render: (_: any, row: any) => <RiskTags data={riskState.data} code={row.tsCode} date={date} />,
+    },
+    {
+      title: '档案', key: 'profile', width: 70, render: (_: any, row: any) => <StockLink code={row.tsCode} name="资料" date={date} />,
+    },
     ...trendColumns(strategy),
     ...strategyColumns.slice(2).filter((column) => visibleColumns.includes(String(column.key))),
   ];
@@ -146,7 +154,7 @@ function StrategyPage() {
         </>
         )}
         {view === 'performance' && <SignalPerformance date={date} strategy={strategy} sector={sector} onStock={(row) => setObservation({ ...row, tsCode: row.code })} />}
-        {view === 'popularity' && <PopularityChanges date={date} />}
+        {view === 'popularity' && <PopularityChanges date={date} code={linkedCode} />}
         <StockChart stock={selectedStock} date={date} strategy={strategy} options={options} onClose={() => setSelectedStock(null)} />
         <StockChart stock={observation} date={observation?.date || date} strategy={strategy} options={trendDefaults} onClose={() => setObservation(null)} />
       </div>

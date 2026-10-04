@@ -23,9 +23,9 @@ interface StockChartData {
 const periods = [5, 10, 20, 60, 120];
 
 export default function StockChart({
-  stock, date, strategy, options, onClose,
+  stock, date, strategy, options, onClose, neutral = false,
 }: {
-  stock: any; date: string; strategy: string; options: TrendOptions; onClose: () => void;
+  stock: any; date: string; strategy: string; options: TrendOptions; onClose: () => void; neutral?: boolean;
 }) {
   const [data, setData] = useState<StockChartData | null>(null);
   const [error, setError] = useState('');
@@ -66,14 +66,14 @@ export default function StockChart({
   const palette = mode === 'dark' ? movingAverageColors : lightMovingAverageColors;
   const lineColors = [palette[0], palette[1], palette[2], palette[4], palette[5]];
   const ma = periods.map((period) => movingAverage(candles, period));
-  const markerLines: any[] = [{ name: '信号日', xAxis: date, label: { formatter: '信号日', position: 'insideEndTop' } }];
-  if (data?.evidence?.breakoutPrice != null) markerLines.push({ name: '突破位', yAxis: data.evidence.breakoutPrice, label: { formatter: '突破位 {c}', position: 'insideEndTop' } });
-  if (data?.evidence?.breakoutDate) markerLines.push({ name: '突破日', xAxis: data.evidence.breakoutDate, label: { formatter: '突破日', position: 'insideEndTop' } });
+  const markerLines: any[] = [{ name: neutral ? '观察日' : '信号日', xAxis: date, label: { formatter: neutral ? '观察日' : '信号日', position: 'insideEndTop' } }];
+  if (!neutral && data?.evidence?.breakoutPrice != null) markerLines.push({ name: '突破位', yAxis: data.evidence.breakoutPrice, label: { formatter: '突破位 {c}', position: 'insideEndTop' } });
+  if (!neutral && data?.evidence?.breakoutDate) markerLines.push({ name: '突破日', xAxis: data.evidence.breakoutDate, label: { formatter: '突破日', position: 'insideEndTop' } });
   return (
-    <Modal open={!!stock} title={`${stock?.name || ''} ${code || ''} - 信号形态`} onCancel={onClose} footer={null} width="calc(100vw - 48px)" style={{ top: 24, paddingBottom: 24 }} destroyOnClose keyboard>
+    <Modal open={!!stock} title={`${stock?.name || ''} ${code || ''} - ${neutral ? '日K' : '信号形态'}`} onCancel={onClose} footer={null} width="calc(100vw - 48px)" style={{ top: 24, paddingBottom: 24 }} destroyOnClose keyboard>
       <div className="strategy-chart-summary">
         <span>
-          信号日期
+          {neutral ? '观察日期' : '信号日期'}
           {date}
         </span>
         <span>

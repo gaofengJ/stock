@@ -38,6 +38,7 @@ function BasicStockPage() {
     if (/^\d{6}\.(SH|SZ|BJ)$/.test(linkedStock)) setSearchParams((old) => ({ ...old, tsCode: linkedStock, pageNum: 1 }));
   }, [linkedStock]);
 
+  const [profileAsOf, setProfileAsOf] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const { requestConfig, runLatestRequest } = useLatestRequest('basic-stock-list');
@@ -77,7 +78,9 @@ function BasicStockPage() {
       requestConfig,
     ),
     onStart: () => { setLoading(true); setLoadError(''); },
-    onSuccess: ({ data: { items, meta: { totalItems } } }) => {
+    onSuccess: ({ data }) => {
+      const { items, meta: { totalItems } } = data;
+      setProfileAsOf((data as any).profileAsOf || '');
       setStockData((state) => ({
         ...state,
         items: items.map((i) => ({
@@ -107,6 +110,11 @@ function BasicStockPage() {
     >
       <div className="p-16 rounded-[6px] bg-bg-white">
         <h1 className="page-heading">个股基本信息</h1>
+        <p className="basic-muted mb-16">
+          公司资料更新：
+          {profileAsOf || '待确认'}
+          ；行业题材按所选日期的可用同花顺快照展示。支持曾用名及北交所新旧代码查询。
+        </p>
         {loadError && <Alert type="error" message={loadError} showIcon action={<Button size="small" onClick={getStocks}>重试</Button>} />}
         <div className="mb-16">
           <div className="mb-16"><SectorFilter value={sector} onChange={(value) => { setSector(value); setSearchParams((old) => ({ ...old, pageNum: 1 })); }} /></div>
@@ -128,7 +136,7 @@ function BasicStockPage() {
             pageSize: searchParams.pageSize,
             total: stockData.totalItems,
             showSizeChanger: true,
-            pageSizeOptions: [10, 20, 50, 100],
+            pageSizeOptions: [10, 20, 50],
             onChange,
             onShowSizeChange,
           }}
