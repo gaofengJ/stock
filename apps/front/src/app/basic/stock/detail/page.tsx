@@ -17,6 +17,7 @@ import { trendDefaults } from '@/app/strategy/strategy-options';
 import { useDefaultTradeDate } from '@/hooks/useDefaultTradeDate';
 import { numberText, scaledNumber } from '@/utils/format';
 import { BasicShell, SourceState, useWorkbench } from '../../components/workbench';
+import RiskInspect from '../../components/RiskInspect';
 
 function Profile() {
   const params = useSearchParams(); const code = params.get('code') || '';
@@ -47,6 +48,7 @@ function Profile() {
         <>
           <Space className="mb-16" size={[16, 12]} wrap>
             <Button onClick={() => setChart(true)}>查看K线</Button>
+            <RiskInspect code={linkedCode} date={date} />
             <Link href={`/basic/daily/?tsCode=${linkedCode}&date=${date}`}>每日行情</Link>
             <Link href={`/analysis/dragon/?code=${linkedCode}&date=${date}`}>龙虎榜</Link>
             <Link href={`/strategy/?code=${linkedCode}&date=${date}`}>策略信号</Link>

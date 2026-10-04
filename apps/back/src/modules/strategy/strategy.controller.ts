@@ -57,7 +57,7 @@ export class StrategyController {
     return ret;
   }
 
-  @Permit('strategy:read', 'basic:stock')
+  @Permit('strategy:read', 'basic:stock', 'review:read')
   @Get('/chart')
   @QueryTimeout(60000)
   @ApiOperation({ summary: '选股信号对应的个股日K与成交量' })

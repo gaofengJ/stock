@@ -12,9 +12,27 @@ export class WorkbenchController {
   }
 
   @Get('risk')
-  @Permit('basic:stock', 'basic:daily', 'strategy:read', 'analysis:limits')
+  @Permit(
+    'basic:stock',
+    'basic:daily',
+    'strategy:read',
+    'analysis:limits',
+    'review:read',
+  )
   risk(@Query() dto: WorkbenchQuery) {
     return this.service.risk(dto);
+  }
+
+  @Get('risk-detail')
+  @Permit(
+    'basic:stock',
+    'basic:daily',
+    'strategy:read',
+    'analysis:limits',
+    'review:read',
+  )
+  riskDetail(@Query() dto: WorkbenchQuery) {
+    return this.service.riskDetail(dto);
   }
 
   @Get('events') @Permit('basic:calendar') events(

@@ -32,6 +32,7 @@ import { DataLockInterceptor } from './modules/admin/data-lock.interceptor';
 import { NewsModule } from './modules/news/news.module';
 import { StockIdentityModule } from './modules/source/stock/stock-identity.module';
 import { TrendModule } from './modules/strategy/trend.module';
+import { ReviewModule } from './modules/review/review.module';
 
 @Module({
   imports: [
@@ -114,6 +115,7 @@ import { TrendModule } from './modules/strategy/trend.module';
      */
     StrategyModule,
     TrendModule,
+    ReviewModule,
     /**
      * 基础数据模块
      */
