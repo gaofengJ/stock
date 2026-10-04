@@ -6,6 +6,10 @@ on:
         description: Last calendar date, YYYY-MM-DD
         required: true
         type: string
+      diagnostics_only:
+        description: Inspect aggregate checkpoint without requesting quotes or writing data
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -23,11 +27,12 @@ jobs:
         uses: appleboy/ssh-action@v1.2.0
         env:
           END_DATE: ${{ inputs.end_date }}
+          DIAGNOSTICS_ONLY: ${{ inputs.diagnostics_only }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
-          envs: END_DATE
+          envs: END_DATE,DIAGNOSTICS_ONLY
           command_timeout: 290m
           script: |
             set -eu
@@ -41,6 +46,10 @@ jobs:
             STATE=/opt/stock-release/intraday-history
             mkdir -p "$STATE"
             chmod 700 "$STATE"
+            if [ "$DIAGNOSTICS_ONLY" = true ]; then
+              docker run --rm --mount "type=bind,src=$STATE,dst=/history,readonly" -e HISTORY_END_DATE="$END_DATE" --entrypoint node "$IMAGE" -e 'const fs=require("node:fs"); const state=JSON.parse(fs.readFileSync("/history/"+process.env.HISTORY_END_DATE+".json")); console.log(JSON.stringify({phase:"diagnostics",done:state.done.length,total:state.totalStocks,failed:state.failed,expected:state.expected,providers:state.providers,updatedAt:state.updatedAt}));'
+              exit 0
+            fi
             for ATTEMPT in 1 2 3; do
               if docker run --rm --name stock-intraday-history --add-host host.docker.internal:172.17.0.1 --mount "type=bind,src=$ENV_FILE,dst=/run/stock/runtime.env,readonly" --mount "type=bind,src=$STATE,dst=/history" --entrypoint node "$IMAGE" ops/backfill-intraday-counts.cjs --env /run/stock/runtime.env --end "$END_DATE" --state "/history/$END_DATE.json" --write; then
                 exit 0
