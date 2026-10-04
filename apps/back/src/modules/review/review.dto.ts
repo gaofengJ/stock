@@ -34,7 +34,7 @@ export class HoldingsDto extends ReviewDateDto {
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(3)
-  @ArrayUnique((r: HoldingDto) => r.code)
+  @ArrayUnique((r: HoldingDto) => r?.code)
   @ValidateNested({ each: true })
   @Type(() => HoldingDto)
   holdings: HoldingDto[];

@@ -101,6 +101,7 @@ describe('personal review', () => {
   it('validates holding bounds, duplicate codes and nested values', async () => {
     const invalid = [
       [],
+      [null],
       Array(4).fill({ code: '000001.SZ' }),
       [{ code: 'bad' }],
       [{ code: '000001.SZ', cost: -1 }],
