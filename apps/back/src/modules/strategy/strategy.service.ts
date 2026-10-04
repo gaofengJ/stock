@@ -9,7 +9,8 @@ import { StrategyListQueryDto } from './strategy.dto';
 import { EStrategyType } from './strategy.enum';
 import { DailyEntity } from '../source/daily/daily.entity';
 import { TrendService } from './trend.service';
-import { TREND_KEYS, TrendKey } from './trend-rules';
+import { TREND_KEYS, TrendKey, TREND_DEFAULTS } from './trend-rules';
+import { StrategyCacheService } from './strategy-cache.service';
 
 @Injectable()
 export class StrategyService {
@@ -18,6 +19,7 @@ export class StrategyService {
     private dailyService: DailyService,
     @Optional() private sectors?: SectorService,
     @Optional() private trends?: TrendService,
+    @Optional() private cache?: StrategyCacheService,
   ) {}
 
   private logger = new Logger(StrategyService.name);
@@ -178,16 +180,41 @@ export class StrategyService {
    * 策略选股结果列表
    */
   async list(dto: StrategyListQueryDto) {
+    const { sector, date, strategyType } = dto;
+    const parameters: StrategyListQueryDto = TREND_KEYS.includes(
+      strategyType as TrendKey,
+    )
+      ? { ...TREND_DEFAULTS, ...dto, sector: undefined }
+      : { date, strategyType };
+    // Volume options do not change five-MA results unless enabled.
+    if (strategyType === 'fiveMaUp' && !parameters.expandingVolume) {
+      parameters.volumeDays = TREND_DEFAULTS.volumeDays;
+      parameters.volumeMultiple = TREND_DEFAULTS.volumeMultiple;
+    }
+    let rows = this.cache
+      ? await this.cache.read(date, parameters, () =>
+          this.candidates(parameters),
+        )
+      : await this.candidates(parameters);
+    if (sector && this.sectors) {
+      const members = await this.sectors.codes(sector, date);
+      rows = rows.filter((row) => members.has(row.tsCode));
+    }
+    return this.sectors ? this.sectors.candidateContext(rows, date) : rows;
+  }
+
+  async chart(dto: StrategyListQueryDto & { code: string }) {
+    if (!this.trends) throw new Error('趋势策略模块尚未启用');
+    return this.trends.chart(dto);
+  }
+
+  private async candidates(dto: StrategyListQueryDto) {
     const { date, strategyType } = dto;
     let ret: DailyEntity[] = [];
     if (TREND_KEYS.includes(strategyType as TrendKey)) {
       if (!this.trends) throw new Error('趋势策略模块尚未启用');
       ret = await this.trends.list(date, strategyType as TrendKey, dto);
-      if (dto.sector && this.sectors) {
-        const members = await this.sectors.codes(dto.sector, date);
-        ret = ret.filter((r) => members.has(r.tsCode));
-      }
-      return this.sectors ? this.sectors.candidateContext(ret, date) : ret;
+      return ret;
     }
     switch (strategyType) {
       case EStrategyType.gapThreeUp:
@@ -212,10 +239,6 @@ export class StrategyService {
         ret = [];
         break;
     }
-    if (dto.sector && this.sectors) {
-      const members = await this.sectors.codes(dto.sector, date);
-      ret = ret.filter((r) => members.has(r.tsCode));
-    }
-    return this.sectors ? this.sectors.candidateContext(ret, date) : ret;
+    return ret;
   }
 }

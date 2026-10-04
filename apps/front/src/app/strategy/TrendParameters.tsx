@@ -1,31 +1,19 @@
 'use client';
 
+import { useState } from 'react';
 import {
   Button, Checkbox, Collapse, Form, InputNumber, Radio, Space,
 } from 'antd';
 
-export interface TrendOptions {
-  breakoutDays: number; volumeDays: number; volumeMultiple: number;
-  pullbackDays: number; pullbackBelow: number; pullbackAbove: number; contractionRatio: number;
-  fiveMaMode: 'new' | 'current'; aboveMa5: boolean; bullish: boolean; expandingVolume: boolean;
-}
-export const trendDefaults: TrendOptions = {
-  breakoutDays: 20,
-  volumeDays: 5,
-  volumeMultiple: 1.5,
-  pullbackDays: 10,
-  pullbackBelow: 2,
-  pullbackAbove: 3,
-  contractionRatio: 0.8,
-  fiveMaMode: 'new',
-  aboveMa5: false,
-  bullish: false,
-  expandingVolume: false,
-};
-export const isTrendStrategy = (key: string) => ['volumeBreakout', 'breakoutPullback', 'fiveMaUp'].includes(key);
+import { trendDefaults, TrendOptions } from './strategy-options';
+
+export { trendDefaults, isTrendStrategy } from './strategy-options';
+export type { TrendOptions } from './strategy-options';
 
 export default function TrendParameters({ strategy, value, onChange }: { strategy: string; value: TrendOptions; onChange: (value: TrendOptions) => void }) {
   const [form] = Form.useForm<TrendOptions>();
+  const expandingVolume = Form.useWatch('expandingVolume', form);
+  const [dirty, setDirty] = useState(false);
   const number = (name: keyof TrendOptions, label: string, min: number, max: number, step = 1) => (
     <Form.Item
       key={name}
@@ -44,9 +32,9 @@ export default function TrendParameters({ strategy, value, onChange }: { strateg
       size="small"
       items={[{
         key: 'parameters',
-        label: '调整筛选参数',
+        label: dirty ? '调整筛选参数 - 尚未应用' : '调整筛选参数',
         children: (
-          <Form form={form} layout="inline" initialValues={value} onFinish={(values) => onChange({ ...trendDefaults, ...values })}>
+          <Form form={form} layout="inline" initialValues={value} onValuesChange={() => setDirty(true)} onFinish={(values) => { setDirty(false); onChange({ ...trendDefaults, ...value, ...values }); }}>
             <Space size={[20, 8]} wrap align="start">
               {strategy !== 'fiveMaUp' && number('breakoutDays', '突破回看交易日', 5, 120)}
               {strategy === 'fiveMaUp' && (
@@ -61,8 +49,8 @@ export default function TrendParameters({ strategy, value, onChange }: { strateg
                 <Form.Item name="expandingVolume" valuePropName="checked"><Checkbox>当日放量</Checkbox></Form.Item>
               </Space>
               )}
-              {number('volumeDays', '基准均量交易日', 3, 20)}
-              {number('volumeMultiple', '放量倍数 ≥', 1, 5, 0.1)}
+              {(strategy !== 'fiveMaUp' || expandingVolume) && number('volumeDays', '基准均量交易日', 3, 20)}
+              {(strategy !== 'fiveMaUp' || expandingVolume) && number('volumeMultiple', '放量倍数 ≥', 1, 5, 0.1)}
               {strategy === 'breakoutPullback' && (
               <>
                 {number('pullbackDays', '突破后最多交易日', 3, 20)}
@@ -73,7 +61,7 @@ export default function TrendParameters({ strategy, value, onChange }: { strateg
               )}
               <Space>
                 <Button type="primary" htmlType="submit">应用</Button>
-                <Button onClick={() => { form.setFieldsValue(trendDefaults); onChange(trendDefaults); }}>恢复默认</Button>
+                <Button onClick={() => { setDirty(false); form.setFieldsValue(trendDefaults); onChange(trendDefaults); }}>恢复默认</Button>
               </Space>
             </Space>
           </Form>

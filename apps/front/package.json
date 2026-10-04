@@ -10,9 +10,10 @@
     "test:market-environment": "node --test scripts/test-market-environment.cjs",
     "test:errors": "node --test scripts/test-errors.cjs",
     "dev": "next dev -p 8081",
-    "build": "next build && node scripts/verify-export.cjs",
+    "build": "next build && node scripts/verify-export.cjs && node --test scripts/test-strategy-state.cjs",
     "start": "next start -p 8081",
-    "lint": "next lint ."
+    "lint": "next lint .",
+    "test:strategy": "node --test scripts/test-strategy-state.cjs"
   },
   "dependencies": {
     "@ant-design/icons": "^5.4.0",

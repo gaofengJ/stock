@@ -9,8 +9,10 @@ import { BseMappingEntity } from '@/modules/analysis/market/market.entity';
 import { SyncRunEntity } from '@/modules/daily-task/sync-run.entity';
 import { SyncDayPolicyEntity } from '@/modules/daily-task/sync-day-policy.entity';
 import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
+import { StockHistoryEntity } from '@/modules/source/stock/stock-history.entity';
 import { TrendService } from './trend.service';
 import { TrendFactorEntity } from './trend.entity';
+import { StrategyCacheService } from './strategy-cache.service';
 
 const mysqlDescribe = process.env.SYNC_TEST_MYSQL_PORT
   ? describe
@@ -75,6 +77,7 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
         SyncRunEntity,
         SyncDayPolicyEntity,
         TrendFactorEntity,
+        StockHistoryEntity,
       ],
     });
     await db.initialize();
@@ -182,6 +185,19 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
       },
     });
   });
+  test('缓存版本查询兼容实际数据库，修复或保护行情后立即失效', async () => {
+    const cache = new StrategyCacheService(db);
+    const loader = jest.fn().mockResolvedValue([{ tsCode: '000001.SZ' }]);
+    await cache.read(latest, { key: 'volumeBreakout' }, loader);
+    await cache.read(latest, { key: 'volumeBreakout' }, loader);
+    expect(loader).toHaveBeenCalledTimes(1);
+    await db.manager.insert(SyncDayPolicyEntity, {
+      tradeDate: latest,
+      reason: 'manual-delete',
+    });
+    await cache.read(latest, { key: 'volumeBreakout' }, loader);
+    expect(loader).toHaveBeenCalledTimes(2);
+  });
   test('缺少快照不等于未命中，每个策略独立报告就绪', async () => {
     const result = await service.history([latest]);
     expect(result.readyByStrategy).toEqual({
@@ -193,6 +209,77 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
     await expect(service.list(latest, 'volumeBreakout')).rejects.toThrow(
       '尚未补齐',
     );
+  });
+  test('历史窗口保留不满足收盘位置的基准日成交量，与单日突破一致', async () => {
+    await db.manager.update(
+      DailyEntity,
+      { tradeDate: dates[19] },
+      { close: '8.5' },
+    );
+    const single = await service.list(latest, 'volumeBreakout');
+    const history = await service.history(dates.slice(-2), ['volumeBreakout']);
+    expect(single).toHaveLength(1);
+    expect(history.items.find((r) => r.date === latest)?.rows).toEqual(single);
+  });
+  test('回踩日收在下半区仍须保留量能，历史与单日回踩一致', async () => {
+    const samples = [
+      [17, 10, 11, 11, 10, 150],
+      [18, 10.5, 10.1, 10.6, 9.9, 100],
+      [19, 10.2, 10.1, 10.4, 10, 100],
+      [20, 10.2, 10.5, 10.6, 10, 110],
+    ];
+    await Promise.all(
+      samples.map(async ([i, open, close, high, low, vol]) => {
+        await db.manager.update(
+          DailyEntity,
+          { tradeDate: dates[i] },
+          {
+            open: String(open),
+            close: String(close),
+            high: String(high),
+            low: String(low),
+            vol: String(vol),
+          },
+        );
+        await db.manager.update(
+          TrendFactorEntity,
+          { tradeDate: dates[i] },
+          { data: [['000001.SZ', open, close, high, low]] },
+        );
+      }),
+    );
+    const options = { breakoutDays: 5, volumeDays: 3 };
+    const single = await service.list(latest, 'breakoutPullback', options);
+    const history = await service.history(
+      dates.slice(-4),
+      ['breakoutPullback'],
+      options,
+    );
+    expect(single).toHaveLength(1);
+    expect(history.items.find((r) => r.date === latest)?.rows).toEqual(single);
+  });
+  test('个股图表沿用策略复权口径、信号证据与成交量，不读取未来', async () => {
+    const chart = await service.chart({
+      date: latest,
+      code: '000001.SZ',
+      strategyType: 'volumeBreakout',
+    });
+    expect(chart.basis).toBe('后复权');
+    expect(chart.series).toHaveLength(21);
+    expect(chart.series.at(-1)).toMatchObject({
+      date: latest,
+      open: 10,
+      close: 11,
+      vol: 150,
+    });
+    expect(chart.evidence).toMatchObject({ breakoutPrice: 10 });
+    const legacy = await service.chart({
+      date: dates[19],
+      code: '000001.SZ',
+      strategyType: 'gapTwoUp',
+    });
+    expect(legacy.basis).toBe('不复权');
+    expect(legacy.series.every((r) => r.date <= dates[19])).toBe(true);
   });
   test('某一天原始日线被部分删除，不能继续发布完整结果', async () => {
     await db.manager.delete(DailyEntity, { tradeDate: dates[19] });

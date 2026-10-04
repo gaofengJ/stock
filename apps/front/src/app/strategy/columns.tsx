@@ -70,6 +70,11 @@ function SectorContext({ sectors, date, ready }: { sectors?: SectorPerformance[]
  * 设置默认值
  */
 const renderEmptyField = (val: unknown) => numberText(val);
+const numericSort = (get: (row: any) => unknown) => (a: any, b: any) => {
+  const first = get(a); const second = get(b);
+  const number = (value: unknown) => (value == null || value === '' || !Number.isFinite(Number(value)) ? -Infinity : Number(value));
+  return first === second ? 0 : number(first) - number(second);
+};
 
 export const strategyColumns: ColumnsType = [
   {
@@ -85,6 +90,15 @@ export const strategyColumns: ColumnsType = [
     dataIndex: 'name',
     key: 'name',
     width: 80,
+  },
+  {
+    title: '涨跌幅(%)',
+    key: 'pctChg',
+    dataIndex: 'pctChg',
+    width: 110,
+    align: 'right',
+    sorter: numericSort((row) => row.pctChg),
+    render: (value) => <span className={changeClass(value)}>{numberText(value, 2, true)}</span>,
   },
   {
     title: '行业', key: 'industry', width: 160, render: (_, r) => <SectorLinks stock={r} date={r.tradeDate} />,
@@ -184,6 +198,7 @@ export function trendColumns(strategy: string): ColumnsType {
     title,
     width: 130,
     align: 'right',
+    sorter: numericSort((row) => row.trendEvidence?.[name]),
     render: (_, row) => (row.trendEvidence?.[name] == null ? '—' : `${numberText(row.trendEvidence[name], digits, signed)}${suffix}`),
   });
   if (strategy === 'volumeBreakout') return [field('breakoutPct', '突破幅度', '%', true), field('volumeMultiple', '成交量／基准均量', '倍')];
@@ -198,10 +213,14 @@ export function trendColumns(strategy: string): ColumnsType {
   if (strategy === 'fiveMaUp') {
     return [
       {
-        key: 'streak', title: '顺上持续', width: 110, align: 'right', render: (_, row) => (row.trendEvidence ? `${row.trendEvidence.streakCapped ? '≥' : ''}${row.trendEvidence.streak}日` : '—'),
+        key: 'streak', title: '顺上持续', width: 110, align: 'right', sorter: numericSort((row) => row.trendEvidence?.streak), render: (_, row) => (row.trendEvidence ? `${row.trendEvidence.streakCapped ? '≥' : ''}${row.trendEvidence.streak}日` : '—'),
       },
       field('aboveMa5Pct', '收盘偏离MA5', '%', true),
     ];
   }
   return [];
 }
+
+strategyColumns.forEach((column) => {
+  if (['open', 'close', 'high', 'low', 'amount', 'turnoverRateF', 'volumeRatio', 'peTtm', 'totalMv', 'circMv'].includes(String(column.key))) column.sorter = numericSort((row) => row[String(column.key)]);
+});
