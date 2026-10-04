@@ -24,6 +24,7 @@ import CandidateEnvironment from './CandidateEnvironment';
 import StrategyRules from './StrategyRules';
 import StockChart from './StockChart';
 import { RiskTags, StockLink, useWorkbench } from '../basic/components/workbench';
+import RiskInspect from '../basic/components/RiskInspect';
 import { CandidateComparison, SignalPerformance, PopularityChanges } from './InsightPanels';
 import './strategy.sass';
 
@@ -94,6 +95,9 @@ function StrategyPage() {
     })),
     {
       title: '风险提示', key: 'risks', width: 150, render: (_: any, row: any) => <RiskTags data={riskState.data} code={row.tsCode} date={date} />,
+    },
+    {
+      title: '风险核验', key: 'riskCheck', width: 100, render: (_: any, row: any) => <RiskInspect code={row.tsCode} date={date} />,
     },
     {
       title: '档案', key: 'profile', width: 70, render: (_: any, row: any) => <StockLink code={row.tsCode} name="资料" date={date} />,

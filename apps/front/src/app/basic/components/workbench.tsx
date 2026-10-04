@@ -61,7 +61,26 @@ export function useWorkbench(endpoint: string, params: Record<string, unknown>, 
   };
 }
 const sourceNames: Record<string, string> = {
-  stock_company: '公司资料', stock_st: 'ST状态', st: 'ST原因', suspend_d: '停复牌', stk_shock: '异常波动', stk_high_shock: '严重异动', stk_alert: '交易所提示', share_float: '解禁', disclosure_date: '财报披露', forecast: '业绩预告', express: '业绩快报', dividend: '除权除息', fina_indicator: '财务指标', cashflow: '现金流', top_inst: '龙虎榜席位',
+  stk_holdertrade: '股东减持',
+  eastmoney_ann: '东方财富公告',
+  anns_d: '公司公告',
+  fina_audit: '审计意见',
+  balancesheet: '资产负债表',
+  stock_company: '公司资料',
+  stock_st: 'ST状态',
+  st: 'ST原因',
+  suspend_d: '停复牌',
+  stk_shock: '异常波动',
+  stk_high_shock: '严重异动',
+  stk_alert: '交易所提示',
+  share_float: '解禁',
+  disclosure_date: '财报披露',
+  forecast: '业绩预告',
+  express: '业绩快报',
+  dividend: '除权除息',
+  fina_indicator: '财务指标',
+  cashflow: '现金流',
+  top_inst: '龙虎榜席位',
 };
 export function SourceState({ data, error, retry }: { data: any; error?: string; retry: () => void }) {
   const pending = data?.sources?.filter((s: any) => s.state !== 'ready') || [];
@@ -73,7 +92,9 @@ export function SourceState({ data, error, retry }: { data: any; error?: string;
       {!!pending.length && <Alert className="mb-16" type={hasError ? 'warning' : 'info'} message={hasError ? '部分来源暂不可用，已保留可用资料' : '正在补齐资料，完成后自动更新'} description={<Space wrap>{sources.map((source) => <Tooltip key={source} title={pending.find((s: any) => s.source === source)?.message || '尚未取得完整快照'}><span>{sourceNames[source] || source}</span></Tooltip>)}</Space>} action={<Button size="small" onClick={retry}>刷新</Button>} />}
       {!pending.length && !!data?.sources?.length && (
       <p className="basic-muted">
-        数据来源：Tushare。
+        数据来源：Tushare
+        {data.sources.some((s: any) => s.source === 'eastmoney_ann') ? '、东方财富公告' : ''}
+        。
         <Tooltip title={data.sources.map((s: any) => `${sourceNames[s.source] || s.source}：${s.fetchedAt ? new Date(s.fetchedAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : '尚未获取'}`).join('；')}><span>查看更新时间</span></Tooltip>
       </p>
       )}
@@ -88,7 +109,7 @@ export function RiskTags({ data, code, date }: { data: any; code: string; date?:
   return (
     <Space size={2} wrap>
       {labels.map((label) => (canLink ? <Link key={label} href={`/basic/stock/risk/?code=${code}&date=${date || ''}`}><Tag color={label === '复牌' ? 'blue' : 'orange'}>{label}</Tag></Link> : <Tag color="orange" key={label}>{label}</Tag>))}
-      {!labels.length && <span className="basic-muted">{!data || data.sources?.some((s: any) => s.state !== 'ready') ? '待核实' : '—'}</span>}
+      <Tooltip title="减持计划、重大利空及潜在ST／退市风险需逐股核验。无记录不代表无风险。"><span className="basic-muted">{!data || data.sources?.some((s: any) => s.state !== 'ready') ? '资料待补齐' : '其他风险待核验'}</span></Tooltip>
     </Space>
   );
 }

@@ -50,8 +50,10 @@ export class TrendService {
 
   async chart(
     dto: TrendOptions & { date: string; code: string; strategyType: string },
+    window = 260,
+    includeEvidence = true,
   ) {
-    const dates = await this.calendar(dto.date, 260);
+    const dates = await this.calendar(dto.date, window);
     const identity = await this.identity.load([]);
     const code = identity.canonical(dto.code);
     const codes = identity.expand([code]);
@@ -134,15 +136,16 @@ export class TrendService {
         vol: valid ? Number(volume) : null,
       };
     });
-    const hit = adjusted
-      ? await this.history(
-          [dto.date],
-          [dto.strategyType as TrendKey],
-          dto,
-          [code],
-          true,
-        )
-      : null;
+    const hit =
+      adjusted && includeEvidence
+        ? await this.history(
+            [dto.date],
+            [dto.strategyType as TrendKey],
+            dto,
+            [code],
+            true,
+          )
+        : null;
     return {
       code,
       date: dto.date,

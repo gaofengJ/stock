@@ -61,7 +61,7 @@ export class MarketController {
   }
 
   @Get('candidate-environment')
-  @Permit('strategy:read')
+  @Permit('strategy:read', 'review:read')
   environment(@Query() q: MarketQueryDto) {
     return this.research.environment(q);
   }

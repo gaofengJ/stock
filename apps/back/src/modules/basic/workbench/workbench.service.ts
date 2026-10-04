@@ -13,6 +13,12 @@ import { SectorService } from '@/modules/analysis/market/sector.service';
 import { shanghaiDate } from '@/modules/daily-task/sync.utils';
 import { BasicSnapshotService, SourceSnapshot } from './snapshot.service';
 import { WorkbenchQuery } from './workbench.dto';
+import {
+  RISK_CHECKLIST,
+  announcementCategories,
+  safeAnnouncementUrl,
+  stockBoard,
+} from './risk-rules';
 
 export const isoDate = (value: unknown) =>
   String(value || '')
@@ -188,6 +194,8 @@ export class WorkbenchService {
 
   async risk(dto: WorkbenchQuery) {
     const date = dto.date || shanghaiDate();
+    if (date > shanghaiDate())
+      throw new BadRequestException('不能核验未来日期的风险');
     const tradeDate = compact(date);
     const definitions = [
       ['stock_st', { trade_date: tradeDate }, 'ST'],
@@ -250,6 +258,57 @@ export class WorkbenchService {
             }),
     );
     const stocks = await this.db.manager.find(StockEntity);
+    // Bound each market-wide source snapshot and share it across strategy/report users.
+    const reductionStart = dayjs(date)
+      .subtract(179, 'day')
+      .format('YYYY-MM-DD');
+    const reductions = await Promise.all(
+      Array.from({ length: 6 }, (_, i) => {
+        const start = dayjs(reductionStart).add(i * 30, 'day');
+        return this.cache.read(
+          'stk_holdertrade',
+          {
+            start_date: start.format('YYYYMMDD'),
+            end_date: start.add(29, 'day').format('YYYYMMDD'),
+            trade_type: 'DE',
+          },
+          'ts_code,ann_date,holder_name,in_de,change_vol,change_ratio,begin_date,close_date',
+        );
+      }),
+    );
+    reductions.forEach((snapshot) =>
+      snapshot.rows.forEach((r) => {
+        const announced = isoDate(r.ann_date);
+        if (
+          r.in_de !== 'DE' ||
+          !announced ||
+          announced < reductionStart ||
+          announced > date
+        )
+          return;
+        items.push({
+          tsCode: r.ts_code,
+          type: '减持',
+          date,
+          eventDate: announced,
+          endDate: isoDate(r.close_date),
+          source: snapshot.source,
+          detail: `${r.holder_name || '股东'}；变动数量 ${
+            r.change_vol ?? '待核实'
+          } 股；占流通股 ${r.change_ratio ?? '待核实'}%；实施起止 ${
+            isoDate(r.begin_date) || '未知'
+          } 至 ${
+            isoDate(r.close_date) || '未知'
+          }。近180日记录，不等同于仍在减持。`,
+        });
+      }),
+    );
+    const mappings = await this.db.manager.find(BseMappingEntity);
+    const canonical = new Map(mappings.map((r) => [r.oldCode, r.newCode]));
+    items = items.map((r) => ({
+      ...r,
+      tsCode: canonical.get(r.tsCode) || r.tsCode,
+    }));
     const history = await this.db.manager.findOneBy(StockHistoryEntity, {
       snapshotKey: 'identity',
     });
@@ -274,8 +333,126 @@ export class WorkbenchService {
     return {
       date,
       items: await this.sectors.decorate(items, date),
-      sources: sourceStatus(snapshots),
-      note: '异动按公告日；停复牌按当日记录；重点提示截止日仅供参考。来源未就绪不代表无风险。',
+      sources: sourceStatus([...snapshots, ...reductions]),
+      reductionStart,
+      checklist: RISK_CHECKLIST,
+      note: 'ST、停复牌按所选日；减持为近180日已公告记录，已完成也保留。公告计划、重大利空及潜在ST／退市另需逐股核验。来源缺失或无记录均不代表无风险。',
+    };
+  }
+
+  async riskDetail(dto: WorkbenchQuery) {
+    if (!dto.code) throw new BadRequestException('请选择股票');
+    const date = dto.date || shanghaiDate();
+    if (date > shanghaiDate())
+      throw new BadRequestException('不能核验未来日期的风险');
+    const mappings = await this.db.manager.find(BseMappingEntity);
+    const code =
+      mappings.find((r) => r.oldCode === dto.code)?.newCode || dto.code;
+    const aliases = [
+      code,
+      ...mappings.filter((r) => r.newCode === code).map((r) => r.oldCode),
+    ];
+    const start = dayjs(date).subtract(179, 'day').format('YYYY-MM-DD');
+    const [base, announcements, financial, audit, balance] = await Promise.all([
+      this.risk({ date, code }),
+      Promise.all(
+        aliases.map((tsCode) =>
+          this.cache.read(
+            'eastmoney_ann',
+            {
+              ts_code: tsCode,
+              start_date: compact(start),
+              end_date: compact(date),
+            },
+            'ts_code,ann_date,title,url,rec_time',
+          ),
+        ),
+      ),
+      this.cache.read(
+        'fina_indicator',
+        { ts_code: code },
+        'ts_code,ann_date,end_date,or_yoy,netprofit_yoy,profit_dedt,debt_to_assets,update_flag',
+      ),
+      this.cache.read('fina_audit', { ts_code: code }),
+      this.cache.read(
+        'balancesheet',
+        { ts_code: code },
+        'ts_code,ann_date,f_ann_date,end_date,report_type,total_hldr_eqy_exc_min_int,update_flag',
+      ),
+    ]);
+    const notices = [
+      ...new Map(
+        announcements
+          .flatMap((s) => s.rows)
+          .filter(
+            (r) =>
+              aliases.includes(r.ts_code) &&
+              isoDate(r.ann_date) >= start &&
+              isoDate(r.ann_date) <= date &&
+              (!r.rec_time || isoDate(r.rec_time) <= date),
+          )
+          .map((r) => ({
+            title: String(r.title || ''),
+            date: isoDate(r.ann_date),
+            url: safeAnnouncementUrl(r.url),
+            categories: announcementCategories(String(r.title || '')),
+          }))
+          .map((r) => [JSON.stringify([r.date, r.title, r.url]), r]),
+      ).values(),
+    ].sort((a, b) => b.date.localeCompare(a.date));
+    const fin = latestDisclosed(financial.rows, date);
+    const aud = latestDisclosed(audit.rows, date);
+    const bal = latestDisclosed(
+      balance.rows.filter((r) => String(r.report_type) === '1'),
+      date,
+    );
+    const findings: { category: string; detail: string; date: string }[] = [];
+    if (fin?.profit_dedt != null && Number(fin.profit_dedt) < 0)
+      findings.push({
+        category: 'financial',
+        detail: `报告期 ${isoDate(fin.end_date)} 扣非净利润为负（${Number(
+          fin.profit_dedt,
+        )}元）；需结合营收与适用规则复核`,
+        date: isoDate(fin.ann_date),
+      });
+    if (aud?.audit_result && aud.audit_result !== '标准无保留意见')
+      findings.push({
+        category: 'financial',
+        detail: `报告期 ${isoDate(aud.end_date)} 审计意见：${aud.audit_result}`,
+        date: isoDate(aud.ann_date),
+      });
+    if (
+      bal?.total_hldr_eqy_exc_min_int != null &&
+      Number(bal.total_hldr_eqy_exc_min_int) < 0
+    )
+      findings.push({
+        category: 'financial',
+        detail: `报告期 ${isoDate(bal.end_date)} 归属母公司净资产为负`,
+        date: isoDate(bal.f_ann_date || bal.ann_date),
+      });
+    return {
+      ...base,
+      code,
+      board: stockBoard(code),
+      announcementStart: start,
+      generatedAt: new Date().toISOString(),
+      announcements: notices,
+      findings,
+      financial: fin,
+      audit: aud,
+      balance: bal,
+      sources: [
+        ...base.sources,
+        ...sourceStatus([...announcements, financial, audit, balance]),
+      ],
+      checks: RISK_CHECKLIST.map((check) => ({
+        ...check,
+        state: 'pending',
+        leads:
+          notices.filter((r) => r.categories.includes(check.key)).length +
+          findings.filter((r) => r.category === check.key).length,
+      })),
+      note: '公告按所选日已披露内容回看，快照于当前查询时获取，并非当日留存。标题匹配仅作线索；财务异常不直接等于ST。各板块适用条件、正文、未结束的较早事项仍须核验，未核验项不判为安全。',
     };
   }
 

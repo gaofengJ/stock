@@ -98,11 +98,14 @@ describe('策略关联范围和就绪状态', () => {
     ]);
   });
   test('策略命中接口独立要求策略权限，不能借市场分析权限读取', () => {
-    (['signals', 'sectorSignals', 'environment'] as const).forEach((method) => {
+    (['signals', 'sectorSignals'] as const).forEach((method) => {
       expect(
         Reflect.getMetadata(ACCESS, MarketController.prototype[method]),
       ).toEqual({ any: ['strategy:read'] });
     });
+    expect(
+      Reflect.getMetadata(ACCESS, MarketController.prototype.environment),
+    ).toEqual({ any: ['strategy:read', 'review:read'] });
   });
   test('旧策略计算未完成时，新策略也会启动，完成后再合并结果', async () => {
     const { service, daily } = setup(true);

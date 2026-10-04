@@ -9,5 +9,6 @@ import { WorkbenchController } from './workbench.controller';
   imports: [TypeOrmModule.forFeature([BasicSnapshotEntity])],
   controllers: [WorkbenchController],
   providers: [BasicSnapshotService, WorkbenchService],
+  exports: [BasicSnapshotService, WorkbenchService],
 })
 export class WorkbenchModule {}

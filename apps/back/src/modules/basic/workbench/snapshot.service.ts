@@ -6,6 +6,7 @@ import { DataSource, LessThan } from 'typeorm';
 import { TushareService } from '@/shared/tushare/tushare.service';
 import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
 import { BasicSnapshotEntity } from './snapshot.entity';
+import { publicAnnouncements } from './public-announcements';
 
 export interface SourceSnapshot {
   key: string;
@@ -31,6 +32,11 @@ const caps: Record<string, number> = {
   fina_indicator: 100,
   cashflow: 1000,
   top_inst: 10000,
+  stk_holdertrade: 3000,
+  anns_d: 2000,
+  fina_audit: 1000,
+  balancesheet: 1000,
+  eastmoney_ann: 100,
 };
 
 @Injectable()
@@ -87,13 +93,16 @@ export class BasicSnapshotService {
           await new Promise((resolve) => {
             setTimeout(resolve, start - Date.now());
           });
-          const response = await this.source.queryData(
-            source,
-            params,
-            fields,
-            caps[source],
-            15000,
-          );
+          const response =
+            source === 'eastmoney_ann'
+              ? await publicAnnouncements(params)
+              : await this.source.queryData(
+                  source,
+                  params,
+                  fields,
+                  caps[source],
+                  15000,
+                );
           const { data } = response;
           if (response.code !== 0 || !data || !data.fields.includes('ts_code'))
             throw new Error('来源字段不完整');
