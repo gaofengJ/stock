@@ -54,7 +54,7 @@ export function CandidateComparison({
       <Space wrap size={[16, 12]} className="mb-16">
         <Segmented aria-label="比较周期" value={period} onChange={(v) => setPeriod(Number(v))} options={[{ label: '20日', value: 20 }, { label: '60日', value: 60 }]} />
         <Select aria-label="多策略交集" placeholder="同时命中策略（标准参数）" mode="multiple" allowClear style={{ minWidth: 300 }} value={selected} onChange={setSelected} options={strategies.map((s) => ({ value: s.key, label: s.label }))} />
-        <Button disabled={!codes.length} onClick={() => setOnlySelected((v) => !v)}>{onlySelected ? '显示全部候选' : `只比较勾选的 ${codes.length} 只`}</Button>
+        <Button disabled={!onlySelected && !codes.length} onClick={() => setOnlySelected((v) => !v)}>{onlySelected ? '显示全部候选' : `只比较勾选的 ${codes.length} 只`}</Button>
         <HelpTooltip label="横向比较口径" title="RPS为全市场同期涨幅百分位，越高越强；行业超额为个股涨幅减同花顺行业指数涨幅。多策略命中按标准参数计算。" />
       </Space>
       {state.data && !state.data.ready && <Alert className="mb-16" type="info" message="观察数据待补齐，候选列表仍可查看。" />}
