@@ -27,6 +27,7 @@ import { dailyColumns } from './columns';
 
 function BasicDailyPage() {
   const url = useSearchParams();
+  const linkedDate = url.get('date') || '';
   const defaults = ['tsCode', 'name', 'pctChg', 'close', 'open', 'high', 'low', 'amount', 'turnoverRateF', 'volumeRatio', 'peTtm', 'circMv'];
   const [visible, setVisible] = useState(defaults);
   const [sector, setSector] = useState<string>(); const [scope, setScope] = useState('all'); const [tradingState, setTradingState] = useState('traded');
@@ -42,7 +43,7 @@ function BasicDailyPage() {
   const initialSearchParams: Partial<NSGetBasicDailyList.IParams> = {
     pageNum: 1,
     pageSize: 20,
-    tradeDate: url.get('date') || candidate,
+    tradeDate: linkedDate || candidate,
     tsCode: url.get('tsCode') || undefined,
   };
   const [searchParams, setSearchParams] = useState<
@@ -79,12 +80,12 @@ function BasicDailyPage() {
   useEffect(() => {
     if (!ready) return;
     setSearchParams((state) => (
-      state.tradeDate === candidate
+      !linkedDate && state.tradeDate === candidate
         ? { ...state, tradeDate }
         : state
     ));
     setDateReady(true);
-  }, [candidate, ready, tradeDate]);
+  }, [candidate, linkedDate, ready, tradeDate]);
 
   /**
    * 切换页码
