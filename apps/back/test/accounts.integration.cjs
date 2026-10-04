@@ -19,6 +19,7 @@ const { ExpandedNewsSources1790832000000, EXPANDED_NEWS_CODES } = require('../di
 const { NewsDisplayPolicy1790835600000, RETIRED_RESEARCH_CODES } = require('../dist/migrations/1790835600000-NewsDisplayPolicy');
 const { NewsTranslations1791072000000 } = require('../dist/migrations/1791072000000-NewsTranslations');
 const { NewsReadingFeatures1791158400000 } = require('../dist/migrations/1791158400000-NewsReadingFeatures');
+const { AdminJobControls1791676800000 } = require('../dist/migrations/1791676800000-AdminJobControls');
 const { NEWS_SOURCES } = require('../dist/modules/news/news.sources');
 const { NewsModule } = require('../dist/modules/news/news.module');
 const { NewsService } = require('../dist/modules/news/news.service');
@@ -54,6 +55,8 @@ async function main() {
     const avatars = new AccountAvatars1790467200001();
     await avatars.up(q);
     await new MarketAnalysis1790553600000().up(q);
+    await new AdminJobControls1791676800000().up(q);
+    await new AdminJobControls1791676800000().up(q);
     await new LoginActivity1790640000000().up(q);
     const dragonPermission = new DragonPermission1790812800000();
     const tableCount = (await db.query('SHOW TABLES')).length;
@@ -146,7 +149,9 @@ async function main() {
     await db.query("INSERT INTO t_news_item(source,dedupe_key,kind,title,body,important,published_at,created_at,updated_at) VALUES('em-stock',REPEAT('d',64),'article','研报测试','不应展示',0,'2026-10-01 00:00:00',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3)),('stcn',REPEAT('e',64),'flash','失败来源旧内容','不应展示',0,'2026-10-01 00:00:00',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))");
     await db.query("UPDATE t_news_source SET status='error',last_success=UTC_TIMESTAMP(3),last_error='Fixture failure' WHERE source='stcn'");
     const [newsItem] = await db.query("SELECT id FROM t_news_item WHERE source='jin10' AND dedupe_key=REPEAT('a',64)");
-    assert.equal((await inject('GET','/news?date=2026-10-01',undefined,user)).json().data.total, 1);
+    const firstNews = await inject('GET','/news?date=2026-10-01',undefined,user);
+    assert.equal(firstNews.statusCode, 200, firstNews.body);
+    assert.equal(firstNews.json().data.total, 1);
     assert.equal((await inject('GET','/news?source=em-stock&date=2026-10-01',undefined,user)).json().data.total, 0, 'Direct filters cannot expose retired research');
     assert.equal((await inject('GET','/news?source=stcn&date=2026-10-01',undefined,user)).json().data.total, 0, 'Failed source history stays off the public feed');
     const readerSources = (await inject('GET','/news/sources?includeUnavailable=true',undefined,user)).json().data.sources;
@@ -360,6 +365,7 @@ async function main() {
     const retry = await jobs.create(admin.user, '2026-01-05', '2026-01-05'); assert.notEqual(retry.id, bad.id);
     await db.query("UPDATE t_admin_job SET status='running' WHERE id=?", [retry.id]); await jobs.onApplicationBootstrap();
     assert.equal((await jobs.detail(retry.id)).status, 'interrupted');
+    await require('./admin-regressions.cjs')({ db, auth, admin: admin.user, locks });
     temp = await fs.mkdtemp(path.join(os.tmpdir(), 'stock-auth-logs-')); process.env.LOG_DIR = temp;
     const logfile = path.join(temp, 'stock-back.2026-01-02.log');
     await fs.writeFile(logfile, JSON.stringify({ level: 'error', context: 'Fixture', message: 'broken', password: 'sensitive' }) + '\ninvalid\n' + JSON.stringify({ level: 'info', context: 'Other', message: 'okay' }) + '\n');
@@ -367,6 +373,7 @@ async function main() {
     const logs = new LogsService(db);
     const query = { page: 1, pageSize: 1, startDate: '2026-01-02', endDate: '2026-01-02' };
     const logResult = await logs.application(query);
+    assert.equal(logResult.items[0].message, 'okay', 'Newest log appears on first page');
     assert.equal(logResult.total, 2); assert.equal(logResult.items.length, 1); assert.equal(logResult.malformed, 1); assert.equal(logResult.levels.error, 1);
     assert.equal(JSON.stringify(logResult).includes('sensitive'), false);
     assert.equal((await logs.application({ ...query, keyword: 'okay' })).total, 1);
@@ -393,4 +400,4 @@ async function main() {
     if (temp) await fs.rm(temp, { recursive: true, force: true });
   }
 }
-main().catch(e => { console.error(e instanceof assert.AssertionError ? e.message : e.message?.startsWith('Account migration:') ? e.message : 'Integration failed: ' + e.constructor.name + ' (database parameters omitted)'); console.error(e.stack?.split('\n').filter(line => line.includes('accounts.integration.cjs')).join('\n')); process.exitCode = 1; });
+main().catch(e => { console.error(e instanceof assert.AssertionError || e instanceof TypeError ? e.message : e.message?.startsWith('Account migration:') ? e.message : 'Integration failed: ' + e.constructor.name + ' (database parameters omitted)'); console.error(e.stack?.split('\n').filter(line => line.includes('accounts.integration.cjs') || line.includes('admin-regressions.cjs')).join('\n')); process.exitCode = 1; });

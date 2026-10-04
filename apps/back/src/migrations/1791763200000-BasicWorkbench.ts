@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class BasicWorkbench1791676800000 implements MigrationInterface {
-  name = 'BasicWorkbench1791676800000';
+export class BasicWorkbench1791763200000 implements MigrationInterface {
+  name = 'BasicWorkbench1791763200000';
 
   async up(q: QueryRunner) {
     await q.query(

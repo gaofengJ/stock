@@ -496,14 +496,81 @@ export class AuthService implements OnModuleInit {
     if (!Number(total)) throw new ConflictException('至少保留一个有效管理员');
   }
 
+  private async administratorActor(
+    actor: CurrentUser,
+    m: EntityManager,
+    permission: string,
+  ) {
+    // Re-read under the administration lock; a queued request cannot retain revoked authority.
+    const current = await this.current(actor.id, m);
+    if (current.mustChangePassword || !current.permissions.includes(permission))
+      throw new ForbiddenException('管理权限已变更，请刷新页面');
+    return current;
+  }
+
+  private assertGrantable(actor: CurrentUser, permissions: string[]) {
+    if (actor.roles.some((r) => r.code === 'admin')) return;
+    if (
+      permissions.some(
+        (p) =>
+          !DEFAULT_PERMISSIONS.includes(p) || !actor.permissions.includes(p),
+      )
+    )
+      throw new ForbiddenException(
+        '仅系统管理员可授予管理权限；其他权限不能超出自身范围',
+      );
+  }
+
+  private async assertManageableUser(
+    actor: CurrentUser,
+    id: number,
+    m: EntityManager,
+  ) {
+    if (actor.roles.some((r) => r.code === 'admin')) return;
+    if (actor.id === id)
+      throw new ForbiddenException(
+        '不能通过人员管理修改自己的账户，请使用个人设置',
+      );
+    const roles = await m.query(
+      'SELECT r.code,p.code permission FROM t_role r JOIN t_user_role ur ON ur.role_id=r.id LEFT JOIN t_role_permission rp ON rp.role_id=r.id LEFT JOIN t_permission p ON p.id=rp.permission_id WHERE ur.user_id=?',
+      [id],
+    );
+    if (roles.some((r: any) => r.code === 'admin'))
+      throw new ForbiddenException('仅系统管理员可管理管理员账户');
+    this.assertGrantable(
+      actor,
+      roles.map((r: any) => r.permission).filter(Boolean),
+    );
+  }
+
+  private async assertManageableRole(
+    actor: CurrentUser,
+    id: number,
+    m: EntityManager,
+  ) {
+    if (actor.roles.some((r) => r.code === 'admin')) return;
+    if (actor.roles.some((r) => r.id === id))
+      throw new ForbiddenException('不能修改自己所属角色的权限');
+    const rows = await m.query(
+      'SELECT p.code FROM t_permission p JOIN t_role_permission rp ON p.id=rp.permission_id WHERE rp.role_id=?',
+      [id],
+    );
+    this.assertGrantable(
+      actor,
+      rows.map((p: any) => p.code),
+    );
+  }
+
   async updateUser(actor: CurrentUser, id: number, dto: UserUpdateDto) {
     await this.db.transaction(async (m) => {
       await this.lockAdministration(m);
+      const current = await this.administratorActor(actor, m, 'users:manage');
       const [user] = await m.query(
         'SELECT id FROM t_user WHERE id=? FOR UPDATE',
         [id],
       );
       if (!user) throw new NotFoundException('用户不存在');
+      await this.assertManageableUser(current, id, m);
       if (dto.nickname !== undefined)
         await m.query('UPDATE t_user SET nickname=? WHERE id=?', [
           dto.nickname,
@@ -519,10 +586,23 @@ export class AuthService implements OnModuleInit {
       }
       if (dto.roleIds) {
         for (const role of dto.roleIds) {
+          const [r] = await m.query('SELECT code FROM t_role WHERE id=?', [
+            role,
+          ]);
+          if (!r) throw new BadRequestException('角色不存在');
           if (
-            !(await m.query('SELECT id FROM t_role WHERE id=?', [role])).length
+            r.code === 'admin' &&
+            !current.roles.some((x) => x.code === 'admin')
           )
-            throw new BadRequestException('角色不存在');
+            throw new ForbiddenException('仅系统管理员可分配管理员角色');
+          const permissions = await m.query(
+            'SELECT p.code FROM t_permission p JOIN t_role_permission rp ON p.id=rp.permission_id WHERE rp.role_id=?',
+            [role],
+          );
+          this.assertGrantable(
+            current,
+            permissions.map((p: any) => p.code),
+          );
         }
         await m.query('DELETE FROM t_user_role WHERE user_id=?', [id]);
         for (const role of dto.roleIds)
@@ -539,10 +619,13 @@ export class AuthService implements OnModuleInit {
   async resetPassword(actor: CurrentUser, id: number, password: string) {
     const encoded = await hashPassword(password);
     await this.db.transaction(async (m) => {
+      await this.lockAdministration(m);
+      const current = await this.administratorActor(actor, m, 'users:manage');
       const [u] = await m.query('SELECT id FROM t_user WHERE id=? FOR UPDATE', [
         id,
       ]);
       if (!u) throw new NotFoundException('用户不存在');
+      await this.assertManageableUser(current, id, m);
       await m.query(
         'UPDATE t_user SET password=?,must_change_password=1 WHERE id=?',
         [encoded, id],
@@ -585,12 +668,17 @@ export class AuthService implements OnModuleInit {
     try {
       return await this.db.transaction(async (m) => {
         await this.lockAdministration(m);
+        const current = await this.administratorActor(actor, m, 'roles:manage');
+        this.assertGrantable(current, dto.permissions);
         if (id) {
+          await this.assertManageableRole(current, id, m);
           const [r] = await m.query(
             'SELECT code,builtin FROM t_role WHERE id=? FOR UPDATE',
             [id],
           );
           if (!r) throw new NotFoundException('角色不存在');
+          if (['admin', 'user'].includes(dto.code) && dto.code !== r.code)
+            throw new BadRequestException('保留的角色编码');
           if (r.code === 'admin')
             throw new ForbiddenException('系统管理员角色不可编辑');
           if (
@@ -633,6 +721,8 @@ export class AuthService implements OnModuleInit {
   async deleteRole(actor: CurrentUser, id: number) {
     await this.db.transaction(async (m) => {
       await this.lockAdministration(m);
+      const current = await this.administratorActor(actor, m, 'roles:manage');
+      await this.assertManageableRole(current, id, m);
       const [r] = await m.query(
         'SELECT builtin FROM t_role WHERE id=? FOR UPDATE',
         [id],

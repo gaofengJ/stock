@@ -48,3 +48,7 @@ export class LogsQueryDto extends PageDto {
 
   @IsOptional() @IsString() @Length(0, 24) result?: string;
 }
+
+export class JobControlDto {
+  @IsIn(['pause', 'cancel', 'retry']) action: 'pause' | 'cancel' | 'retry';
+}

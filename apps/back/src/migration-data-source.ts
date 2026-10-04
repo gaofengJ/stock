@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import * as dotenv from 'dotenv';
 import { DataSource } from 'typeorm';
-import { BasicWorkbench1791676800000 } from './migrations/1791676800000-BasicWorkbench';
+import { BasicWorkbench1791763200000 } from './migrations/1791763200000-BasicWorkbench';
 import { ReliableSync1790380800000 } from './migrations/1790380800000-ReliableSync';
 import { SyncSafety1790380800001 } from './migrations/1790380800001-SyncSafety';
 import { Accounts1790467200000 } from './migrations/1790467200000-Accounts';
@@ -21,6 +21,7 @@ import { IntradayCounts1791331200000 } from './migrations/1791331200000-Intraday
 import { StrategyTrend1791417600000 } from './migrations/1791417600000-StrategyTrend';
 import { IntradayCountsSource1791504000001 } from './migrations/1791504000001-IntradayCountsSource';
 import { MarketInsights1791590400000 } from './migrations/1791590400000-MarketInsights';
+import { AdminJobControls1791676800000 } from './migrations/1791676800000-AdminJobControls';
 
 dotenv.config({
   path:
@@ -56,7 +57,8 @@ export default new DataSource({
     StrategyTrend1791417600000,
     IntradayCountsSource1791504000001,
     MarketInsights1791590400000,
-    BasicWorkbench1791676800000,
+    AdminJobControls1791676800000,
+    BasicWorkbench1791763200000,
   ],
   migrationsTransactionMode: 'none',
   logging: false,

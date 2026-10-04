@@ -760,7 +760,8 @@ mysqlDescribe('MySQL 同步事务与迁移回归', () => {
         'StrategyTrend1791417600000',
         'IntradayCountsSource1791504000001',
         'MarketInsights1791590400000',
-        'BasicWorkbench1791676800000',
+        'AdminJobControls1791676800000',
+        'BasicWorkbench1791763200000',
       ]);
       expect(before.counts.t_source_daily).toEqual({ rows: 2, duplicates: 1 });
       expect(before.requiredFreeBytes).toBe(before.totalBytes * 4 + 1024 ** 3);
