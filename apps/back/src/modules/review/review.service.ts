@@ -126,11 +126,15 @@ export class ReviewService {
     const items = [];
     const canonical = new Set<string>();
     for (const holding of dto.holdings) {
-      const chart = await this.trends.chart({
-        date: dto.date,
-        code: holding.code,
-        strategyType: 'fiveMaUp',
-      });
+      const chart = await this.trends.chart(
+        {
+          date: dto.date,
+          code: holding.code,
+          strategyType: 'fiveMaUp',
+        },
+        6,
+        false,
+      );
       if (canonical.has(chart.code))
         throw new BadRequestException('同一股票的新旧代码不能重复输入');
       canonical.add(chart.code);
