@@ -141,3 +141,70 @@ describe('InsightService observation boundaries', () => {
     expect(result.exited).toEqual([]);
   });
 });
+
+describe('historical hot-rank source gaps', () => {
+  const dates = ['2020-09-30', '2020-09-29', '2020-09-28'];
+  function setup(error = '数据源返回空快照', age = 0, days = dates) {
+    const manager: any = {
+      query: jest.fn().mockResolvedValue([]),
+      find: jest.fn().mockImplementation(async (entity: any) =>
+        entity === SyncRunEntity
+          ? [
+              {
+                tradeDate: dates[0],
+                error,
+                updatedAt: new Date(Date.now() - age),
+              },
+            ]
+          : [],
+      ),
+    };
+    const writes: any = { withLock: (action: any) => action(manager) };
+    const service = new InsightService(
+      { manager } as any,
+      writes,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+    );
+    jest.spyOn(service as any, 'calendar').mockResolvedValue(days);
+    jest.spyOn(service as any, 'revisions').mockResolvedValue([]);
+    const sync = jest.spyOn(service, 'syncHot').mockResolvedValue(undefined);
+    return { service, sync };
+  }
+  it('continues other dates while retaining an empty-source date as incomplete', async () => {
+    const { service, sync } = setup();
+    const result = await service.batch(dates[2], dates[0], true);
+    expect(result).toMatchObject({
+      completed: dates.slice(1),
+      remaining: 1,
+      failures: [],
+    });
+    expect(sync.mock.calls.map((c) => c[1])).toEqual(dates.slice(1));
+  });
+  it('keeps an all-deferred job pending without requesting or fabricating a snapshot', async () => {
+    const { service, sync } = setup('数据源返回空快照', 0, [dates[0]]);
+    const result = await service.batch(dates[0], dates[0], true);
+    expect(sync).not.toHaveBeenCalled();
+    expect(result?.completed).toEqual([]);
+    expect(result?.remaining).toBe(1);
+    expect(result?.failures[0]).toContain('24小时后重试');
+  });
+  it.each([
+    ['数据源返回空快照', 24 * 60 * 60 * 1000],
+    ['network timeout', 0],
+  ])(
+    'retries an expired gap or a different failure: %s',
+    async (error, age) => {
+      const { service, sync } = setup(error, age, [dates[0]]);
+      const result = await service.batch(dates[0], dates[0], true);
+      expect(sync).toHaveBeenCalledTimes(1);
+      expect(result).toMatchObject({
+        completed: [dates[0]],
+        remaining: 0,
+        failures: [],
+      });
+    },
+  );
+});
