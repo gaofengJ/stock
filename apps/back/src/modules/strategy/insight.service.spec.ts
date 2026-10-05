@@ -91,6 +91,63 @@ describe('InsightService observation boundaries', () => {
     expect(filtered.readyDays).toBe(0);
     expect(filtered.items).toEqual([]);
   });
+  it('separates a non-trading endpoint from missing adjustment data without changing the horizon', async () => {
+    const { service, records } = setup();
+    records.get('2026-09-28')!.data = [];
+    records.get('2026-09-29')!.data[0].close = null as any;
+    const result = await service.performance(days[0], 'volumeBreakout', 20);
+    expect(
+      result.items.find((r) => r.date === '2026-09-25').outcomes[1],
+    ).toEqual({
+      date: '2026-09-28',
+      value: null,
+      state: '观察日无成交',
+    });
+    expect(result.summary[0]).toMatchObject({
+      inactive: 1,
+      missing: 2,
+      sample: 0,
+      pending: 1,
+    });
+  });
+  it('projects only strategy signals and their future endpoints and rejects changed snapshots', async () => {
+    const { service, db } = setup();
+    (service as any).observations.mockRestore();
+    jest.spyOn(service as any, 'revisions').mockResolvedValue([]);
+    jest.spyOn(service as any, 'revision').mockReturnValue('valid');
+    db.query
+      .mockResolvedValueOnce([
+        {
+          tradeDate: '2026-09-28',
+          revision: 'valid',
+          codes: ['000001.SZ', '000002.SZ'],
+          signals: {
+            ready: ['volumeBreakout'],
+            items: [{ code: '000002.SZ', keys: ['volumeBreakout'] }],
+          },
+        },
+        {
+          tradeDate: '2026-09-29',
+          revision: 'valid',
+          codes: ['000001.SZ', '000002.SZ'],
+          signals: { ready: ['volumeBreakout'], items: [] },
+        },
+      ])
+      .mockResolvedValueOnce([
+        { items: { code: '000002.SZ', close: 10, traded: true } },
+      ])
+      .mockResolvedValueOnce([]);
+    const records = await (service as any).observations(
+      ['2026-09-28', '2026-09-29'],
+      'volumeBreakout',
+    );
+    expect(records.get('2026-09-28').data).toEqual([
+      { code: '000002.SZ', close: 10, traded: true },
+    ]);
+    expect(records.has('2026-09-29')).toBe(false);
+    expect(db.query.mock.calls[1][1]).toEqual(['$[1]', '2026-09-28', 'valid']);
+    expect(db.query.mock.calls[2][1]).toEqual(['$[1]', '2026-09-29', 'valid']);
+  });
   it('invalidates stored insights after a source revision changes', async () => {
     const db: any = {
       manager: {

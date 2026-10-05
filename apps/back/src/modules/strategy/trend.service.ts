@@ -54,12 +54,16 @@ export class TrendService {
     includeEvidence = true,
   ) {
     const dates = await this.calendar(dto.date, window);
-    const identity = await this.identity.load([]);
-    const code = identity.canonical(dto.code);
-    const codes = identity.expand([code]);
+    const mapping = await this.db.manager.find(BseMappingEntity);
+    const code =
+      mapping.find((r) => r.oldCode === dto.code)?.newCode || dto.code;
+    const codes = [
+      code,
+      ...mapping.filter((r) => r.newCode === code).map((r) => r.oldCode),
+    ];
     const adjusted = TREND_KEYS.includes(dto.strategyType as TrendKey);
     const rows: any[] = await this.db.query(
-      `SELECT DATE_FORMAT(d.trade_date,'%Y-%m-%d') date,d.ts_code code,d.open,d.close,d.high,d.low,d.vol
+      `SELECT DATE_FORMAT(d.trade_date,'%Y-%m-%d') date,d.ts_code code,d.open,d.close,d.high,d.low,d.vol,d.pre_close preClose,d.pct_chg pctChg,d.amount,d.turnover_rate_f turnoverRateF
        FROM t_source_daily d JOIN t_sync_run r ON r.trade_date=d.trade_date AND r.task='daily' AND r.status='success'
        LEFT JOIN t_sync_day_policy p ON p.trade_date=d.trade_date
        WHERE d.ts_code IN (?) AND d.trade_date IN (?) AND p.trade_date IS NULL ORDER BY d.trade_date`,
@@ -134,6 +138,24 @@ export class TrendService {
         high: valid ? Number(point.high) : null,
         low: valid ? Number(point.low) : null,
         vol: valid ? Number(volume) : null,
+        quote: raw.has(date)
+          ? Object.fromEntries(
+              [
+                'open',
+                'close',
+                'high',
+                'low',
+                'preClose',
+                'pctChg',
+                'vol',
+                'amount',
+                'turnoverRateF',
+              ].map((key) => [
+                key,
+                raw.get(date)[key] == null ? null : Number(raw.get(date)[key]),
+              ]),
+            )
+          : null,
       };
     });
     const hit =

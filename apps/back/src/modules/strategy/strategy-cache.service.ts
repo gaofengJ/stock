@@ -21,7 +21,7 @@ export class StrategyCacheService {
        UNION ALL SELECT CAST(CONCAT('policy:',trade_date) AS BINARY),CAST(reason AS BINARY) FROM t_sync_day_policy WHERE trade_date<=?
        UNION ALL SELECT CAST(CONCAT('identity:',snapshot_key) AS BINARY),CAST(CONCAT(as_of,':',updated_at) AS BINARY) FROM t_source_stock_history
        UNION ALL SELECT CAST(CONCAT('factor:',trade_date) AS BINARY),CAST(updated_at AS BINARY) FROM t_source_strategy_factor
-       WHERE trade_date BETWEEN DATE_SUB(?, INTERVAL 18 MONTH) AND ? ORDER BY k`,
+       WHERE trade_date BETWEEN DATE_SUB(?, INTERVAL 18 MONTH) AND ? UNION ALL SELECT CAST(CONCAT('alias:',old_code) AS BINARY),CAST(CONCAT(new_code,':',updated_at) AS BINARY) FROM t_source_bse_mapping ORDER BY k`,
       [date, date, date, date, date],
     );
     const revision = createHash('sha256')
@@ -42,7 +42,7 @@ export class StrategyCacheService {
       const current = entry;
       current.promise
         .then(() => {
-          current.expires = Date.now() + 120_000;
+          current.expires = Date.now() + 30 * 60_000;
         })
         .catch(() => {
           if (this.entries.get(key) === current) this.entries.delete(key);

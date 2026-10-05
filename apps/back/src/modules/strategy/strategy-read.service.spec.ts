@@ -138,7 +138,15 @@ describe('interactive candidate read projection', () => {
     db.manager.query = jest
       .fn()
       .mockResolvedValueOnce([
-        { asOf: dates[0], revision: 'old', paths: ['$.stocks[1].tsCode'] },
+        {
+          asOf: dates[0],
+          revision: 'old',
+          codes: Array.from(
+            { length: 240 },
+            (_, i) => `${String(i + 1).padStart(6, '0')}.SZ`,
+          ),
+          nameCodes: [],
+        },
       ])
       .mockResolvedValueOnce([]);
     identity.load.mockImplementation(

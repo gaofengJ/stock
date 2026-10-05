@@ -13,6 +13,7 @@ import { allowedPath } from '@/auth/client';
 import { useSearchParams } from 'next/navigation';
 import { errorMessage } from '@/api/errors';
 import Table from '@/components/DataTable';
+import Loading from '@/components/Loading';
 import Layout from '@/components/Layout';
 import { EHeaderMenuKey } from '@/components/Layout/enum';
 import { getStrategyList, getStrategyTabsList } from '@/api/services';
@@ -52,6 +53,8 @@ function StrategyPage() {
   const savedOptions = useRef<Record<string, typeof trendDefaults>>({});
   const [loadedListKey, setLoadedListKey] = useState('');
   const [observation, setObservation] = useState<any>(null);
+  const [chartList, setChartList] = useState<any[]>([]);
+  const visibleRows = useRef<any[]>([]);
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
   const { requestConfig: tabsConfig, runLatestRequest: runTabs } = useLatestRequest('strategy-tabs');
   const { requestConfig, runLatestRequest } = useLatestRequest('strategy-list');
@@ -64,6 +67,7 @@ function StrategyPage() {
   const options = useMemo(() => JSON.parse(optionKey), [optionKey]);
   const listKey = JSON.stringify([date, strategy, sector, optionKey]);
   const listCurrent = loadedListKey === listKey;
+  const loadingCandidates = !loadError && !dateError && (!date || tableLoading || !listCurrent);
   const updateQuery = useCallback((changes: Record<string, string | undefined>) => {
     const next = new URLSearchParams(query);
     Object.entries(changes).forEach(([key, value]) => { if (value) next.set(key, value); else next.delete(key); });
@@ -76,29 +80,39 @@ function StrategyPage() {
     onSuccess: ({ data }) => { setNavList(data); if (!data.length) setTableLoading(false); },
     onError: (error) => { setLoadError(errorMessage(error, '策略加载失败')); setTableLoading(false); },
   }), [runTabs, tabsConfig]);
-  const getList = useCallback(() => {
-    if (!date || !strategy || !needsCandidates) return;
+  const getList = useCallback((force = false) => {
+    if (!date || !strategy || !needsCandidates || (!force && loadedListKey === listKey)) return;
     runLatestRequest({
       request: () => getStrategyList({
-        date, strategyType: strategy, ...(sector ? { sector } : {}), ...(isTrendStrategy(strategy) ? options : {}),
+        date, strategyType: strategy, includeLabels: false, ...(sector ? { sector } : {}), ...(isTrendStrategy(strategy) ? options : {}),
       }, { ...requestConfig, timeout: 90000 }),
       onStart: () => { setLoadError(''); setTableLoading(true); },
       onSuccess: ({ data }) => { setItems(data); setLoadedListKey(listKey); },
       onError: (error) => { setItems([]); setLoadedListKey(listKey); setLoadError(errorMessage(error, '策略加载失败，请重试')); },
       onFinally: () => setTableLoading(false),
     });
-  }, [date, strategy, sector, options, requestConfig, runLatestRequest, needsCandidates, listKey]);
+  }, [date, strategy, sector, options, requestConfig, runLatestRequest, needsCandidates, listKey, loadedListKey]);
   useEffect(() => { getTabs(); }, [getTabs]);
-  useEffect(() => { getList(); setSelectedStock(null); setObservation(null); }, [getList]);
+  useEffect(() => { getList(); }, [getList]);
+  useEffect(() => { setSelectedStock(null); setObservation(null); }, [listKey]);
   useEffect(() => {
     if (date && strategy && (!params.get('date') || !params.get('strategyType'))) updateQuery({});
   }, [date, strategy, params, updateQuery]);
   const filtered = (listCurrent ? items : []).filter((row) => (!linkedCode || row.tsCode === linkedCode)
     && (!keyword || `${row.tsCode} ${row.name}`.toLowerCase().includes(keyword.trim().toLowerCase())));
-  const riskState = useWorkbench('risk', { date }, !!date && view === 'candidates');
+  const riskState = useWorkbench('risk', { date }, !!date && view === 'candidates' && listCurrent && !tableLoading);
+  const labels = useInsight<any[]>('candidate-labels', { date, codes: items.map((row) => row.tsCode).sort() }, needsCandidates && listCurrent && !tableLoading && items.length > 0);
+  const labelsMap = new Map(labels.data?.map((row) => [row.tsCode, row]) || []);
   const context = useInsight<any[]>('candidate-context', { date, codes: items.map((row) => row.tsCode).sort() }, view === 'candidates' && visibleColumns.includes('context') && listCurrent && items.length > 0);
   const contextMap = new Map(context.data?.map((row) => [row.tsCode, row]) || []);
-  const decorated = filtered.map((row) => ({ ...row, ...contextMap.get(row.tsCode), sectorContextLoading: context.loading }));
+  const decorated = filtered.map((row) => ({
+    ...row, ...labelsMap.get(row.tsCode), industry: labels.loading ? '加载中…' : (labelsMap.get(row.tsCode)?.industry || row.industry || '暂无行业'), ...contextMap.get(row.tsCode), sectorContextLoading: context.loading, sectorLabelsLoading: labels.loading,
+  }));
+  const openStock = (row: any, rows?: any[]) => {
+    const order = new Map(visibleRows.current.map((r, i) => [r.tsCode, i]));
+    const currentRows = rows || [...decorated].sort((a, b) => (order.get(a.tsCode) ?? Infinity) - (order.get(b.tsCode) ?? Infinity));
+    setChartList(currentRows); setSelectedStock(row);
+  };
   const switchStrategy = (key: string) => {
     savedOptions.current[strategy] = options;
     updateQuery({ ...writeStrategyOptions(savedOptions.current[key]), strategyType: key, code: undefined });
@@ -111,7 +125,7 @@ function StrategyPage() {
       ...column,
       fixed: 'left' as const,
       width: column.key === 'tsCode' ? 104 : 120,
-      render: (value: string, row: any) => <Button type="link" className="strategy-stock-link" onClick={() => setSelectedStock(row)}>{column.key === 'tsCode' ? value.split('.')[0] : value}</Button>,
+      render: (value: string, row: any) => <Button type="link" className="strategy-stock-link" onClick={() => openStock(row)}>{column.key === 'tsCode' ? value.split('.')[0] : value}</Button>,
     })),
     {
       title: '风险提示', key: 'risks', width: 150, render: (_: any, row: any) => <RiskTags data={riskState.data} code={row.tsCode} date={date} />,
@@ -130,7 +144,7 @@ function StrategyPage() {
       <div className="p-16 rounded-[6px] bg-bg-white">
         <h1 className="page-heading">策略选股</h1>
         {dateError && !date && <Alert type="error" message={dateError} showIcon action={<Button onClick={retryDate}>重试</Button>} />}
-        {loadError && <Alert type="error" message={loadError} showIcon action={<Button onClick={() => { if (navList.length) getList(); else getTabs(); }}>重试</Button>} />}
+        {loadError && <Alert type="error" message={loadError} showIcon action={<Button onClick={() => { if (navList.length) getList(true); else getTabs(); }}>重试</Button>} />}
         <Tabs size={screens.md ? 'middle' : 'small'} activeKey={strategy} items={navList} onChange={switchStrategy} />
         <StrategyRules key={strategy} strategy={strategy} options={options} />
         {isTrendStrategy(strategy) && <TrendParameters key={`${strategy}-${optionKey}`} strategy={strategy} value={options} onChange={(value) => updateQuery({ ...writeStrategyOptions(value), code: undefined })} />}
@@ -164,7 +178,7 @@ function StrategyPage() {
             {view === 'candidates' && <Select aria-label="展示列" mode="multiple" maxTagCount={0} maxTagPlaceholder={() => '展示列'} style={{ width: 150 }} value={visibleColumns} onChange={setVisibleColumns} options={strategyColumns.slice(2).map((column) => ({ value: String(column.key), label: String(column.title) }))} />}
           </div>
           {linkedCode && <Alert className="mb-16" type="info" message={`定位股票 ${linkedCode}`} action={<Button onClick={() => updateQuery({ code: undefined })}>显示全部</Button>} />}
-          {view === 'candidates' && (
+          {view === 'candidates' && (loadingCandidates ? <Loading height={240} /> : (
             <Table
               rootClassName="strategy-table"
               rowKey="tsCode"
@@ -173,17 +187,18 @@ function StrategyPage() {
               bordered
               locale={{ emptyText: loadError || (keyword || linkedCode ? '当前筛选中未找到该股票' : '当前条件没有符合的股票') }}
               scroll={{ x: 'max-content' }}
-              loading={!dateError && (!date || tableLoading || !listCurrent)}
+              onChange={(_pagination, _filters, _sorter, extra) => { visibleRows.current = extra.currentDataSource; }}
               pagination={false}
             />
-          )}
+          ))}
           {view === 'candidates' && context.error && <Alert type="warning" message={context.error} action={<Button onClick={context.retry}>重试板块背景</Button>} />}
         </>
         )}
-        <div hidden={view !== 'comparison'}><CandidateComparison date={date} allCandidates={tableLoading || !listCurrent ? [] : items} candidates={tableLoading ? [] : filtered} active={view === 'comparison'} strategies={navList} onStock={setSelectedStock} /></div>
-        <div hidden={view !== 'performance'}><SignalPerformance date={date} strategy={strategy} sector={sector} active={view === 'performance'} onStock={(row) => setObservation({ ...row, tsCode: row.code })} /></div>
-        <StockChart stock={selectedStock} date={date} strategy={strategy} options={options} onClose={() => setSelectedStock(null)} />
-        <StockChart stock={observation} date={observation?.date || date} strategy={strategy} options={trendDefaults} onClose={() => setObservation(null)} />
+        {labels.error && needsCandidates && <Alert type="warning" message={labels.error} action={<Button onClick={labels.retry}>重试行业</Button>} />}
+        <div hidden={view !== 'comparison'}><CandidateComparison loadingCandidates={loadingCandidates} date={date} allCandidates={tableLoading || !listCurrent ? [] : items} candidates={tableLoading ? [] : decorated} active={view === 'comparison'} strategies={navList} onStock={openStock} /></div>
+        <div hidden={view !== 'performance'}><SignalPerformance date={date} strategy={strategy} sector={sector} active={view === 'performance'} onStock={(row, rows) => { setChartList(rows.map((r) => ({ ...r, tsCode: r.code }))); setObservation({ ...row, tsCode: row.code }); }} /></div>
+        <StockChart navigation={chartList} onNavigate={setSelectedStock} stock={selectedStock} date={date} strategy={strategy} options={options} onClose={() => setSelectedStock(null)} />
+        <StockChart navigation={chartList} onNavigate={setObservation} stock={observation} date={observation?.date || date} strategy={strategy} options={trendDefaults} onClose={() => setObservation(null)} />
       </div>
     </Layout>
   );

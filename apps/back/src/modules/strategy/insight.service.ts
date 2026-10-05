@@ -40,17 +40,6 @@ import {
 } from './insight.utils';
 
 type RevisionRow = { date: string; task: string; value: string };
-type ProjectedInsight = Pick<
-  StockInsightEntity,
-  'tradeDate' | 'revision' | 'signals'
-> & {
-  codes: string[];
-  names: string[];
-  closes: (number | null)[];
-  bases: string[];
-  conversions: (number | null)[];
-  traded: boolean[];
-};
 const hash = (value: unknown) =>
   createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
@@ -151,37 +140,66 @@ export class InsightService {
     return valid;
   }
 
-  /** Performance needs closes and identities, not every stock's RPS/extreme metrics. */
-  private async observations(dates: string[]) {
+  /** Load only signal stocks and their observation endpoints, not every stock's history. */
+  private async observations(dates: string[], strategy: string) {
+    type Metadata = Pick<
+      StockInsightEntity,
+      'tradeDate' | 'revision' | 'signals'
+    > & { codes: string[] };
     const [rows, versions] = await Promise.all([
-      this.db.query<ProjectedInsight[]>(
-        "SELECT DATE_FORMAT(trade_date,'%Y-%m-%d') tradeDate,revision,signals,JSON_EXTRACT(data,'$[*].code') codes,JSON_EXTRACT(data,'$[*].name') names,JSON_EXTRACT(data,'$[*].close') closes,JSON_EXTRACT(data,'$[*].basis') bases,JSON_EXTRACT(data,'$[*].conversion') conversions,JSON_EXTRACT(data,'$[*].traded') traded FROM t_processed_stock_insight WHERE trade_date IN (?)",
+      this.db.query<Metadata[]>(
+        "SELECT DATE_FORMAT(trade_date,'%Y-%m-%d') tradeDate,revision,signals,JSON_EXTRACT(data,'$[*].code') codes FROM t_processed_stock_insight WHERE trade_date IN (?)",
         [dates],
       ),
       this.revisions(dates[0], dates.at(-1)!),
     ]);
-    return new Map<
+    const valid = rows.filter(
+      (r) => r.revision === this.revision(r.tradeDate, versions),
+    );
+    const wanted = new Map(dates.map((d) => [d, new Set<string>()]));
+    valid.forEach((r) => {
+      if (!r.signals.ready.includes(strategy)) return;
+      const i = dates.indexOf(r.tradeDate);
+      r.signals.items
+        .filter((hit) => hit.keys.includes(strategy))
+        .forEach((hit) => {
+          [0, ...HORIZONS].forEach(
+            (h) => wanted.get(dates[i + h])?.add(hit.code),
+          );
+        });
+    });
+    const result = new Map<
       string,
       Pick<StockInsightEntity, 'tradeDate' | 'signals' | 'data'>
-    >(
-      rows
-        .filter((r) => r.revision === this.revision(r.tradeDate, versions))
-        .map((r) => [
-          r.tradeDate,
-          {
-            ...r,
-            data: r.codes.map((code, i) => ({
-              code,
-              name: r.names[i],
-              close: r.closes[i],
-              basis: r.bases[i],
-              conversion: r.conversions?.[i] ?? null,
-              traded: r.traded[i],
-              periods: {},
-            })),
-          },
-        ]),
-    );
+    >();
+    for (let offset = 0; offset < valid.length; offset += 4) {
+      await Promise.all(
+        valid.slice(offset, offset + 4).map(async (r) => {
+          const paths = r.codes.flatMap((code, i) =>
+            wanted.get(r.tradeDate)?.has(code) ? [`$[${i}]`] : [],
+          );
+          if (!paths.length) {
+            result.set(r.tradeDate, { ...r, data: [] });
+            return;
+          }
+          const [projected] = await this.db.query(
+            `SELECT JSON_EXTRACT(data,${paths
+              .map(() => '?')
+              .join(
+                ',',
+              )}) items FROM t_processed_stock_insight WHERE trade_date=? AND revision=?`,
+            [...paths, r.tradeDate, r.revision],
+          );
+          // An updated snapshot cannot be combined with older signal metadata.
+          if (projected)
+            result.set(r.tradeDate, {
+              ...r,
+              data: paths.length === 1 ? [projected.items] : projected.items,
+            });
+        }),
+      );
+    }
+    return result;
   }
 
   async buildDay(
@@ -725,11 +743,11 @@ export class InsightService {
     days: number,
     sector?: string,
   ) {
-    const dates = (await this.calendar(date, days + 10)).reverse();
+    const dates = [...(await this.calendar(date, days + 10))].reverse();
     if (!dates.length || dates.at(-1) !== date)
       throw new BadRequestException('请选择交易日');
     const visible = dates.slice(-days);
-    const records = await this.observations(dates);
+    const records = await this.observations(visible, strategy);
     const stocksByDate = new Map(
       [...records].map(([d, row]) => [
         d,
@@ -772,16 +790,18 @@ export class InsightService {
             const endDate = dates[index + h];
             if (!endDate)
               return [h, { date: null, value: null, state: '未到期' }];
-            const value = observationReturn(
-              start,
-              stocksByDate.get(endDate)?.get(hit.code),
-            );
+            const end = stocksByDate.get(endDate)?.get(hit.code);
+            const value = observationReturn(start, end);
+            // A validated daily snapshot with no trade is different from a
+            // missing/stale snapshot or an unavailable adjustment basis.
+            const inactive = records.has(endDate) && (!end || !end.traded);
+            const unavailableState = inactive ? '观察日无成交' : '数据不足';
             return [
               h,
               {
                 date: endDate,
                 value,
-                state: value == null ? '数据不足或无成交' : '有效',
+                state: value != null ? '有效' : unavailableState,
               },
             ];
           }),
@@ -805,8 +825,9 @@ export class InsightService {
         ),
         total: rows.length,
         pending: rows.filter((r) => r.outcomes[h].state === '未到期').length,
-        missing: rows.filter((r) => r.outcomes[h].state === '数据不足或无成交')
+        inactive: rows.filter((r) => r.outcomes[h].state === '观察日无成交')
           .length,
+        missing: rows.filter((r) => r.outcomes[h].state === '数据不足').length,
       }));
     return {
       date,

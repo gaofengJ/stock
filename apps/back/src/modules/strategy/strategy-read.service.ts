@@ -60,13 +60,33 @@ export class StrategyReadService {
     const mapping = await this.db.manager.find(BseMappingEntity);
     const canonical = (code: string) =>
       mapping.find((r) => r.oldCode === code)?.newCode || code;
+    // Reject impossible geometry through indexed stock/date lookups before
+    // transferring full daily rows. Aliases bypass this shortcut: their prices
+    // must still be combined and checked for conflicts by the evaluator below.
+    const aliases = [
+      ...new Set(mapping.flatMap((r) => [r.oldCode, r.newCode])),
+    ];
+    const geometry =
+      strategy === 'threeDaysHighVol'
+        ? dates
+            .slice(1)
+            .map(
+              () =>
+                'EXISTS (SELECT 1 FROM t_source_daily prior WHERE prior.ts_code=current.ts_code AND prior.trade_date=? AND prior.close>prior.open)',
+            )
+            .join(' AND ')
+        : 'EXISTS (SELECT 1 FROM t_source_daily baseline WHERE baseline.ts_code=current.ts_code AND baseline.trade_date=? AND current.low>baseline.high)';
+    const geometryDates =
+      strategy === 'threeDaysHighVol'
+        ? dates.slice(1)
+        : [dates[dates.length - 1]];
     // Only necessary signal-day conditions: retain all aliases and all history
     // for selected codes, including invalid days which the rule evaluator rejects.
     const selected: { code: string }[] = await this.db.query(
-      `SELECT ts_code code FROM t_source_daily WHERE trade_date=? AND amount>50000 AND vol>0 AND close*2>=high+low${
+      `SELECT ts_code code FROM t_source_daily current WHERE trade_date=? AND amount>50000 AND vol>0 AND close*2>=high+low${
         bullish ? ' AND close>open' : ''
-      }`,
-      [dates[0]],
+      } AND (${aliases.length ? 'ts_code IN (?) OR ' : ''}(${geometry}))`,
+      [dates[0], ...(aliases.length ? [aliases] : []), ...geometryDates],
     );
     const codes = new Set(selected.map((r) => canonical(r.code)));
     mapping.forEach((r) => {
@@ -136,46 +156,22 @@ export class StrategyReadService {
               where.snapshotKey !== 'identity'
             )
               return target.findOneBy(entity as any, where);
-            if (wanted.length > 40) {
-              const [r] = await target.query(
-                "SELECT DATE_FORMAT(as_of,'%Y-%m-%d') asOf,JSON_EXTRACT(data,'$.stocks[*].tsCode') codes,JSON_EXTRACT(data,'$.stocks[*].name') names,JSON_EXTRACT(data,'$.stocks[*].listDate') listed,JSON_EXTRACT(data,'$.stocks[*].delistDate') delisted,JSON_EXTRACT(data,'$.names') periods FROM t_source_stock_history WHERE snapshot_key='identity'",
-              );
-              return r
-                ? Object.assign(new StockHistoryEntity(), {
-                    snapshotKey: 'identity',
-                    asOf: r.asOf,
-                    data: {
-                      stocks: r.codes.map((code: string, i: number) => ({
-                        tsCode: code,
-                        name: r.names[i],
-                        listDate: r.listed[i],
-                        delistDate: r.delisted[i],
-                      })),
-                      names: r.periods,
-                    },
-                  })
-                : null;
-            }
             const [index] = await target.query(
-              `SELECT DATE_FORMAT(as_of,'%Y-%m-%d') asOf,CAST(updated_at AS CHAR) revision,JSON_ARRAY(${wanted
-                .map(
-                  () =>
-                    "JSON_SEARCH(data,'all',?,NULL,'$.stocks[*].tsCode','$.names[*].tsCode')",
-                )
-                .join(
-                  ',',
-                )}) paths FROM t_source_stock_history WHERE snapshot_key='identity'`,
-              wanted,
+              "SELECT DATE_FORMAT(as_of,'%Y-%m-%d') asOf,CAST(updated_at AS CHAR) revision,JSON_EXTRACT(data,'$.stocks[*].tsCode') codes,JSON_EXTRACT(data,'$.names[*].tsCode') nameCodes FROM t_source_stock_history WHERE snapshot_key='identity'",
             );
             if (!index) return null;
-            const paths: string[] = index.paths
-              .flat()
-              .filter(Boolean)
-              .map((p: string) => p.replace(/\.tsCode$/, ''));
+            const selectedCodes = new Set(wanted);
+            const paths: string[] = [];
+            index.codes.forEach((code: string, i: number) => {
+              if (selectedCodes.has(code)) paths.push(`$.stocks[${i}]`);
+            });
+            (index.nameCodes || []).forEach((code: string, i: number) => {
+              if (selectedCodes.has(code)) paths.push(`$.names[${i}]`);
+            });
             const [projected] = paths.length
               ? await target.query(
-                  `SELECT JSON_ARRAY(${paths
-                    .map(() => 'JSON_EXTRACT(data,?)')
+                  `SELECT JSON_EXTRACT(data,${paths
+                    .map(() => '?')
                     .join(
                       ',',
                     )}) items FROM t_source_stock_history WHERE snapshot_key='identity' AND as_of=? AND CAST(updated_at AS CHAR)=?`,
@@ -184,12 +180,14 @@ export class StrategyReadService {
               : [{ items: [] }];
             if (!projected)
               throw new ConflictException('股票历史信息正在更新，请重试');
+            const projectedItems =
+              paths.length === 1 ? [projected.items] : projected.items;
             return Object.assign(new StockHistoryEntity(), {
               snapshotKey: 'identity',
               asOf: index.asOf,
               data: {
-                stocks: projected.items.filter((r: any) => 'listDate' in r),
-                names: projected.items.filter((r: any) => 'startDate' in r),
+                stocks: projectedItems.filter((r: any) => 'listDate' in r),
+                names: projectedItems.filter((r: any) => 'startDate' in r),
               },
             });
           };

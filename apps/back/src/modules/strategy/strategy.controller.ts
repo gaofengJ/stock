@@ -37,6 +37,12 @@ export class StrategyController {
   }
 
   @Permit('strategy:read')
+  @Get('/candidate-labels')
+  candidateLabels(@Query() q: CandidateDetailsDto) {
+    return this.strategyService.labels(q.date, q.codes);
+  }
+
+  @Permit('strategy:read')
   @Get('/candidate-context')
   candidateContext(@Query() q: CandidateDetailsDto) {
     return this.strategyService.context(q.date, q.codes);

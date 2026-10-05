@@ -204,7 +204,12 @@ export class StrategyService {
     const parameters: StrategyListQueryDto = TREND_KEYS.includes(
       strategyType as TrendKey,
     )
-      ? { ...TREND_DEFAULTS, ...dto, sector: undefined }
+      ? {
+          ...TREND_DEFAULTS,
+          ...dto,
+          sector: undefined,
+          includeLabels: undefined,
+        }
       : { date, strategyType };
     // Volume options do not change five-MA results unless enabled.
     if (strategyType === 'fiveMaUp' && !parameters.expandingVolume) {
@@ -220,8 +225,15 @@ export class StrategyService {
       const members = await this.sectors.codes(sector, date);
       rows = rows.filter((row) => members.has(row.tsCode));
     }
+    if (dto.includeLabels === false) return rows;
     // Only membership labels belong on the critical path. Board performance is
     // requested separately when the user enables the corresponding column.
+    if (this.reads && rows.length <= 20) return this.reads.decorate(rows, date);
+    return this.sectors ? this.sectors.decorate(rows, date) : rows;
+  }
+
+  async labels(date: string, codes: string[]) {
+    const rows = codes.map((tsCode) => ({ tsCode }) as DailyEntity);
     if (this.reads && rows.length <= 20) return this.reads.decorate(rows, date);
     return this.sectors ? this.sectors.decorate(rows, date) : rows;
   }

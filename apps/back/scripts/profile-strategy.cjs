@@ -29,8 +29,9 @@ async function main() {
   const query = runner.query.bind(runner);
   runner.query = async (sql, ...args) => {
     const start = performance.now();
+    if (process.argv.includes('--trace')) console.log(JSON.stringify({startQuery:sql.slice(0,90)}));
     try { return await query(sql, ...args); }
-    finally { queries.push({ ms: Math.round(performance.now() - start), sql: sql.replace(/\s+/g, ' ').slice(0, 190) }); }
+    finally { if (process.argv.includes('--trace')) console.log(JSON.stringify({ queryMs:Math.round(performance.now()-start), sql:sql.slice(0,75) })); queries.push({ ms: Math.round(performance.now() - start), sql: sql.replace(/\s+/g, ' ').slice(0, 190) }); }
   };
   const identity = new StockIdentityService(db, null);
   const sectors = new SectorService(db, null, null, null);
@@ -43,6 +44,16 @@ async function main() {
   try {
     const date = process.argv[2] || '2026-09-30';
     const strategyType = process.argv[3] || 'gapThreeUp';
+    if (process.argv.includes('--details')) {
+      const { InsightService } = require('../src/modules/strategy/insight.service');
+      const insights = new InsightService(db, null, null, null, sectors, null);
+      const started = performance.now();
+      const result = await insights.performance(date, strategyType, Number(process.env.PROFILE_DAYS || 20));
+      console.log(JSON.stringify({ performanceMs:Math.round(performance.now()-started), summary:result.summary, exceptions:result.items.filter(r=>r.outcomes[1].state!=='有效'&&r.outcomes[1].state!=='未到期').map(r=>({code:r.code,date:r.date,outcome:r.outcomes[1]})) }));
+      const chart = await service.trends.chart({date:'2026-09-08',code:'605577.SH',strategyType:'threeDaysHighVol'});
+      console.log(JSON.stringify({chartCode:chart.code,signal:chart.series.at(-1)}));
+      return;
+    }
     if (process.argv.includes('--verify')) {
       const days = (await service.tradeCalService.getLastNDays({ date, n: 4 })).map(r => r.calDate);
       const full = await service.dailyService.getDailyDataByDates(days);
@@ -61,7 +72,7 @@ async function main() {
     for (const phase of ['cold', 'warm']) {
       queries = []; stages = [];
       const start = performance.now();
-      const rows = await service.list({ date, strategyType });
+      const rows = await service.list({ date, strategyType, includeLabels: !process.argv.includes('--core') });
       console.log(JSON.stringify({ phase, date, strategyType, ms: Math.round(performance.now() - start), count: rows.length, codes: rows.map(r => r.tsCode).sort(), queries: queries.length, stages, slowest: queries.sort((a,b) => b.ms-a.ms).slice(0,5) }));
     }
   } finally { await query('ROLLBACK'); await runner.release(); await db.destroy(); }

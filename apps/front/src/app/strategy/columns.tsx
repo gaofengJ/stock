@@ -101,10 +101,10 @@ export const strategyColumns: ColumnsType = [
     render: (value) => <span className={changeClass(value)}>{numberText(value, 2, true)}</span>,
   },
   {
-    title: '行业', key: 'industry', width: 160, render: (_, r) => <SectorLinks stock={r} date={r.tradeDate} />,
+    title: '行业', key: 'industry', width: 160, render: (_, r) => (r.sectorLabelsLoading ? '加载中…' : <SectorLinks stock={r} date={r.tradeDate} />),
   },
   {
-    title: '题材', key: 'topics', width: 240, render: (_, r) => <SectorLinks stock={r} type="N" date={r.tradeDate} />,
+    title: '题材', key: 'topics', width: 240, render: (_, r) => (r.sectorLabelsLoading ? '加载中…' : <SectorLinks stock={r} type="N" date={r.tradeDate} />),
   },
   {
     title: '板块背景', key: 'context', width: 280, render: (_, r) => (r.sectorContextLoading ? <span>加载中…</span> : <SectorContext sectors={r.sectorPerformance} date={r.tradeDate} ready={r.sectorContextReady} />),

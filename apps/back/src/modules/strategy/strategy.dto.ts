@@ -21,6 +21,11 @@ function queryBoolean(value: unknown) {
 }
 
 export class StrategyListQueryDto {
+  @IsOptional()
+  @Transform(({ obj, key }) => queryBoolean(obj[key]))
+  @IsBoolean()
+  includeLabels?: boolean;
+
   @IsOptional() @Matches(/^88[156]\d{3}\.TI$/) sector?: string;
 
   @ApiProperty({ description: '日期' })

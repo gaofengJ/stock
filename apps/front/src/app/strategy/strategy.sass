@@ -180,3 +180,55 @@
   .strategy-environment-metric:nth-child(odd)
     padding-left: 0
     border-left: 0
+
+.strategy-performance-content
+  display: flex
+  flex-direction: column
+  gap: 16px
+  > .ant-card, > .ant-collapse, > .strategy-result-toolbar, > .strategy-data-status, > .ant-alert
+    margin: 0
+  .ant-table-body
+    scrollbar-gutter: auto
+
+.strategy-stock-quote
+  position: relative
+  .stock-quote-readout
+    position: absolute
+    top: 48px
+    left: 8px
+    z-index: 2
+    pointer-events: none
+    padding: 10px 12px
+    background: var(--color-surface-muted)
+    border: 1px solid var(--color-border)
+    border-radius: 6px
+    font-size: 12px
+    font-variant-numeric: tabular-nums
+    dl
+      margin: 8px 0 0
+    dl > div
+      display: flex
+      justify-content: space-between
+      gap: 16px
+      margin-top: 4px
+    dt
+      color: var(--text-secondary)
+    dd
+      margin: 0
+    small
+      margin-left: 4px
+  .stock-quote-status
+    color: var(--text-secondary)
+    max-width: 160px
+    margin-top: 8px
+
+.strategy-chart-title
+  display: flex
+  align-items: center
+  gap: 12px
+  padding-right: 28px
+  flex-wrap: wrap
+  .strategy-chart-position
+    font-size: 12px
+    font-weight: 400
+    color: var(--text-secondary)
