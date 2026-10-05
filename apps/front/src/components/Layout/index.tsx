@@ -27,10 +27,11 @@ import AccountAvatar from '@/auth/AccountAvatar';
 import HelpTooltip from '@/components/HelpTooltip';
 import { LoginActivityContext, useLoginActivity } from '@/auth/LoginActivity';
 import {
-  MenuOutlined, WechatOutlined, UserOutlined, LogoutOutlined,
+  MenuOutlined, WechatOutlined, GiftOutlined, UserOutlined, LogoutOutlined,
 } from '@ant-design/icons';
 import ImgFengye from '@/assets/imgs/fengye.png';
-import ImgAuthorAvatar from '@/assets/imgs/author-avatar.png';
+import ImgAuthorContact from '@/assets/imgs/author-contact.webp';
+import ImgAuthorReward from '@/assets/imgs/author-reward.webp';
 import { useOptionsState } from '@/store/useOptionsStore';
 import { withAlpha } from '@/colors';
 import { ThemeToggle, useSiteTheme } from '@/components/SiteTheme';
@@ -120,6 +121,15 @@ const CommonLayout: React.FC<ILayoutProps> = ({
     if (headerMenuActive && !user?.mustChangePassword) getAllOptions();
   }, [getAllOptions, headerMenuActive, user?.mustChangePassword]);
 
+  useEffect(() => {
+    // Warm the image cache before the lazily mounted popovers are opened.
+    [ImgAuthorContact.src, ImgAuthorReward.src].forEach((src) => {
+      const image = new window.Image();
+      image.src = src;
+      image.decode().catch(() => {});
+    });
+  }, []);
+
   return (
     <Layout className="platform-layout">
       <Header
@@ -149,21 +159,44 @@ const CommonLayout: React.FC<ILayoutProps> = ({
             content={(
               <div className="header-contact-content">
                 <img
-                  src={ImgAuthorAvatar.src}
+                  src={ImgAuthorContact.src}
                   alt="作者微信二维码"
+                  width={200}
+                  height={200}
                   className="w-200 h-200"
                 />
                 <span>微信扫码联系作者</span>
               </div>
             )}
           >
-            <button type="button" className="header-contact">
+            <button type="button" className="header-contact" aria-label="联系作者">
               <WechatOutlined
                 style={{
                   color: colors.wechat,
                 }}
               />
               <span>联系作者</span>
+            </button>
+          </Popover>
+          <Popover
+            trigger={['hover', 'focus', 'click']}
+            placement="bottomRight"
+            content={(
+              <div className="header-contact-content">
+                <img
+                  src={ImgAuthorReward.src}
+                  alt="作者微信收款二维码"
+                  width={200}
+                  height={200}
+                  className="w-200 h-200"
+                />
+                <span>微信扫码打赏作者</span>
+              </div>
+            )}
+          >
+            <button type="button" className="header-contact" aria-label="打赏作者">
+              <GiftOutlined style={{ color: colors.wechat }} />
+              <span>打赏作者</span>
             </button>
           </Popover>
           <span className="sync-schedule">
