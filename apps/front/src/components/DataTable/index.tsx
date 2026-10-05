@@ -46,10 +46,14 @@ export default function DataTable<Row extends object = any>({
     const observer = new ResizeObserver(measure);
     observer.observe(root);
     if (area) observer.observe(area);
+    // Notices and filters can change the table's position without resizing it.
+    const layoutObserver = new MutationObserver(measure);
+    layoutObserver.observe(area || root.parentElement || root, { childList: true, subtree: true });
     window.addEventListener('resize', measure);
     measure();
     return () => {
       observer.disconnect();
+      layoutObserver.disconnect();
       cancelAnimationFrame(frame);
       window.removeEventListener('resize', measure);
     };
