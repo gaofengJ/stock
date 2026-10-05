@@ -4,6 +4,8 @@ interface TableSize {
 }
 
 const migrationTables: Record<string, readonly string[]> = {
+  // Two new empty tables; existing account and market tables are not rebuilt.
+  PrivateFeedback1791849600000: ['t_feedback', 't_feedback_reply'],
   AdminJobControls1791676800000: ['t_admin_job'],
   BasicWorkbench1791763200000: ['t_source_basic_snapshot', 't_source_stock'],
   MarketInsights1791590400000: [
@@ -68,6 +70,7 @@ const migrationOperations: Record<
   string,
   'create' | 'data' | 'schema' | 'full-database'
 > = {
+  PrivateFeedback1791849600000: 'create',
   AdminJobControls1791676800000: 'schema',
   BasicWorkbench1791763200000: 'schema',
   MarketInsights1791590400000: 'create',
