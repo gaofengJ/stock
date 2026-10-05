@@ -8,6 +8,7 @@ const { FastifyAdapter } = require('@nestjs/platform-fastify');
 const { APP_GUARD, Reflector } = require('@nestjs/core');
 const { FeedbackModule } = require('../dist/modules/feedback/feedback.module');
 const { PrivateFeedback1791849600000 } = require('../dist/migrations/1791849600000-PrivateFeedback');
+const { FeedbackRead1791936000000 } = require('../dist/migrations/1791936000000-FeedbackRead');
 const verifyFeedback = require('./feedback.integration.cjs');
 const { AuthModule } = require('../dist/modules/auth/auth.module');
 const { AuthService, COOKIE, digest } = require('../dist/modules/auth/auth.service');
@@ -58,7 +59,9 @@ async function main() {
     const avatars = new AccountAvatars1790467200001();
     await avatars.up(q);
     await new PrivateFeedback1791849600000().up(q);
+    await new FeedbackRead1791936000000().up(q);
     await new PrivateFeedback1791849600000().up(q);
+    await new FeedbackRead1791936000000().up(q);
     await new MarketAnalysis1790553600000().up(q);
     await new AdminJobControls1791676800000().up(q);
     await new AdminJobControls1791676800000().up(q);
@@ -111,7 +114,9 @@ async function main() {
     assert.match(portrait.avatar, /^auto-bull-(red|pink|gold|green|blue|purple|coffee)-(star|heart|flower|bow)$/);
     await avatars.up(q);
     await new PrivateFeedback1791849600000().up(q);
+    await new FeedbackRead1791936000000().up(q);
     await new PrivateFeedback1791849600000().up(q);
+    await new FeedbackRead1791936000000().up(q);
     assert.equal((await db.query("SELECT avatar FROM t_user WHERE username='mufeng'"))[0].avatar, portrait.avatar, 'Migration preserves assigned avatars');
     const [initial] = await db.query("SELECT id,password FROM t_user WHERE username='mufeng'");
     assert.ok(initial.password.startsWith('$argon2id$'));

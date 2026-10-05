@@ -12,7 +12,11 @@ import {
 } from '@nestjs/common';
 import { SignedIn } from '../auth/permissions';
 import { AuthRequest } from '../auth/auth.service';
-import { FeedbackMessageDto, FeedbackPageDto } from './feedback.dto';
+import {
+  FeedbackMessageDto,
+  FeedbackPageDto,
+  FeedbackReadDto,
+} from './feedback.dto';
 import { FeedbackService } from './feedback.service';
 
 @Controller('feedback')
@@ -26,6 +30,11 @@ import { FeedbackService } from './feedback.service';
 )
 export class FeedbackController {
   constructor(private feedback: FeedbackService) {}
+
+  @Get('unread')
+  unread(@Req() req: AuthRequest) {
+    return this.feedback.unread(req.authUser!);
+  }
 
   @Get()
   list(@Req() req: AuthRequest, @Query() query: FeedbackPageDto) {
@@ -49,5 +58,14 @@ export class FeedbackController {
     @Body() dto: FeedbackMessageDto,
   ) {
     return this.feedback.reply(id, req.authUser!, dto.content);
+  }
+
+  @Post(':id/read')
+  read(
+    @Req() req: AuthRequest,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: FeedbackReadDto,
+  ) {
+    return this.feedback.markRead(id, req.authUser!, dto.throughReplyId);
   }
 }

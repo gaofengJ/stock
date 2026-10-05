@@ -21,6 +21,7 @@ import { errorMessage } from '@/api/errors';
 import zhCN from 'antd/locale/zh_CN';
 import { clearTradeDateCache } from '@/hooks/useDefaultTradeDate';
 import { useOptionsState } from '@/store/useOptionsStore';
+import FeedbackNotifications from './FeedbackNotifications';
 import {
   Account, allowedPath, api, clearCredential, homePath, getAccess,
 } from './client';
@@ -204,7 +205,9 @@ export default function AccountBoundary({
         },
       }}
     >
-      <Context.Provider value={context}>{content}</Context.Provider>
+      <Context.Provider value={context}>
+        <FeedbackNotifications user={user}>{content}</FeedbackNotifications>
+      </Context.Provider>
     </ConfigProvider>
   );
 }
