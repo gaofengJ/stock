@@ -10,10 +10,11 @@ import HelpTooltip from '@/components/HelpTooltip';
 import { chartPalette, chartColors, withAlpha } from '@/colors';
 import { numberText, changeClass } from '@/utils/format';
 import { environmentRanges, indexComparison } from './market-environment';
+import { overviewDateAxis, overviewGrid } from './overview-chart';
 
 export default function IndexComparisonChart({ indexes, dates }: { indexes: MarketSeries['indexes']; dates: string[] }) {
   const [days, setDays] = useState(60);
-  const [group, setGroup] = useState('size');
+  const [group, setGroup] = useState('all');
   const sizeCodes = ['000300.SH', '000905.SH', '000852.SH'];
   const hasSizes = sizeCodes.every((code) => indexes.some((i) => i.code === code));
   const selected = hasSizes && group === 'size' ? indexes.filter((i) => sizeCodes.includes(i.code)) : indexes;
@@ -25,7 +26,7 @@ export default function IndexComparisonChart({ indexes, dates }: { indexes: Mark
       title={(
         <span className="market-section-title">
           指数相对表现
-          <HelpTooltip label="指数相对表现" title="同一起始日设为0%，比较区间涨跌幅；参考指数成分可能跨板块、相互重叠。" />
+          <HelpTooltip label="指数相对表现" title="以所选区间前一交易日收盘价为基准，比较累计涨跌幅；沪深300、中证500、中证1000用于对照由大到小的市值层级，并非严格的大中小盘分类，不包含全部小微盘股票。" />
         </span>
 )}
       extra={(
@@ -36,35 +37,34 @@ export default function IndexComparisonChart({ indexes, dates }: { indexes: Mark
       )}
     >
       <div className="market-environment-caption">
-        {hasSizes && group === 'size' ? '沪深300 / 中证500 / 中证1000，对照大、中、小盘表现' : '所选市场范围的参考指数'}
-        {comparison.baseline && <span>{`基准 ${comparison.baseline} → ${comparison.end}`}</span>}
+        {hasSizes && group === 'size' ? '沪深300 / 中证500 / 中证1000，对照不同市值层级表现' : '所选市场范围的参考指数'}
+        {comparison.baseline && <span>{`区间 ${comparison.dates[0]} → ${comparison.end} · 基准收盘 ${comparison.baseline}`}</span>}
       </div>
       <Row gutter={[24, 16]} align="middle">
         <Col xs={24} xl={14}>
           {!valid.length ? <div className="market-environment-empty"><Empty description="缺少共同基准日数据" /></div> : (
-            <CChart genOptions={() => ({
-              tooltip: { trigger: 'axis', valueFormatter: (value: unknown) => `${numberText(value, 2, true)}%` },
-              legend: { top: 0, type: 'scroll' },
-              grid: {
-                left: 16, right: 24, top: 56, bottom: 24, containLabel: true,
-              },
-              xAxis: {
-                type: 'category', data: comparison.dates, boundaryGap: false, axisPointer: { snap: true }, axisLabel: { hideOverlap: true }, axisTick: { alignWithLabel: true },
-              },
-              yAxis: { type: 'value', name: '%', axisLabel: { formatter: '{value}%' } },
-              series: valid.map((i, position) => ({
-                name: i.name,
-                type: 'line',
-                data: i.values,
-                connectNulls: false,
-                showSymbol: false,
-                itemStyle: { color: chartPalette[position] },
-                lineStyle: { width: 1.5 },
-                markLine: position === 0 ? {
-                  silent: true, symbol: 'none', label: { show: false }, lineStyle: { color: withAlpha(chartColors.reference, 0.4), type: 'dashed' }, data: [{ yAxis: 0 }],
-                } : undefined,
-              })),
-            })}
+            <CChart
+              key={selected.map((i) => i.code).join(',')}
+              genOptions={() => ({
+                tooltip: { trigger: 'axis', valueFormatter: (value: unknown) => `${numberText(value, 2, true)}%` },
+                legend: { top: 0, type: 'scroll' },
+                grid: overviewGrid,
+                xAxis: overviewDateAxis(comparison.dates),
+                yAxis: { type: 'value', name: '%', axisLabel: { formatter: '{value}%' } },
+                series: valid.map((i, position) => ({
+                  id: i.code,
+                  name: i.name,
+                  type: 'line',
+                  data: i.values,
+                  connectNulls: false,
+                  showSymbol: false,
+                  itemStyle: { color: chartPalette[indexes.findIndex((item) => item.code === i.code) % chartPalette.length] },
+                  lineStyle: { width: 1.5 },
+                  markLine: position === 0 ? {
+                    silent: true, symbol: 'none', label: { show: false }, lineStyle: { color: withAlpha(chartColors.reference, 0.4), type: 'dashed' }, data: [{ yAxis: 0 }],
+                  } : undefined,
+                })),
+              })}
             />
           )}
         </Col>

@@ -17,8 +17,19 @@ test('comparison uses a common baseline and trading calendar, never shifts dates
   assert.equal(all.indexes[1].change,null);
   const recent = indexComparison(indexes, dates, 2);
   assert.equal(recent.baseline,'d2');
-  assert.equal(recent.dates.length,3);
+  assert.deepEqual(recent.dates,['d3','d4']);
   assert.equal(Math.round(recent.indexes[1].change),20);
+});
+
+test('comparison shows exactly the same 60 dates as amount and breadth, retaining prior-close baseline', () => {
+  const dates = Array.from({length: 90}, (_, i) => `d${i}`);
+  const result = indexComparison([{code:'a',name:'a',series:dates.map((date,i)=>({date,close:100+i}))}], dates, 60);
+  assert.deepEqual(result.dates, dates.slice(-60));
+  assert.equal(result.baseline, 'd29');
+  assert.equal(result.indexes[0].change, result.indexes[0].returns[2]);
+  assert.equal(result.indexes[0].values.length, 60);
+  const missing = indexComparison([{code:'a',name:'a',series:dates.slice(30).map(date=>({date,close:100}))}], dates, 60);
+  assert.ok(missing.indexes[0].values.every(v => v === null));
 });
 test('5/20/60-day returns use exact calendar endpoints, missing dates cannot shorten periods', () => {
   const dates = Array.from({length:61}, (_,i)=>`d${i}`);
@@ -45,3 +56,7 @@ test('breadth change means percentage points and never jumps over missing prior 
   assert.equal(breadthDelta([r(60),r(null),r(20)],'ma20'),null);
   assert.equal(breadthDelta([r(20)],'ma60'),null);
 });
+
+// Included here so the existing frontend CI entry point covers overview regressions.
+require('./test-overview-charts.cjs');
+require('./test-market-extremes.cjs');

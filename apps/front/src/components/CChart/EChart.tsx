@@ -90,10 +90,11 @@ interface IEchartsProps {
   appearance?: 'light' | 'dark';
   height?: number;
   onLegendChange?: (selected: Record<string, boolean>) => void;
+  onAxisHover?: (date: string) => void;
 }
 
 const EChart = ({
-  genOptions, appearance, height = 360, onLegendChange,
+  genOptions, appearance, height = 360, onLegendChange, onAxisHover,
 }: IEchartsProps) => {
   const { mode } = useSiteTheme();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -101,11 +102,20 @@ const EChart = ({
   const zoomRef = useRef<{ start: number; end: number }[]>([]);
   const events = useMemo(() => ({
     ...(onLegendChange ? { legendselectchanged: (event: { selected: Record<string, boolean> }) => onLegendChange(event.selected) } : {}),
+    ...(onAxisHover ? {
+      updateAxisPointer: (event: { axesInfo?: { axisDim: string; value: number | string }[] }, instance: echarts.ECharts) => {
+        const axis = event.axesInfo?.find((item) => item.axisDim === 'x');
+        if (!axis) return;
+        const categories = (instance.getOption().xAxis as { data: string[] }[])[0]?.data;
+        const date = typeof axis.value === 'number' ? categories?.[axis.value] : axis.value;
+        if (date) onAxisHover(date);
+      },
+    } : {}),
     datazoom: (_event: unknown, instance: echarts.ECharts) => {
       const zoom = instance.getOption().dataZoom as { start: number; end: number }[];
       zoomRef.current = zoom.map(({ start, end }) => ({ start, end }));
     },
-  }), [onLegendChange]);
+  }), [onLegendChange, onAxisHover]);
 
   useEffect(() => {
     const container = containerRef.current;
