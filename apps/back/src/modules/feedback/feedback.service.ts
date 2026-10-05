@@ -2,6 +2,22 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, EntityManager } from 'typeorm';
 import { CurrentUser } from '../auth/auth.service';
 
+// A user's own messages never create a notification. Missing read rows also
+// surface existing feedback to administrators the first time they use the feature.
+const unreadCondition = `((seen.user_id IS NULL AND f.user_id<>?) OR EXISTS(
+  SELECT 1 FROM t_feedback_reply r WHERE r.feedback_id=f.id
+  AND r.id>COALESCE(seen.last_reply_id,0) AND r.user_id<>?
+))`;
+
+interface FeedbackListItem {
+  id: number;
+  content: string;
+  createdAt: Date;
+  updatedAt: Date;
+  author: string;
+  unread: number;
+}
+
 @Injectable()
 export class FeedbackService {
   constructor(private db: DataSource) {}
@@ -30,14 +46,51 @@ export class FeedbackService {
       `SELECT COUNT(*) total FROM t_feedback f${where}`,
       params,
     );
-    const items = await this.db.query(
+    const items: FeedbackListItem[] = await this.db.query(
       `SELECT f.id,f.content,f.created_at createdAt,f.updated_at updatedAt,
-        COALESCE(NULLIF(u.nickname,''),u.username) author
-       FROM t_feedback f JOIN t_user u ON u.id=f.user_id${where}
+        COALESCE(NULLIF(u.nickname,''),u.username) author, ${unreadCondition} unread
+       FROM t_feedback f JOIN t_user u ON u.id=f.user_id
+       LEFT JOIN t_feedback_read seen ON seen.feedback_id=f.id AND seen.user_id=?${where}
        ORDER BY f.updated_at DESC,f.id DESC LIMIT 20 OFFSET ?`,
-      [...params, (page - 1) * 20],
+      [user.id, user.id, user.id, ...params, (page - 1) * 20],
     );
-    return { items, total: Number(count.total) };
+    return {
+      items: items.map((item) => ({ ...item, unread: !!Number(item.unread) })),
+      total: Number(count.total),
+    };
+  }
+
+  async unread(user: CurrentUser) {
+    const [result] = await this.db.query(
+      `SELECT EXISTS(SELECT 1 FROM t_feedback f
+       LEFT JOIN t_feedback_read seen ON seen.feedback_id=f.id AND seen.user_id=?
+       WHERE ${
+         this.isAdmin(user) ? '' : 'f.user_id=? AND '
+       }${unreadCondition}) unread`,
+      this.isAdmin(user)
+        ? [user.id, user.id, user.id]
+        : [user.id, user.id, user.id, user.id],
+    );
+    return { unread: !!Number(result.unread) };
+  }
+
+  async markRead(id: number, user: CurrentUser, throughReplyId: number) {
+    await this.visible(id, user);
+    if (throughReplyId) {
+      const [reply] = await this.db.query(
+        'SELECT id FROM t_feedback_reply WHERE feedback_id=? AND id=?',
+        [id, throughReplyId],
+      );
+      if (!reply) throw new NotFoundException('回复不存在');
+    }
+    // Only acknowledge the displayed snapshot, preserving concurrent new replies
+    // and never letting an older tab move the read cursor backwards.
+    await this.db.query(
+      `INSERT INTO t_feedback_read(user_id,feedback_id,last_reply_id) VALUES(?,?,?)
+       ON DUPLICATE KEY UPDATE last_reply_id=GREATEST(last_reply_id,VALUES(last_reply_id))`,
+      [user.id, id, throughReplyId],
+    );
+    return { ok: true };
   }
 
   async create(user: CurrentUser, content: string) {
@@ -57,7 +110,7 @@ export class FeedbackService {
        WHERE r.feedback_id=? ORDER BY r.id`,
       [id],
     );
-    return { ...item, replies };
+    return { ...item, replies, throughReplyId: replies.at(-1)?.id || 0 };
   }
 
   async reply(id: number, user: CurrentUser, content: string) {

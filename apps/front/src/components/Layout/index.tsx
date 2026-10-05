@@ -2,6 +2,7 @@
 
 import { errorMessage } from '@/api/errors';
 import { useAccount } from '@/auth/Boundary';
+import { useFeedbackNotifications } from '@/auth/FeedbackNotifications';
 import { allowedPath, homePath } from '@/auth/client';
 
 import React, { useEffect, useState } from 'react';
@@ -87,6 +88,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
   const [accountOpen, setAccountOpen] = useState(false);
   const mobile = !screens.md;
   const { user, logout, trialRemaining } = useAccount();
+  const { unread: feedbackUnread } = useFeedbackNotifications();
   const canReadActivity = !!user?.permissions.includes('users:manage');
   const activity = useLoginActivity(canReadActivity);
   const adminLabel = (
@@ -228,7 +230,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
               menu={{
                 items: [
                   { key: 'profile', label: '个人中心', icon: <UserOutlined /> },
-                  { key: 'feedback', label: '意见反馈', icon: <CommentOutlined /> },
+                  { key: 'feedback', label: <Badge dot={feedbackUnread} offset={[7, 0]}><span>意见反馈</span></Badge>, icon: <CommentOutlined /> },
                   { type: 'divider' },
                   { key: 'logout', label: '退出登录', icon: <LogoutOutlined /> },
                 ],
@@ -239,8 +241,10 @@ const CommonLayout: React.FC<ILayoutProps> = ({
               }}
               placement="bottomRight"
             >
-              <button type="button" className="header-account" aria-label={`${accountName}，账户菜单`} aria-haspopup="menu" aria-expanded={accountOpen}>
-                <AccountAvatar avatar={user?.avatar} roles={user?.roles} size={28} />
+              <button type="button" className="header-account" aria-label={`${accountName}，账户菜单${feedbackUnread ? '，有未读反馈或回复' : ''}`} aria-haspopup="menu" aria-expanded={accountOpen}>
+                <Badge dot={feedbackUnread}>
+                  <AccountAvatar avatar={user?.avatar} roles={user?.roles} size={28} />
+                </Badge>
                 <span className="header-account-name">{accountName}</span>
                 <svg className="header-account-chevron" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                   <path d="m4 6 4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />

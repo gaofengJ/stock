@@ -4,13 +4,14 @@ import {
   useCallback, useEffect, useRef, useState,
 } from 'react';
 import {
-  Button, Card, Drawer, Form, Input, List, Modal, Space, Spin, Tag, Typography, message,
+  Badge, Button, Card, Drawer, Form, Input, List, Modal, Space, Spin, Tag, Typography, message,
 } from 'antd';
 import { CommentOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import CommonLayout from '@/components/Layout';
 import PageHeading from '@/auth/PageHeading';
 import { useAccount } from '@/auth/Boundary';
+import { useFeedbackNotifications } from '@/auth/FeedbackNotifications';
 import { api } from '@/auth/client';
 import { errorMessage } from '@/api/errors';
 
@@ -18,15 +19,16 @@ interface Reply {
   id: number; content: string; author: string; createdAt: string; isAdmin: boolean;
 }
 interface Feedback {
-  id: number; content: string; author: string; createdAt: string; updatedAt: string;
+  id: number; content: string; author: string; createdAt: string; updatedAt: string; unread: boolean;
 }
-interface Detail extends Feedback { replies: Reply[] }
+interface Detail extends Feedback { replies: Reply[]; throughReplyId: number }
 const time = (value: string) => dayjs(value).format('YYYY-MM-DD HH:mm');
 const report = (error: unknown) => message.error(errorMessage(error));
 const contentRules = [{ required: true, whitespace: true, message: '请填写内容' }, { max: 2000, message: '最多2000个字符' }];
 
 export default function Page() {
   const { user } = useAccount();
+  const { refresh: refreshUnread } = useFeedbackNotifications();
   const admin = !!user?.roles.some((role) => role.code === 'admin');
   const [page, setPage] = useState(1);
   const [data, setData] = useState<{ items: Feedback[]; total: number }>({ items: [], total: 0 });
@@ -58,13 +60,17 @@ export default function Page() {
     setDetailLoading(true);
     try {
       const value = await api<Detail>(`/feedback/${id}`);
-      if (request === detailRequest.current) setDetail(value);
+      if (request !== detailRequest.current) return;
+      setDetail(value);
+      await api(`/feedback/${id}/read`, 'POST', { throughReplyId: value.throughReplyId });
+      await refreshUnread();
+      setRefreshKey((key) => key + 1);
     } catch (error) {
       if (request === detailRequest.current) report(error);
     } finally {
       if (request === detailRequest.current) setDetailLoading(false);
     }
-  }, []);
+  }, [refreshUnread]);
 
   const openDetail = (id: number) => {
     setSelected(id);
@@ -85,7 +91,7 @@ export default function Page() {
         <PageHeading title="意见反馈" description={admin ? '查看用户反馈并回复。每条反馈仅提交者与管理员可见。' : '告诉我们你的功能建议或遇到的问题，仅你和管理员可见。'} icon={<CommentOutlined />} />
         <Space style={{ marginBottom: 20 }}>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreating(true)}>提交反馈</Button>
-          <Button icon={<ReloadOutlined />} loading={loading} onClick={() => setRefreshKey((value) => value + 1)}>刷新</Button>
+          <Button icon={<ReloadOutlined />} loading={loading} onClick={() => { setRefreshKey((value) => value + 1); refreshUnread(); }}>刷新</Button>
         </Space>
         <List
           loading={loading}
@@ -97,7 +103,12 @@ export default function Page() {
           renderItem={(item) => (
             <List.Item key={item.id} actions={[<Button key="view" onClick={() => openDetail(item.id)}>查看 / 回复</Button>]}>
               <List.Item.Meta
-                title={<Typography.Paragraph ellipsis={{ rows: 2 }} style={{ marginBottom: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{item.content}</Typography.Paragraph>}
+                title={(
+                  <Typography.Paragraph ellipsis={{ rows: 2 }} style={{ marginBottom: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+                    {item.unread && <Badge status="error" text="未读" style={{ marginRight: 8 }} />}
+                    {item.content}
+                  </Typography.Paragraph>
+)}
                 description={`${admin ? `${item.author} · ` : ''}最近更新 ${time(item.updatedAt)}`}
               />
             </List.Item>

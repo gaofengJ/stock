@@ -16,3 +16,9 @@ export class FeedbackPageDto {
   @Min(1)
   page = 1;
 }
+
+export class FeedbackReadDto {
+  @IsInt()
+  @Min(0)
+  throughReplyId: number;
+}
