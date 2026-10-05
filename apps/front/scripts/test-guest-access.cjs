@@ -75,3 +75,23 @@ test('successful login replaces pending guest state and uses the rotated CSRF to
     assert.equal(headers.at(-1)['X-CSRF-Token'], 'after');
   } finally { global.fetch = original; }
 });
+
+test('a pending public-page check cannot swallow a requested guest trial', async () => {
+  const original = global.fetch;
+  const requests = [];
+  global.fetch = (url) => new Promise(resolve => requests.push({ url, resolve }));
+  try {
+    const auth = client();
+    const publicCheck = auth.getAccess(false);
+    const trial = auth.getAccess(true);
+    assert.equal(requests.length, 2);
+    assert.match(requests[0].url, /startTrial=0$/);
+    assert.match(requests[1].url, /startTrial=1$/);
+    requests[0].resolve({ ok: true, json: async () => ({ data: { user: null, trial: null } }) });
+    await publicCheck;
+    assert.equal(auth.getAccess(true), trial);
+    requests[1].resolve({ ok: true, json: async () => ({ data: { user: { guest: true }, trial: { remainingMs: 300000 } } }) });
+    assert.equal((await trial).user.guest, true);
+    assert.equal(requests.length, 2);
+  } finally { global.fetch = original; }
+});

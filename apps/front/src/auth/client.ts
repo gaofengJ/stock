@@ -19,6 +19,7 @@ export interface Account {
 }
 export interface AccessState { user: Account | null; trial: { remainingMs: number } | null }
 let accessPending: Promise<AccessState> | undefined;
+let accessStartsTrial = false;
 let csrf: string | undefined;
 let pending: Promise<string> | undefined;
 export function clearCredential() {
@@ -91,10 +92,11 @@ export function allowedPath(user: Account | null, path: string): boolean {
 }
 
 export function getAccess(startTrial: boolean): Promise<AccessState> {
-  if (!accessPending) {
+  if (!accessPending || (startTrial && !accessStartsTrial)) {
     const request = api<AccessState>(`/auth/access?startTrial=${startTrial ? '1' : '0'}`, 'GET', undefined, false)
       .finally(() => { if (accessPending === request) accessPending = undefined; });
     accessPending = request;
+    accessStartsTrial = startTrial;
   }
   return accessPending;
 }

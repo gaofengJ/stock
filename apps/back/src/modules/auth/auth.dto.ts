@@ -37,9 +37,11 @@ export class RegisterDto {
   password: string;
 
   @IsOptional()
-  @StrictValue()
+  @Transform(({ obj, key }) =>
+    typeof obj[key] === 'string' ? obj[key].trim() || undefined : obj[key],
+  )
   @IsString()
-  @Length(1, 40)
+  @Length(1, 40, { message: '昵称长度为1至40个字符' })
   nickname?: string;
 }
 export class LoginDto {
