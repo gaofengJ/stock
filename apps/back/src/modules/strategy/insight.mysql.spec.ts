@@ -71,15 +71,22 @@ mysqlDescribe('Insight migration and MySQL JSON projections', () => {
       tradeDate: date,
       revision: (service as any).revision(date, []),
       summary: {},
-      signals: { version: 'v1', ready: [], parameters: {}, items: [] },
+      signals: {
+        version: 'v1',
+        ready: ['gapThreeUp'],
+        parameters: {},
+        items: data.map(({ code }) => ({ code, keys: ['gapThreeUp'] })),
+      },
       data,
     });
-    const result = await (service as any).observations([date]);
+    const result = await (service as any).observations([date], 'gapThreeUp');
     expect(result.get(date).data).toEqual(data);
     const first = await db.manager.findOneByOrFail(StockInsightEntity, {
       tradeDate: date,
     });
     await db.manager.save(StockInsightEntity, { ...first, revision: 'old' });
-    expect((await (service as any).observations([date])).size).toBe(0);
+    expect(
+      (await (service as any).observations([date], 'gapThreeUp')).size,
+    ).toBe(0);
   });
 });
