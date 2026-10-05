@@ -54,8 +54,8 @@ export default function StrongFeedback() {
             {
               title: (
                 <span>
-                  纳入／全部样本
-                  <HelpTooltip label="纳入样本" title="纳入收益统计的有效股票数／该分组全部股票数；未纳入原因见下方明细。" />
+                  有效／全部样本
+                  <HelpTooltip label="纳入样本" title="参与分组统计的有效股票数／该分组全部股票数；排除原因见下方明细。" />
                 </span>
               ),
               align: 'right',
@@ -100,7 +100,7 @@ export default function StrongFeedback() {
               title={`${group?.name || '昨日首板'} - 样本明细`}
               extra={(
                 <span className="market-note">
-                  未纳入收益统计
+                  不参与分组统计
                   {group?.ready ? group.excluded : '—'}
                   {' '}
                   只
@@ -134,18 +134,23 @@ export default function StrongFeedback() {
                     title: '昨日 → 今日连板', align: 'center', render: (_, r) => [r.previousHeight, r.height].map(boardLabel).join(' → '),
                   },
                   {
-                    title: '是否纳入收益统计',
+                    title: (
+                      <span>
+                        是否参与分组统计
+                        <HelpTooltip label="分组统计" title="参与：计入上方分组的平均涨幅、中位数、上涨和高开比例；不参与：仅列出供核对，并标明排除原因。与账户盈亏无关。" />
+                      </span>
+                    ),
                     dataIndex: 'excluded',
                     render: (v) => (v ? (
                       <span>
-                        <Tag>未纳入</Tag>
+                        <Tag>不参与</Tag>
                         {v}
                       </span>
-                    ) : '已纳入'),
+                    ) : '参与'),
                   },
                 ]}
               />
-              <p className="market-note">未纳入的股票不参与平均涨幅、中位数及上涨／高开比例计算。首板、连板排除昨日一字板，各组排除ST、新股、退市整理及无效行情。</p>
+              <p className="market-note">“参与”表示用于计算上方分组的平均涨幅、中位数、上涨／高开比例，与账户盈亏无关。首板、连板排除昨日一字板，各组排除ST、新股、退市整理及无效行情。</p>
             </Card>
           </Col>
         </Row>

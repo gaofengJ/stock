@@ -55,13 +55,16 @@ export default function IntradayCountsChart() {
     <Card
       title={(
         <span className="market-section-title">
-          连日盘中涨跌家数
+          全市场盘中涨跌家数
           <HelpTooltip label="连日盘中涨跌家数" title="全市场含ST，每5分钟统计，不受页面市场范围筛选影响。跨日连续展示，缺失数据保留断点；仅选一条线时显示所选交易日内有效时点的平均值。" />
         </span>
       )}
-      extra={(
+      className="market-chart market-intraday-card"
+    >
+      <div className="sentiment-chart-meta">
         <Space wrap>
           <DatePicker
+            size="small"
             aria-label="盘中涨跌家数截止日期"
             value={date ? dayjs(date) : null}
             placeholder="最新交易日"
@@ -69,26 +72,25 @@ export default function IntradayCountsChart() {
             disabledDate={(value) => value.format('YYYY-MM-DD') > new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10)}
           />
           <Select
+            size="small"
             aria-label="盘中涨跌家数交易日范围"
             value={days}
             onChange={setDays}
             options={[1, 5, 10, 20, 30].map((value) => ({ value, label: value === 1 ? '最近1个交易日' : `近${value}个交易日` }))}
           />
         </Space>
-      )}
-      className="market-chart"
-    >
-      <p className="market-note">
-        {visible?.source || '财联社'}
-        {' · 全市场 · 每5分钟 · 保留30个交易日'}
-        {latest && ` · 最新时点：${latest.date} ${latest.time}`}
-      </p>
-      {error && loadedKey === requestKey && <Alert type="warning" showIcon message={error} description={visible?.points.length ? '以下为上次成功读取的记录。' : undefined} action={<Button size="small" onClick={retry}>重试</Button>} />}
-      {loading && !visible && <LoadingOverlay />}
-      {!loading && !error && !rows.length && <Empty description="暂无盘中记录，历史补齐或交易时段采集完成后将自动显示。" />}
-      {rows.length > 0 && (
+        <p className="market-note">
+          固定全市场（含ST），不随页面筛选变化
+          {latest && ` · 更新至 ${latest.date} ${latest.time}`}
+        </p>
+      </div>
+      <div className="sentiment-chart-canvas">
+        {error && loadedKey === requestKey && <Alert type="warning" showIcon message={error} description={visible?.points.length ? '以下为上次成功读取的记录。' : undefined} action={<Button size="small" onClick={retry}>重试</Button>} />}
+        {loading && !visible && <LoadingOverlay />}
+        {!loading && !error && !rows.length && <Empty description="暂无盘中记录，历史补齐或交易时段采集完成后将自动显示。" />}
+        {rows.length > 0 && (
         <CChart
-          height={340}
+          height={300}
           onLegendChange={setLegendSelected}
           genOptions={() => ({
             legend: { data: ['上涨家数', '下跌家数'], top: 0, selected: legendSelected },
@@ -151,7 +153,8 @@ export default function IntradayCountsChart() {
             })),
           })}
         />
-      )}
+        )}
+      </div>
     </Card>
   );
 }

@@ -15,6 +15,7 @@ import { allowedPath } from '@/auth/client';
 import { PopularityChanges } from '../../strategy/PopularityChanges';
 import { useMarket } from '../components/MarketContext';
 import { marketHref } from '../components/market-navigation';
+import { scopes } from '../components/market-display';
 import StrongFeedback from '../components/StrongFeedback';
 import IntradayCountsChart from '../components/IntradayCountsChart';
 import LegacyPage from './LegacyPage';
@@ -47,48 +48,42 @@ function SentimentPage() {
         <>
           <DataState loading={loading} error={error} retry={retry} empty={!s}>
             {data && s && (
-            <Row gutter={[16, 16]} className="sentiment-snapshot">
-              <Col xs={24} xl={10}>
-                <Card
-                  className="market-chart sentiment-summary"
-                  title={(
-                    <span className="market-section-title">
-                      当日情绪
-                      <HelpTooltip label="当日情绪" title="非ST样本。封板率＝收盘涨停家数／盘中触板家数；炸板率＝触板后未封板家数／触板家数。" />
-                    </span>
-    )}
-                >
-
-                  <Metrics items={[
-                    {
-                      title: '涨停家数', className: 'quote-up', value: s.limitUp, suffix: '只', href: allowedPath(user, '/analysis/limits') ? marketHref('/analysis/limits', { date, scope }, { type: 'U' }) : undefined,
-                    }, {
-                      title: '跌停家数', className: 'quote-down', value: s.limitDown, suffix: '只', href: allowedPath(user, '/analysis/limits') ? marketHref('/analysis/limits', { date, scope }, { type: 'D' }) : undefined,
-                    }, {
-                      title: '炸板家数', value: s.broken, suffix: '只', href: allowedPath(user, '/analysis/limits') ? marketHref('/analysis/limits', { date, scope }, { type: 'Z' }) : undefined,
-                    },
-                    {
-                      title: '最高连板', description: '截至所选交易日，连续收盘涨停的最高天数。', value: s.maxHeight, suffix: '板', href: allowedPath(user, '/analysis/chains') ? marketHref('/analysis/chains', { date, scope }) : undefined,
-                    },
-                  ]}
-                  />
-                  <p className="market-note">
-                    封板率
-                    {numberText(s.sealRate)}
-                    {s.sealRate == null ? '' : '%'}
-                    {' '}
-                    ／ 炸板率
-                    {' '}
-                    {numberText(s.brokenRate)}
-                    {s.brokenRate == null ? '' : '%'}
-                    ，触板样本
-                    {s.limitUp + s.broken}
-                    {' '}
-                    只
-                  </p>
-                </Card>
-              </Col>
-              <Col xs={24} xl={14}>
+            <>
+              <SectionTitle title="当日情绪" description="跟随页面交易日期与统计范围；非ST样本。封板率＝收盘涨停家数／触板家数，炸板率＝触板后未封板家数／触板家数。" />
+              <Metrics items={[
+                {
+                  title: '涨停家数', className: 'quote-up', value: s.limitUp, suffix: '只', href: allowedPath(user, '/analysis/limits') ? marketHref('/analysis/limits', { date, scope }, { type: 'U' }) : undefined,
+                }, {
+                  title: '跌停家数', className: 'quote-down', value: s.limitDown, suffix: '只', href: allowedPath(user, '/analysis/limits') ? marketHref('/analysis/limits', { date, scope }, { type: 'D' }) : undefined,
+                }, {
+                  title: '炸板家数', value: s.broken, suffix: '只', href: allowedPath(user, '/analysis/limits') ? marketHref('/analysis/limits', { date, scope }, { type: 'Z' }) : undefined,
+                },
+                {
+                  title: '最高连板', description: '截至所选交易日，连续收盘涨停的最高天数。', value: s.maxHeight, suffix: '板', href: allowedPath(user, '/analysis/chains') ? marketHref('/analysis/chains', { date, scope }) : undefined,
+                },
+              ]}
+              />
+              <p className="market-note">
+                封板率
+                {numberText(s.sealRate)}
+                {s.sealRate == null ? '' : '%'}
+                {' '}
+                ／ 炸板率
+                {' '}
+                {numberText(s.brokenRate)}
+                {s.brokenRate == null ? '' : '%'}
+                ，触板样本
+                {s.limitUp + s.broken}
+                {' '}
+                只
+              </p>
+            </>
+            )}
+          </DataState>
+          <Row gutter={[16, 16]} className="sentiment-chart-pair">
+            <Col xs={24} lg={12}>
+              <DataState loading={loading} error={error} retry={retry} empty={!s}>
+                {s && (
                 <Card
                   title={(
                     <span className="market-section-title">
@@ -98,26 +93,49 @@ function SentimentPage() {
     )}
                   className="market-chart"
                 >
-                  <CChart
-                    height={280}
-                    genOptions={() => ({
-                      tooltip: { trigger: 'axis', valueFormatter: (v: unknown) => `${numberText(v, 0)}只` },
-                      grid: {
-                        left: 12, right: 12, bottom: 12, top: 30, containLabel: true,
-                      },
-                      xAxis: { type: 'category', data: bins, axisLabel: { rotate: 45, interval: 0, fontSize: 10 } },
-                      yAxis: { type: 'value', name: '只', minInterval: 1 },
-                      series: [{
-                        name: '股票家数', type: 'bar', barMaxWidth: 32, data: s.distribution.map((value, i) => ({ value, itemStyle: { color: [quoteColors.down, quoteColors.flat, quoteColors.up][Math.sign(i - 10) + 1] } })),
-                      }],
-                    })}
-                  />
+                  <div className="sentiment-chart-meta">
+                    <div>
+                      {scopes.find((option) => option.value === scope)?.label}
+                      {' '}
+                      ·
+                      {' '}
+                      {date}
+                    </div>
+                    <div className="market-note">
+                      上涨
+                      {numberText(s.up, 0)}
+                      {' '}
+                      只 ／ 下跌
+                      {numberText(s.down, 0)}
+                      {' '}
+                      只 ／ 平盘
+                      {numberText(s.flat, 0)}
+                      {' '}
+                      只
+                    </div>
+                  </div>
+                  <div className="sentiment-chart-canvas">
+                    <CChart
+                      height={300}
+                      genOptions={() => ({
+                        tooltip: { trigger: 'axis', valueFormatter: (v: unknown) => `${numberText(v, 0)}只` },
+                        grid: {
+                          left: 12, right: 12, bottom: 12, top: 30, containLabel: true,
+                        },
+                        xAxis: { type: 'category', data: bins, axisLabel: { rotate: 45, interval: 0, fontSize: 10 } },
+                        yAxis: { type: 'value', name: '只', minInterval: 1 },
+                        series: [{
+                          name: '股票家数', type: 'bar', barMaxWidth: 32, data: s.distribution.map((value, i) => ({ value, itemStyle: { color: [quoteColors.down, quoteColors.flat, quoteColors.up][Math.sign(i - 10) + 1] } })),
+                        }],
+                      })}
+                    />
+                  </div>
                 </Card>
-              </Col>
-            </Row>
-            )}
-          </DataState>
-          <IntradayCountsChart />
+                )}
+              </DataState>
+            </Col>
+            <Col xs={24} lg={12}><IntradayCountsChart /></Col>
+          </Row>
           <StrongFeedback />
           <div aria-busy={loading} aria-hidden={loading || !!error} className={`market-data-content${loading || error ? ' is-pending' : ''}`}>
             {data && s && (

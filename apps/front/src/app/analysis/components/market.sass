@@ -339,18 +339,70 @@ a.market-ladder-stock:hover, a.market-ladder-stock:focus-visible
     background: var(--color-surface-muted)
     outline: 1px solid var(--color-border)
 
-.sentiment-snapshot
+.sentiment-chart-pair
+  margin-bottom: 20px
   > .ant-col
-    display: flex
-    > .ant-card
-      width: 100%
-  .sentiment-summary
-    .market-metrics > .ant-col
-      flex: 0 0 50%
-      max-width: 50%
-    .market-metrics
-      margin-bottom: 12px
-    .market-note
-      margin-bottom: 0
-    .metric-value
-      font-size: 26px
+    min-width: 0
+  .market-chart
+    margin-bottom: 0
+  .market-data-state, .market-data-content
+    height: 100%
+  .market-chart
+    height: 100%
+
+.sentiment-chart-meta
+  min-height: 88px
+  .market-note
+    margin: 8px 0 12px
+
+.sentiment-chart-canvas
+  position: relative
+  height: 300px
+  overflow: hidden
+  > .ant-empty
+    padding-top: 90px
+  > .ant-alert
+    position: absolute
+    top: 0
+    left: 0
+    right: 0
+    z-index: 2
+
+.market-extremes-content
+  position: relative
+  .market-extremes-date
+    height: 24px
+  .market-extremes-controls
+    display: grid
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto
+    align-items: center
+    gap: 8px
+    height: 56px
+    .ant-btn
+      padding: 4px
+      overflow: hidden
+      text-overflow: ellipsis
+  .market-extremes-plot
+    position: relative
+    height: 360px
+    > .ant-empty
+      margin: 0
+      padding-top: 100px
+  .market-extremes-notice
+    position: absolute
+    top: 24px
+    left: 0
+    right: 0
+    z-index: 2
+  .market-extremes-footer
+    height: 64px
+    overflow: auto
+    padding-top: 8px
+
+@media (max-width: 575px)
+  .market-extremes-content .market-extremes-controls
+    grid-template-columns: repeat(2, minmax(0, 1fr))
+    height: 88px
+    .ant-segmented
+      grid-column: 1 / -1
+      justify-self: start

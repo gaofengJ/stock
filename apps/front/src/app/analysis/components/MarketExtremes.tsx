@@ -85,48 +85,52 @@ export default function MarketExtremes({ range }: { range: string }) {
 )}
       extra={<Segmented aria-label="新高新低周期" value={period} onChange={(v) => setPeriod(Number(v))} options={[{ label: '20日', value: 20 }, { label: '60日', value: 60 }]} />}
     >
-      <div style={{ position: 'relative', minHeight: 360 }}>
-        {error && <Alert type="error" message={error} action={<Button onClick={retry}>重试</Button>} />}
-        {summaryRow && <div className="market-environment-caption">{`${summaryRow.date === date ? '统计日期' : '最近有效数据'} ${summaryRow.date}`}</div>}
-        {pending && <Alert type="info" showIcon message={`${date} 数据待更新${summaryRow && summaryRow.date !== date ? `，以下摘要显示 ${summaryRow.date} 的有效数据` : ''}`} description="所选交易日的统计缺失或已过期，更新完成后会自动刷新；历史曲线缺失处保留断点。" action={<Button disabled={loading} onClick={retry}>刷新</Button>} />}
-        <Space size={24} wrap className="mb-16">
+      <div className="market-extremes-content" aria-busy={loading}>
+        <div className="market-environment-caption market-extremes-date">{summaryRow ? `${summaryRow.date === date ? '统计日期' : '最近有效数据'} ${summaryRow.date}` : `统计日期 ${date}`}</div>
+        <div className="market-extremes-controls">
           <Button type="text" disabled={!summary || loading || !!error} onClick={() => showDetails('high')}><span className="quote-up">{summary ? `新高 ${numberText(summary.high, 0)}只 / ${numberText(summary.highRatio)}%` : '新高 待更新'}</span></Button>
           <Button type="text" disabled={!summary || loading || !!error} onClick={() => showDetails('low')}><span className="quote-down">{summary ? `新低 ${numberText(summary.low, 0)}只 / ${numberText(summary.lowRatio)}%` : '新低 待更新'}</span></Button>
           <Segmented aria-label="新高新低显示指标" value={metric} onChange={(v) => setMetric(v as ExtremeMetric)} options={[{ label: '家数', value: 'count' }, { label: '占比', value: 'ratio' }]} />
-        </Space>
-        {series.some((r) => r.data) ? (
-          <CChart
-            onLegendChange={setLegendSelected}
-            genOptions={() => ({
-              tooltip: { trigger: 'axis', renderMode: 'richText', valueFormatter: (value: unknown) => `${numberText(value, metric === 'ratio' ? 2 : 0)}${metric === 'ratio' ? '%' : '只'}` },
-              legend: { top: 0, selected: legendSelected },
-              grid: overviewGrid,
-              xAxis: overviewDateAxis(series.map((r) => r.date)),
-              yAxis: { type: 'value', name: metric === 'ratio' ? '%' : '只', min: 0 },
-              series: (['high', 'low'] as const).map((key) => ({
-                name: key === 'high' ? '新高' : '新低',
-                type: 'line',
-                connectNulls: false,
-                showSymbol: false,
-                lineStyle: { width: 1.5 },
-                itemStyle: { color: key === 'high' ? quoteColors.up : quoteColors.down },
-                data: extremeValues(series, key, metric),
-                markLine: {
-                  silent: true,
-                  symbol: 'none',
-                  lineStyle: { color: chartColors.reference, type: 'dashed', width: 1 },
-                  label: { position: 'insideEndTop', formatter: '{b}', color: chartColors.reference },
-                  data: mean?.key === key ? [{ name: `区间均值 ${numberText(mean.value)}${metric === 'ratio' ? '%' : '只'}`, yAxis: mean.value }] : [],
-                },
-              })),
-            })}
-          />
-        ) : !loading && <Empty description="新高新低数据待补齐" />}
-        <div className="market-environment-caption">
+        </div>
+        <div className="market-extremes-plot">
+          <div className="market-extremes-notice">
+            {error && <Alert type="error" message={error} action={<Button onClick={retry}>重试</Button>} />}
+            {pending && !error && <Alert type="info" showIcon message={`${date} 数据待更新${summaryRow && summaryRow.date !== date ? `，摘要显示 ${summaryRow.date} 的有效数据` : ''}`} action={<Button disabled={loading} onClick={retry}>刷新</Button>} />}
+          </div>
+          {series.some((r) => r.data) ? (
+            <CChart
+              onLegendChange={setLegendSelected}
+              genOptions={() => ({
+                tooltip: { trigger: 'axis', renderMode: 'richText', valueFormatter: (value: unknown) => `${numberText(value, metric === 'ratio' ? 2 : 0)}${metric === 'ratio' ? '%' : '只'}` },
+                legend: { top: 0, selected: legendSelected },
+                grid: overviewGrid,
+                xAxis: overviewDateAxis(series.map((r) => r.date)),
+                yAxis: { type: 'value', name: metric === 'ratio' ? '%' : '只', min: 0 },
+                series: (['high', 'low'] as const).map((key) => ({
+                  name: key === 'high' ? '新高' : '新低',
+                  type: 'line',
+                  connectNulls: false,
+                  showSymbol: false,
+                  lineStyle: { width: 1.5 },
+                  itemStyle: { color: key === 'high' ? quoteColors.up : quoteColors.down },
+                  data: extremeValues(series, key, metric),
+                  markLine: {
+                    silent: true,
+                    symbol: 'none',
+                    lineStyle: { color: chartColors.reference, type: 'dashed', width: 1 },
+                    label: { position: 'insideEndTop', formatter: '{b}', color: chartColors.reference },
+                    data: mean?.key === key ? [{ name: `区间均值 ${numberText(mean.value)}${metric === 'ratio' ? '%' : '只'}`, yAxis: mean.value }] : [],
+                  },
+                })),
+              })}
+            />
+          ) : !loading && <Empty description="新高新低数据待补齐" />}
+          {loading && <LoadingOverlay />}
+        </div>
+        <div className="market-environment-caption market-extremes-footer">
           {summary ? `有效样本 ${summary.eligible} 只，历史不足 ${summary.excluded} 只；点击家数查看对应日期名单。` : '历史数据分批补齐，缺失处保留断点。'}
           仅显示一条曲线时展示区间均值，缺失日期不参与计算。
         </div>
-        {loading && <LoadingOverlay />}
       </div>
       <Drawer title={`${detail?.date || ''} - ${detail?.period || period}日${detail?.kind === 'high' ? '新高' : '新低'}`} width={640} open={!!detail} onClose={() => setDetail(null)} destroyOnClose>
         {detail && <ExtremeDetails date={detail.date} scope={detail.scope} period={detail.period} kind={detail.kind} />}
