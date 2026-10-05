@@ -7,6 +7,7 @@ import {
 import Link from 'next/link';
 import Table from '@/components/DataTable';
 import CChart from '@/components/CChart';
+import HelpTooltip from '@/components/HelpTooltip';
 import { FeedbackBoard, FeedbackGroup, FeedbackMember } from '@/api/market';
 import { numberText, changeClass } from '@/utils/format';
 import { quoteColors } from '@/colors';
@@ -16,6 +17,11 @@ import useMarketData from './useMarketData';
 import { DataState, SectionTitle } from './MarketCharts';
 import { useMarket } from './MarketContext';
 import { marketHref } from './market-navigation';
+
+const boardLabel = (height: number | null) => {
+  if (height == null) return '暂无数据';
+  return height === 0 ? '未涨停' : `${String(height)}板`;
+};
 
 export default function StrongFeedback() {
   const request = useMarketData<FeedbackBoard>('feedback', { days: 20 });
@@ -31,7 +37,7 @@ export default function StrongFeedback() {
   const bins = ['≤-9%', '-9~-5%', '-5~0%', '平盘', '0~5%', '5~9%', '≥9%'];
   return (
     <>
-      <SectionTitle title="强势股收益与负反馈" description="跟踪昨日四组股票今日表现，非交易收益率。断板指前日连板、昨日未涨停；断板与炸板可重叠。" />
+      <SectionTitle title="昨日强势股今日表现" description="点击分组查看明细；涨幅、高开和上涨比例仅统计有效样本。断板指前日连板、昨日未涨停，可与炸板组重叠。" />
       <DataState loading={request.loading} error={request.error} retry={request.retry} empty={!data?.ready}>
         <Table<FeedbackGroup>
           rowKey="key"
@@ -46,7 +52,15 @@ export default function StrongFeedback() {
               title: '昨日分组', dataIndex: 'name', width: 160, render: (name, row) => <Button type="link" onClick={() => setSelected(row.key)}>{name}</Button>,
             },
             {
-              title: '有效／总样本', align: 'right', width: 135, render: (_, g) => (g.ready ? `${g.sample}／${g.total}` : '待更新'),
+              title: (
+                <span>
+                  纳入／全部样本
+                  <HelpTooltip label="纳入样本" title="纳入收益统计的有效股票数／该分组全部股票数；未纳入原因见下方明细。" />
+                </span>
+              ),
+              align: 'right',
+              width: 135,
+              render: (_, g) => (g.ready ? `${g.sample}／${g.total}` : '待更新'),
             },
             {
               title: '今日平均涨幅', dataIndex: 'average', align: 'right', render: (v, g) => pct(g.ready ? v : null),
@@ -63,28 +77,30 @@ export default function StrongFeedback() {
           ]}
         />
         <Row gutter={[16, 16]} className="feedback-details">
-          <Col xs={24} lg={12}>
+          <Col xs={24} lg={8}>
             <Card title={`${group?.name || '昨日首板'} - 今日涨跌分布`}>
               <CChart
                 height={330}
                 genOptions={() => ({
                   tooltip: { trigger: 'axis', valueFormatter: (v:unknown) => `${numberText(v, 0)}只` },
                   grid: {
-                    top: 45, left: 50, right: 20, bottom: 45,
+                    top: 35, left: 12, right: 12, bottom: 12, containLabel: true,
                   },
-                  xAxis: { type: 'category', data: bins, axisTick: { alignWithLabel: true } },
+                  xAxis: {
+                    type: 'category', data: bins, axisTick: { alignWithLabel: true }, axisLabel: { interval: 0, rotate: 25, fontSize: 11 },
+                  },
                   yAxis: { type: 'value', name: '只', minInterval: 1 },
                   series: [{ type: 'bar', barMaxWidth: 42, data: (group?.ready ? group.distribution : []).map((value, i) => ({ value, itemStyle: { color: [quoteColors.down, quoteColors.flat, quoteColors.up][Math.sign(i - 3) + 1] } })) }],
                 })}
               />
             </Card>
           </Col>
-          <Col xs={24} lg={12}>
+          <Col xs={24} lg={16}>
             <Card
               title={`${group?.name || '昨日首板'} - 样本明细`}
               extra={(
                 <span className="market-note">
-                  剔除
+                  未纳入收益统计
                   {group?.ready ? group.excluded : '—'}
                   {' '}
                   只
@@ -97,7 +113,7 @@ export default function StrongFeedback() {
                 pagination={false}
                 maxBodyHeight={300}
                 minBodyHeight={280}
-                scroll={{ x: 660 }}
+                scroll={{ x: 600 }}
                 dataSource={group?.ready ? group.members : []}
                 locale={{ emptyText: group?.ready ? '无样本' : '待更新' }}
                 columns={[
@@ -114,11 +130,22 @@ export default function StrongFeedback() {
                   {
                     title: '今日涨跌幅', dataIndex: 'pctChg', align: 'right', render: pct,
                   },
-                  { title: '昨日／今日高度', align: 'center', render: (_, r) => `${r.previousHeight ?? '—'}／${r.height ?? '—'}` },
-                  { title: '统计状态', dataIndex: 'excluded', render: (v) => (v ? <Tag>{v}</Tag> : '计入') },
+                  {
+                    title: '昨日 → 今日连板', align: 'center', render: (_, r) => [r.previousHeight, r.height].map(boardLabel).join(' → '),
+                  },
+                  {
+                    title: '是否纳入收益统计',
+                    dataIndex: 'excluded',
+                    render: (v) => (v ? (
+                      <span>
+                        <Tag>未纳入</Tag>
+                        {v}
+                      </span>
+                    ) : '已纳入'),
+                  },
                 ]}
               />
-              <p className="market-note">首板、连板剔除昨日一字板；各组剔除ST、新股、退市整理及无效行情。</p>
+              <p className="market-note">未纳入的股票不参与平均涨幅、中位数及上涨／高开比例计算。首板、连板排除昨日一字板，各组排除ST、新股、退市整理及无效行情。</p>
             </Card>
           </Col>
         </Row>

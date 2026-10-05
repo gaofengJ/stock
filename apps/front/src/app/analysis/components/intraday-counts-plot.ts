@@ -16,11 +16,11 @@ const sessionTimes = [[570, 690], [780, 900]].flatMap(([start, end]) => Array.fr
   },
 ));
 
-/** Missing samples stay null; never interpolate lunch, missed polls or overnight. */
+/** Trading sessions are adjacent; genuine missing samples still break the line. */
 export function intradayPlot(points: IntradayCountPoint[], dates: string[]): IntradayPlotRow[] {
   const bySlot = new Map(points.map((point) => [`${point.date} ${point.time}`, point]));
   const latest = points.at(-1);
-  return dates.flatMap((date, dayIndex) => {
+  return dates.flatMap((date) => {
     const dayPoints = points.filter((point) => point.date === date);
     const historyOnly = dayPoints.length > 0 && dayPoints.every((point) => point.source === 'history_5m');
     const times = sessionTimes.filter((time) => (
@@ -30,10 +30,17 @@ export function intradayPlot(points: IntradayCountPoint[], dates: string[]): Int
     const rows = times.map((time, index) => ({
       label: `${date} ${time}`, date, time, point: bySlot.get(`${date} ${time}`) || null, first: index === 0,
     }));
-    return dayIndex < dates.length - 1
-      ? [...rows, {
-        label: `${date} close`, date, time: '', point: null, first: false,
-      }]
-      : rows;
+    return rows;
   });
+}
+
+export function intradayMean(rows: IntradayPlotRow[], selected: Record<string, boolean>) {
+  const fields = ([['up', '上涨家数'], ['down', '下跌家数']] as const).filter(([, name]) => selected[name] !== false);
+  if (fields.length !== 1) return null;
+  const [key, name] = fields[0];
+  const values = rows.flatMap((row) => {
+    const value = row.point?.[key];
+    return value != null && Number.isFinite(value) ? [value] : [];
+  });
+  return values.length ? { key, name, value: values.reduce((sum, value) => sum + value, 0) / values.length } : null;
 }

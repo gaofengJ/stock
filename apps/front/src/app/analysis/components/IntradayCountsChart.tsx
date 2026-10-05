@@ -12,12 +12,13 @@ import CChart from '@/components/CChart';
 import HelpTooltip from '@/components/HelpTooltip';
 import { LoadingOverlay } from '@/components/Loading';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
-import { beijingTime, numberText } from '@/utils/format';
-import { quoteColors } from '@/colors';
-import { intradayPlot } from './intraday-counts-plot';
+import { numberText } from '@/utils/format';
+import { chartColors, quoteColors } from '@/colors';
+import { intradayMean, intradayPlot } from './intraday-counts-plot';
 
 export default function IntradayCountsChart() {
   const [date, setDate] = useState('');
+  const [legendSelected, setLegendSelected] = useState<Record<string, boolean>>({});
   const [days, setDays] = useState(10);
   const [attempt, setAttempt] = useState(0);
   const [result, setResult] = useState<{ key: string; data: IntradayCounts } | null>(null);
@@ -48,12 +49,14 @@ export default function IntradayCountsChart() {
   const visible = result?.key === requestKey ? result.data : null;
   const rows = intradayPlot(visible?.points || [], visible?.dates || []);
   const latest = visible?.points.at(-1);
+  const mean = intradayMean(rows, legendSelected);
+  const singleDay = new Set(rows.map((row) => row.date)).size <= 1;
   return (
     <Card
       title={(
         <span className="market-section-title">
           连日盘中涨跌家数
-          <HelpTooltip label="连日盘中涨跌家数" title="全市场含ST，不随页面统计范围切换。实时数据来自财联社，每5分钟采集；接入前历史使用新浪、东方财富或同花顺未复权5分钟收盘价对比平台日线昨收重建，逐股校验每天收盘价，个股分钟数据不保存。历史时点为09:35–11:30、13:05–15:00。午休压缩，缺失时点和跨日之间留空，最多保留30个交易日。" />
+          <HelpTooltip label="连日盘中涨跌家数" title="全市场含ST，每5分钟统计，不受页面市场范围筛选影响。跨日连续展示，缺失数据保留断点；仅选一条线时显示所选交易日内有效时点的平均值。" />
         </span>
       )}
       extra={(
@@ -85,9 +88,10 @@ export default function IntradayCountsChart() {
       {!loading && !error && !rows.length && <Empty description="暂无盘中记录，历史补齐或交易时段采集完成后将自动显示。" />}
       {rows.length > 0 && (
         <CChart
-          height={360}
+          height={340}
+          onLegendChange={setLegendSelected}
           genOptions={() => ({
-            legend: { data: ['上涨家数', '下跌家数'], top: 0 },
+            legend: { data: ['上涨家数', '下跌家数'], top: 0, selected: legendSelected },
             tooltip: {
               trigger: 'axis',
               renderMode: 'richText',
@@ -96,10 +100,8 @@ export default function IntradayCountsChart() {
                 const row = rows[index];
                 if (!row?.time) return '';
                 return [
-                  `${row.date} ${row.time}（北京时间）`,
-                  row.point ? `上涨：${numberText(row.point.up, 0)}只\n下跌：${numberText(row.point.down, 0)}只` : '该时点未采集',
-                  row.point && (row.point.source === 'history_5m' ? '来源：历史5分钟行情重建' : '来源：财联社实时采集'),
-                  row.point && `入库：${beijingTime(row.point.collectedAt)}`,
+                  `${row.date} ${row.time}`,
+                  row.point ? (['up', 'down'] as const).filter((key) => legendSelected[key === 'up' ? '上涨家数' : '下跌家数'] !== false).map((key) => `${key === 'up' ? '上涨' : '下跌'}：${numberText(row.point?.[key], 0)}只`).join('\n') : '该时点未采集',
                 ].join('\n');
               },
             },
@@ -113,8 +115,8 @@ export default function IntradayCountsChart() {
               axisTick: { show: false },
               axisLabel: {
                 hideOverlap: true,
-                interval: rows.length <= 51 ? 'auto' : (index: number) => rows[index].first,
-                formatter: (_value: string, index: number) => (rows.length <= 51 ? rows[index].time : rows[index].date.slice(5)),
+                interval: singleDay ? 'auto' : (index: number) => rows[index].first,
+                formatter: (_value: string, index: number) => (singleDay ? rows[index].time : rows[index].date.slice(5)),
               },
             },
             yAxis: {
@@ -126,33 +128,27 @@ export default function IntradayCountsChart() {
                 type: 'slider', bottom: 5, height: 20, filterMode: 'none',
               },
             ],
-            series: [
-              {
-                name: '上涨家数',
-                type: 'line',
-                showSymbol: true,
-                symbolSize: visible?.points.length === 1 ? 6 : 3,
-                connectNulls: false,
-                itemStyle: { color: quoteColors.up },
-                data: rows.map((row) => row.point?.up ?? null),
-                markLine: {
-                  silent: true,
-                  symbol: 'none',
-                  label: { show: false },
-                  lineStyle: { type: 'dashed', opacity: 0.25 },
-                  data: rows.filter((row) => row.first).slice(1).map((row) => ({ xAxis: row.label })),
-                },
+            series: (['up', 'down'] as const).map((key) => ({
+              name: key === 'up' ? '上涨家数' : '下跌家数',
+              type: 'line',
+              showSymbol: true,
+              symbolSize: visible?.points.length === 1 ? 6 : 3,
+              connectNulls: false,
+              itemStyle: { color: quoteColors[key] },
+              data: rows.map((row) => row.point?.[key] ?? null),
+              markLine: {
+                silent: true,
+                symbol: 'none',
+                lineStyle: { type: 'dashed', color: chartColors.reference, width: 1 },
+                label: { position: 'insideEndTop', formatter: '{b}', color: chartColors.reference },
+                data: [
+                  ...rows.filter((row) => row.first).slice(1).map((row) => ({
+                    xAxis: row.label, label: { show: false }, lineStyle: { opacity: 0.2 },
+                  })),
+                  ...(mean?.key === key ? [{ name: `时点均值 ${numberText(mean.value)}只`, yAxis: mean.value }] : []),
+                ],
               },
-              {
-                name: '下跌家数',
-                type: 'line',
-                showSymbol: true,
-                symbolSize: visible?.points.length === 1 ? 6 : 3,
-                connectNulls: false,
-                itemStyle: { color: quoteColors.down },
-                data: rows.map((row) => row.point?.down ?? null),
-              },
-            ],
+            })),
           })}
         />
       )}
