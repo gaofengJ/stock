@@ -13,6 +13,7 @@ import Layout from '@/components/Layout';
 import { basicSiderMenuItems } from '@/components/Layout/config';
 import { EHeaderMenuKey } from '@/components/Layout/enum';
 import './workbench.css';
+import { startWorkbenchPolling } from './workbench-polling';
 
 export function stockHref(code: string, date?: string) {
   return `/basic/stock/detail/?code=${encodeURIComponent(code)}${date ? `&date=${date}` : ''}`;
@@ -22,42 +23,45 @@ export function StockLink({ code, name, date }: { code: string; name?: string; d
   if (!allowedPath(user, '/basic/stock')) return <span>{name || code}</span>;
   return <Link href={stockHref(code, date)}>{name || code}</Link>;
 }
-export function BasicShell({ title, path, children }: { title: string; path: string; children: React.ReactNode }) {
+export function BasicShell({ title, path, children }: { title?: string; path: string; children: React.ReactNode }) {
   return (
     <Layout asideMenuItems={basicSiderMenuItems} headerMenuActive={EHeaderMenuKey.basic} asideMenuActive={path}>
       <main className="p-16 rounded-[6px] bg-bg-white basic-workbench">
-        <h1 className="page-heading">{title}</h1>
+        {title && <h1 className="page-heading">{title}</h1>}
         {children}
       </main>
     </Layout>
   );
 }
 export function useWorkbench(endpoint: string, params: Record<string, unknown>, enabled = true) {
-  const [data, setData] = useState<any>(null);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ key: string; data: any; error: string; loading: boolean; pollingStopped: boolean }>({
+    key: '', data: null, error: '', loading: true, pollingStopped: false,
+  });
   const [attempt, setAttempt] = useState(0);
-  const key = JSON.stringify(params);
+  const key = JSON.stringify([endpoint, params]);
   useEffect(() => {
     if (!enabled) return undefined;
-    let active = true; let timer: ReturnType<typeof setTimeout>; let polls = 0;
-    const controller = new AbortController();
-    setData(null); setLoading(true); setError('');
-    const load = async () => {
-      try {
-        const r = await request.get<any>(`/basic/workbench/${endpoint}`, { params: JSON.parse(key), signal: controller.signal, autoShowError: false });
-        if (!active) return;
-        setData(r.data); setError('');
-        if (r.data.sources?.some((s: any) => s.state === 'loading' || (s.state === 'stale' && !s.message)) && polls < 90) {
-          polls += 1; timer = setTimeout(load, 3000);
-        }
-      } catch (e) { if (active) setError(errorMessage(e, '加载失败，请重试')); } finally { if (active) setLoading(false); }
-    };
-    load();
-    return () => { active = false; controller.abort(); clearTimeout(timer); };
+    setResult((old) => ({
+      key, data: old.key === key ? old.data : null, error: '', loading: true, pollingStopped: false,
+    }));
+    return startWorkbenchPolling<any>({
+      read: async (signal) => (await request.get<any>(`/basic/workbench/${endpoint}`, { params: JSON.parse(key)[1], signal, autoShowError: false })).data,
+      onValue: (data) => setResult({
+        key, data, error: '', loading: false, pollingStopped: false,
+      }),
+      onError: (error) => setResult((old) => ({
+        ...old, error: errorMessage(error, '加载失败，请重试'), loading: false, pollingStopped: true,
+      })),
+      onStopped: () => setResult((old) => ({ ...old, pollingStopped: true })),
+    });
   }, [endpoint, key, enabled, attempt]);
+  const current = enabled && result.key === key;
   return {
-    data, error, loading, retry: () => setAttempt((v) => v + 1),
+    data: current ? result.data : null,
+    error: current ? result.error : '',
+    loading: enabled && (!current || result.loading),
+    pollingStopped: current && result.pollingStopped,
+    retry: () => setAttempt((v) => v + 1),
   };
 }
 const sourceNames: Record<string, string> = {

@@ -10,9 +10,11 @@ import { TradeCalEntity } from '@/modules/source/trade-cal/trade-cal.entity';
 import { ActiveFundsEntity } from '@/modules/source/active-funds/active-funds.entity';
 import { BseMappingEntity } from '@/modules/analysis/market/market.entity';
 import { SectorService } from '@/modules/analysis/market/sector.service';
+import { AsyncTtlCache } from '@/modules/analysis/async-ttl-cache';
 import { shanghaiDate } from '@/modules/daily-task/sync.utils';
 import { BasicSnapshotService, SourceSnapshot } from './snapshot.service';
 import { WorkbenchQuery } from './workbench.dto';
+import { readProfileHistory } from './profile-reader';
 import {
   RISK_CHECKLIST,
   announcementCategories,
@@ -100,6 +102,8 @@ export function groupUnlockEvents(items: Record<string, any>[]) {
 
 @Injectable()
 export class WorkbenchService {
+  private readonly profileIdentityCache = new AsyncTtlCache(30000);
+
   constructor(
     private db: DataSource,
     private cache: BasicSnapshotService,
@@ -108,7 +112,9 @@ export class WorkbenchService {
 
   async profile(dto: WorkbenchQuery) {
     if (!dto.code) throw new BadRequestException('请选择股票');
-    const mapping = await this.db.manager.find(BseMappingEntity);
+    const mapping = await this.profileIdentityCache.getOrCreate('mapping', () =>
+      this.db.manager.find(BseMappingEntity),
+    );
     const code =
       mapping.find((r) => r.oldCode === dto.code)?.newCode || dto.code;
     const aliases = [
@@ -116,11 +122,12 @@ export class WorkbenchService {
       ...mapping.filter((r) => r.newCode === code).map((r) => r.oldCode),
     ];
     const date = dto.date || shanghaiDate();
+    if (dto.section === 'financial') return this.profileFinancial(code, date);
     const [stock, history] = await Promise.all([
       this.db.manager.findOneBy(StockEntity, { tsCode: code }),
-      this.db.manager.findOneBy(StockHistoryEntity, {
-        snapshotKey: 'identity',
-      }),
+      this.profileIdentityCache.getOrCreate(`identity:${code}`, () =>
+        readProfileHistory(this.db, aliases),
+      ),
     ]);
     const historic = history?.data.stocks.find((r) =>
       aliases.includes(r.tsCode),
@@ -131,48 +138,41 @@ export class WorkbenchService {
       : code.endsWith('.SZ')
       ? 'SZSE'
       : 'BSE';
-    const [company, financial, cashflow] = await Promise.all([
+    const base = stock || { ...historic?.profile, ...historic, tsCode: code };
+    const [company, sectorLinks, financialData, daily] = await Promise.all([
       this.cache.read(
         'stock_company',
         { exchange },
         'ts_code,com_name,chairman,manager,reg_capital,setup_date,province,city,introduction,website,main_business,business_scope',
-      ),
-      this.cache.read(
-        'fina_indicator',
-        { ts_code: code },
-        'ts_code,ann_date,end_date,or_yoy,netprofit_yoy,profit_dedt,debt_to_assets,update_flag',
-      ),
-      this.cache.read(
-        'cashflow',
-        { ts_code: code },
-        'ts_code,ann_date,f_ann_date,end_date,n_cashflow_act,report_type,update_flag',
-      ),
-    ]);
-    const financialRow = latestDisclosed(financial.rows, date);
-    const cashRow = latestDisclosed(
-      cashflow.rows.filter(
-        (r) =>
-          String(r.report_type) === '1' &&
-          (!financialRow || r.end_date === financialRow.end_date),
-      ),
-      date,
-    );
-    const daily = await this.db.manager
-      .getRepository(DailyEntity)
-      .createQueryBuilder('d')
-      .where('d.tsCode IN (:...aliases) AND d.tradeDate <= :date', {
         aliases,
-        date,
-      })
-      .orderBy('d.tradeDate', 'DESC')
-      .getOne();
-    const base = stock || { ...historic?.profile, ...historic, tsCode: code };
-    const [decorated] = await this.sectors.decorate([base], date);
+      ),
+      this.sectors.stockLinks(aliases, date),
+      dto.section === 'overview' ? null : this.profileFinancial(code, date),
+      // The overview does not display a quote. The chart loads its own series on demand.
+      dto.section === 'overview'
+        ? null
+        : this.db.manager
+            .getRepository(DailyEntity)
+            .createQueryBuilder('d')
+            .where('d.tsCode IN (:...aliases) AND d.tradeDate <= :date', {
+              aliases,
+              date,
+            })
+            .orderBy('d.tradeDate', 'DESC')
+            .take(1)
+            .getOne(),
+    ]);
     return {
       code,
       date,
       stock: {
-        ...decorated,
+        ...base,
+        industries: sectorLinks.filter((sector) => sector.type === 'I'),
+        topics: sectorLinks.filter((sector) => sector.type === 'N'),
+        industry: sectorLinks
+          .filter((sector) => sector.type === 'I')
+          .map((sector) => sector.name)
+          .join('／'),
         open: daily?.open,
         close: daily?.close,
         high: daily?.high,
@@ -186,9 +186,42 @@ export class WorkbenchService {
       names: (history?.data.names || [])
         .filter((r) => aliases.includes(r.tsCode))
         .sort((a, b) => b.startDate.localeCompare(a.startDate)),
+      financial: financialData?.financial || null,
+      cashflow: financialData?.cashflow || null,
+      sources: [...sourceStatus([company]), ...(financialData?.sources || [])],
+    };
+  }
+
+  private async profileFinancial(code: string, date: string) {
+    const [financial, cashflow] = await Promise.all([
+      this.cache.read(
+        'fina_indicator',
+        { ts_code: code },
+        'ts_code,ann_date,end_date,or_yoy,netprofit_yoy,profit_dedt,debt_to_assets,update_flag',
+      ),
+      this.cache.read(
+        'cashflow',
+        { ts_code: code },
+        'ts_code,ann_date,f_ann_date,end_date,n_cashflow_act,report_type,update_flag',
+      ),
+    ]);
+    const financialRow = latestDisclosed(financial.rows, date);
+    const cashRow = financialRow
+      ? latestDisclosed(
+          cashflow.rows.filter(
+            (r) =>
+              String(r.report_type) === '1' &&
+              r.end_date === financialRow.end_date,
+          ),
+          date,
+        )
+      : null;
+    return {
+      code,
+      date,
       financial: financialRow,
       cashflow: cashRow,
-      sources: sourceStatus([company, financial, cashflow]),
+      sources: sourceStatus([financial, cashflow]),
     };
   }
 

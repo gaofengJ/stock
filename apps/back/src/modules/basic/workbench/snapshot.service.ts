@@ -65,14 +65,15 @@ export class BasicSnapshotService {
     source: string,
     params: Record<string, unknown>,
     fields?: string,
+    rowCodes?: string[],
   ): Promise<SourceSnapshot> {
     if (!caps[source]) throw new Error('Unsupported basic source');
     const snapshotKey = createHash('sha256')
       .update(JSON.stringify([source, params, fields || '']))
       .digest('hex');
-    const cached = await this.db.manager.findOneBy(BasicSnapshotEntity, {
-      snapshotKey,
-    });
+    const cached = rowCodes?.length
+      ? await this.readProjected(snapshotKey, rowCodes)
+      : await this.db.manager.findOneBy(BasicSnapshotEntity, { snapshotKey });
     this.deferred.forEach((until, key) => {
       if (until <= Date.now()) this.deferred.delete(key);
     });
@@ -133,12 +134,20 @@ export class BasicSnapshotService {
         }
         try {
           const save = () =>
-            this.writes.withLock((manager) =>
-              manager.upsert(
-                BasicSnapshotEntity,
-                { ...record, snapshotKey, source, params: params as any },
-                ['snapshotKey'],
-              ),
+            this.writes.withLock(
+              (manager): Promise<unknown> =>
+                // A projected response must never replace the complete cached catalog on failure.
+                rowCodes?.length && cached && record.error
+                  ? manager.update(
+                      BasicSnapshotEntity,
+                      { snapshotKey },
+                      { error: record.error, retryAt: record.retryAt },
+                    )
+                  : manager.upsert(
+                      BasicSnapshotEntity,
+                      { ...record, snapshotKey, source, params: params as any },
+                      ['snapshotKey'],
+                    ),
             );
           const writing = this.writeTail.catch(() => undefined).then(save);
           this.writeTail = writing;
@@ -166,7 +175,36 @@ export class BasicSnapshotService {
         : deferred || (cached?.error && !due)
         ? 'error'
         : 'loading',
-      message: deferred ? '数据同步中，稍后可刷新' : cached?.error || null,
+      message: deferred
+        ? '数据同步中，稍后可刷新'
+        : this.pending.has(snapshotKey)
+        ? null
+        : cached?.error || null,
+    };
+  }
+
+  private async readProjected(snapshotKey: string, codes: string[]) {
+    const projections = codes.map(
+      (_, index) =>
+        `JSON_EXTRACT(data, REPLACE(JSON_UNQUOTE(JSON_SEARCH(data, 'one', ?, NULL, '$[*].ts_code')), '.ts_code', '')) row${index}`,
+    );
+    const [record] = await this.db.query(
+      `SELECT fetched_at fetchedAt,retry_at retryAt,error,${projections.join(
+        ',',
+      )} FROM t_source_basic_snapshot WHERE snapshot_key=?`,
+      [...codes, snapshotKey],
+    );
+    if (!record) return null;
+    return {
+      fetchedAt: record.fetchedAt ? new Date(record.fetchedAt) : null,
+      retryAt: new Date(record.retryAt),
+      error: record.error,
+      rows: codes
+        .map((_, index) => record[`row${index}`])
+        .filter(Boolean)
+        .map((value) =>
+          typeof value === 'string' ? JSON.parse(value) : value,
+        ),
     };
   }
 

@@ -93,6 +93,27 @@ describe('basic workbench temporal and source safety', () => {
     );
   });
 
+  it('clears an expired failure message while a cached source is refreshing', async () => {
+    const service = new BasicSnapshotService(
+      {
+        manager: {
+          findOneBy: async () => ({
+            rows: [{ ts_code: '600081.SH' }],
+            fetchedAt: new Date('2026-09-30'),
+            retryAt: new Date(0),
+            error: '数据源暂不可用',
+          }),
+        },
+      } as any,
+      { queryData: () => new Promise(() => {}) } as any,
+      {} as any,
+    );
+    const result = await service.read('stock_company', { exchange: 'SSE' });
+    expect(result.state).toBe('stale');
+    expect(result.message).toBeNull();
+    expect(result.rows).toEqual([{ ts_code: '600081.SH' }]);
+  });
+
   it('uses announcement-day forecast queries, floats in shares, and explicit pending sources', async () => {
     const cache = {
       read: jest.fn(async (source: string, params: any) => ({

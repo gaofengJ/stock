@@ -42,7 +42,7 @@ function SentimentPage() {
       {view === 'popularity' ? (
         <div id="popularity">
           <p className="market-note">同花顺全市场日终榜单，仅跟随交易日期，覆盖全市场。</p>
-          <PopularityChanges date={date} />
+          <PopularityChanges date={date} code={/^\d{6}\.(SH|SZ|BJ)$/.test(params.get('code') || '') ? params.get('code') : undefined} />
         </div>
       ) : (
         <>

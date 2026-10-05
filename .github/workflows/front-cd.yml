@@ -27,6 +27,7 @@ jobs:
       - name: Verify display formatting and request compatibility
         run: node --test apps/front/scripts/test-display.cjs apps/front/scripts/test-errors.cjs apps/front/scripts/test-market-compatibility.cjs apps/front/scripts/test-guest-access.cjs apps/front/scripts/test-market-environment.cjs apps/front/scripts/test-blog-paths.cjs apps/front/scripts/test-intraday-counts.cjs
       - run: node --test apps/front/scripts/test-admin-polling.cjs
+      - run: pnpm -C apps/front run test:profile
       - run: pnpm -C apps/front run build
       - uses: actions/upload-artifact@v4
         with:

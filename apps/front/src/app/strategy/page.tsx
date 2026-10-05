@@ -118,8 +118,8 @@ function StrategyPage() {
     updateQuery({ ...writeStrategyOptions(savedOptions.current[key]), strategyType: key, code: undefined });
   };
   useEffect(() => {
-    if (params.get('view') === 'popularity' && date && allowedPath(user, '/analysis/senti')) window.location.replace(`/analysis/senti/?date=${date}&scope=all&view=popularity#popularity`);
-  }, [params, date, user]);
+    if (params.get('view') === 'popularity' && date && allowedPath(user, '/analysis/senti')) window.location.replace(`/analysis/senti/?date=${date}&scope=all&view=popularity${linkedCode ? `&code=${linkedCode}` : ''}#popularity`);
+  }, [params, date, user, linkedCode]);
   const columns = [
     ...strategyColumns.slice(0, 2).map((column) => ({
       ...column,

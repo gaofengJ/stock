@@ -1,0 +1,42 @@
+.stock-profile { max-width: 1440px; margin: 0 auto; }
+.profile-breadcrumb { display: flex; gap: 10px; align-items: center; color: var(--text-secondary); font-size: 13px; margin-bottom: 20px; }
+.profile-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
+.profile-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }
+.profile-title-row h1 { font-size: 28px; font-weight: 650; line-height: 1.3; margin: 0; }
+.profile-code { color: var(--text-secondary); font-size: 16px; font-variant-numeric: tabular-nums; }
+.profile-muted { color: var(--text-secondary); font-size: 13px; line-height: 1.7; margin: 0; }
+.profile-date { display: flex; gap: 12px; align-items: center; padding-top: 4px; }
+.profile-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; margin-bottom: 24px; }
+.profile-actions-secondary { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-left: auto; }
+.profile-basis { margin-bottom: 18px; }
+.stock-profile .ant-descriptions-item-content { overflow-wrap: anywhere; }
+.profile-business { margin-top: 8px; max-width: 90ch; }
+.profile-business h2 { font-size: 14px; font-weight: 600; margin: 0 0 8px; }
+.profile-business p, .profile-company-text { font-size: 14px; line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 90ch; margin: 0; }
+.profile-disclosure { margin-top: 16px; }
+.profile-disclosure summary { cursor: pointer; font-size: 14px; font-weight: 500; width: fit-content; }
+.profile-disclosure[open] summary { margin-bottom: 12px; }
+.profile-source-note { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 16px; color: var(--text-secondary); font-size: 12px; line-height: 1.7; }
+.profile-sector-row { display: flex; gap: 16px; margin-bottom: 12px; align-items: baseline; }
+.profile-field-label { flex: 0 0 60px; color: var(--text-secondary); font-size: 14px; }
+.profile-sector-tags { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.profile-sector-tags .ant-tag { margin: 0; padding: 2px 8px; }
+.profile-report-period { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 0 0 16px; font-size: 13px; }
+.profile-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.profile-stat { border: 1px solid var(--color-border, #454952); border-radius: 8px; padding: 16px; min-width: 0; }
+.profile-stat > span { display: block; font-size: 13px; margin-bottom: 12px; }
+.profile-stat small { color: var(--text-secondary); font-size: 12px; }
+.profile-stat strong { display: block; font-size: 24px; font-weight: 600; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.profile-stat .ant-skeleton-input { min-width: 0 !important; width: 90px !important; max-width: 100%; }
+.profile-code-history { margin: 16px 0 0; font-size: 14px; }
+@media (max-width: 1100px) { .profile-actions-secondary { margin-left: 0; } .profile-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .profile-title-row h1 { font-size: 24px; }
+  .profile-header, .profile-actions { gap: 14px; }
+  .profile-date { width: 100%; }
+  .profile-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profile-sector-row { flex-direction: column; gap: 8px; }
+  .profile-field-label { flex-basis: auto; }
+  .profile-stat { padding: 12px; }
+  .stock-profile .ant-card-head { flex-wrap: wrap; }
+}

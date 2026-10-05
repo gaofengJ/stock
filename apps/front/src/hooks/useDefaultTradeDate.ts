@@ -27,7 +27,7 @@ const loadDefaultTradeDate = (candidate: string) => {
   return cachedTradeDatePromise;
 };
 /** Use the existing calendar independently of market-summary publication. */
-export const useDefaultTradeDate = () => {
+export const useDefaultTradeDate = (enabled = true) => {
   const [candidate] = useState(() => getCandidateDate().format('YYYY-MM-DD'));
   const [tradeDate, setTradeDate] = useState(candidate);
   const [ready, setReady] = useState(false);
@@ -35,13 +35,14 @@ export const useDefaultTradeDate = () => {
   const [attempt, setAttempt] = useState(0);
   const retry = useCallback(() => { clearTradeDateCache(); setAttempt((v) => v + 1); }, []);
   useEffect(() => {
+    if (!enabled) return undefined;
     let active = true;
     setError(''); setReady(false);
     loadDefaultTradeDate(candidate).then((date) => {
       if (active) { setTradeDate(date); setReady(true); }
     }).catch((e) => { if (active) setError(errorMessage(e, '交易日期加载失败，请重试')); });
     return () => { active = false; };
-  }, [candidate, attempt]);
+  }, [candidate, attempt, enabled]);
   return {
     candidate, ready, tradeDate, error, retry,
   };

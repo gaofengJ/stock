@@ -15,6 +15,8 @@ export class WorkbenchQuery {
 
   @IsOptional() @Matches(/^\d{6}\.(SH|SZ|BJ)$/) code?: string;
 
+  @IsOptional() @IsIn(['overview', 'financial']) section?: string;
+
   @IsOptional() @Matches(/^88[156]\d{3}\.TI$/) sector?: string;
 
   @IsOptional() @IsString() @MaxLength(256) org?: string;

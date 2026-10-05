@@ -346,6 +346,29 @@ export class SectorService {
     return result;
   }
 
+  /** A single profile needs matching board labels, not every board's member list. */
+  async stockLinks(codes: string[], date: string): Promise<SectorLink[]> {
+    if (!this.db.hasMetadata(SectorMembersEntity) || !codes.length) return [];
+    return this.memberCache.getOrCreate(
+      `stock:${date}:${codes.join(',')}`,
+      () =>
+        this.db.query(
+          `SELECT c.ts_code code,c.name,c.type,DATE_FORMAT(s.as_of,'%Y-%m-%d') asOf
+         FROM t_source_ths_members s
+         JOIN (SELECT ts_code,COALESCE(MAX(CASE WHEN as_of<=? THEN as_of ELSE NULL END),MIN(as_of)) as_of FROM t_source_ths_members GROUP BY ts_code) chosen ON s.ts_code=chosen.ts_code AND s.as_of=chosen.as_of
+         JOIN t_source_ths_sector c ON c.ts_code=s.ts_code AND c.active=1
+         WHERE (${codes
+           .map(
+             () =>
+               "JSON_SEARCH(s.members,'one',?,NULL,'$[*].code') IS NOT NULL",
+           )
+           .join(' OR ')})
+         ORDER BY c.type,c.ts_code`,
+          [date, ...codes],
+        ),
+    );
+  }
+
   async decorate<T extends { tsCode?: string; industry?: any }>(
     rows: T[],
     date?: string,

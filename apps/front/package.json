@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test:profile": "node --test scripts/test-profile.cjs",
     "test:intraday-counts": "node --test scripts/test-intraday-counts.cjs",
     "test:guest-access": "node --test scripts/test-guest-access.cjs",
     "test:market-compatibility": "node --test scripts/test-market-compatibility.cjs",
