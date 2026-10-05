@@ -27,7 +27,7 @@ import AccountAvatar from '@/auth/AccountAvatar';
 import HelpTooltip from '@/components/HelpTooltip';
 import { LoginActivityContext, useLoginActivity } from '@/auth/LoginActivity';
 import {
-  MenuOutlined, WechatOutlined, GiftOutlined, UserOutlined, LogoutOutlined,
+  CommentOutlined, MenuOutlined, WechatOutlined, GiftOutlined, UserOutlined, LogoutOutlined,
 } from '@ant-design/icons';
 import ImgFengye from '@/assets/imgs/fengye.png';
 import ImgAuthorContact from '@/assets/imgs/author-contact.webp';
@@ -228,12 +228,13 @@ const CommonLayout: React.FC<ILayoutProps> = ({
               menu={{
                 items: [
                   { key: 'profile', label: '个人中心', icon: <UserOutlined /> },
+                  { key: 'feedback', label: '意见反馈', icon: <CommentOutlined /> },
                   { type: 'divider' },
                   { key: 'logout', label: '退出登录', icon: <LogoutOutlined /> },
                 ],
                 onClick: ({ key }) => {
                   setAccountOpen(false);
-                  if (key === 'profile') router.push('/profile'); else logout().catch((e) => message.error(errorMessage(e)));
+                  if (key === 'profile' || key === 'feedback') router.push(`/${key}`); else logout().catch((e) => message.error(errorMessage(e)));
                 },
               }}
               placement="bottomRight"

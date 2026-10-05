@@ -6,6 +6,9 @@ const { Test } = require('@nestjs/testing');
 const { DataSource } = require('typeorm');
 const { FastifyAdapter } = require('@nestjs/platform-fastify');
 const { APP_GUARD, Reflector } = require('@nestjs/core');
+const { FeedbackModule } = require('../dist/modules/feedback/feedback.module');
+const { PrivateFeedback1791849600000 } = require('../dist/migrations/1791849600000-PrivateFeedback');
+const verifyFeedback = require('./feedback.integration.cjs');
 const { AuthModule } = require('../dist/modules/auth/auth.module');
 const { AuthService, COOKIE, digest } = require('../dist/modules/auth/auth.service');
 const { AuthGuard } = require('../dist/modules/auth/auth.guard');
@@ -54,6 +57,8 @@ async function main() {
     await migration.up(q);
     const avatars = new AccountAvatars1790467200001();
     await avatars.up(q);
+    await new PrivateFeedback1791849600000().up(q);
+    await new PrivateFeedback1791849600000().up(q);
     await new MarketAnalysis1790553600000().up(q);
     await new AdminJobControls1791676800000().up(q);
     await new AdminJobControls1791676800000().up(q);
@@ -105,6 +110,8 @@ async function main() {
     const [portrait] = await db.query("SELECT avatar FROM t_user WHERE username='mufeng'");
     assert.match(portrait.avatar, /^auto-bull-(red|pink|gold|green|blue|purple|coffee)-(star|heart|flower|bow)$/);
     await avatars.up(q);
+    await new PrivateFeedback1791849600000().up(q);
+    await new PrivateFeedback1791849600000().up(q);
     assert.equal((await db.query("SELECT avatar FROM t_user WHERE username='mufeng'"))[0].avatar, portrait.avatar, 'Migration preserves assigned avatars');
     const [initial] = await db.query("SELECT id,password FROM t_user WHERE username='mufeng'");
     assert.ok(initial.password.startsWith('$argon2id$'));
@@ -117,7 +124,7 @@ async function main() {
     await q.release();
     class TestDatabase {}
     Global()(TestDatabase); Module({ providers: [{ provide: DataSource, useValue: db }], exports: [DataSource] })(TestDatabase);
-    const module = await Test.createTestingModule({ imports: [TestDatabase, AuthModule, ConfigModule.forRoot({isGlobal:true,ignoreEnvFile:true,load:[()=>({NEWS_SYNC_ENABLED:'false'})]}), NewsModule], providers: [{ provide: APP_GUARD, useClass: AuthGuard }] }).compile();
+    const module = await Test.createTestingModule({ imports: [TestDatabase, AuthModule, FeedbackModule, ConfigModule.forRoot({isGlobal:true,ignoreEnvFile:true,load:[()=>({NEWS_SYNC_ENABLED:'false'})]}), NewsModule], providers: [{ provide: APP_GUARD, useClass: AuthGuard }] }).compile();
     const adapter = new FastifyAdapter();
     await adapter.register(require('@fastify/cookie'));
     app = module.createNestApplication(adapter, { logger: false });
@@ -144,6 +151,7 @@ async function main() {
     assert.equal((await inject('POST', '/auth/register', { username: 'mufeng', password: 'test-password-123' }, anon)).statusCode, 409);
     let user = await login('alice', 'test-password-123');
     const admin = await login('mufeng', adminPassword);
+    await verifyFeedback({ inject, user, admin, db });
     await db.query("INSERT INTO t_news_item(source,dedupe_key,kind,title,body,important,published_at,created_at,updated_at) VALUES('jin10',REPEAT('a',64),'flash','新闻测试','测试正文',1,'2026-10-01 00:00:00',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))");
     await db.query("UPDATE t_news_source SET status='ok',last_success=UTC_TIMESTAMP(3),last_error='' WHERE source='jin10'");
     await db.query("INSERT INTO t_news_item(source,dedupe_key,kind,title,body,important,published_at,created_at,updated_at) VALUES('em-stock',REPEAT('d',64),'article','研报测试','不应展示',0,'2026-10-01 00:00:00',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3)),('stcn',REPEAT('e',64),'flash','失败来源旧内容','不应展示',0,'2026-10-01 00:00:00',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))");
