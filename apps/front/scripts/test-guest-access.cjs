@@ -19,6 +19,9 @@ test('guest routes expose business pages but never profile or administration', (
   assert.equal(auth.allowedPath(user, '/'), true);
   assert.equal(auth.allowedPath(user, '/analysis/overview/'), true);
   assert.equal(auth.allowedPath(user, '/profile/'), false);
+  assert.equal(auth.allowedPath(user, '/feedback/'), false);
+  assert.equal(auth.allowedPath({ ...user, guest: false }, '/feedback/'), true);
+  assert.equal(auth.allowedPath(null, '/feedback/'), false);
   assert.equal(auth.allowedPath(user, '/admin'), false);
   assert.equal(auth.homePath(user), '/analysis/overview');
   assert.equal(auth.allowedPath({ ...user, guest: false }, '/profile'), true);

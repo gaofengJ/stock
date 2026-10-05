@@ -80,7 +80,7 @@ export async function api<T = any>(
 export function allowedPath(user: Account | null, path: string): boolean {
   const p = path.replace(/\/$/, '') || '/';
   if (p === '/') return !!user;
-  if (p === '/profile') return !!user && !user.guest;
+  if (p === '/profile' || p === '/feedback') return !!user && !user.guest;
   return !!user?.catalog.some(
     (x) => x.route
       && user.permissions.includes(x.code)

@@ -29,6 +29,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { AuthGuard } from './modules/auth/auth.guard';
 import { AdminModule } from './modules/admin/admin.module';
 import { DataLockInterceptor } from './modules/admin/data-lock.interceptor';
+import { FeedbackModule } from './modules/feedback/feedback.module';
 import { NewsModule } from './modules/news/news.module';
 import { StockIdentityModule } from './modules/source/stock/stock-identity.module';
 import { TrendModule } from './modules/strategy/trend.module';
@@ -121,6 +122,7 @@ import { ReviewModule } from './modules/review/review.module';
      */
     BasicModule,
     NewsModule,
+    FeedbackModule,
     StockIdentityModule,
   ],
   providers: [
