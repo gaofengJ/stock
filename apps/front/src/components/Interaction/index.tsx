@@ -6,7 +6,7 @@ import { forwardRef, ComponentProps, ComponentRef } from 'react';
 import Link from 'next/link';
 import { Button, ButtonProps } from 'antd';
 import {
-  ArrowRightOutlined, CheckCircleFilled, DownOutlined, ExportOutlined, EyeOutlined, UpOutlined,
+  CheckOutlined, DownOutlined, ExportOutlined, EyeOutlined, UpOutlined,
 } from '@ant-design/icons';
 
 /** Content navigation only; menus, breadcrumbs and page-local filters keep their own semantics. */
@@ -17,7 +17,7 @@ const NavigationLink = forwardRef<HTMLAnchorElement, ComponentProps<typeof Link>
   return (
     <Link ref={ref} {...props} target={target} className={`interaction-link ${className}`} title={`${title ? `${title} · ` : ''}${newWindow ? '在新窗口打开' : '前往详情页面'}`}>
       {children}
-      <span className="interaction-link-mark" aria-hidden="true">{newWindow ? <ExportOutlined /> : <ArrowRightOutlined />}</span>
+      {newWindow && <span className="interaction-link-mark" aria-hidden="true"><ExportOutlined /></span>}
       {newWindow && <span className="interaction-sr-only">（在新窗口打开）</span>}
     </Link>
   );
@@ -51,7 +51,7 @@ export const InteractionButton = forwardRef<ComponentRef<typeof Button>, Interac
     select: '切换当前页内容', preview: '打开预览面板', expand: expanded ? '收起内容' : '展开内容', popover: '展开更多选项',
   };
   const marks = {
-    select: selected ? <CheckCircleFilled /> : <span className="interaction-choice-mark" />,
+    select: <CheckOutlined />,
     preview: <EyeOutlined />,
     expand: expanded ? <UpOutlined /> : <DownOutlined />,
     popover: <DownOutlined />,
@@ -61,13 +61,14 @@ export const InteractionButton = forwardRef<ComponentRef<typeof Button>, Interac
       ref={ref}
       size="small"
       {...props}
-      type="default"
+      type="text"
       className={`interaction-button interaction-${intent} ${className}`}
       title={`${title ? `${title} · ` : ''}${hints[intent]}`}
       aria-pressed={intent === 'select' ? selected : undefined}
       aria-expanded={intent === 'expand' ? expanded : props['aria-expanded']}
       aria-haspopup={intent === 'preview' ? 'dialog' : props['aria-haspopup']}
-      icon={icon || <span aria-hidden="true">{marks[intent]}</span>}
+      icon={icon || (marks[intent] ? <span aria-hidden="true">{marks[intent]}</span> : undefined)}
+      iconPosition={intent === 'preview' ? 'start' : 'end'}
     >
       {children}
     </Button>

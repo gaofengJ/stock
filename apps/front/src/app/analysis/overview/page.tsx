@@ -97,9 +97,6 @@ export default function OverviewPage() {
                           {`${numberText(point?.pctChg, 2, true)}${point ? '%' : ''}`}
                         </span>
                       </span>
-                      <span className={`interaction-selection-caption${selected?.code === i.code ? ' is-selected' : ''}`}>
-                        {selected?.code === i.code ? '● 已选中 · 再次点击显示全部' : '○ 选择此指数 · 联动下方图表'}
-                      </span>
                     </button>
                   </Col>
                 );

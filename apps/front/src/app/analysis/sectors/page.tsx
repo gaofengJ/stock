@@ -222,7 +222,7 @@ export default function Page() {
       {data?.job && data.job.status !== 'success' && <Alert className="mb-16" type={data.job.status === 'failed' ? 'warning' : 'info'} showIcon message={data.job.status === 'failed' ? '板块数据同步失败，请查看数据同步任务' : `板块数据补齐中：${data.job.stage}`} />}
       <DataState loading={request.loading} error={request.error} retry={request.retry} empty={!data}>
         <SectionTitle title="强弱排行" description="成分统计基于已取得的快照，覆盖范围与日期见成分日期列。" />
-        <p className="interaction-hint">选择板块，联动下方走势与成分股；带箭头的数字或名称进入对应页面。</p>
+        <p className="interaction-hint">选择板块查看下方走势与成分股。</p>
         <Table<SectorRow> rowKey="code" size="small" pagination={false} bordered maxBodyHeight={480} minBodyHeight={280} scroll={{ x: 1730 }} dataSource={rows} columns={tableColumns} rowClassName={(r) => (r.code === code ? 'interaction-selected-row' : '')} locale={{ emptyText: keyword ? '没有符合条件的板块' : '板块目录正在补齐' }} />
         <Row gutter={[16, 16]} className="sector-rotation-row">
           <Col xs={24} xl={24}>

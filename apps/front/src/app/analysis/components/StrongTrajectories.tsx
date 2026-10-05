@@ -61,7 +61,7 @@ export default function StrongTrajectories() {
           {code && <Button size="small" onClick={() => router.replace(marketHref('/analysis/chains', { date, scope }, { view: 'trajectory', ...(sector ? { sector } : {}) }), { scroll: false })}>显示全部股票</Button>}
         </Space>
       </div>
-      <p className="interaction-hint">点击每日状态，在侧栏预览当日行情与策略；带箭头的链接前往对应页面。</p>
+      <p className="interaction-hint">点击每日状态，预览当日行情与策略。</p>
       {showSignals && <p className="market-note">{signals.loading ? '策略标记加载中…' : signals.error || '★ 表示命中默认参数策略，点击查看；数据未补齐显示“待更新”。'}</p>}
       <DataState loading={request.loading} error={request.error} retry={request.retry} empty={!data?.ready}>
         <Table<TrajectoryRow>
@@ -101,9 +101,8 @@ export default function StrongTrajectories() {
                       {cell.pctChg == null ? '' : '%'}
                     </span>
                     {showSignals && <small>{readySignals.has(day) && hits.length ? `★ ${hits.length}${pendingSignals(day).length ? ' / 待更新' : ''}` : signalText(day).replace('未命中', '')}</small>}
-                    <span className="interaction-preview-caption">
+                    <span className="interaction-preview-caption" aria-hidden="true">
                       <EyeOutlined aria-hidden />
-                      预览
                     </span>
                   </button>
                 );

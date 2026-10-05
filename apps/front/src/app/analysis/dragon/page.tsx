@@ -71,7 +71,7 @@ export default function Page() {
           <SectionTitle title="上榜股票" description="每条记录对应一个上榜原因，跨日上榜资金不与单日金额合并。" />
           <span>资金单位：万元</span>
         </div>
-        <p className="interaction-hint">选择股票或席位明细按钮，在本页下方查看买卖席位；带箭头的行业、题材名称进入板块页面。</p>
+        <p className="interaction-hint">选择股票，在下方查看买卖席位。</p>
         <DataState loading={loading} error={error} retry={retry} empty={!data}>
           <Table<DragonListing>
             size="small"

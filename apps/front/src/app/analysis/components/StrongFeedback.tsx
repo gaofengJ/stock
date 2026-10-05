@@ -39,7 +39,7 @@ export default function StrongFeedback() {
   return (
     <>
       <SectionTitle title="昨日强势股今日表现" description="点击分组查看明细；涨幅、高开和上涨比例仅统计有效样本。断板指前日连板、昨日未涨停，可与炸板组重叠。" />
-      <p className="interaction-hint">选择分组，切换下方涨跌分布与样本明细；带箭头的股票名称可前往多日轨迹页面。</p>
+      <p className="interaction-hint">选择分组查看涨跌分布与样本，点击股票名称查看多日轨迹。</p>
       <DataState loading={request.loading} error={request.error} retry={request.retry} empty={!data?.ready}>
         <Table<FeedbackGroup>
           rowKey="key"
