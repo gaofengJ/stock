@@ -7,24 +7,20 @@ import type { IndexPoint } from '@/api/market';
 import { changeClass, numberText } from '@/utils/format';
 import type { Candle } from './market-display';
 
-export interface QuotePanelHandle { select: (date: string) => void }
+export interface QuotePanelHandle { select: (date: string | null) => void }
 
 interface QuotePanelProps {
   name: string;
   candles: (Candle & { volume: number | null })[];
   points: IndexPoint[];
-  averages: { name: string; values: (number | null)[] }[];
-  palette: string[];
   children: React.ReactNode;
 }
 
-const IndexQuotePanel = forwardRef<QuotePanelHandle, QuotePanelProps>(({
-  name, candles, points, averages, palette, children,
-}, ref) => {
-  const [date, setDate] = useState('');
-  useImperativeHandle(ref, () => ({ select: setDate }), []);
-  const found = candles.findIndex((c) => c.date === date);
-  const position = found < 0 ? candles.length - 1 : found;
+export function IndexQuoteReadout({
+  name, candles, points, date,
+}: Omit<QuotePanelProps, 'children'> & { date: string | null }) {
+  const position = candles.findIndex((c) => c.date === date);
+  if (position < 0) return null;
   const candle = candles[position];
   const price = candle?.value;
   const source = points.find((point) => point.date === candle?.start);
@@ -51,35 +47,34 @@ const IndexQuotePanel = forwardRef<QuotePanelHandle, QuotePanelProps>(({
     { label: '成交额', value: amount, unit: '亿元' },
   ];
   return (
-    <div className="market-quote-panel">
-      <div className="market-ma-readout" aria-label={`${name}均线数值`}>
-        <strong>{name}</strong>
-        {averages.map((average, i) => {
-          const value = average.values[position];
-          const prior = average.values[position - 1];
-          let arrow = '';
-          if (value != null && prior != null && value !== prior) arrow = value > prior ? '↑' : '↓';
-          return <span key={average.name} style={{ color: palette[i] }}>{`${average.name}: ${numberText(value)}${arrow}`}</span>;
-        })}
-      </div>
-      <div className="market-quote-body">
-        <aside className="market-quote-readout" aria-label={`${name}行情明细`}>
-          <time>{candle?.date}</time>
-          {candle && candle.start !== candle.end && <span className="market-quote-start">{`${candle.start} 起`}</span>}
-          <dl>
-            {fields.map((field) => (
-              <div key={field.label}>
-                <dt>{field.label}</dt>
-                <dd className={field.compare == null ? undefined : changeClass(field.compare)}>
-                  {numberText(field.value, 2, field.signed)}
-                  {field.value != null && field.unit && <small>{field.unit}</small>}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </aside>
-        <div className="market-quote-canvas">{children}</div>
-      </div>
+    <div className="market-quote-overlay">
+      <aside className="market-quote-readout" aria-label={`${name}行情明细`}>
+        <time>{candle?.date}</time>
+        {candle && candle.start !== candle.end && <span className="market-quote-start">{`${candle.start} 起`}</span>}
+        <dl>
+          {fields.map((field) => (
+            <div key={field.label}>
+              <dt>{field.label}</dt>
+              <dd className={field.compare == null ? undefined : changeClass(field.compare)}>
+                {numberText(field.value, 2, field.signed)}
+                {field.value != null && field.unit && <small>{field.unit}</small>}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </aside>
+
+    </div>
+  );
+}
+
+const IndexQuotePanel = forwardRef<QuotePanelHandle, QuotePanelProps>((props, ref) => {
+  const [date, setDate] = useState<string | null>(null);
+  useImperativeHandle(ref, () => ({ select: setDate }), []);
+  return (
+    <div className="market-quote-panel" onMouseLeave={() => setDate(null)}>
+      {props.children}
+      <IndexQuoteReadout name={props.name} candles={props.candles} points={props.points} date={date} />
     </div>
   );
 });

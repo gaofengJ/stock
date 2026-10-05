@@ -19,6 +19,7 @@ import {
   ChartWindow, pairedIndexCandles, movingAverage, averagePeriods, unfilledGaps,
 } from './market-display';
 import IndexQuotePanel, { QuotePanelHandle } from './IndexQuotePanel';
+import { hoverAverageLabel } from './overview-chart';
 
 function ExpandedChart({ render }: { render: (height: number) => React.ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -55,10 +56,9 @@ function OverviewIndexChart({ index, dates, window }: { index: MarketSeries['ind
   const [resetKey, setResetKey] = useState(0);
   const quoteRef = useRef<QuotePanelHandle>(null);
   const expandedQuoteRef = useRef<QuotePanelHandle>(null);
-  const onAxisHover = useCallback((date: string) => {
-    quoteRef.current?.select(date);
-    expandedQuoteRef.current?.select(date);
-  }, []);
+  const onAxisHover = useCallback((date: string | null) => quoteRef.current?.select(date), []);
+  const onExpandedAxisHover = useCallback((date: string | null) => expandedQuoteRef.current?.select(date), []);
+  useEffect(() => { quoteRef.current?.select(null); expandedQuoteRef.current?.select(null); }, [expanded]);
   const { period, count } = window;
   const all = pairedIndexCandles(index?.series || [], dates, period);
   const candles = all;
@@ -67,11 +67,12 @@ function OverviewIndexChart({ index, dates, window }: { index: MarketSeries['ind
   const gaps = unfilledGaps(all);
   const renderChart = (height: number, full = false) => (
     !candles.some((c) => c.value || c.volume != null) ? <Empty description="该范围暂无完整行情数据" /> : (
-      <IndexQuotePanel key={`${index.code}-${period}-${count}-${dates.at(-1)}-${resetKey}`} ref={full ? expandedQuoteRef : quoteRef} name={index.name} candles={candles} points={index.series} averages={averages} palette={averagesPalette}>
+      <IndexQuotePanel key={`${index.code}-${period}-${count}-${dates.at(-1)}-${resetKey}`} ref={full ? expandedQuoteRef : quoteRef} name={index.name} candles={candles} points={index.series}>
         <CChart
           key={`${index.code}-${period}-${count}-${dates.at(-1)}-${resetKey}`}
-          height={Math.max(200, height - 70)}
-          onAxisHover={onAxisHover}
+          height={height}
+          onAxisHover={full ? onExpandedAxisHover : onAxisHover}
+          formatHoverLegend={(name, date) => hoverAverageLabel(name, date, candles, averages)}
           genOptions={() => ({
             tooltip: {
               trigger: 'axis',
@@ -107,14 +108,14 @@ function OverviewIndexChart({ index, dates, window }: { index: MarketSeries['ind
             }],
             grid: [
               {
-                left: 56, right: 24, top: 36, height: Math.max(60, height - 226) * 0.72,
+                left: 56, right: 24, top: 36, height: Math.max(60, height - 156) * 0.72,
               },
               {
-                left: 56, right: 24, top: 76 + Math.max(60, height - 226) * 0.72, height: Math.max(60, height - 226) * 0.28,
+                left: 56, right: 24, top: 76 + Math.max(60, height - 156) * 0.72, height: Math.max(60, height - 156) * 0.28,
               },
             ],
             legend: {
-              top: 8, left: 8, right: 8, type: 'scroll', pageIconColor: panel.text, pageTextStyle: { color: panel.text }, data: averages.map((a) => a.name),
+              top: 8, left: 8, right: 8, type: 'scroll', pageIconColor: panel.text, pageTextStyle: { color: panel.text }, data: averages.map((a, i) => ({ name: a.name, textStyle: { color: averagesPalette[i] } })),
             },
             xAxis: [
               {
@@ -181,7 +182,7 @@ function OverviewIndexChart({ index, dates, window }: { index: MarketSeries['ind
         title={(
           <span className="market-section-title">
             {index?.name || '指数'}
-            <HelpTooltip label="指数走势" title="顶部均线数值与左侧行情跟随十字光标，默认显示最新交易日。上方K线、下方成交量，共用日期与缩放。淡色虚线为未回补缺口边界。" />
+            <HelpTooltip label="指数走势" title="悬停图内时，图例显示对应日期的均线数值，并浮现行情明细；移出后收起，点击图例可切换均线。上方K线、下方成交量，共用日期与缩放。淡色虚线为未回补缺口边界。" />
           </span>
       )}
         extra={(

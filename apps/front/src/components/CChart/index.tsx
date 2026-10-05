@@ -9,7 +9,8 @@ interface IEchartsProps {
   appearance?: 'light' | 'dark';
   height?: number;
   onLegendChange?: (selected: Record<string, boolean>) => void;
-  onAxisHover?: (date: string) => void;
+  onAxisHover?: (date: string | null) => void;
+  formatHoverLegend?: (name: string, date: string | null) => string;
 }
 
 const EChart = dynamic(() => import('./EChart'), {
@@ -18,9 +19,9 @@ const EChart = dynamic(() => import('./EChart'), {
 });
 
 const CChart = ({
-  genOptions, appearance, height, onLegendChange, onAxisHover,
+  genOptions, appearance, height, onLegendChange, onAxisHover, formatHoverLegend,
 }: IEchartsProps) => (
-  <EChart genOptions={genOptions} appearance={appearance} height={height} onLegendChange={onLegendChange} onAxisHover={onAxisHover} />
+  <EChart genOptions={genOptions} appearance={appearance} height={height} onLegendChange={onLegendChange} onAxisHover={onAxisHover} formatHoverLegend={formatHoverLegend} />
 );
 
 export default CChart;

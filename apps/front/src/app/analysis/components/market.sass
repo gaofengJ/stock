@@ -224,22 +224,20 @@
   gap: 16px
 
 .market-quote-panel
-  .market-ma-readout
-    display: flex
-    flex-wrap: wrap
-    gap: 4px 12px
-    min-height: 48px
-    align-content: start
-    font-size: 12px
-    font-variant-numeric: tabular-nums
-    padding-bottom: 10px
-  .market-quote-body
-    display: flex
-    min-width: 0
+  position: relative
+  min-width: 0
+  .market-quote-overlay
+    position: absolute
+    top: 48px
+    left: 8px
+    z-index: 2
+    pointer-events: none
+    max-width: calc(100% - 16px)
   .market-quote-readout
-    flex: 0 0 106px
-    border-right: 1px solid var(--color-border)
-    padding-right: 10px
+    padding: 10px 12px
+    background: var(--color-surface-muted)
+    border: 1px solid var(--color-border)
+    border-radius: 6px
     font-size: 12px
     font-variant-numeric: tabular-nums
     time, .market-quote-start
@@ -247,33 +245,22 @@
     .market-quote-start
       color: var(--text-muted)
     dl
-      margin: 10px 0 0
+      margin: 8px 0 0
+    dl > div
+      display: flex
+      justify-content: space-between
+      gap: 12px
+      margin-top: 4px
     dt
       color: var(--text-secondary)
     dd
-      margin: 0 0 5px
+      margin: 0
       font-weight: 500
     small
       margin-left: 4px
       font-size: 11px
-  .market-quote-canvas
-    flex: 1
-    min-width: 0
 
 @media (max-width: 575px)
-  .market-quote-panel .market-quote-body
-    flex-direction: column
-  .market-quote-panel .market-quote-readout
-    flex-basis: auto
-    border-right: 0
-    border-bottom: 1px solid var(--color-border)
-    margin-bottom: 12px
-    dl
-      display: grid
-      grid-template-columns: repeat(3, minmax(0, 1fr))
-      gap: 4px 8px
-  .market-quote-panel .market-quote-canvas
-    width: 100%
   .market-overview-index .ant-card-body
     padding: 12px
 

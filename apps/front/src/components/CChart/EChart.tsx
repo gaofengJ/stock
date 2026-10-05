@@ -90,32 +90,43 @@ interface IEchartsProps {
   appearance?: 'light' | 'dark';
   height?: number;
   onLegendChange?: (selected: Record<string, boolean>) => void;
-  onAxisHover?: (date: string) => void;
+  onAxisHover?: (date: string | null) => void;
+  formatHoverLegend?: (name: string, date: string | null) => string;
 }
 
 const EChart = ({
-  genOptions, appearance, height = 360, onLegendChange, onAxisHover,
+  genOptions, appearance, height = 360, onLegendChange, onAxisHover, formatHoverLegend,
 }: IEchartsProps) => {
   const { mode } = useSiteTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<ReactEChartsCore>(null);
   const zoomRef = useRef<{ start: number; end: number }[]>([]);
-  const events = useMemo(() => ({
-    ...(onLegendChange ? { legendselectchanged: (event: { selected: Record<string, boolean> }) => onLegendChange(event.selected) } : {}),
-    ...(onAxisHover ? {
-      updateAxisPointer: (event: { axesInfo?: { axisDim: string; value: number | string }[] }, instance: echarts.ECharts) => {
-        const axis = event.axesInfo?.find((item) => item.axisDim === 'x');
-        if (!axis) return;
-        const categories = (instance.getOption().xAxis as { data: string[] }[])[0]?.data;
-        const date = typeof axis.value === 'number' ? categories?.[axis.value] : axis.value;
-        if (date) onAxisHover(date);
+  const hoverDateRef = useRef<string | null>();
+  const events = useMemo(() => {
+    const hover = (date: string | null, instance: echarts.ECharts) => {
+      if (hoverDateRef.current === date) return;
+      hoverDateRef.current = date;
+      onAxisHover?.(date);
+      if (formatHoverLegend) instance.setOption({ legend: { formatter: (name: string) => formatHoverLegend(name, date) } });
+    };
+    return {
+      ...(onLegendChange ? { legendselectchanged: (event: { selected: Record<string, boolean> }) => onLegendChange(event.selected) } : {}),
+      ...(onAxisHover || formatHoverLegend ? {
+        updateAxisPointer: (event: { axesInfo?: { axisDim: string; value: number | string }[] }, instance: echarts.ECharts) => {
+          const axis = event.axesInfo?.find((item) => item.axisDim === 'x');
+          const categories = (instance.getOption().xAxis as { data: string[] }[])[0]?.data;
+          const date = typeof axis?.value === 'number' ? categories?.[axis.value] : axis?.value;
+          hover(date || null, instance);
+        },
+        globalout: (_event: unknown, instance: echarts.ECharts) => hover(null, instance),
+      } : {}),
+      datazoom: (_event: unknown, instance: echarts.ECharts) => {
+        const zoom = instance.getOption().dataZoom as { start: number; end: number }[];
+        zoomRef.current = zoom.map(({ start, end }) => ({ start, end }));
+        hover(null, instance);
       },
-    } : {}),
-    datazoom: (_event: unknown, instance: echarts.ECharts) => {
-      const zoom = instance.getOption().dataZoom as { start: number; end: number }[];
-      zoomRef.current = zoom.map(({ start, end }) => ({ start, end }));
-    },
-  }), [onLegendChange, onAxisHover]);
+    };
+  }, [onLegendChange, onAxisHover, formatHoverLegend]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -138,6 +149,8 @@ const EChart = ({
         theme={(appearance || mode) === 'dark' ? 'stock-dark' : 'stock'}
         onEvents={events}
         onChartReady={(instance: echarts.ECharts) => {
+          hoverDateRef.current = undefined;
+          onAxisHover?.(null);
           zoomRef.current.forEach((zoom, dataZoomIndex) => instance.dispatchAction({ type: 'dataZoom', dataZoomIndex, ...zoom }));
         }}
         option={{ ...options, textStyle: { fontFamily, fontSize: 12, ...options.textStyle }, tooltip: { confine: true, valueFormatter: (v: unknown) => numberText(v), ...tooltip } }}

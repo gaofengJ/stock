@@ -76,18 +76,6 @@ export default function OverviewPage() {
               <span style={{ flexGrow: snapshot.down, background: 'var(--quote-down)' }} />
             </div>
             )}
-            <IndexComparisonChart indexes={indexes} dates={indexDates} />
-            <Row gutter={[16, 16]} className="market-amount-section">
-              <Col xs={24} lg={12}>
-                <MarketAmountChart title={`${range} - 市场成交额`} data={data} dates={indexDates} window={amountWindow} onWindowChange={setAmountWindow} />
-              </Col>
-              <Col xs={24} lg={12}>
-                <MarketBreadthChart range={range} />
-              </Col>
-              <Col xs={24} lg={12}>
-                <MarketExtremes range={range} />
-              </Col>
-            </Row>
             <SectionTitle title="主要指数" description="选择指数卡片，紧邻展示对应K线和成交量；再次点击恢复全部。" />
             <Row gutter={[16, 16]} className="market-metrics">
               {indexes.map((i) => {
@@ -129,6 +117,18 @@ export default function OverviewPage() {
                 </Col>
               ))}
               {!visibleIndexes.length && <Col span={24}><div className="market-empty"><Empty description="该范围暂无完整K线与成交量数据" /></div></Col>}
+            </Row>
+            <IndexComparisonChart indexes={indexes} dates={indexDates} />
+            <Row gutter={[16, 16]} className="market-amount-section">
+              <Col xs={24} lg={12}>
+                <MarketAmountChart title={`${range} - 市场成交额`} data={data} dates={indexDates} window={amountWindow} onWindowChange={setAmountWindow} />
+              </Col>
+              <Col xs={24} lg={12}>
+                <MarketBreadthChart range={range} />
+              </Col>
+              <Col xs={24} lg={12}>
+                <MarketExtremes range={range} />
+              </Col>
             </Row>
           </>
         )}
