@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAccount } from '@/auth/Boundary';
@@ -31,6 +31,24 @@ const defaultColumns = ['pctChg', 'limitTimes', 'topics', 'firstTime', 'lastTime
 const fieldNames: Record<string, string> = {
   pctChg: '涨跌幅', limitTimes: '连板数', topics: '所属题材', industry: '行业', close: '收盘价', upStat: '近期涨停记录', firstTime: '首次封板', lastTime: '最后封板', openTimes: '开板次数', turnoverRatio: '换手率', amount: '成交额', fdAmount: '封单额', floatMv: '流通市值',
 };
+// Minimum widths keep compact values readable; text columns get more of the spare space.
+const columnSizing: Record<string, { width: number; grow: number }> = {
+  stock: { width: 160, grow: 1.2 },
+  topics: { width: 260, grow: 3 },
+  industry: { width: 130, grow: 1.2 },
+  pctChg: { width: 96, grow: 0.4 },
+  limitTimes: { width: 80, grow: 0.2 },
+  close: { width: 96, grow: 0.4 },
+  upStat: { width: 116, grow: 0.5 },
+  firstTime: { width: 96, grow: 0.4 },
+  lastTime: { width: 96, grow: 0.4 },
+  openTimes: { width: 80, grow: 0.2 },
+  turnoverRatio: { width: 96, grow: 0.4 },
+  amount: { width: 112, grow: 0.4 },
+  fdAmount: { width: 104, grow: 0.4 },
+  floatMv: { width: 120, grow: 0.4 },
+  action: { width: 72, grow: 0.2 },
+};
 
 function LimitsPage() {
   const { sector, setSector } = useSectorSelection();
@@ -41,8 +59,17 @@ function LimitsPage() {
   const [search, setSearch] = useState(linkedKeyword);
   const [height, setHeight] = useState<number | undefined>();
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
-  const [stock, setStock] = useState<LimitRow | null>(null);
   const { date, scope } = useMarket();
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const [tableWidth, setTableWidth] = useState(0);
+  useEffect(() => {
+    const element = resultsRef.current;
+    if (!element) return undefined;
+    const observer = new ResizeObserver(([entry]) => setTableWidth(entry.contentRect.width));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [date]);
+  const [stock, setStock] = useState<LimitRow | null>(null);
   const risks = useWorkbench('risk', { date }, !!date);
   const { user } = useAccount();
   const canReadDragon = allowedPath(user, '/analysis/dragon');
@@ -66,7 +93,6 @@ function LimitsPage() {
       title: '股票',
       key: 'stock',
       fixed: 'left',
-      width: 170,
       render: (_, r) => (
         <div className="limits-stock-cell">
           <StockLink code={r.tsCode} name={r.name} date={date} />
@@ -76,7 +102,7 @@ function LimitsPage() {
       ),
     },
     {
-      title: '行业', key: 'industry', width: 150, render: (_, r) => <SectorLinks stock={r} date={date} />,
+      title: '行业', key: 'industry', render: (_, r) => <SectorLinks stock={r} date={date} />,
     },
     {
       title: (
@@ -86,7 +112,6 @@ function LimitsPage() {
         </span>
       ),
       key: 'topics',
-      width: 190,
       render: (_, r) => <SectorLinks stock={r} type="N" date={date} />,
     }, {
       title: '涨跌幅',
@@ -104,12 +129,18 @@ function LimitsPage() {
       title: '收盘价(元)', dataIndex: 'close', align: 'right', render: (v) => numberText(v),
     },
     {
-      title: '连板数', dataIndex: 'limitTimes', align: 'right', render: (v) => <strong>{raw(v)}</strong>, sorter: (a, b) => a.limitTimes - b.limitTimes,
+      title: '连板数', dataIndex: 'limitTimes', align: 'center', render: (v) => <strong>{raw(v)}</strong>, sorter: (a, b) => a.limitTimes - b.limitTimes,
     },
-    { title: '近期涨停记录', dataIndex: 'upStat', render: (v: string | null) => (v?.includes('/') ? `${v.split('/')[1]}天${v.split('/')[0]}板` : raw(v)) },
-    { title: '首次封板', dataIndex: 'firstTime', render: raw }, { title: '最后封板', dataIndex: 'lastTime', render: raw },
     {
-      title: '开板次数', dataIndex: 'openTimes', align: 'right', render: raw,
+      title: '近期涨停记录', dataIndex: 'upStat', align: 'center', render: (v: string | null) => (v?.includes('/') ? `${v.split('/')[1]}天${v.split('/')[0]}板` : raw(v)),
+    },
+    {
+      title: '首次封板', dataIndex: 'firstTime', align: 'center', render: raw,
+    }, {
+      title: '最后封板', dataIndex: 'lastTime', align: 'center', render: raw,
+    },
+    {
+      title: '开板次数', dataIndex: 'openTimes', align: 'center', render: raw,
     }, {
       title: '换手率(%)', dataIndex: 'turnoverRatio', align: 'right', render: (v) => numberText(v),
     },
@@ -126,7 +157,6 @@ function LimitsPage() {
       key: 'action',
       fixed: 'right',
       align: 'center',
-      width: 80,
       render: (_, r) => {
         if (dragon.loading) return <span className="quote-flat">核对中</span>;
         if (dragon.error) return <Tooltip title="榜单查询失败"><Button type="link" size="small" onClick={dragon.retry}>重试</Button></Tooltip>;
@@ -136,9 +166,17 @@ function LimitsPage() {
     },
   ];
   const order = ['stock', 'pctChg', 'limitTimes', 'topics', 'industry', 'close', 'upStat', 'firstTime', 'lastTime', 'openTimes', 'turnoverRatio', 'amount', 'fdAmount', 'floatMv', 'action'];
-  const columns = allColumns.map((column) => ({ ...column, key: String(column.key || ('dataIndex' in column ? column.dataIndex : '')), width: column.width || 105 }))
+  const selectedColumns = allColumns.map((column) => ({ ...column, key: String(column.key || ('dataIndex' in column ? column.dataIndex : '')) }))
     .filter((column) => column.key === 'stock' || column.key === 'action' || (visibleColumns.includes(column.key) && optionalFields.some(([key]) => key === column.key)))
     .sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
+  const minimumWidth = selectedColumns.reduce((sum, column) => sum + columnSizing[column.key].width, 0);
+  const totalGrow = selectedColumns.reduce((sum, column) => sum + columnSizing[column.key].grow, 0);
+  const spareWidth = Math.max(0, tableWidth - 16 - minimumWidth);
+  const columns = selectedColumns.map((column) => ({
+    ...column,
+    width: columnSizing[column.key].width + Math.floor((spareWidth * columnSizing[column.key].grow) / totalGrow),
+    className: ['stock', 'topics', 'industry'].includes(column.key) ? undefined : 'limits-value-cell',
+  }));
   return (
     <MarketShell title="涨停复盘" path="/analysis/limits">
       <Tabs activeKey={type} onChange={(value) => { setType(value); setHeight(undefined); }} items={[{ key: 'U', label: '涨停' }, { key: 'Z', label: '炸板' }, { key: 'D', label: '跌停' }]} />
@@ -155,7 +193,7 @@ function LimitsPage() {
           <Button size="small" onClick={() => setVisibleColumns(defaultColumns)}>恢复默认列</Button>
         </Space>
       </div>
-      <div className="limits-results">
+      <div className="limits-results" ref={resultsRef}>
         <DataState loading={loading} error={error} retry={retry} empty={!data?.ready}>
           <Table<LimitRow>
             key={`${date}-${type}-${height}-${keyword}-${sector}`}
@@ -163,6 +201,7 @@ function LimitsPage() {
             rowKey="tsCode"
             dataSource={data?.items}
             size="small"
+            tableLayout="fixed"
             bordered
             scroll={{ x: columns.reduce((sum, column) => sum + Number(column.width), 0) }}
             pagination={false}
