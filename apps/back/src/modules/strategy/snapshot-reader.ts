@@ -10,6 +10,7 @@ export type SnapshotVersion = {
   id: number;
   updatedAt: Date;
   revision?: string;
+  contentHash?: string;
 };
 type Entry = {
   expires: number;
@@ -29,7 +30,7 @@ export class StrategySnapshotReader {
   private key(table: SnapshotTable, row: SnapshotVersion, paths?: string[]) {
     return `${table}:${row.id}:${new Date(row.updatedAt).getTime()}:${
       row.revision || ''
-    }:${JSON.stringify(paths || [])}`;
+    }:${row.contentHash || ''}:${JSON.stringify(paths || [])}`;
   }
 
   private trim() {
@@ -68,6 +69,10 @@ export class StrategySnapshotReader {
         const batch = this.db.query<(SnapshotVersion & { packed: Buffer })[]>(
           `SELECT id,updated_at updatedAt,${
             table === 't_processed_stock_insight' ? 'revision,' : ''
+          }${
+            missing.some((row) => row.contentHash)
+              ? 'MD5(data) contentHash,'
+              : ''
           }COMPRESS(${
             paths?.length
               ? `JSON_EXTRACT(data,${paths.map(() => '?').join(',')})`

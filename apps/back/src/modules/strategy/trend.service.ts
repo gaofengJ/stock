@@ -162,7 +162,7 @@ export class TrendService {
       // array with JSON_SEARCH when opening an individual stock.
       const published: (SnapshotVersion & { date: string })[] =
         await this.db.query(
-          "SELECT f.id,f.updated_at updatedAt,DATE_FORMAT(f.trade_date,'%Y-%m-%d') date FROM t_source_strategy_factor f JOIN t_sync_run r ON r.trade_date=f.trade_date AND r.task='strategy-factor' AND r.status='success' LEFT JOIN t_sync_day_policy p ON p.trade_date=f.trade_date WHERE f.trade_date IN (?) AND p.trade_date IS NULL",
+          "SELECT f.id,f.updated_at updatedAt,MD5(f.data) contentHash,DATE_FORMAT(f.trade_date,'%Y-%m-%d') date FROM t_source_strategy_factor f JOIN t_sync_run r ON r.trade_date=f.trade_date AND r.task='strategy-factor' AND r.status='success' LEFT JOIN t_sync_day_policy p ON p.trade_date=f.trade_date WHERE f.trade_date IN (?) AND p.trade_date IS NULL",
           [dates],
         );
       const byDate = new Map<string, TrendPoint>();
@@ -563,10 +563,12 @@ export class TrendService {
         ),
       );
     const [snapshots, policies, runs, raw] = await Promise.all([
-      this.db.manager.find(TrendFactorEntity, {
-        where: { tradeDate: In(dates) },
-        select: ['id', 'updatedAt', 'tradeDate'],
-      }),
+      // ORM updates can reuse a second-resolution timestamp. Fingerprint the
+      // payload as well so corrections never reuse an earlier factor index.
+      this.db.query<(SnapshotVersion & { tradeDate: string })[]>(
+        "SELECT id,updated_at updatedAt,MD5(data) contentHash,DATE_FORMAT(trade_date,'%Y-%m-%d') tradeDate FROM t_source_strategy_factor WHERE trade_date IN (?)",
+        [dates],
+      ),
       this.db.manager.find(SyncDayPolicyEntity, {
         where: { tradeDate: In(dates) },
       }),

@@ -324,6 +324,32 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
       '历史股票名称缺失',
     );
   });
+  test('同一时间戳下修正因子内容，也必须刷新缓存并检查完整性', async () => {
+    const updatedAt = new Date('2026-01-22T00:00:00Z');
+    await db.manager.update(
+      TrendFactorEntity,
+      { tradeDate: dates[0] },
+      { updatedAt },
+    );
+    expect(await service.list(latest, 'volumeBreakout')).toHaveLength(1);
+    await db.manager.update(
+      TrendFactorEntity,
+      { tradeDate: dates[0] },
+      {
+        updatedAt,
+        data: [['000001.SZ', null, null, null, null]],
+      },
+    );
+    expect(await service.list(latest, 'volumeBreakout')).toEqual([]);
+    await db.manager.update(
+      TrendFactorEntity,
+      { tradeDate: dates[0] },
+      { updatedAt, data: [] },
+    );
+    await expect(service.list(latest, 'volumeBreakout')).rejects.toThrow(
+      '复权行情缺失',
+    );
+  });
   test('来源不返回停牌因子时，完整原始日线中的零值占位明确排除该股票', async () => {
     await db.manager.update(
       TrendFactorEntity,

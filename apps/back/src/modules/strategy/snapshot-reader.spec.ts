@@ -88,4 +88,20 @@ describe('versioned strategy snapshot reader', () => {
     expect((await reader.read(table, [version], (v) => v)).get(1)).toEqual([1]);
     expect(db.query).toHaveBeenCalledTimes(2);
   });
+  it('invalidates corrected contents even when the row timestamp is unchanged', async () => {
+    const first = { ...version, contentHash: 'first' };
+    const corrected = { ...version, contentHash: 'corrected' };
+    const db: any = {
+      query: jest
+        .fn()
+        .mockResolvedValueOnce([{ ...first, packed: packedJson([1]) }])
+        .mockResolvedValueOnce([{ ...corrected, packed: packedJson([2]) }]),
+    };
+    const reader = new StrategySnapshotReader(db);
+    expect((await reader.read(table, [first], (v) => v)).get(1)).toEqual([1]);
+    expect((await reader.read(table, [corrected], (v) => v)).get(1)).toEqual([
+      2,
+    ]);
+    expect(db.query.mock.calls[1][0]).toContain('MD5(data) contentHash');
+  });
 });
