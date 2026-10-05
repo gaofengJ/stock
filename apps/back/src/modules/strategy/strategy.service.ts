@@ -12,6 +12,7 @@ import { TrendService } from './trend.service';
 import { TREND_KEYS, TrendKey, TREND_DEFAULTS } from './trend-rules';
 import { StrategyCacheService } from './strategy-cache.service';
 import { StrategyReadService } from './strategy-read.service';
+import { InsightService } from './insight.service';
 
 @Injectable()
 export class StrategyService {
@@ -22,6 +23,7 @@ export class StrategyService {
     @Optional() private trends?: TrendService,
     @Optional() private cache?: StrategyCacheService,
     @Optional() private reads?: StrategyReadService,
+    @Optional() private insights?: InsightService,
   ) {}
 
   private logger = new Logger(StrategyService.name);
@@ -256,7 +258,26 @@ export class StrategyService {
     let ret: DailyEntity[] = [];
     if (TREND_KEYS.includes(strategyType as TrendKey)) {
       if (!this.trends) throw new Error('趋势策略模块尚未启用');
-      ret = await this.trends.list(date, strategyType as TrendKey, dto);
+      const codes = await this.insights?.standardCandidates(
+        date,
+        strategyType,
+        dto,
+      );
+      ret = await this.trends.list(date, strategyType as TrendKey, dto, codes);
+      if (codes) {
+        const current = await this.insights?.standardCandidates(
+          date,
+          strategyType,
+          dto,
+        );
+        if (
+          !current ||
+          JSON.stringify([...current].sort()) !==
+            JSON.stringify([...codes].sort())
+        ) {
+          ret = await this.trends.list(date, strategyType as TrendKey, dto);
+        }
+      }
       return ret;
     }
     switch (strategyType) {

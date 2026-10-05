@@ -28,6 +28,8 @@ import {
   meetsCommonStrategyConditions,
 } from '@/modules/source/daily/strategy-validation';
 import { TrendFactor, TrendFactorEntity } from './trend.entity';
+import { StockHistoryEntity } from '../source/stock/stock-history.entity';
+import { StrategySnapshotReader, SnapshotVersion } from './snapshot-reader';
 import {
   evaluateTrend,
   requiredTrendDays,
@@ -41,12 +43,85 @@ import {
 
 @Injectable()
 export class TrendService {
+  private snapshotReader: StrategySnapshotReader;
+
   constructor(
     private db: DataSource,
     private source: TushareService,
     private identity: StockIdentityService,
     private writes: SyncWriteService,
-  ) {}
+  ) {
+    this.snapshotReader = new StrategySnapshotReader(db);
+  }
+
+  private identityManager() {
+    return new Proxy(this.db.manager, {
+      get: (target, property) => {
+        if (property === 'findOneBy')
+          return async (entity: unknown, where: any) => {
+            if (
+              entity !== StockHistoryEntity ||
+              where.snapshotKey !== 'identity'
+            )
+              return target.findOneBy(entity as any, where);
+            const row = await target.findOne(StockHistoryEntity, {
+              where,
+              select: ['id', 'updatedAt', 'asOf', 'snapshotKey'],
+            });
+            if (!row) return null;
+            const values = await this.snapshotReader.read(
+              't_source_stock_history',
+              [row],
+              (value) => value as StockHistoryEntity['data'],
+            );
+            return values.has(row.id)
+              ? Object.assign(row, { data: values.get(row.id)! })
+              : null;
+          };
+        const value = Reflect.get(target, property);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    }) as EntityManager;
+  }
+
+  private async factorData(rows: SnapshotVersion[], codes: Set<string>) {
+    if (codes.size > 200)
+      return this.snapshotReader.read(
+        't_source_strategy_factor',
+        rows,
+        (data: TrendFactor[]) => data.filter((row) => codes.has(row[0])),
+      );
+    const indexes = await this.snapshotReader.read(
+      't_source_strategy_factor',
+      rows,
+      (value) => value as string[],
+      ['$[*][0]'],
+    );
+    const result = new Map<number, TrendFactor[]>();
+    for (let i = 0; i < rows.length; i += 4) {
+      await Promise.all(
+        rows.slice(i, i + 4).map(async (row) => {
+          const index = indexes.get(row.id);
+          if (!index) return;
+          const paths = index.flatMap((code, n) =>
+            codes.has(code) ? [`$[${n}]`] : [],
+          );
+          if (!paths.length) {
+            result.set(row.id, []);
+            return;
+          }
+          const data = await this.snapshotReader.read(
+            't_source_strategy_factor',
+            [row],
+            (value) => (paths.length === 1 ? [value] : value) as TrendFactor[],
+            paths,
+          );
+          if (data.has(row.id)) result.set(row.id, data.get(row.id)!);
+        }),
+      );
+    }
+    return result;
+  }
 
   async chart(
     dto: TrendOptions & { date: string; code: string; strategyType: string },
@@ -85,35 +160,27 @@ export class TrendService {
     if (adjusted) {
       // Bound snapshot memory and avoid MySQL 5.7 repeatedly scanning each JSON
       // array with JSON_SEARCH when opening an individual stock.
-      const published: { date: string }[] = await this.db.query(
-        "SELECT DATE_FORMAT(f.trade_date,'%Y-%m-%d') date FROM t_source_strategy_factor f JOIN t_sync_run r ON r.trade_date=f.trade_date AND r.task='strategy-factor' AND r.status='success' LEFT JOIN t_sync_day_policy p ON p.trade_date=f.trade_date WHERE f.trade_date IN (?) AND p.trade_date IS NULL",
-        [dates],
-      );
+      const published: (SnapshotVersion & { date: string })[] =
+        await this.db.query(
+          "SELECT f.id,f.updated_at updatedAt,DATE_FORMAT(f.trade_date,'%Y-%m-%d') date FROM t_source_strategy_factor f JOIN t_sync_run r ON r.trade_date=f.trade_date AND r.task='strategy-factor' AND r.status='success' LEFT JOIN t_sync_day_policy p ON p.trade_date=f.trade_date WHERE f.trade_date IN (?) AND p.trade_date IS NULL",
+          [dates],
+        );
       const byDate = new Map<string, TrendPoint>();
-      for (let offset = 0; offset < published.length; offset += 12) {
-        const snapshots = await this.db.manager.find(TrendFactorEntity, {
-          where: {
-            tradeDate: In(
-              published.slice(offset, offset + 12).map((row) => row.date),
-            ),
-          },
-          select: ['tradeDate', 'data'],
+      const tuples = await this.factorData(published, new Set([code]));
+      for (const snapshot of published) {
+        const tuple = tuples.get(snapshot.id)?.[0];
+        if (!tuple || tuple.slice(1, 5).some((value) => value == null))
+          continue;
+        const [, open, close, high, low, basis, conversion] = tuple;
+        byDate.set(snapshot.date, {
+          date: snapshot.date,
+          open: open!,
+          close: close!,
+          high: high!,
+          low: low!,
+          basis,
+          conversion,
         });
-        for (const snapshot of snapshots) {
-          const tuple = snapshot.data.find((row) => row[0] === code);
-          if (!tuple || tuple.slice(1, 5).some((value) => value == null))
-            continue;
-          const [, open, close, high, low, basis, conversion] = tuple;
-          byDate.set(snapshot.tradeDate, {
-            date: snapshot.tradeDate,
-            open: open!,
-            close: close!,
-            high: high!,
-            low: low!,
-            basis,
-            conversion,
-          });
-        }
       }
       points = dates.map((date) => byDate.get(date));
       const normalized = normalizeTrendSeries(points, code, points.length);
@@ -431,7 +498,12 @@ export class TrendService {
       visible[visible.length - 1],
       need + visible.length - 1 + (keys.includes('fiveMaUp') ? 9 : 0),
     );
-    const baseIdentity = await this.identity.load([]);
+    const identityManager = this.identityManager();
+    const baseIdentity = await this.identity.load(
+      [],
+      undefined,
+      identityManager,
+    );
     const expanded = codes ? baseIdentity.expand(codes) : undefined;
     // Necessary signal-day conditions reduce the all-market read; raw SQL avoids
     // hydrating thousands of unused entity objects on each parameter change.
@@ -463,7 +535,7 @@ export class TrendService {
           visibleRows.map((row) => baseIdentity.canonical(row.tsCode)),
         ),
       ],
-      this.db.manager,
+      identityManager,
     );
     const eligibleCodes = identity.expand([
       ...new Set(
@@ -493,7 +565,7 @@ export class TrendService {
     const [snapshots, policies, runs, raw] = await Promise.all([
       this.db.manager.find(TrendFactorEntity, {
         where: { tradeDate: In(dates) },
-        select: ['tradeDate'],
+        select: ['id', 'updatedAt', 'tradeDate'],
       }),
       this.db.manager.find(SyncDayPolicyEntity, {
         where: { tradeDate: In(dates) },
@@ -572,58 +644,44 @@ export class TrendService {
     );
     const points = new Map<string, Map<string, TrendPoint>>();
     const unavailable = new Map<string, Set<string>>();
-    // Read three small batches concurrently to reduce database round trips,
-    // bounding all-market JSON memory to 36 dates rather than the full history.
-    const factorDates = candidateCodes.size ? [...snapshotDates] : [];
-    for (let offset = 0; offset < factorDates.length; offset += 36) {
-      const batch = (
-        await Promise.all(
-          [0, 12, 24]
-            .map((step) => factorDates.slice(offset + step, offset + step + 12))
-            .filter((chunk) => chunk.length)
-            .map((chunk) =>
-              this.db.manager.find(TrendFactorEntity, {
-                where: { tradeDate: In(chunk) },
-                select: ['tradeDate', 'data'],
-              }),
-            ),
-        )
-      ).flat();
-      for (const snapshot of batch)
-        for (const [
-          code,
+    const factorRows = candidateCodes.size
+      ? snapshots.filter((row) => snapshotDates.has(row.tradeDate))
+      : [];
+    const factors = await this.factorData(factorRows, candidateCodes);
+    for (const snapshot of factorRows)
+      for (const [
+        code,
+        open,
+        close,
+        high,
+        low,
+        basis,
+        conversion,
+      ] of factors.get(snapshot.id) || []) {
+        if (!candidateCodes.has(code)) continue;
+        if (open == null || close == null || high == null || low == null) {
+          if (!unavailable.has(code)) unavailable.set(code, new Set());
+          unavailable.get(code)!.add(snapshot.tradeDate);
+          continue;
+        }
+        if (!points.has(code)) points.set(code, new Map());
+        const row = rawMap.get(code)?.get(snapshot.tradeDate);
+        const volume = row?.vol;
+        points.get(code)!.set(snapshot.tradeDate, {
+          date: snapshot.tradeDate,
           open,
           close,
           high,
           low,
           basis,
           conversion,
-        ] of snapshot.data) {
-          if (!candidateCodes.has(code)) continue;
-          if (open == null || close == null || high == null || low == null) {
-            if (!unavailable.has(code)) unavailable.set(code, new Set());
-            unavailable.get(code)!.add(snapshot.tradeDate);
-            continue;
-          }
-          if (!points.has(code)) points.set(code, new Map());
-          const row = rawMap.get(code)?.get(snapshot.tradeDate);
-          const volume = row?.vol;
-          points.get(code)!.set(snapshot.tradeDate, {
-            date: snapshot.tradeDate,
-            open,
-            close,
-            high,
-            low,
-            basis,
-            conversion,
-            vol: volume == null ? undefined : Number(volume),
-            eligible: row
-              ? hasValidStrategySequence([row]) &&
-                meetsCommonStrategyConditions([row])
-              : false,
-          });
-        }
-    }
+          vol: volume == null ? undefined : Number(volume),
+          eligible: row
+            ? hasValidStrategySequence([row]) &&
+              meetsCommonStrategyConditions([row])
+            : false,
+        });
+      }
     const readyByStrategy: Record<string, string[]> = Object.fromEntries(
       keys.map((key) => [key, []]),
     );
@@ -760,12 +818,17 @@ export class TrendService {
     return { items, readyByStrategy };
   }
 
-  async list(date: string, key: TrendKey, options: TrendOptions = {}) {
+  async list(
+    date: string,
+    key: TrendKey,
+    options: TrendOptions = {},
+    codes: string[] | undefined = undefined,
+  ) {
     const result = await this.history(
       [date],
       [key],
       { ...TREND_DEFAULTS, ...options },
-      undefined,
+      codes,
       true,
     );
     return result.items[0]?.rows || [];

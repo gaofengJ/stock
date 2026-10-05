@@ -115,7 +115,9 @@ function StrategyPage() {
   };
   const switchStrategy = (key: string) => {
     savedOptions.current[strategy] = options;
-    updateQuery({ ...writeStrategyOptions(savedOptions.current[key]), strategyType: key, code: undefined });
+    updateQuery({
+      ...writeStrategyOptions(savedOptions.current[key]), strategyType: key, view: 'candidates', code: undefined,
+    });
   };
   useEffect(() => {
     if (params.get('view') === 'popularity' && date && allowedPath(user, '/analysis/senti')) window.location.replace(`/analysis/senti/?date=${date}&scope=all&view=popularity${linkedCode ? `&code=${linkedCode}` : ''}#popularity`);

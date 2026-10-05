@@ -35,7 +35,9 @@ async function main() {
   };
   const identity = new StockIdentityService(db, null);
   const sectors = new SectorService(db, null, null, null);
-  const service = new StrategyService(new TradeCalService(null, runner.manager.getRepository(TradeCalEntity)), new DailyService(null, runner.manager.getRepository(DailyEntity), identity), sectors, new TrendService(db, null, identity, null), new StrategyCacheService(db), new StrategyReadService(db, identity));
+  const { InsightService } = require('../src/modules/strategy/insight.service');
+  const insights = new InsightService(db, null, null, null, sectors, null);
+  const service = new StrategyService(new TradeCalService(null, runner.manager.getRepository(TradeCalEntity)), new DailyService(null, runner.manager.getRepository(DailyEntity), identity), sectors, new TrendService(db, null, identity, null), new StrategyCacheService(db), new StrategyReadService(db, identity), insights);
   let stages = [];
   for (const [target, name] of [[service, 'candidates'], [sectors, 'decorate'], [sectors, 'candidateContext']]) {
     const original = target[name].bind(target);
@@ -44,12 +46,67 @@ async function main() {
   try {
     const date = process.argv[2] || '2026-09-30';
     const strategyType = process.argv[3] || 'gapThreeUp';
+    if (process.argv.includes('--verify-trends')) {
+      const assert = require('node:assert/strict');
+      const { TREND_KEYS, TREND_DEFAULTS } = require('../src/modules/strategy/trend-rules');
+      for (const key of TREND_KEYS) {
+        const started=performance.now();
+        const expected=await service.trends.list(date,key,TREND_DEFAULTS);
+        const baselineMs=Math.round(performance.now()-started);
+        const selectedAt=performance.now();
+        const actual=await service.list({date,strategyType:key,includeLabels:false});
+        const order=rows=>rows.map(row=>({...row})).sort((a,b)=>a.tsCode.localeCompare(b.tsCode));
+        assert.deepEqual(order(actual),order(expected));
+        console.log(JSON.stringify({verified:key,count:actual.length,baselineMs,optimizedMs:Math.round(performance.now()-selectedAt)}));
+      }
+      return;
+    }
+    if (process.argv.includes('--comparison')) {
+      const codes=['000503.SZ','000513.SZ','600429.SH','603418.SH'];
+      for(const phase of ['cold','warm']) { const start=performance.now(); const value=await insights.comparison(date,codes); console.log(JSON.stringify({endpoint:'comparison',phase,ms:Math.round(performance.now()-start),count:value.items.length,relative:value.items.map(r=>[r.code,r.relative])})); }
+      return;
+    }
+    if (process.argv.includes('--all')) {
+      const { InsightService } = require('../src/modules/strategy/insight.service');
+      const insights = new InsightService(db, null, null, null, sectors, null);
+      for (const {key} of await service.navList()) {
+        for (const phase of ['cold', 'warm']) {
+          queries = []; stages = [];
+          const start = performance.now();
+          const rows = await service.list({date, strategyType:key, includeLabels:false});
+          console.log(JSON.stringify({endpoint:'candidates',strategy:key,phase,ms:Math.round(performance.now()-start),count:rows.length,queries:queries.length,slowest:queries.sort((a,b)=>b.ms-a.ms).slice(0,3)}));
+          if (rows.length && process.argv.includes('--panels')) {
+            for (const [endpoint, loader] of [['labels',()=>service.labels(date,rows.map(r=>r.tsCode))],['comparison',()=>insights.comparison(date,rows.map(r=>r.tsCode))]]) {
+              queries=[]; const started=performance.now(); await loader();
+              console.log(JSON.stringify({endpoint,strategy:key,phase,ms:Math.round(performance.now()-started),queries:queries.length,slowest:queries.sort((a,b)=>b.ms-a.ms).slice(0,3)}));
+            }
+          }
+        }
+      }
+      return;
+    }
+    if (process.argv.includes('--probe')) {
+      const dates = (await insightsCalendar(date)).slice(0, Number(process.env.PROFILE_DAYS || 1));
+      for (const projection of ["revision,signals", "JSON_EXTRACT(data,'$[*].code') codes", 'COMPRESS(data) packed', 'data']) {
+        const start=performance.now();
+        const result=await db.query(`SELECT ${projection} FROM t_processed_stock_insight WHERE trade_date IN (?)`, [dates]);
+        const ms=Math.round(performance.now()-start);
+        const packed=result[0]?.packed;
+        const decoded=packed ? JSON.parse(require('node:zlib').inflateSync(packed.subarray(4)).toString('utf8')) : null;
+        console.log(JSON.stringify({projection,ms,bytes:packed ? result.reduce((n,r)=>n+r.packed.length,0) : JSON.stringify(result).length,decodedRows:decoded?.length}));
+      }
+      return;
+    }
     if (process.argv.includes('--details')) {
       const { InsightService } = require('../src/modules/strategy/insight.service');
       const insights = new InsightService(db, null, null, null, sectors, null);
       const started = performance.now();
       const result = await insights.performance(date, strategyType, Number(process.env.PROFILE_DAYS || 20));
       console.log(JSON.stringify({ performanceMs:Math.round(performance.now()-started), summary:result.summary, exceptions:result.items.filter(r=>r.outcomes[1].state!=='有效'&&r.outcomes[1].state!=='未到期').map(r=>({code:r.code,date:r.date,outcome:r.outcomes[1]})) }));
+      const warmStart=performance.now();
+      const warm=await insights.performance(date,strategyType,Number(process.env.PROFILE_DAYS || 20));
+      require('node:assert/strict').deepEqual(warm,result);
+      console.log(JSON.stringify({performanceWarmMs:Math.round(performance.now()-warmStart),identical:true}));
       const chart = await service.trends.chart({date:'2026-09-08',code:'605577.SH',strategyType:'threeDaysHighVol'});
       console.log(JSON.stringify({chartCode:chart.code,signal:chart.series.at(-1)}));
       return;
@@ -77,6 +134,5 @@ async function main() {
     }
   } finally { await query('ROLLBACK'); await runner.release(); await db.destroy(); }
 }
+async function insightsCalendar(date) { return (await db.query("SELECT DATE_FORMAT(cal_date,'%Y-%m-%d') date FROM t_source_trade_cal WHERE is_open=1 AND cal_date<=? ORDER BY cal_date DESC LIMIT 60",[date])).map(r=>r.date); }
 main().catch(async error => { console.error(error.code || error.name, error.message.replace(/(?:password|host|username)=\S+/gi, '[redacted]')); if (db.isInitialized) await db.destroy(); process.exitCode = 1; });
-
-

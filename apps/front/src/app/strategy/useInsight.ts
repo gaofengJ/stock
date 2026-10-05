@@ -12,13 +12,17 @@ export default function useInsight<T>(endpoint: string, params: Record<string, u
   const [attempt, setAttempt] = useState(0);
   const [loadedKey, setLoadedKey] = useState('');
   const instance = useId();
-  const lastSuccess = useRef({ key: '', at: 0 });
+  const recent = useRef(new Map<string, { data: T; at: number }>());
   const key = JSON.stringify([params, attempt, endpoint]);
   const { requestConfig, runLatestRequest } = useLatestRequest(`strategy-${endpoint}-${instance}`);
   const retry = useCallback(() => setAttempt((v) => v + 1), []);
   useEffect(() => {
     if (!enabled || !params.date) return undefined;
-    if (lastSuccess.current.key === key && Date.now() - lastSuccess.current.at < 120000) return undefined;
+    const cached = recent.current.get(key);
+    if (cached && Date.now() - cached.at < 120000) {
+      setData(cached.data); setLoadedKey(key); setLoading(false); setError('');
+      return undefined;
+    }
     const body = JSON.parse(key)[0];
     const codes = Array.isArray(body.codes) ? body.codes : null;
     // GET preserves guest read permissions. Bound URL length and concurrency
@@ -45,7 +49,14 @@ export default function useInsight<T>(endpoint: string, params: Record<string, u
         return { ...first, data: (Array.isArray(first.data) ? batches.flat() : { ...first.data, ready: batches.every((batch) => batch.ready), items: batches.flatMap((batch) => batch.items) }) as T };
       },
       onStart: () => { setLoading(true); setError(''); setData(null); },
-      onSuccess: (r) => { if (active) { setData(r.data); lastSuccess.current = { key, at: Date.now() }; } },
+      onSuccess: (r) => {
+        if (active) {
+          setData(r.data);
+          recent.current.forEach((entry, id) => { if (Date.now() - entry.at >= 120000) recent.current.delete(id); });
+          if (recent.current.size >= 12) recent.current.delete(recent.current.keys().next().value!);
+          recent.current.set(key, { data: r.data, at: Date.now() });
+        }
+      },
       onError: (e) => { if (active) setError(errorMessage(e, '观察数据加载失败')); },
       onFinally: () => { if (active) { setLoading(false); setLoadedKey(key); } },
     });

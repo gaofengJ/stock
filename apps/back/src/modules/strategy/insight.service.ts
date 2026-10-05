@@ -19,7 +19,6 @@ import { readSnapshot } from '../daily-task/sync-source.service';
 import { MarketSyncService } from '../analysis/market/market-sync.service';
 import { MarketResearchService } from '../analysis/market/market-research.service';
 import { SectorService } from '../analysis/market/sector.service';
-import { SectorDailyEntity } from '../analysis/market/sector.entity';
 import {
   BseMappingEntity,
   MarketBreadthEntity,
@@ -27,6 +26,7 @@ import {
 import { inScope, MarketScope } from '../analysis/market/market.constants';
 import { TrendFactorEntity, TrendFactor } from './trend.entity';
 import { StockInsightEntity, ThsHotEntity, HotStock } from './insight.entity';
+import { StrategySnapshotReader } from './snapshot-reader';
 import { TrendPoint, TREND_DEFAULTS } from './trend-rules';
 import {
   HORIZONS,
@@ -45,6 +45,8 @@ const hash = (value: unknown) =>
 
 @Injectable()
 export class InsightService {
+  private snapshotReader: StrategySnapshotReader;
+
   // At most 64 daily compact factor snapshots; reuse adjacent backfill windows.
   private factors = new Map<
     string,
@@ -58,7 +60,9 @@ export class InsightService {
     private research: MarketResearchService,
     private sectors: SectorService,
     private source: TushareService,
-  ) {}
+  ) {
+    this.snapshotReader = new StrategySnapshotReader(db);
+  }
 
   private async calendar(
     date: string,
@@ -111,13 +115,14 @@ export class InsightService {
     const [rows, revisions] = await Promise.all([
       this.db.manager.find(StockInsightEntity, {
         where: { tradeDate: In(dates) },
-        ...(detailDates && {
-          select: [
-            'tradeDate',
-            'revision',
-            'summary',
-          ] as (keyof StockInsightEntity)[],
-        }),
+        select: [
+          'id',
+          'updatedAt',
+          'tradeDate',
+          'revision',
+          'summary',
+          'signals',
+        ],
       }),
       this.revisions([...dates].sort()[0], [...dates].sort().at(-1)!),
     ]);
@@ -126,15 +131,19 @@ export class InsightService {
         .filter((r) => r.revision === this.revision(r.tradeDate, revisions))
         .map((r) => [r.tradeDate, r]),
     );
-    if (detailDates?.length) {
-      const details = await this.db.manager.find(StockInsightEntity, {
-        where: { tradeDate: In(detailDates.filter((d) => valid.has(d))) },
-      });
-      detailDates.forEach((date) => {
-        const row = details.find((r) => r.tradeDate === date);
-        if (row && row.revision === valid.get(date)?.revision)
-          valid.set(date, row);
-        else valid.delete(date);
+    const selected = [...valid.values()].filter(
+      (row) => !detailDates || detailDates.includes(row.tradeDate),
+    );
+    if (selected.length) {
+      const details = await this.snapshotReader.read(
+        't_processed_stock_insight',
+        selected,
+        (value) => value as StockInsightEntity['data'],
+      );
+      selected.forEach((row) => {
+        const data = details.get(row.id);
+        if (data) valid.set(row.tradeDate, Object.assign(row, { data }));
+        else valid.delete(row.tradeDate);
       });
     }
     return valid;
@@ -144,11 +153,11 @@ export class InsightService {
   private async observations(dates: string[], strategy: string) {
     type Metadata = Pick<
       StockInsightEntity,
-      'tradeDate' | 'revision' | 'signals'
-    > & { codes: string[] };
+      'id' | 'updatedAt' | 'tradeDate' | 'revision' | 'signals'
+    >;
     const [rows, versions] = await Promise.all([
       this.db.query<Metadata[]>(
-        "SELECT DATE_FORMAT(trade_date,'%Y-%m-%d') tradeDate,revision,signals,JSON_EXTRACT(data,'$[*].code') codes FROM t_processed_stock_insight WHERE trade_date IN (?)",
+        "SELECT id,updated_at updatedAt,DATE_FORMAT(trade_date,'%Y-%m-%d') tradeDate,revision,signals FROM t_processed_stock_insight WHERE trade_date IN (?)",
         [dates],
       ),
       this.revisions(dates[0], dates.at(-1)!),
@@ -172,32 +181,36 @@ export class InsightService {
       string,
       Pick<StockInsightEntity, 'tradeDate' | 'signals' | 'data'>
     >();
-    for (let offset = 0; offset < valid.length; offset += 4) {
-      await Promise.all(
-        valid.slice(offset, offset + 4).map(async (r) => {
-          const paths = r.codes.flatMap((code, i) =>
-            wanted.get(r.tradeDate)?.has(code) ? [`$[${i}]`] : [],
-          );
-          if (!paths.length) {
-            result.set(r.tradeDate, { ...r, data: [] });
-            return;
-          }
-          const [projected] = await this.db.query(
-            `SELECT JSON_EXTRACT(data,${paths
-              .map(() => '?')
-              .join(
-                ',',
-              )}) items FROM t_processed_stock_insight WHERE trade_date=? AND revision=?`,
-            [...paths, r.tradeDate, r.revision],
-          );
-          // An updated snapshot cannot be combined with older signal metadata.
-          if (projected)
-            result.set(r.tradeDate, {
-              ...r,
-              data: paths.length === 1 ? [projected.items] : projected.items,
-            });
-        }),
+    const selected = valid.filter((row) => wanted.get(row.tradeDate)?.size);
+    const indexes = await this.snapshotReader.read(
+      't_processed_stock_insight',
+      selected,
+      (codes) => codes as string[],
+      ['$[*].code'],
+    );
+    for (const row of valid) {
+      if (!wanted.get(row.tradeDate)?.size) {
+        result.set(row.tradeDate, { ...row, data: [] });
+        continue;
+      }
+      const codes = indexes.get(row.id);
+      if (!codes) continue;
+      const paths = codes.flatMap((code, i) =>
+        wanted.get(row.tradeDate)?.has(code) ? [`$[${i}]`] : [],
       );
+      if (!paths.length) {
+        result.set(row.tradeDate, { ...row, data: [] });
+        continue;
+      }
+      const data = await this.snapshotReader.read(
+        't_processed_stock_insight',
+        [row],
+        (value) =>
+          (paths.length === 1 ? [value] : value) as StockInsightEntity['data'],
+        paths,
+      );
+      if (data.has(row.id))
+        result.set(row.tradeDate, { ...row, data: data.get(row.id)! });
     }
     return result;
   }
@@ -682,14 +695,6 @@ export class InsightService {
       this.calendar(date, 61),
     ]);
     const record = records.get(date);
-    const prices = await this.db.manager.find(SectorDailyEntity, {
-      where: {
-        tradeDate: In([dates[0], dates[20], dates[60]].filter(Boolean)),
-      },
-    });
-    const closes = new Map(
-      prices.map((r) => [`${r.tsCode}:${r.tradeDate}`, r.data.close]),
-    );
     const sectorByStock = new Map<string, typeof members>();
     for (const member of members) {
       for (const r of member.members)
@@ -698,6 +703,25 @@ export class InsightService {
           member,
         ]);
     }
+    const wanted = new Set(codes || record?.data.map((row) => row.code) || []);
+    const industryCodes = members
+      .filter((member) => member.members.some((row) => wanted.has(row.code)))
+      .map((member) => member.tsCode);
+    const priceDates = [dates[0], dates[20], dates[60]].filter(Boolean);
+    const prices: {
+      tsCode: string;
+      tradeDate: string;
+      close: number | null;
+    }[] =
+      industryCodes.length && priceDates.length
+        ? await this.db.query(
+            "SELECT ts_code tsCode,DATE_FORMAT(trade_date,'%Y-%m-%d') tradeDate,JSON_EXTRACT(data,'$.close') close FROM t_source_ths_daily WHERE ts_code IN (?) AND trade_date IN (?)",
+            [industryCodes, priceDates],
+          )
+        : [];
+    const closes = new Map(
+      prices.map((row) => [`${row.tsCode}:${row.tradeDate}`, row.close]),
+    );
     const hits = new Map(
       record?.signals.items.map((r) => [r.code, r.keys]) || [],
     );
@@ -735,6 +759,41 @@ export class InsightService {
           }) || [],
       popularity,
     };
+  }
+
+  /** A published standard signal is only a prefilter; trend evidence is still evaluated. */
+  async standardCandidates(date: string, strategy: string, options: object) {
+    if (
+      !Object.entries(TREND_DEFAULTS).every(
+        ([key, value]) => (options as any)[key] === value,
+      )
+    )
+      return undefined;
+    const row = await this.db.manager.findOne(StockInsightEntity, {
+      where: { tradeDate: date },
+      select: ['updatedAt', 'revision', 'signals'],
+    });
+    if (
+      !row ||
+      row.signals.version !== INSIGHT_VERSION ||
+      !row.signals.ready.includes(strategy) ||
+      !Object.entries(TREND_DEFAULTS).every(
+        ([key, value]) => (row.signals.parameters as any)[key] === value,
+      )
+    )
+      return undefined;
+    const versions = await this.revisions(date, date);
+    if (row.revision !== this.revision(date, versions)) return undefined;
+    // Identity and alias repairs also invalidate the prefilter, even though the
+    // legacy insight revision did not include their versions.
+    const changed = await this.db.query(
+      'SELECT id FROM t_source_stock_history WHERE updated_at>? UNION ALL SELECT id FROM t_source_bse_mapping WHERE updated_at>? LIMIT 1',
+      [row.updatedAt, row.updatedAt],
+    );
+    if (changed.length) return undefined;
+    return row.signals.items
+      .filter((hit) => hit.keys.includes(strategy))
+      .map((hit) => hit.code);
   }
 
   async performance(

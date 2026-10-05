@@ -1,3 +1,6 @@
+import { deflateSync } from 'zlib';
+import { TREND_DEFAULTS } from './trend-rules';
+import { INSIGHT_VERSION } from './insight.utils';
 import { InsightService } from './insight.service';
 import { StockInsightEntity, ThsHotEntity } from './insight.entity';
 import { SyncRunEntity } from '../daily-task/sync-run.entity';
@@ -115,9 +118,17 @@ describe('InsightService observation boundaries', () => {
     (service as any).observations.mockRestore();
     jest.spyOn(service as any, 'revisions').mockResolvedValue([]);
     jest.spyOn(service as any, 'revision').mockReturnValue('valid');
+    const updatedAt = new Date('2026-09-30');
+    const packed = (value: unknown) =>
+      Buffer.concat([
+        Buffer.alloc(4),
+        deflateSync(Buffer.from(JSON.stringify(value))),
+      ]);
     db.query
       .mockResolvedValueOnce([
         {
+          id: 1,
+          updatedAt,
           tradeDate: '2026-09-28',
           revision: 'valid',
           codes: ['000001.SZ', '000002.SZ'],
@@ -127,6 +138,8 @@ describe('InsightService observation boundaries', () => {
           },
         },
         {
+          id: 2,
+          updatedAt,
           tradeDate: '2026-09-29',
           revision: 'valid',
           codes: ['000001.SZ', '000002.SZ'],
@@ -134,7 +147,20 @@ describe('InsightService observation boundaries', () => {
         },
       ])
       .mockResolvedValueOnce([
-        { items: { code: '000002.SZ', close: 10, traded: true } },
+        ...[1, 2].map((id) => ({
+          id,
+          updatedAt,
+          revision: 'valid',
+          packed: packed(['000001.SZ', '000002.SZ']),
+        })),
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: 1,
+          updatedAt,
+          revision: 'valid',
+          packed: packed({ code: '000002.SZ', close: 10, traded: true }),
+        },
       ])
       .mockResolvedValueOnce([]);
     const records = await (service as any).observations(
@@ -145,8 +171,9 @@ describe('InsightService observation boundaries', () => {
       { code: '000002.SZ', close: 10, traded: true },
     ]);
     expect(records.has('2026-09-29')).toBe(false);
-    expect(db.query.mock.calls[1][1]).toEqual(['$[1]', '2026-09-28', 'valid']);
-    expect(db.query.mock.calls[2][1]).toEqual(['$[1]', '2026-09-29', 'valid']);
+    expect(db.query.mock.calls[1][1]).toEqual(['$[*].code', [1, 2]]);
+    expect(db.query.mock.calls[2][1]).toEqual(['$[1]', [1]]);
+    expect(db.query.mock.calls[3][1]).toEqual(['$[1]', [2]]);
   });
   it('invalidates stored insights after a source revision changes', async () => {
     const db: any = {
@@ -168,6 +195,87 @@ describe('InsightService observation boundaries', () => {
     jest.spyOn(service as any, 'revisions').mockResolvedValue([]);
     expect((await (service as any).snapshots(days)).size).toBe(0);
     expect(db.manager.find.mock.calls[0][0]).toBe(StockInsightEntity);
+  });
+  it('comparison reads only candidate industries and preserves percentage-point returns', async () => {
+    const { service, sectors, db } = setup();
+    const calendar = Array.from({ length: 61 }, (_, i) => `day-${i}`);
+    (service as any).calendar.mockResolvedValue(calendar);
+    jest.spyOn(service as any, 'snapshots').mockResolvedValue(
+      new Map([
+        [
+          'day-0',
+          {
+            signals: { version: 'v1', items: [] },
+            data: [
+              {
+                code: '000001.SZ',
+                name: '目标',
+                periods: { 20: { change: 40 }, 60: { change: 100 } },
+              },
+              { code: '000002.SZ', periods: {} },
+            ],
+          },
+        ],
+      ]),
+    );
+    jest.spyOn(service, 'popularity').mockResolvedValue({ items: [] } as any);
+    sectors.snapshots.mockResolvedValue([
+      { tsCode: '881001.TI', asOf: 'day-0', members: [{ code: '000001.SZ' }] },
+      { tsCode: '881002.TI', asOf: 'day-0', members: [{ code: '000002.SZ' }] },
+    ]);
+    db.query.mockResolvedValue([
+      { tsCode: '881001.TI', tradeDate: 'day-0', close: 10 },
+      { tsCode: '881001.TI', tradeDate: 'day-20', close: 8 },
+      { tsCode: '881001.TI', tradeDate: 'day-60', close: null },
+    ]);
+    const result = await service.comparison('day-0', ['000001.SZ']);
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].relative).toEqual({ 20: 15, 60: null });
+    expect(db.query.mock.calls[0][1]).toEqual([
+      ['881001.TI'],
+      ['day-0', 'day-20', 'day-60'],
+    ]);
+  });
+  it('uses standard signals only when parameters, source and identity versions are current', async () => {
+    const { service, db } = setup();
+    const snapshot = {
+      updatedAt: new Date('2026-09-30'),
+      revision: 'valid',
+      signals: {
+        version: INSIGHT_VERSION,
+        ready: ['fiveMaUp'],
+        parameters: Object.fromEntries(
+          Object.entries(TREND_DEFAULTS).reverse(),
+        ),
+        items: [{ code: '000001.SZ', keys: ['fiveMaUp'] }],
+      },
+    };
+    db.manager.findOne = jest.fn().mockResolvedValue(snapshot);
+    jest.spyOn(service as any, 'revisions').mockResolvedValue([]);
+    jest.spyOn(service as any, 'revision').mockReturnValue('valid');
+    expect(
+      await service.standardCandidates(days[0], 'fiveMaUp', {
+        ...TREND_DEFAULTS,
+        fiveMaMode: 'current',
+      }),
+    ).toBeUndefined();
+    expect(db.manager.findOne).not.toHaveBeenCalled();
+    expect(
+      await service.standardCandidates(days[0], 'fiveMaUp', TREND_DEFAULTS),
+    ).toEqual(['000001.SZ']);
+    db.query.mockResolvedValueOnce([{ id: 1 }]);
+    expect(
+      await service.standardCandidates(days[0], 'fiveMaUp', TREND_DEFAULTS),
+    ).toBeUndefined();
+    snapshot.revision = 'old';
+    expect(
+      await service.standardCandidates(days[0], 'fiveMaUp', TREND_DEFAULTS),
+    ).toBeUndefined();
+    snapshot.revision = 'valid';
+    snapshot.signals.ready = [];
+    expect(
+      await service.standardCandidates(days[0], 'fiveMaUp', TREND_DEFAULTS),
+    ).toBeUndefined();
   });
   it('uses the immediately preceding trading session, never an older available snapshot', async () => {
     const { service, db } = setup();
