@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Button, Col, Empty, Row,
+  Button, Col, Empty, Row, Select,
 } from 'antd';
 import Link from 'next/link';
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
@@ -18,7 +18,7 @@ import {
   DataState, Metrics, SectionTitle,
 } from '../components/MarketCharts';
 import { ChartWindow, pairedIndexCandles, scopeIndexes } from '../components/market-display';
-import IndexChart from '../components/IndexChart';
+import OverviewIndexChart from '../components/OverviewIndexChart';
 import ChartRange from '../components/ChartRange';
 import MarketAmountChart from '../components/MarketAmountChart';
 import MarketBreadthChart from '../components/MarketBreadthChart';
@@ -32,6 +32,7 @@ export default function OverviewPage() {
   const { scope, date } = useMarket();
   const { user } = useAccount();
   const [index, setIndex] = useState<string | null>(null);
+  const [amountWindow, setAmountWindow] = useState<ChartWindow>({ period: 'day', count: 60 });
   const [window, setWindow] = useState<ChartWindow>({ period: 'day', count: 60 });
   useEffect(() => { setIndex(null); }, [scope]);
   const snapshot = data?.snapshot;
@@ -75,7 +76,19 @@ export default function OverviewPage() {
               <span style={{ flexGrow: snapshot.down, background: 'var(--quote-down)' }} />
             </div>
             )}
-            <SectionTitle title="主要指数" description="点击指数查看对应K线和成交量，再次点击恢复全部。" />
+            <IndexComparisonChart indexes={indexes} dates={indexDates} />
+            <Row gutter={[16, 16]} className="market-amount-section">
+              <Col xs={24} lg={12}>
+                <MarketAmountChart title={`${range} - 市场成交额`} data={data} dates={indexDates} window={amountWindow} onWindowChange={setAmountWindow} />
+              </Col>
+              <Col xs={24} lg={12}>
+                <MarketBreadthChart range={range} />
+              </Col>
+              <Col xs={24} lg={12}>
+                <MarketExtremes range={range} />
+              </Col>
+            </Row>
+            <SectionTitle title="主要指数" description="选择指数卡片，紧邻展示对应K线和成交量；再次点击恢复全部。" />
             <Row gutter={[16, 16]} className="market-metrics">
               {indexes.map((i) => {
                 const point = i.series.find((r) => r.date === data.date);
@@ -101,29 +114,18 @@ export default function OverviewPage() {
                 );
               })}
             </Row>
-            <IndexComparisonChart indexes={indexes} dates={indexDates} />
-            <Row gutter={[16, 16]} className="market-amount-section">
-              <Col xs={24} lg={12}>
-                <MarketAmountChart title={`${range} - 市场成交额`} data={data} dates={indexDates} window={window} onWindowChange={setWindow} />
-              </Col>
-              <Col xs={24} lg={12}>
-                <MarketBreadthChart range={range} />
-              </Col>
-              <Col xs={24} lg={12}>
-                <MarketExtremes range={range} />
-              </Col>
-            </Row>
             <div className="market-section-toolbar">
               <div className="market-chart-selection">
                 <SectionTitle title="指数图表" description="上方K线、下方成交量，共用日期与缩放。周/月由日线汇总。" />
+                <Select aria-label="选择K线指数" value={selected?.code || 'all'} onChange={(value) => setIndex(value === 'all' ? null : value)} options={[{ value: 'all', label: '全部指数' }, ...indexes.map((i) => ({ value: i.code, label: i.name }))]} style={{ minWidth: 160 }} />
                 {selected && <Button size="small" onClick={() => setIndex(null)}>显示全部指数</Button>}
               </div>
               <ChartRange value={window} onChange={setWindow} />
             </div>
             <Row gutter={[16, 16]} className="market-chart-grid">
               {visibleIndexes.map((i) => (
-                <Col xs={24} lg={12} key={i.code}>
-                  <IndexChart index={i} dates={indexDates} window={window} />
+                <Col xs={24} lg={selected ? 24 : 12} key={i.code}>
+                  <OverviewIndexChart index={i} dates={indexDates} window={window} />
                 </Col>
               ))}
               {!visibleIndexes.length && <Col span={24}><div className="market-empty"><Empty description="该范围暂无完整K线与成交量数据" /></div></Col>}

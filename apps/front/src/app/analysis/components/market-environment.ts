@@ -9,8 +9,9 @@ export function relativeChange(value: number | null | undefined, base: number | 
 
 /** 所有指数使用同一个日历基准；缺失基准时不擅自顺延，以免比较不同区间。 */
 export function indexComparison(indexes: MarketSeries['indexes'], dates: string[], count: number) {
-  const visibleDates = count === 730 ? dates : dates.slice(-(count + 1));
-  const baseline = visibleDates[0];
+  const visibleDates = count === 730 ? dates : dates.slice(-count);
+  // 区间收益用首个可见交易日前一日收盘价，图中仅展示所选交易日。
+  const baseline = count === 730 ? dates[0] : dates[Math.max(0, dates.length - count - 1)];
   const end = visibleDates.at(-1);
   return {
     dates: visibleDates,

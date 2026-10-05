@@ -12,6 +12,8 @@ import { numberText } from '@/utils/format';
 import { LoadingOverlay } from '@/components/Loading';
 import useMarketData from './useMarketData';
 import { breadthDelta, environmentRanges } from './market-environment';
+import { seriesAverage } from './market-display';
+import { overviewDateAxis, overviewGrid } from './overview-chart';
 
 export default function MarketBreadthChart({ range }: { range: string }) {
   const {
@@ -29,6 +31,7 @@ export default function MarketBreadthChart({ range }: { range: string }) {
     return () => clearInterval(timer);
   }, [pending, retry]);
   const anyData = rows.some((r) => r.data?.[period].ratio != null);
+  const mean = seriesAverage(rows.map((r) => r.data?.[period].ratio));
   return (
     <Card
       className="market-chart market-environment-card"
@@ -78,6 +81,7 @@ export default function MarketBreadthChart({ range }: { range: string }) {
               <span>{measure ? `均线不足 ${measure.insufficient} 只，数据缺失 ${measure.missing} 只` : '当日广度待更新'}</span>
             </div>
           </div>
+          {!!rows.length && <div className="market-environment-caption">{`区间 ${rows[0].date} → ${rows.at(-1)!.date} · 均值按区间内有效交易日计算`}</div>}
           {!anyData ? (
             <div className="market-environment-empty"><Empty description={data?.stage?.status === 'failed' ? '均线数据暂不可用，请查看同步任务' : '均线广度正在补齐'} /></div>
           ) : (
@@ -92,17 +96,26 @@ export default function MarketBreadthChart({ range }: { range: string }) {
                 },
               },
               legend: { top: 0 },
-              grid: {
-                left: 16, right: 20, top: 56, bottom: 24, containLabel: true,
-              },
-              xAxis: {
-                type: 'category', data: rows.map((r) => r.date), boundaryGap: false, axisPointer: { snap: true }, axisTick: { alignWithLabel: true }, axisLabel: { hideOverlap: true },
-              },
+              grid: overviewGrid,
+              xAxis: overviewDateAxis(rows.map((r) => r.date)),
               yAxis: {
                 type: 'value', name: '%', min: 0, max: 100,
               },
               series: [{
-                name: `高于${period.toUpperCase()}占比`, type: 'line', data: rows.map((r) => r.data?.[period].ratio ?? null), connectNulls: false, showSymbol: rows.length <= 30, itemStyle: { color: chartColors.teal }, lineStyle: { width: 1.5 },
+                name: `高于${period.toUpperCase()}占比`,
+                type: 'line',
+                data: rows.map((r) => r.data?.[period].ratio ?? null),
+                connectNulls: false,
+                showSymbol: rows.length <= 30,
+                itemStyle: { color: chartColors.teal },
+                lineStyle: { width: 1.5 },
+                markLine: {
+                  silent: true,
+                  symbol: 'none',
+                  lineStyle: { color: chartColors.reference, type: 'dashed', width: 1 },
+                  label: { position: 'insideEndTop', formatter: '{b}', color: chartColors.reference },
+                  data: mean == null ? [] : [{ name: `区间均值 ${numberText(mean)}%`, yAxis: mean }],
+                },
               }],
             })}
             />

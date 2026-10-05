@@ -11,6 +11,7 @@ import { numberText } from '@/utils/format';
 import { ChartWindow, amountReferenceLevels, periodTotals } from './market-display';
 import ChartRange from './ChartRange';
 import { relativeChange } from './market-environment';
+import { overviewDateAxis, overviewGrid } from './overview-chart';
 
 function MarketAmountChart({
   data, window, title, dates, onWindowChange,
@@ -57,6 +58,7 @@ function MarketAmountChart({
           </div>
         ))}
       </div>
+      {!!rows.length && <div className="market-environment-caption">{`区间 ${rows[0].start} → ${rows.at(-1)!.end}`}</div>}
       {!rows.some((r) => r.value != null) ? <Empty description="该范围暂无完整成交额数据" /> : (
         <CChart genOptions={() => ({
           tooltip: {
@@ -69,12 +71,8 @@ function MarketAmountChart({
             },
           },
           legend: { top: 0, data: ['成交额'] },
-          grid: {
-            left: 16, right: 20, top: 56, bottom: 24, containLabel: true,
-          },
-          xAxis: {
-            type: 'category', data: rows.map((r) => r.date), axisTick: { alignWithLabel: true }, axisLabel: { hideOverlap: true },
-          },
+          grid: overviewGrid,
+          xAxis: overviewDateAxis(rows.map((r) => r.date)),
           yAxis: {
             type: 'value', name: '亿元', nameGap: 16, max: references.at(-1), axisLabel: { formatter: (v: number) => numberText(v, 0) },
           },
