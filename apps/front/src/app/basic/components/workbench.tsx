@@ -101,15 +101,18 @@ export function SourceState({ data, error, retry }: { data: any; error?: string;
     </>
   );
 }
-export function RiskTags({ data, code, date }: { data: any; code: string; date?: string }) {
+export function RiskTags({
+  data, code, date, showSourceState = true,
+}: { data: any; code: string; date?: string; showSourceState?: boolean }) {
   const { user } = useAccount();
   const canLink = allowedPath(user, '/basic/stock/risk');
   const items = data?.items?.filter((r: any) => r.tsCode === code) || [];
   const labels = Array.from(new Set<string>(items.map((r: any) => r.type)));
+  if (!showSourceState && !labels.length) return null;
   return (
     <Space size={2} wrap>
       {labels.map((label) => (canLink ? <Link key={label} href={`/basic/stock/risk/?code=${code}&date=${date || ''}`}><Tag color={label === '复牌' ? 'blue' : 'orange'}>{label}</Tag></Link> : <Tag color="orange" key={label}>{label}</Tag>))}
-      <Tooltip title="减持计划、重大利空及潜在ST／退市风险需逐股核验。无记录不代表无风险。"><span className="basic-muted">{!data || data.sources?.some((s: any) => s.state !== 'ready') ? '资料待补齐' : '其他风险待核验'}</span></Tooltip>
+      {showSourceState && <Tooltip title="减持计划、重大利空及潜在ST／退市风险需逐股核验。无记录不代表无风险。"><span className="basic-muted">{!data || data.sources?.some((s: any) => s.state !== 'ready') ? '资料待补齐' : '其他风险待核验'}</span></Tooltip>}
     </Space>
   );
 }
