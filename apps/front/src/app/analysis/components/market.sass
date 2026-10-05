@@ -286,6 +286,7 @@
   gap: 12px
 
 .market-ladder-stock
+  position: relative
   display: inline-flex
   flex-direction: column
   gap: 4px
@@ -298,6 +299,13 @@
   span
     color: var(--text-secondary)
     font-size: 12px
+
+a.market-ladder-stock
+  padding-right: 32px
+  .interaction-link-mark
+    position: absolute
+    right: 12px
+    top: 14px
 
 a.market-ladder-stock:hover, a.market-ladder-stock:focus-visible
   border-color: var(--color-primary)
@@ -335,9 +343,12 @@ a.market-ladder-stock:hover, a.market-ladder-stock:focus-visible
     min-height: 14px
     font-size: 11px
     color: var(--color-primary)
-  &:hover, &:focus-visible
+  &:hover
     background: var(--color-surface-muted)
     outline: 1px solid var(--color-border)
+  &:focus-visible
+    outline: 2px solid var(--color-primary)
+    outline-offset: -2px
 
 .sentiment-chart-pair
   margin-bottom: 20px

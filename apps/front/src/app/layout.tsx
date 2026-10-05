@@ -5,6 +5,7 @@ import { themeVariablesCss } from '@/colors';
 import SiteTheme from '@/components/SiteTheme';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 import './global.css';
+import '@/components/Interaction/interaction.css';
 import '@/auth/account.css';
 
 export const metadata: Metadata = {

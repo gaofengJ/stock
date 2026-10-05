@@ -1,5 +1,7 @@
 'use client';
 
+import Link, { InteractionButton } from '@/components/Interaction';
+
 import {
   useCallback, useEffect, useMemo, useRef, useState,
 } from 'react';
@@ -7,7 +9,6 @@ import {
   Alert, Button, Collapse, DatePicker, Grid, Input, Select, Space, Tabs,
 } from 'antd';
 import dayjs from 'dayjs';
-import Link from 'next/link';
 import { useAccount } from '@/auth/Boundary';
 import { allowedPath } from '@/auth/client';
 import { useSearchParams } from 'next/navigation';
@@ -126,14 +127,14 @@ function StrategyPage() {
     ...strategyColumns.slice(0, 2).map((column) => ({
       ...column,
       fixed: 'left' as const,
-      width: column.key === 'tsCode' ? 104 : 120,
-      render: (value: string, row: any) => <Button type="link" className="strategy-stock-link" onClick={() => openStock(row)}>{column.key === 'tsCode' ? value.split('.')[0] : value}</Button>,
+      width: column.key === 'tsCode' ? 116 : 145,
+      render: (value: string, row: any) => <InteractionButton intent="preview" title={`查看${row.name}K线`} onClick={() => openStock(row)}>{column.key === 'tsCode' ? value.split('.')[0] : value}</InteractionButton>,
     })),
     {
       title: '风险提示', key: 'risks', width: 150, render: (_: any, row: any) => <RiskTags data={riskState.data} code={row.tsCode} date={date} />,
     },
     {
-      title: '风险核验', key: 'riskCheck', width: 100, render: (_: any, row: any) => <RiskInspect code={row.tsCode} date={date} />,
+      title: '风险核验', key: 'riskCheck', width: 125, render: (_: any, row: any) => <RiskInspect code={row.tsCode} date={date} />,
     },
     {
       title: '档案', key: 'profile', width: 70, render: (_: any, row: any) => <StockLink code={row.tsCode} name="资料" date={date} />,
@@ -160,7 +161,7 @@ function StrategyPage() {
         {view === 'performance' ? <Collapse className="mb-16" items={[{ key: 'market', label: `截至日大盘环境 · ${date}`, children: <CandidateEnvironment date={date} /> }]} /> : <CandidateEnvironment date={date} />}
         <div className="strategy-view-toolbar">
           <Tabs activeKey={view} onChange={(key) => updateQuery({ view: key })} items={[{ key: 'candidates', label: '候选列表' }, { key: 'comparison', label: '横向比较' }, { key: 'performance', label: '历史信号表现' }]} />
-          {allowedPath(user, '/analysis/senti') && <Link href={`/analysis/senti/?date=${date}&scope=all&view=popularity#popularity`}>全市场人气榜 ↗</Link>}
+          {allowedPath(user, '/analysis/senti') && <Link href={`/analysis/senti/?date=${date}&scope=all&view=popularity#popularity`}>全市场人气榜</Link>}
         </div>
         {(view === 'candidates' || view === 'comparison') && (
         <>

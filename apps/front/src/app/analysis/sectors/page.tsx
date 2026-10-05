@@ -1,10 +1,11 @@
 'use client';
 
+import Link, { InteractionButton } from '@/components/Interaction';
+
 import {
   useEffect, useMemo, useRef, useState,
 } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import {
   Alert, Button, Card, Col, Empty, Input, Row, Segmented, Space, Tabs, Popover,
 } from 'antd';
@@ -103,7 +104,7 @@ export default function Page() {
   };
   const tableColumns = [
     {
-      title: '板块', dataIndex: 'name', fixed: 'left' as const, width: 160, render: (v: string, r: SectorRow) => <Button type="link" className="sector-name-link" onClick={() => open(r)}>{v}</Button>,
+      title: '板块', dataIndex: 'name', fixed: 'left' as const, width: 180, render: (v: string, r: SectorRow) => <InteractionButton intent="select" selected={code === r.code} aria-controls="sector-detail" onClick={() => open(r)}>{v}</InteractionButton>,
     },
     ...(['day', 'five', 'twenty'] as const).map((field, i) => ({
       title: ['当日涨跌幅', '5日涨跌幅', '20日涨跌幅'][i], dataIndex: field, align: 'right' as const, width: 135, render: metric, sorter: (a:SectorRow, b:SectorRow) => (a[field] ?? -Infinity) - (b[field] ?? -Infinity),
@@ -118,7 +119,7 @@ export default function Page() {
       width: 100,
       render: (v: number | null, r: SectorRow) => {
         if (v == null) return '—';
-        if (v > 0 && allowedPath(user, '/analysis/limits')) return <Link href={jump('/analysis/limits', r.code, { type: 'U' })}>{v}</Link>;
+        if (v > 0 && allowedPath(user, '/analysis/limits')) return <Link title={`查看${r.name}涨停明细`} href={jump('/analysis/limits', r.code, { type: 'U' })}>{v}</Link>;
         return v;
       },
     },
@@ -129,7 +130,7 @@ export default function Page() {
       title: (
         <span>
           成交额占比
-          <HelpTooltip label="成交额占比" title="成分股成交额占全部A股比例；题材成分可重叠，不能相加。" />
+          <HelpTooltip label="成交额占比" title="成分股成交额占全部A股成交额的比例。题材成分存在重叠，各题材占比独立统计。" />
         </span>
       ),
       dataIndex: 'amountShare',
@@ -151,10 +152,11 @@ export default function Page() {
       align: 'right' as const,
       width: 130,
       render: (_: unknown, r: SectorRow) => {
-        if (!signalsReady) return signals.error ? <Button type="link" onClick={signals.retry}>重试</Button> : '待更新';
+        if (!signalsReady) return signals.error ? <Button type="default" onClick={signals.retry}>重试</Button> : '待更新';
         const hit = counts.get(r.code);
         return hit?.count ? (
           <Popover
+            trigger={['hover', 'click']}
             title="当日策略命中"
             content={(
               <Space direction="vertical">
@@ -169,7 +171,7 @@ export default function Page() {
               </Space>
 )}
           >
-            <Button type="link">{hit.count}</Button>
+            <InteractionButton intent="popover" aria-label={`展开${r.name}策略命中分布`}>{hit.count}</InteractionButton>
           </Popover>
         ) : (hit?.count ?? '—');
       },
@@ -219,8 +221,9 @@ export default function Page() {
       </div>
       {data?.job && data.job.status !== 'success' && <Alert className="mb-16" type={data.job.status === 'failed' ? 'warning' : 'info'} showIcon message={data.job.status === 'failed' ? '板块数据同步失败，请查看数据同步任务' : `板块数据补齐中：${data.job.stage}`} />}
       <DataState loading={request.loading} error={request.error} retry={request.retry} empty={!data}>
-        <SectionTitle title="强弱排行" description="成分统计显示快照日期，不代表历史时点的完整成分。" />
-        <Table<SectorRow> rowKey="code" size="small" pagination={false} bordered maxBodyHeight={480} minBodyHeight={280} scroll={{ x: 1730 }} dataSource={rows} columns={tableColumns} rowClassName={(r) => (r.code === code ? 'sector-selected' : '')} locale={{ emptyText: keyword ? '没有符合条件的板块' : '板块目录正在补齐' }} />
+        <SectionTitle title="强弱排行" description="成分统计基于已取得的快照，覆盖范围与日期见成分日期列。" />
+        <p className="interaction-hint">选择板块，联动下方走势与成分股；带箭头的数字或名称进入对应页面。</p>
+        <Table<SectorRow> rowKey="code" size="small" pagination={false} bordered maxBodyHeight={480} minBodyHeight={280} scroll={{ x: 1730 }} dataSource={rows} columns={tableColumns} rowClassName={(r) => (r.code === code ? 'interaction-selected-row' : '')} locale={{ emptyText: keyword ? '没有符合条件的板块' : '板块目录正在补齐' }} />
         <Row gutter={[16, 16]} className="sector-rotation-row">
           <Col xs={24} xl={24}>
             <Card title={(
@@ -239,7 +242,7 @@ export default function Page() {
             </Card>
           </Col>
         </Row>
-        <div ref={detailRef} className="sector-detail">
+        <div id="sector-detail" ref={detailRef} className="sector-detail">
           {!code && <div className="sector-detail-hint">选择板块，查看走势与成分股</div>}
           {code && !detail && !request.loading && <Empty description="所选板块不在当前分类中" />}
           {detail && (

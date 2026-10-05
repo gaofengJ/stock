@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/components/Interaction';
 import {
   Alert, Button, Drawer, Empty, Tabs, Tag,
 } from 'antd';
@@ -159,7 +159,7 @@ export function DragonDetails({
     <div className="dragon-details">
       <div className="dragon-intro">
         <span>按上榜原因查看买卖席位</span>
-        <HelpTooltip label="龙虎榜统计口径" title="金额按上榜原因分别统计。关联名称来自营业部名录，不代表交易者身份。" />
+        <HelpTooltip label="龙虎榜统计口径" title="金额按上榜原因分别统计。关联名称按营业部名录匹配，实际交易主体需另行核实。" />
       </div>
       {loading && <Loading height={320} />}
       {error && <Alert message={error} type="error" showIcon action={<Button size="small" onClick={() => setAttempt((v) => v + 1)}>重试</Button>} />}

@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import {
-  Checkbox, Drawer, Input, Select, Space, Tag, Tooltip,
+  Button, Checkbox, Drawer, Input, Select, Space, Tag, Tooltip,
 } from 'antd';
-import Link from 'next/link';
+import Link from '@/components/Interaction';
 import Table from '@/components/DataTable';
 import SectorLinks from '@/components/SectorLinks';
 import {
@@ -13,7 +13,8 @@ import {
 import { changeClass, numberText } from '@/utils/format';
 import { useAccount } from '@/auth/Boundary';
 import { allowedPath } from '@/auth/client';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { EyeOutlined } from '@ant-design/icons';
 import SectorFilter, { useSectorSelection } from '@/components/SectorFilter';
 import useMarketData from './useMarketData';
 import { useMarket } from './MarketContext';
@@ -22,6 +23,7 @@ import { marketHref } from './market-navigation';
 
 export default function StrongTrajectories() {
   const { date, scope } = useMarket(); const { user } = useAccount(); const params = useSearchParams();
+  const router = useRouter();
   const code = /^\d{6}\.(SH|SZ|BJ)$/.test(params.get('code') || '') ? params.get('code') : undefined;
   const { sector, setSector } = useSectorSelection(); const [count, setCount] = useState(10); const [keyword, setKeyword] = useState('');
   const [showSignals, setShowSignals] = useState(false); const [detail, setDetail] = useState<{ row: TrajectoryRow; cell: TrajectoryCell } | null>(null);
@@ -56,9 +58,10 @@ export default function StrongTrajectories() {
           <Input.Search aria-label="搜索轨迹股票" allowClear placeholder="股票名称／代码" value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ width: 190 }} />
           <Select aria-label="轨迹范围" value={count} onChange={setCount} options={[5, 10, 20].map((value) => ({ value, label: `近${value}个交易日` }))} />
           {allowedPath(user, '/strategy') && <Checkbox checked={showSignals} onChange={(e) => setShowSignals(e.target.checked)}>策略标记</Checkbox>}
-          {code && <Link href={marketHref('/analysis/chains', { date, scope }, { view: 'trajectory' })}>显示全部股票</Link>}
+          {code && <Button size="small" onClick={() => router.replace(marketHref('/analysis/chains', { date, scope }, { view: 'trajectory', ...(sector ? { sector } : {}) }), { scroll: false })}>显示全部股票</Button>}
         </Space>
       </div>
+      <p className="interaction-hint">点击每日状态，在侧栏预览当日行情与策略；带箭头的链接前往对应页面。</p>
       {showSignals && <p className="market-note">{signals.loading ? '策略标记加载中…' : signals.error || '★ 表示命中默认参数策略，点击查看；数据未补齐显示“待更新”。'}</p>}
       <DataState loading={request.loading} error={request.error} retry={request.retry} empty={!data?.ready}>
         <Table<TrajectoryRow>
@@ -91,13 +94,17 @@ export default function StrongTrajectories() {
                 const cell = row.cells.find((c) => c.date === day)!;
                 const hits = signalMap.get(`${day}:${row.tsCode}`) || [];
                 return (
-                  <button type="button" className={`trajectory-cell ${changeClass(cell.pctChg)}`} onClick={() => setDetail({ row, cell })} aria-label={`${row.name} ${day} ${cell.state}`}>
+                  <button type="button" className={`trajectory-cell ${changeClass(cell.pctChg)}`} aria-haspopup="dialog" title="在侧栏预览当日详情" onClick={() => setDetail({ row, cell })} aria-label={`预览${row.name} ${day} ${cell.state}`}>
                     <span className="trajectory-state">{cell.state === '交易' ? '—' : cell.state}</span>
                     <span>
                       {numberText(cell.pctChg, 2, true)}
                       {cell.pctChg == null ? '' : '%'}
                     </span>
                     {showSignals && <small>{readySignals.has(day) && hits.length ? `★ ${hits.length}${pendingSignals(day).length ? ' / 待更新' : ''}` : signalText(day).replace('未命中', '')}</small>}
+                    <span className="interaction-preview-caption">
+                      <EyeOutlined aria-hidden />
+                      预览
+                    </span>
                   </button>
                 );
               },

@@ -1,5 +1,7 @@
 'use client';
 
+import { InteractionButton } from '@/components/Interaction';
+
 import { useRef, useState } from 'react';
 import {
   Alert, Button, Card, Collapse, Segmented, Select, Space, Tag, Table as CompactTable,
@@ -50,8 +52,8 @@ export function CandidateComparison({
       <Space wrap size={[16, 12]} className="mb-16">
         <Segmented aria-label="比较周期" value={period} onChange={(v) => setPeriod(Number(v))} options={[{ label: '20日', value: 20 }, { label: '60日', value: 60 }]} />
         <Select aria-label="多策略交集" placeholder="同时命中策略（标准参数）" mode="multiple" allowClear style={{ minWidth: 300 }} value={selected} onChange={setSelected} options={strategies.map((s) => ({ value: s.key, label: s.label }))} />
-        <Button disabled={!onlySelected && !codes.length} onClick={() => setOnlySelected((v) => !v)}>{onlySelected ? '显示全部候选' : `只比较勾选的 ${codes.length} 只`}</Button>
-        <HelpTooltip label="横向比较口径" title="涨幅强度为全市场有效样本的同期涨幅百分位（0–100），越高越强，不是涨幅。领先行业为个股涨幅减同花顺行业指数涨幅。多策略命中按标准参数计算。" />
+        <InteractionButton intent="select" selected={onlySelected} disabled={!onlySelected && !codes.length} onClick={() => setOnlySelected((v) => !v)}>{onlySelected ? '显示全部候选' : `只比较勾选的 ${codes.length} 只`}</InteractionButton>
+        <HelpTooltip label="横向比较口径" title="涨幅强度表示同期涨幅在全市场有效样本中的百分位（0–100），数值越高，相对排名越靠前。领先行业为个股涨幅减同花顺行业指数涨幅。多策略命中按标准参数计算。" />
       </Space>
       {state.data && !state.data.ready && <Alert className="mb-16" type="info" message="观察数据待补齐，候选列表仍可查看。" />}
       <Table
@@ -66,7 +68,7 @@ export function CandidateComparison({
         minBodyHeight={360}
         columns={[
           {
-            title: '股票', key: 'stock', fixed: 'left', width: 180, render: (_, r) => <Button type="link" onClick={() => onStock(r, orderedRows(sortedRows.current, rows))}>{`${r.name} ${r.tsCode.split('.')[0]}`}</Button>,
+            title: '股票', key: 'stock', fixed: 'left', width: 180, render: (_, r) => <InteractionButton intent="preview" onClick={() => onStock(r, orderedRows(sortedRows.current, rows))}>{`${r.name} ${r.tsCode.split('.')[0]}`}</InteractionButton>,
           },
           { title: '行业', dataIndex: 'industry', width: 110 },
           {
@@ -94,7 +96,7 @@ export function CandidateComparison({
             title: '同时符合的标准策略', key: 'hits', width: 270, render: (_, r) => <Space size={[0, 4]} wrap>{r.detail?.strategies.map((key: string) => <Tag key={key}>{strategies.find((s) => s.key === key)?.label || key}</Tag>) || '—'}</Space>,
           },
           {
-            title: '同花顺人气名次', key: 'rank', width: 140, align: 'right', render: (_, r) => { if (r.hot) return <Button type="link" onClick={() => setHotCode(r.tsCode)}>{`第${r.hot.rank}名`}</Button>; return state.data?.popularity.complete ? '未入榜' : '榜单缺失'; },
+            title: '同花顺人气名次', key: 'rank', width: 140, align: 'right', render: (_, r) => { if (r.hot) return <InteractionButton intent="preview" onClick={() => setHotCode(r.tsCode)}>{`第${r.hot.rank}名`}</InteractionButton>; return state.data?.popularity.complete ? '未入榜' : '榜单缺失'; },
           },
           {
             title: '较上一交易日', key: 'rankChange', width: 110, align: 'right', render: (_, r) => rankChange(r.hot),
@@ -122,7 +124,7 @@ export function SignalPerformance({
   const filterState = ({ pending: '未到期', inactive: '观察日无成交', missing: '数据不足' } as Record<string, string>)[filter];
   const rows = (data?.items || []).filter((row) => filter === 'all' || (filter === 'valid' ? row.outcomes[horizon].value != null : row.outcomes[horizon].state === filterState));
   const summaryColumns = [
-    { title: '观察周期', dataIndex: 'horizon', render: (v: number) => `后${v}个交易日` },
+    { title: '观察周期', dataIndex: 'horizon', render: (v: number) => <InteractionButton intent="select" selected={v === horizon} onClick={() => setHorizon(v)} aria-controls="signal-performance-details">{`后${v}个交易日`}</InteractionButton> },
     {
       title: '平均涨跌(%)', dataIndex: 'average', align: 'right' as const, render: change,
     },
@@ -207,7 +209,8 @@ export function SignalPerformance({
           {!!current?.inactive && <p className="strategy-caption">观察日停牌或无成交的信号单独列示，不计入有效样本；不顺延观察日期，也不按零涨跌计算。</p>}
           {data && (data.readyDays < data.expectedDays || (current?.missing || 0) > 0) && <Alert className="mb-16" type="warning" showIcon message="部分数据不足，当前统计仅覆盖已有有效样本。" />}
           <Card size="small" title="各周期概览">
-            <CompactTable rowKey="horizon" pagination={false} dataSource={data?.summary || []} columns={summaryColumns} scroll={{ x: 620 }} rowClassName={(row) => (row.horizon === horizon ? 'strategy-selected-horizon' : '')} onRow={(row) => ({ onClick: () => setHorizon(row.horizon) })} />
+            <p className="interaction-hint">选择观察周期，同步切换统计指标、环境比较与下方信号明细。</p>
+            <CompactTable rowKey="horizon" pagination={false} dataSource={data?.summary || []} columns={summaryColumns} scroll={{ x: 620 }} rowClassName={(row) => (row.horizon === horizon ? 'interaction-selected-row' : '')} />
           </Card>
           <Collapse
             className="mb-16"
@@ -222,7 +225,7 @@ export function SignalPerformance({
               ),
             }]}
           />
-          <div className="strategy-result-toolbar">
+          <div id="signal-performance-details" className="strategy-result-toolbar">
             <strong>
               信号明细 · 后
               {horizon}
@@ -243,7 +246,7 @@ export function SignalPerformance({
             columns={[
               { title: '信号日期', dataIndex: 'date', width: 130 },
               {
-                title: '股票', key: 'stock', width: 210, render: (_, r) => <Button type="link" onClick={() => onStock(r, orderedRows(sortedRows.current, rows))}>{`${r.name} ${r.code.split('.')[0]}`}</Button>,
+                title: '股票', key: 'stock', width: 210, render: (_, r) => <InteractionButton intent="preview" onClick={() => onStock(r, orderedRows(sortedRows.current, rows))}>{`${r.name} ${r.code.split('.')[0]}`}</InteractionButton>,
               },
               {
                 title: '观察截至', key: 'end', width: 150, render: (_, r) => r.outcomes[horizon].date || '未到期',

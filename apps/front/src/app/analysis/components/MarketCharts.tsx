@@ -4,7 +4,7 @@ import {
   Alert, Button, Card, Col, Empty, Row, Select,
 } from 'antd';
 import { memo, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/components/Interaction';
 import { LoadingOverlay } from '@/components/Loading';
 import CChart from '@/components/CChart';
 import { useSiteTheme } from '@/components/SiteTheme';
@@ -65,8 +65,6 @@ export function Metrics({ items }: { items: Metric[] }) {
               {i.href ? (
                 <Link className="metric-detail-link" href={i.href}>
                   {i.title}
-                  {' '}
-                  →
                 </Link>
               ) : i.title}
               {i.description && <HelpTooltip title={i.description} label={i.title} />}

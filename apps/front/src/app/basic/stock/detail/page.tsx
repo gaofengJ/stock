@@ -1,9 +1,11 @@
 'use client';
 
+import Link, { InteractionButton, ExternalLink } from '@/components/Interaction';
+
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import NextLink from 'next/link';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
 import {
   Alert, Button, Card, DatePicker, Descriptions, Empty, Modal, Skeleton, Space, Tag,
 } from 'antd';
@@ -38,7 +40,7 @@ function SourceNote({ sources = [], stopped, retry }: { sources?: WorkbenchSourc
   return (
     <div className="profile-source-note">
       {text}
-      {(failed || (stopped && pending)) && <Button size="small" type="link" onClick={retry}>重新加载</Button>}
+      {(failed || (stopped && pending)) && <Button size="small" type="default" onClick={retry}>重新加载</Button>}
     </div>
   );
 }
@@ -56,7 +58,7 @@ function SectorGroup({
         {(expanded ? links : links.slice(0, limit)).map((sector) => (
           <Tag key={sector.code}>{allowedPath(user, '/analysis/sectors') ? <Link href={sectorHref(sector, date)}>{sector.name}</Link> : sector.name}</Tag>
         ))}
-        {links.length > limit && <Button size="small" type="link" onClick={() => setExpanded(!expanded)}>{expanded ? '收起' : `展开全部 ${links.length} 项`}</Button>}
+        {links.length > limit && <InteractionButton intent="expand" expanded={expanded} size="small" onClick={() => setExpanded(!expanded)}>{expanded ? '收起' : `展开全部 ${links.length} 项`}</InteractionButton>}
       </div>
     </div>
   );
@@ -137,7 +139,7 @@ function Profile() {
   const companyPending = !company && !state.error && !state.pollingStopped && sourcePending(d?.sources?.find((s: WorkbenchSource) => s.source === 'stock_company'));
   const sectorDates = Array.from(new Set<string>([...(stock?.industries || []), ...(stock?.topics || [])].map((s: SectorLink) => (s.asOf || '').slice(0, 10)).filter(Boolean)));
   const website = websiteHref(company?.website);
-  const websiteValue = website ? <a href={website} target="_blank" rel="noreferrer">{company.website}</a> : company?.website || '—';
+  const websiteValue = website ? <ExternalLink href={website} target="_blank" rel="noreferrer">{company.website}</ExternalLink> : company?.website || '—';
   const routes = [
     { label: '每日行情', path: '/basic/daily', query: `tsCode=${linkedCode}&date=${date}` },
     { label: '龙虎榜', path: '/analysis/dragon', query: `code=${linkedCode}&date=${date}` },
@@ -148,7 +150,7 @@ function Profile() {
     <BasicShell path="/basic/stock">
       <div className="stock-profile">
         <div className="profile-breadcrumb">
-          <Link href="/basic/stock/">个股基本信息</Link>
+          <NextLink href="/basic/stock/">个股基本信息</NextLink>
           <span>/</span>
           <span>个股档案</span>
         </div>
@@ -172,11 +174,11 @@ function Profile() {
             {state.error && <Alert className="mb-16" type="error" message="公司资料加载失败" description={state.error} action={<Button loading={state.loading} onClick={state.retry}>重试</Button>} />}
             {stock && (
               <nav className="profile-actions" aria-label="个股相关功能">
-                <Button type="primary" onClick={() => setChart(true)}>查看 K 线</Button>
+                <InteractionButton intent="preview" onClick={() => setChart(true)}>查看 K 线</InteractionButton>
                 <Space wrap size={[16, 8]}>{routes.filter((route) => allowedPath(user, route.path)).map((route) => <Link key={route.path} href={`${route.path}/?${route.query}`}>{route.label}</Link>)}</Space>
                 <div className="profile-actions-secondary">
                   {allowedPath(user, '/basic/stock/risk') && <Link href={`/basic/stock/risk/?code=${linkedCode}&date=${date}`}>交易状态</Link>}
-                  <Button onClick={() => setRisk(true)}>公告与财务风险核验</Button>
+                  <InteractionButton intent="preview" onClick={() => setRisk(true)}>公告与财务风险核验</InteractionButton>
                   {allowedPath(user, '/basic/trade-cal') && <Link href={`/basic/trade-cal/?code=${linkedCode}&date=${date}`}>相关事件</Link>}
                 </div>
               </nav>

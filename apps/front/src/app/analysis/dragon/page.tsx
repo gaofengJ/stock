@@ -1,5 +1,7 @@
 'use client';
 
+import { InteractionButton } from '@/components/Interaction';
+
 import {
   useCallback, useEffect, useMemo, useRef, useState,
 } from 'react';
@@ -69,6 +71,7 @@ export default function Page() {
           <SectionTitle title="上榜股票" description="每条记录对应一个上榜原因，跨日上榜资金不与单日金额合并。" />
           <span>资金单位：万元</span>
         </div>
+        <p className="interaction-hint">选择股票或席位明细按钮，在本页下方查看买卖席位；带箭头的行业、题材名称进入板块页面。</p>
         <DataState loading={loading} error={error} retry={retry} empty={!data}>
           <Table<DragonListing>
             size="small"
@@ -79,14 +82,14 @@ export default function Page() {
             scroll={{ x: 1280 }}
             maxBodyHeight={440}
             minBodyHeight={280}
-            rowClassName={(r) => (selected && rowKey(r) === rowKey(selected) ? 'dragon-board-selected' : '')}
+            rowClassName={(r) => (selected && rowKey(r) === rowKey(selected) ? 'interaction-selected-row' : '')}
             locale={{ emptyText: keyword || direction !== '全部' ? '没有符合筛选条件的股票' : '当日暂无龙虎榜记录' }}
             columns={[
               {
                 title: '代码', dataIndex: 'tsCode', fixed: 'left', width: 110,
               },
               {
-                title: '名称', dataIndex: 'name', fixed: 'left', width: 110, render: (name, r) => <Button className="dragon-stock-link" type="link" onClick={() => open(r)}>{name}</Button>,
+                title: '名称', dataIndex: 'name', fixed: 'left', width: 145, render: (name, r) => <InteractionButton intent="select" selected={selectedKey === rowKey(r)} aria-controls="dragon-detail" onClick={() => open(r)}>{name}</InteractionButton>,
               },
               {
                 title: '行业', key: 'industry', width: 160, render: (_, r) => <SectorLinks stock={r} date={date} />,
@@ -116,12 +119,12 @@ export default function Page() {
                 title: '上榜原因', dataIndex: 'reason', width: 340, ellipsis: { showTitle: false }, render: (v) => <Tooltip title={v}>{v || '—'}</Tooltip>,
               },
               {
-                title: '席位明细', key: 'details', width: 95, fixed: 'right', align: 'center', render: (_, r) => <Button className="dragon-stock-link" type="link" onClick={() => open(r)} aria-label={`查看${r.name}席位`}>查看</Button>,
+                title: '席位明细', key: 'details', width: 105, fixed: 'right', align: 'center', render: (_, r) => <InteractionButton intent="select" selected={selectedKey === rowKey(r)} aria-controls="dragon-detail" onClick={() => open(r)} aria-label={`查看${r.name}席位`}>查看</InteractionButton>,
               },
             ]}
           />
         </DataState>
-        <div className="dragon-board-detail" ref={detail}>
+        <div id="dragon-detail" className="dragon-board-detail" ref={detail}>
           {selected ? (
             <>
               <div className="dragon-board-stock-heading">
@@ -136,7 +139,7 @@ export default function Page() {
                     %
                   </span>
                 </div>
-                <Button type="text" onClick={clear}>收起明细</Button>
+                <InteractionButton intent="expand" expanded onClick={clear} aria-controls="dragon-detail">收起明细</InteractionButton>
               </div>
               <DragonDetails stock={selected} date={date} reason={selected.reason} onReady={locateDetail} />
             </>

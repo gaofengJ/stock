@@ -167,7 +167,7 @@ export class ReviewService {
         timeReview:
           heldDays != null && heldDays >= 3
             ? '已持有至少3个交易日，请结合走势判断是否走强；天数本身不触发卖出'
-            : '买入逻辑与走强程度由你复核',
+            : '待复核买入逻辑与走势强度',
       });
     }
     return {

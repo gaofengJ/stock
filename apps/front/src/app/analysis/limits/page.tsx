@@ -1,8 +1,9 @@
 'use client';
 
+import Link, { InteractionButton } from '@/components/Interaction';
+
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
 import { useAccount } from '@/auth/Boundary';
 import { allowedPath } from '@/auth/client';
 import {
@@ -108,7 +109,7 @@ function LimitsPage() {
       title: (
         <span>
           所属题材
-          <HelpTooltip label="所属题材" title="股票所属的同花顺概念分类，不代表当日涨停原因。" />
+          <HelpTooltip label="所属题材" title="展示同花顺概念分类；当日涨停原因需结合相关公告与市场信息核实。" />
         </span>
       ),
       key: 'topics',
@@ -159,9 +160,9 @@ function LimitsPage() {
       align: 'center',
       render: (_, r) => {
         if (dragon.loading) return <span className="quote-flat">核对中</span>;
-        if (dragon.error) return <Tooltip title="榜单查询失败"><Button type="link" size="small" onClick={dragon.retry}>重试</Button></Tooltip>;
+        if (dragon.error) return <Tooltip title="榜单查询失败"><Button type="default" size="small" onClick={dragon.retry}>重试</Button></Tooltip>;
         if (!dragonCodes.has(r.tsCode)) return <Tooltip title="当日未上榜"><span className="quote-flat">—</span></Tooltip>;
-        return canReadDragon ? <Link href={dragonHref(r.tsCode)} aria-label={`查看${r.name}龙虎榜`}>查看</Link> : <Button type="link" onClick={() => setStock(r)}>查看</Button>;
+        return canReadDragon ? <Link href={dragonHref(r.tsCode)} aria-label={`查看${r.name}龙虎榜`}>查看</Link> : <InteractionButton intent="preview" onClick={() => setStock(r)}>查看</InteractionButton>;
       },
     },
   ];

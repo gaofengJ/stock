@@ -21,7 +21,7 @@ export function LegacyNotice() {
       className="mb-16"
       type="info"
       showIcon
-      message="当前展示原有市场数据；新版分市场统计将在首次同步完成后启用。"
+      message="分市场统计正在同步，当前展示已取得的市场数据。"
     />
   );
 }

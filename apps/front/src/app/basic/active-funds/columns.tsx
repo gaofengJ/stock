@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import Link from '@/components/Interaction';
 import type { ColumnsType } from 'antd/es/table/interface';
 import { normalizeOrg } from '@/utils/active-funds';
 

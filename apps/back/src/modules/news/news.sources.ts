@@ -53,8 +53,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
     path: '/sina/finance/rollnews',
     kind: 'article',
     enabled: false,
-    availabilityNote:
-      '滚动新闻接口从当前服务器返回 HTTP 403；网站可访问不代表该接口可访问。',
+    availabilityNote: '来源暂时限制自动获取滚动新闻，该来源已暂停更新。',
   },
   {
     code: 'bloomberg',

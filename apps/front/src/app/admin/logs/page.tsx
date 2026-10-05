@@ -1,5 +1,7 @@
 'use client';
 
+import { InteractionButton } from '@/components/Interaction';
+
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { errorMessage } from '@/api/errors';
 import { useCallback, useEffect, useState } from 'react';
@@ -216,7 +218,7 @@ export default function Page() {
               {
                 title: '详情',
                 render: (_, r) => (
-                  <Button onClick={() => setDetail(r)}>查看</Button>
+                  <InteractionButton intent="preview" onClick={() => setDetail(r)}>查看</InteractionButton>
                 ),
               },
             ]
@@ -229,7 +231,7 @@ export default function Page() {
               {
                 title: '详情',
                 render: (_, r) => (
-                  <Button onClick={() => setDetail(r)}>查看</Button>
+                  <InteractionButton intent="preview" onClick={() => setDetail(r)}>查看</InteractionButton>
                 ),
               },
             ]

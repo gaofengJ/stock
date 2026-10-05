@@ -1,5 +1,7 @@
 'use client';
 
+import { InteractionButton } from '@/components/Interaction';
+
 import { useEffect, useState } from 'react';
 import {
   Alert, Button, Card, Drawer, Empty, Segmented, Space,
@@ -88,8 +90,8 @@ export default function MarketExtremes({ range }: { range: string }) {
       <div className="market-extremes-content" aria-busy={loading}>
         <div className="market-environment-caption market-extremes-date">{summaryRow ? `${summaryRow.date === date ? '统计日期' : '最近有效数据'} ${summaryRow.date}` : `统计日期 ${date}`}</div>
         <div className="market-extremes-controls">
-          <Button type="text" disabled={!summary || loading || !!error} onClick={() => showDetails('high')}><span className="quote-up">{summary ? `新高 ${numberText(summary.high, 0)}只 / ${numberText(summary.highRatio)}%` : '新高 待更新'}</span></Button>
-          <Button type="text" disabled={!summary || loading || !!error} onClick={() => showDetails('low')}><span className="quote-down">{summary ? `新低 ${numberText(summary.low, 0)}只 / ${numberText(summary.lowRatio)}%` : '新低 待更新'}</span></Button>
+          <InteractionButton intent="preview" disabled={!summary || loading || !!error} onClick={() => showDetails('high')}><span className="quote-up">{summary ? `新高 ${numberText(summary.high, 0)}只 / ${numberText(summary.highRatio)}%` : '新高 待更新'}</span></InteractionButton>
+          <InteractionButton intent="preview" disabled={!summary || loading || !!error} onClick={() => showDetails('low')}><span className="quote-down">{summary ? `新低 ${numberText(summary.low, 0)}只 / ${numberText(summary.lowRatio)}%` : '新低 待更新'}</span></InteractionButton>
           <Segmented aria-label="新高新低显示指标" value={metric} onChange={(v) => setMetric(v as ExtremeMetric)} options={[{ label: '家数', value: 'count' }, { label: '占比', value: 'ratio' }]} />
         </div>
         <div className="market-extremes-plot">

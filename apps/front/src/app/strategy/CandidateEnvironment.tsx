@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   Alert, Button, Card, Space, Skeleton,
 } from 'antd';
-import Link from 'next/link';
+import Link from '@/components/Interaction';
 import { marketRequest, MarketStats, MarketBreadth } from '@/api/market';
 import { errorMessage } from '@/api/errors';
 import { useLatestRequest } from '@/hooks/useLatestRequest';

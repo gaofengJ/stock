@@ -1,10 +1,11 @@
 'use client';
 
+import Link, { InteractionButton } from '@/components/Interaction';
+
 import { useState } from 'react';
 import {
-  Button, Card, Col, Row, Space, Tag,
+  Card, Col, Row, Space, Tag,
 } from 'antd';
-import Link from 'next/link';
 import Table from '@/components/DataTable';
 import CChart from '@/components/CChart';
 import HelpTooltip from '@/components/HelpTooltip';
@@ -38,6 +39,7 @@ export default function StrongFeedback() {
   return (
     <>
       <SectionTitle title="昨日强势股今日表现" description="点击分组查看明细；涨幅、高开和上涨比例仅统计有效样本。断板指前日连板、昨日未涨停，可与炸板组重叠。" />
+      <p className="interaction-hint">选择分组，切换下方涨跌分布与样本明细；带箭头的股票名称可前往多日轨迹页面。</p>
       <DataState loading={request.loading} error={request.error} retry={request.retry} empty={!data?.ready}>
         <Table<FeedbackGroup>
           rowKey="key"
@@ -46,10 +48,10 @@ export default function StrongFeedback() {
           pagination={false}
           scroll={{ x: 850 }}
           dataSource={data?.groups}
-          rowClassName={(g) => (g.key === selected ? 'feedback-selected' : '')}
+          rowClassName={(g) => (g.key === selected ? 'interaction-selected-row' : '')}
           columns={[
             {
-              title: '昨日分组', dataIndex: 'name', width: 160, render: (name, row) => <Button type="link" onClick={() => setSelected(row.key)}>{name}</Button>,
+              title: '昨日分组', dataIndex: 'name', width: 160, render: (name, row) => <InteractionButton intent="select" selected={selected === row.key} aria-controls="feedback-details" onClick={() => setSelected(row.key)}>{name}</InteractionButton>,
             },
             {
               title: (
@@ -76,7 +78,7 @@ export default function StrongFeedback() {
             },
           ]}
         />
-        <Row gutter={[16, 16]} className="feedback-details">
+        <Row id="feedback-details" gutter={[16, 16]} className="feedback-details">
           <Col xs={24} lg={8}>
             <Card title={`${group?.name || '昨日首板'} - 今日涨跌分布`}>
               <CChart
@@ -137,7 +139,7 @@ export default function StrongFeedback() {
                     title: (
                       <span>
                         是否参与分组统计
-                        <HelpTooltip label="分组统计" title="参与：计入上方分组的平均涨幅、中位数、上涨和高开比例；不参与：仅列出供核对，并标明排除原因。与账户盈亏无关。" />
+                        <HelpTooltip label="分组统计" title="参与：计入分组的平均涨幅、中位数、上涨比例和高开比例。不参与：保留在样本明细中，并注明排除原因。" />
                       </span>
                     ),
                     dataIndex: 'excluded',
@@ -150,7 +152,7 @@ export default function StrongFeedback() {
                   },
                 ]}
               />
-              <p className="market-note">“参与”表示用于计算上方分组的平均涨幅、中位数、上涨／高开比例，与账户盈亏无关。首板、连板排除昨日一字板，各组排除ST、新股、退市整理及无效行情。</p>
+              <p className="market-note">统计范围：首板、连板组排除昨日一字板；各组排除ST、新股、退市整理及无效行情。排除的样本保留在明细中供核对。</p>
             </Card>
           </Col>
         </Row>

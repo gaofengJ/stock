@@ -1,8 +1,10 @@
 'use client';
 
+import { ExternalLink, InteractionButton } from '@/components/Interaction';
+
 import { useState } from 'react';
 import {
-  Alert, Button, Card, Collapse, Modal, Space, Tag,
+  Alert, Card, Collapse, Modal, Space, Tag,
 } from 'antd';
 import Table from '@/components/DataTable';
 import { scaledNumber } from '@/utils/format';
@@ -23,7 +25,7 @@ export function RiskDetails({ code, date }: { code: string; date: string }) {
         ；近180日公告与减持记录。
         {data?.generatedAt && `查询时间 ${new Date(data.generatedAt).toLocaleString('zh-CN')}`}
       </p>
-      <Alert className="mb-16" type="warning" showIcon message="核验状态：待核验" description={data?.note || '正在加载。数据尚未取得时，不判定为无风险。'} />
+      <Alert className="mb-16" type="warning" showIcon message="核验状态：待核验" description={data?.note || '风险资料加载中，核验状态暂为待核验。'} />
       <Card size="small" title="已披露的财务与审计字段" className="mb-16">
         <p>
           扣非净利润：
@@ -50,7 +52,7 @@ export function RiskDetails({ code, date }: { code: string; date: string }) {
           {data?.audit?.end_date || '待补齐'}
           ）
         </p>
-        <p>上述字段不覆盖所有ST条件。营收扣除口径、内控意见、治理和连续交易指标等仍需按所属板块核验。</p>
+        <p>财务与审计字段用于初步核验；营收扣除口径、内控意见、治理和连续交易指标等需按所属板块的适用规则进一步核验。</p>
       </Card>
       {!!data?.items?.length && (
       <Card size="small" title="已取得的风险／交易状态记录">
@@ -81,7 +83,7 @@ export function RiskDetails({ code, date }: { code: string; date: string }) {
       )}
       <Collapse className="mb-16" items={(data?.checks || []).map((r: any) => ({ key: r.key, label: `${r.label} · 待核验${r.leads ? `（${r.leads}条线索）` : ''}`, children: r.scope }))} />
       <h3>公告原文与线索</h3>
-      <p>标题命中仅辅助查找，完成、取消、澄清类公告也保留，需阅读正文判断；没有命中不代表没有利空。</p>
+      <p>按标题关键词检索公告，结果包含完成、取消和澄清类公告。标题检索覆盖范围有限，具体影响需结合公告正文核验。</p>
       <Table
         loading={state.loading}
         rowKey={(r: any) => `${r.date}-${r.title}-${r.url}`}
@@ -89,16 +91,16 @@ export function RiskDetails({ code, date }: { code: string; date: string }) {
         pagination={{ pageSize: 10 }}
         columns={[
           { title: '公告日', dataIndex: 'date', width: 110 },
-          { title: '标题', dataIndex: 'title', render: (v, r: any) => (r.url ? <a href={r.url} target="_blank" rel="noreferrer">{v}</a> : v) },
+          { title: '标题', dataIndex: 'title', render: (v, r: any) => (r.url ? <ExternalLink href={r.url} target="_blank" rel="noreferrer">{v}</ExternalLink> : v) },
           {
             title: '核验线索', key: 'leads', width: 140, render: (_, r: any) => (r.categories.length ? <Tag color="orange">需要核对正文</Tag> : '未命中标题规则'),
           },
         ]}
       />
       <Space wrap>
-        <a href="https://www.sse.com.cn/lawandrules/" target="_blank" rel="noreferrer">上交所规则</a>
-        <a href="https://www.szse.cn/lawrules/" target="_blank" rel="noreferrer">深交所规则</a>
-        <a href="https://www.bse.cn/" target="_blank" rel="noreferrer">北交所规则及公告</a>
+        <ExternalLink href="https://www.sse.com.cn/lawandrules/" target="_blank" rel="noreferrer">上交所规则</ExternalLink>
+        <ExternalLink href="https://www.szse.cn/lawrules/" target="_blank" rel="noreferrer">深交所规则</ExternalLink>
+        <ExternalLink href="https://www.bse.cn/" target="_blank" rel="noreferrer">北交所规则及公告</ExternalLink>
       </Space>
     </div>
   );
@@ -108,7 +110,7 @@ export default function RiskInspect({ code, date }: { code: string; date: string
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button size="small" type="link" onClick={() => setOpen(true)}>风险核验</Button>
+      <InteractionButton intent="preview" size="small" onClick={() => setOpen(true)}>风险核验</InteractionButton>
       <Modal open={open} title={`${code} 风险核验`} onCancel={() => setOpen(false)} footer={null} width={960} destroyOnClose>{open && <RiskDetails code={code} date={date} />}</Modal>
     </>
   );

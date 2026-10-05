@@ -114,7 +114,7 @@ function BasicTradeCalPage() {
           />
         </div>
         <div className="overflow-y-auto overflow-x-hidden" style={{ display: view === 'calendar' ? undefined : 'none' }}>
-          <p className="basic-muted">圆形标记为交易日，未标记为休市，“?”为尚未更新。点击日期查看事件及行情。</p>
+          <p className="interaction-hint">圆形标记为交易日，未标记为休市，“?”为尚未更新。选择日期，在本页切换至该日事件日历。</p>
           {!loadError && (loading ? (
             <Loading />
           ) : (

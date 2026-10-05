@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import Link, { InteractionButton } from '@/components/Interaction';
 import { Space, Popover } from 'antd';
 import { useAccount } from '@/auth/Boundary';
 import { allowedPath } from '@/auth/client';
@@ -22,10 +22,10 @@ export default function SectorLinks({ stock, type = 'I', date }: { stock: Classi
       {visible.map(renderLink)}
       {links!.length > visible.length && (
       <Popover title={type === 'I' ? '同花顺行业' : '同花顺题材'} content={<Space wrap style={{ maxWidth: 360 }}>{links!.slice(visible.length).map(renderLink)}</Space>} trigger={['hover', 'click']}>
-        <button type="button" className="sector-more-link">
-          +
+        <InteractionButton intent="popover" aria-label={`展开其余${links!.length - visible.length}个${type === 'I' ? '行业' : '题材'}`}>
+          更多
           {links!.length - visible.length}
-        </button>
+        </InteractionButton>
       </Popover>
 )}
     </Space>

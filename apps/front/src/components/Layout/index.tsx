@@ -156,7 +156,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
         <div className="header-tools">
           <ThemeToggle />
           <Popover
-            trigger={['hover', 'focus', 'click']}
+            trigger={['hover', 'click']}
             placement="bottomRight"
             content={(
               <div className="header-contact-content">
@@ -181,7 +181,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
             </button>
           </Popover>
           <Popover
-            trigger={['hover', 'focus', 'click']}
+            trigger={['hover', 'click']}
             placement="bottomRight"
             content={(
               <div className="header-contact-content">

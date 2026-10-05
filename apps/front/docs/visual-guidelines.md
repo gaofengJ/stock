@@ -10,5 +10,9 @@
 - 图表提示框也使用同一格式化函数，跨年趋势保留完整日期。历史日期更新时间读取 `status.dateUpdates[date]`，按北京时间显示。
 - 加载、请求失败、尚未同步、确认无事件、筛选无结果分别展示；失败提供重试入口。快速切换条件使用 `useLatestRequest`，避免旧响应覆盖当前页面。
 - 牛头像继续使用 `animal-1` 至 `animal-8` 的已有标识，保持用户绑定兼容。
+- 内容区域的交互统一使用 `src/components/Interaction`：`NavigationLink`（默认导出）以右箭头表示页面跳转；`ExternalLink` 以斜箭头表示新窗口；`InteractionButton` 的 `select` 表示页内联动，`preview` 表示弹窗／抽屉，`expand` 表示展开／收起，`popover` 表示更多选项。导航菜单、面包屑、Tabs、Segmented、标准表单和提交／重试按钮保持各自语义。
+- 联动入口使用圆形选择标记、`aria-pressed` 和持续选中状态；有对应区域时设置 `aria-controls`，表格选中行使用 `interaction-selected-row`。不以无提示的整行点击承担唯一入口。跳转与联动拥有独立点击区域，不能共用蓝字样式或只靠 hover 提示区别。
+- 预览入口使用眼睛图标与描边按钮；紧凑轨迹单元格、资讯标题可保留原布局，附上常显的“预览”标记。弹出更多项和帮助提示支持点击、键盘 Enter／空格和鼠标悬浮；避免同时配置 focus 与 click 触发，以免首次点击先展开再收起。交互图标不复用红涨绿跌的含义，明暗主题均使用主题变量。
+- 提示文案只解释字段定义、计算口径、操作结果和必要的数据限制。使用独立、客观的产品语言，不带入历史沟通背景、针对某次误解的澄清或与当前字段无关的话题；例如分组统计只说明纳入与排除规则。
 
 验收：`pnpm -C apps/front run test:display`、`test:errors`、`test:market-compatibility`、`lint` 和 `build`；在 390/768/1440/1920px 下检查导航、筛选、指标卡和宽表。

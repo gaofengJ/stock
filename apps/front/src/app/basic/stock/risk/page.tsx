@@ -30,7 +30,7 @@ function Risk() {
       </Space>
       <SourceState data={state.data} error={state.error} retry={state.retry} />
       {/^[0-9]{6}\.(SH|SZ|BJ)$/.test(keyword) && <RiskInspect code={keyword} date={date} />}
-      <p className="basic-muted">{state.data?.note || '按所选日期查询；无记录不代表无风险。'}</p>
+      <p className="basic-muted">{state.data?.note || '按所选日期展示已取得的风险记录；其余事项需结合公告正文核验。'}</p>
       <Table
         loading={state.loading}
         rowKey={(r: any) => `${r.tsCode}-${r.type}-${r.eventDate}-${r.detail}`}

@@ -37,7 +37,7 @@ export default function Holdings({ date, candidates }: { date: string; candidate
   };
   return (
     <Card title="可选：输入持仓后分析" className="mb-16">
-      <p>默认报告独立生成。仅分析你本次输入的1–3只股票，买入日期、成本和理由均可不填；输入只用于当前页面，不保存持仓。</p>
+      <p>支持分析本次输入的1–3只股票，买入日期、成本和理由可选填。输入仅用于本次分析，不保存持仓记录。</p>
       {rows.map((r, i) => (
         <Space key={r.id} wrap className="mb-16">
           <Input aria-label={`持仓${i + 1}代码`} value={r.code} placeholder="股票代码（含.SH／.SZ／.BJ）" style={{ width: 250 }} onChange={(e) => change(i, { code: e.target.value.trim().toUpperCase() })} />

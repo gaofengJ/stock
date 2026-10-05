@@ -1,5 +1,7 @@
 'use client';
 
+import { InteractionButton } from '@/components/Interaction';
+
 import {
   useCallback, useEffect, useRef, useState,
 } from 'react';
@@ -101,7 +103,7 @@ export default function Page() {
             current: page, pageSize: 20, total: data.total, onChange: setPage, showSizeChanger: false, hideOnSinglePage: true,
           }}
           renderItem={(item) => (
-            <List.Item key={item.id} actions={[<Button key="view" onClick={() => openDetail(item.id)}>查看 / 回复</Button>]}>
+            <List.Item key={item.id} actions={[<InteractionButton intent="preview" key="view" onClick={() => openDetail(item.id)}>查看 / 回复</InteractionButton>]}>
               <List.Item.Meta
                 title={(
                   <Typography.Paragraph ellipsis={{ rows: 2 }} style={{ marginBottom: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>

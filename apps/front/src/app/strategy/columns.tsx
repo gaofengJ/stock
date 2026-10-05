@@ -1,7 +1,7 @@
 import { numberText, scaledNumber, changeClass } from '@/utils/format';
 import type { ColumnsType } from 'antd/es/table/interface';
 import SectorLinks from '@/components/SectorLinks';
-import Link from 'next/link';
+import Link, { InteractionButton } from '@/components/Interaction';
 import { Popover, Space } from 'antd';
 import { useAccount } from '@/auth/Boundary';
 import { allowedPath } from '@/auth/client';
@@ -50,8 +50,8 @@ function SectorContext({ sectors, date, ready }: { sectors?: SectorPerformance[]
     </div>
   ));
   return (
-    <Popover title="同花顺板块背景" content={<Space direction="vertical" style={{ maxWidth: 'min(700px, 85vw)', maxHeight: 400, overflow: 'auto' }}>{details}</Space>}>
-      <span style={{ cursor: 'pointer' }}>
+    <Popover trigger={['hover', 'click']} title="同花顺板块背景" content={<Space direction="vertical" style={{ maxWidth: 'min(700px, 85vw)', maxHeight: 400, overflow: 'auto' }}>{details}</Space>}>
+      <InteractionButton intent="popover" title="查看同花顺板块背景">
         {sectors[0].name}
         {' '}
         <span className={changeClass(sectors[0].day)}>
@@ -61,7 +61,7 @@ function SectorContext({ sectors, date, ready }: { sectors?: SectorPerformance[]
         （
         {sectors.length}
         个板块）
-      </span>
+      </InteractionButton>
     </Popover>
   );
 }

@@ -332,7 +332,7 @@ export class WorkbenchService {
             isoDate(r.begin_date) || '未知'
           } 至 ${
             isoDate(r.close_date) || '未知'
-          }。近180日记录，不等同于仍在减持。`,
+          }。记录范围为近180日，计划进展以公告披露为准。`,
         });
       }),
     );
@@ -369,7 +369,7 @@ export class WorkbenchService {
       sources: sourceStatus([...snapshots, ...reductions]),
       reductionStart,
       checklist: RISK_CHECKLIST,
-      note: 'ST、停复牌按所选日；减持为近180日已公告记录，已完成也保留。公告计划、重大利空及潜在ST／退市另需逐股核验。来源缺失或无记录均不代表无风险。',
+      note: 'ST、停复牌按所选日展示；减持记录覆盖近180日已披露公告，包含已完成事项。标签覆盖范围以已取得资料为限；公告计划、重大利空及潜在ST／退市风险需结合公告正文逐股核验。',
     };
   }
 
@@ -485,7 +485,7 @@ export class WorkbenchService {
           notices.filter((r) => r.categories.includes(check.key)).length +
           findings.filter((r) => r.category === check.key).length,
       })),
-      note: '公告按所选日已披露内容回看，快照于当前查询时获取，并非当日留存。标题匹配仅作线索；财务异常不直接等于ST。各板块适用条件、正文、未结束的较早事项仍须核验，未核验项不判为安全。',
+      note: '公告按所选日已披露内容筛选，资料于当前查询时获取。标题匹配和财务异常用于提供核验线索；ST认定需结合所属板块适用规则、公告正文及持续事项进一步核实，未完成的事项保留待核验状态。',
     };
   }
 

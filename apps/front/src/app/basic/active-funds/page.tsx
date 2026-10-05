@@ -81,7 +81,7 @@ function BasicActiveFundsPage() {
         <div className="active-funds-context">
           关联营业部：
           {org}
-          <Button type="link" onClick={() => setKeyword('')}>查看全部</Button>
+          <Button type="default" onClick={() => setKeyword('')}>查看全部</Button>
         </div>
         )}
         {loadError && <Alert type="error" message={loadError} showIcon action={<Button size="small" onClick={getActiveFunds}>重试</Button>} />}

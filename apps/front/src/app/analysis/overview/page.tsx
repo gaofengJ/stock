@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Button, Col, Empty, Row, Select,
 } from 'antd';
-import Link from 'next/link';
+import Link from '@/components/Interaction';
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import { MarketSeries } from '@/api/market';
 import { useAccount } from '@/auth/Boundary';
@@ -52,7 +52,7 @@ export default function OverviewPage() {
           <>
             <div className="market-section-toolbar market-breadth-heading">
               <SectionTitle title="市场概况" description="统计所选范围内有成交的A股，包含ST；与市场情绪的涨跌分布口径一致。" />
-              {allowedPath(user, '/analysis/senti') && <Link href={marketHref('/analysis/senti', { date, scope })} className="market-detail-link">查看市场情绪与涨跌分布 →</Link>}
+              {allowedPath(user, '/analysis/senti') && <Link href={marketHref('/analysis/senti', { date, scope })} className="market-detail-link">查看市场情绪与涨跌分布</Link>}
             </div>
             <Metrics items={[
               {
@@ -96,6 +96,9 @@ export default function OverviewPage() {
                           {direction === 'quote-down' && <ArrowDownOutlined aria-label="下跌" />}
                           {`${numberText(point?.pctChg, 2, true)}${point ? '%' : ''}`}
                         </span>
+                      </span>
+                      <span className={`interaction-selection-caption${selected?.code === i.code ? ' is-selected' : ''}`}>
+                        {selected?.code === i.code ? '● 已选中 · 再次点击显示全部' : '○ 选择此指数 · 联动下方图表'}
                       </span>
                     </button>
                   </Col>

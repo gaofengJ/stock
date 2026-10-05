@@ -46,6 +46,7 @@ const TradeCalendarGrid = ({ items, year, onSelect }: IProps) => {
     if (info.type !== 'date') return null;
     return React.cloneElement(info.originNode, {
       ...info.originNode.props,
+      title: `选择${date.format('YYYY-MM-DD')}，切换至事件日历`,
       className: classNames('date-cell', {
         'is-open': tradeCalMap[date.format('YYYY-MM-DD')],
       }),

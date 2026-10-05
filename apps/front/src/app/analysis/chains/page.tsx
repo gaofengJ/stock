@@ -6,7 +6,7 @@ import {
 import Table from '@/components/DataTable';
 import { changeClass } from '@/utils/format';
 import { Ladder, MarketSeries } from '@/api/market';
-import Link from 'next/link';
+import Link from '@/components/Interaction';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAccount } from '@/auth/Boundary';

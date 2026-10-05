@@ -26,7 +26,7 @@ export default function IndexComparisonChart({ indexes, dates }: { indexes: Mark
       title={(
         <span className="market-section-title">
           指数相对表现
-          <HelpTooltip label="指数相对表现" title="以所选区间前一交易日收盘价为基准，比较累计涨跌幅；沪深300、中证500、中证1000用于对照由大到小的市值层级，并非严格的大中小盘分类，不包含全部小微盘股票。" />
+          <HelpTooltip label="指数相对表现" title="以所选区间前一交易日收盘价为基准，比较累计涨跌幅。沪深300、中证500、中证1000按各自编制规则选取成分，用于观察不同市值层级的表现；样本覆盖范围有限。" />
         </span>
 )}
       extra={(

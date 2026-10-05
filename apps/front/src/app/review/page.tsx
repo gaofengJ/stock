@@ -1,5 +1,7 @@
 'use client';
 
+import { InteractionButton } from '@/components/Interaction';
+
 import { useEffect, useState } from 'react';
 import {
   Alert, Button, Card, Checkbox, DatePicker, Input, Select, Space, Tag,
@@ -47,12 +49,12 @@ function Report({ date }: { date: string }) {
   const download = () => {
     const text = [
       `# ${date} 短线复盘`, `生成时间：${data.generatedAt}；策略覆盖：${data.strategies.filter((s: any) => s.state === 'ready').length}/${data.strategies.length}。`,
-      '范围：全部策略默认参数，合并重复股票；总市值小于200亿元，流通市值升序。报告不感知持仓。',
-      '## 观察名单（由用户选定，不等同于已通过风险核验）',
+      '范围：按全部策略的默认参数生成候选，合并重复股票；总市值小于200亿元，按流通市值升序排列。',
+      '## 观察名单（手动选定，风险核验状态单独列示）',
       ...chosen.map((r) => `- ${r.name} ${r.tsCode}：${r.strategies.map((s: any) => s.label).join('、')}；总市值${scaledNumber(r.totalMv, 10000)}亿／流通${scaledNumber(r.circMv, 10000)}亿；${blocked(r) ? '已知事项排除，请移出名单' : '风险待核验'}。\n  看图与计划：${notes[r.tsCode] || '待填写'}`),
       `## 明日计划\n重点观察：${focus || '待填写'}\n放弃／退出条件：${exit || '待填写'}\n新机会更好的理由：${reason || '待填写'}`,
-      '## 核验清单\n减持计划与进展；重大利空；财务与审计；内控／治理／资金占用／违规担保；分红等其他风险警示；交易类与重大违法退市。未核验不等于安全。',
-      `数据说明：${data.riskNote} 历史日期为当前数据回看，非当日归档。`,
+      '## 核验清单\n减持计划与进展；重大利空；财务与审计；内控／治理／资金占用／违规担保；分红等其他风险警示；交易类与重大违法退市。未完成的事项标记为待核验。',
+      `数据说明：${data.riskNote} 历史日期按当前取得的数据回看，查询时间与观察日期分别记录。`,
     ].join('\n\n');
     const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown;charset=utf-8' }));
     const a = document.createElement('a'); a.href = url; a.download = `短线复盘-${date}.md`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -64,10 +66,10 @@ function Report({ date }: { date: string }) {
         <Button disabled={!data || loading} onClick={download}>导出当前复盘</Button>
       </Space>
       {error && <Alert type="error" message={error} />}
-      <Card size="small" title="你的复盘规则" className="mb-16">
+      <Card size="small" title="复盘规则" className="mb-16">
         <p>全部策略 · 总市值小于200亿 · 流通市值优先 · 偏好低价，不设硬性股价门槛 · 看图选0–3只</p>
-        <p>竞价／开盘观察或回踩支撑；跌破5日线次日未收回、持有约3个交易日未走强时复核。市场题材作为线索，走势由你判断。</p>
-        <p>默认报告不包含持仓。行情截止所选交易日收盘；公告按该日已披露信息回看，当前查询的历史数据不等于当日留存。</p>
+        <p>竞价／开盘观察或回踩支撑；跌破5日线次日未收回、持有约3个交易日未走强时复核。结合题材线索与个股走势填写观察计划。</p>
+        <p>报告基于策略候选生成，持仓分析可单独开启。行情截至所选交易日收盘，公告按该日已披露信息筛选；历史回看采用当前可用资料。</p>
       </Card>
       {data && (
       <>
@@ -107,7 +109,7 @@ function Report({ date }: { date: string }) {
           ))}
         </Space>
         <SourceState data={risk.data || data} error={risk.error} retry={risk.retry} />
-        <Alert type="info" className="mb-16" message="候选池仍需风险核验和看图确认" description="默认隐藏已知ST、停牌和近180日减持记录。减持计划、公告利空及潜在ST风险进入逐股核验；不把未知当作通过。名单由你选择，可空缺。" />
+        <Alert type="info" className="mb-16" message="候选池仍需风险核验和看图确认" description="默认隐藏已知ST、停牌和近180日减持记录。其余减持计划、公告利空及潜在ST风险按股票逐项核验，资料不足的事项保留待核验状态。可手动选择最多3只股票加入观察名单。" />
       </>
       )}
       <Space className="mb-16" wrap>
@@ -129,11 +131,11 @@ function Report({ date }: { date: string }) {
             key: 'stock',
             width: 160,
             render: (_, r: any) => (
-              <Button type="link" onClick={() => setStock(r)}>
+              <InteractionButton intent="preview" onClick={() => setStock(r)}>
                 {r.name}
                 <br />
                 {r.tsCode}
-              </Button>
+              </InteractionButton>
             ),
           },
           {

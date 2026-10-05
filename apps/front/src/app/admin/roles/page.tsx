@@ -1,5 +1,7 @@
 'use client';
 
+import { InteractionButton } from '@/components/Interaction';
+
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { errorMessage } from '@/api/errors';
 import { useCallback, useEffect, useState } from 'react';
@@ -94,7 +96,7 @@ export default function Page() {
             width: 300,
             render: (_, r) => (
               <Space>
-                <Button onClick={() => setViewing(r)}>查看权限</Button>
+                <InteractionButton intent="preview" onClick={() => setViewing(r)}>查看权限</InteractionButton>
                 <Button
                   disabled={!editable(r)}
                   onClick={() => {

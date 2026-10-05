@@ -1,6 +1,8 @@
 'use client';
 
-import { Button, Drawer, Tag } from 'antd';
+import { InteractionButton } from '@/components/Interaction';
+
+import { Drawer, Tag } from 'antd';
 import { useState } from 'react';
 import { isTrendStrategy, trendDefaults, TrendOptions } from './TrendParameters';
 
@@ -34,7 +36,7 @@ export default function StrategyRules({ strategy, options = trendDefaults }: { s
           <Tag>{trend ? '当日收盘在上半区' : '末日收盘在上半区'}</Tag>
         </div>
       </div>
-      <Button type="link" className="strategy-rules-trigger" onClick={() => setOpen(true)}>查看规则</Button>
+      <InteractionButton intent="preview" className="strategy-rules-trigger" onClick={() => setOpen(true)}>查看规则</InteractionButton>
       <Drawer title="策略规则" open={open} onClose={() => setOpen(false)} width={480}>
         <div className="strategy-rules-detail">
           <h3>形态条件</h3>

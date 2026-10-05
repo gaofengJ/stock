@@ -3,7 +3,7 @@ import type { IndexPoint, MarketScope, MarketSeries } from '@/api/market';
 export const scopes = [
   { value: 'all', label: '沪深京全部', description: '上海、深圳、北京交易所的全部A股。' },
   { value: 'hs', label: '沪深', description: '沪深A股，含主板、创业板、科创板，不含北交所。' },
-  { value: 'main', label: '主板', description: '仅沪深主板A股；参考指数的样本并非纯主板。' },
+  { value: 'main', label: '主板', description: '统计范围为沪深主板A股；参考指数采用各自的成分范围。' },
   { value: 'gem', label: '创业板', description: '深圳交易所创业板A股，以创业板指作为参考指数。' },
   { value: 'star', label: '科创板', description: '上海交易所科创板A股，以科创50作为参考指数。' },
   { value: 'bj', label: '北交所', description: '北京证券交易所A股，以北证50作为参考指数。' },

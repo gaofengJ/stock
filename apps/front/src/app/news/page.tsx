@@ -1,5 +1,7 @@
 'use client';
 
+import { ExternalLink, InteractionButton } from '@/components/Interaction';
+
 import {
   useCallback, useEffect, useRef, useState,
 } from 'react';
@@ -7,7 +9,7 @@ import {
   Alert, Button, Checkbox, DatePicker, Drawer, Empty, Input, Pagination, Segmented, Select, Skeleton, Space, Switch, Tag, Tooltip, message,
 } from 'antd';
 import {
-  ReloadOutlined, SettingOutlined, ExportOutlined, InfoCircleOutlined,
+  ReloadOutlined, SettingOutlined, ExportOutlined, InfoCircleOutlined, EyeOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import CommonLayout from '@/components/Layout';
@@ -158,8 +160,8 @@ export default function Page() {
   const relatedSources = (item: NewsItem) => Array.from(new Set((item.related || []).map((related) => sources.sources.find((s) => s.code === related.source)?.name || related.source)));
   const stockTags = (item: NewsItem) => (item.stocks || []).map((symbol) => (
     <Tag key={symbol.tsCode} color={preferences.stocks.includes(symbol.tsCode) ? 'blue' : 'default'}>
-      <button type="button" className={styles.stockLink} aria-label={`筛选${symbol.name}资讯`} onClick={() => { setStock(symbol.tsCode); setPage(1); }}>{symbol.name}</button>
-      {allowedPath(user, '/basic/stock') && <a className={styles.stockLink} href={`/basic/stock/?tsCode=${encodeURIComponent(symbol.tsCode)}`} target="_blank" rel="noopener noreferrer" aria-label={`查看${symbol.name}个股信息`}><ExportOutlined /></a>}
+      <InteractionButton intent="select" selected={stock === symbol.tsCode} aria-label={`筛选${symbol.name}资讯`} title="筛选该股票资讯" onClick={() => { setStock(symbol.tsCode); setPage(1); }}>{symbol.name}</InteractionButton>
+      {allowedPath(user, '/basic/stock') && <ExternalLink className={styles.stockLink} href={`/basic/stock/?tsCode=${encodeURIComponent(symbol.tsCode)}`} aria-label={`在新窗口查看${symbol.name}个股信息`}>个股信息</ExternalLink>}
     </Tag>
   ));
   let emptyText = '当天暂无资讯，采集后将在这里显示，也可选择其他日期';
@@ -185,7 +187,7 @@ export default function Page() {
               自动刷新
             </span>
             <Button icon={<ReloadOutlined />} loading={loading} onClick={() => { load(); loadSources(); }}>刷新</Button>
-            <Tooltip title={signedIn ? '管理关注关键词和自选股票' : '登录后保存关注设置'}><Button disabled={!signedIn} onClick={() => setFocusOpen(true)}>我的关注</Button></Tooltip>
+            <Tooltip title={signedIn ? '管理关注关键词和自选股票' : '登录后保存关注设置'}><InteractionButton intent="preview" disabled={!signedIn} onClick={() => setFocusOpen(true)}>我的关注</InteractionButton></Tooltip>
             <Button icon={<SettingOutlined />} onClick={() => setSettings(true)}>{manager ? '来源管理' : '来源状态'}</Button>
           </Space>
         </div>
@@ -193,7 +195,7 @@ export default function Page() {
           <Segmented value={kind} options={[{ label: '全部资讯', value: '' }, { label: '快讯', value: 'flash' }, { label: '报道', value: 'article' }]} onChange={(v) => { setKind(String(v)); setPage(1); }} />
           <Space size={0}>
             <Select aria-label="资讯来源" showSearch optionFilterProp="label" value={source} popupMatchSelectWidth={240} className={styles.sourceSelect} options={[{ label: '全部来源', value: '' }, ...availableSources.map((s) => ({ label: s.name, value: s.code }))]} onChange={(v) => { setSource(v); setPage(1); }} />
-            <Tooltip title={sourceTip} trigger={['hover', 'focus', 'click']}>
+            <Tooltip title={sourceTip} trigger={['hover', 'click']}>
               <Button type="text" size="small" aria-label="来源内容说明" icon={<InfoCircleOutlined />} />
             </Tooltip>
           </Space>
@@ -216,7 +218,7 @@ export default function Page() {
         {preferences.keywords.length > 0 && (
         <Space wrap className={styles.focusBar}>
           <span>关注词：</span>
-          {preferences.keywords.map((word) => <Button size="small" key={word} onClick={() => { setKeyword(word); setPage(1); }}>{word}</Button>)}
+          {preferences.keywords.map((word) => <InteractionButton intent="select" selected={keyword === word} key={word} title="按关键词筛选资讯" onClick={() => { setKeyword(word); setPage(1); }}>{word}</InteractionButton>)}
         </Space>
         )}
         <div className={styles.summary}>
@@ -240,7 +242,7 @@ export default function Page() {
         </div>
         {error && <Alert className={styles.alert} type="error" showIcon message={error} description={data ? '当前显示上次成功加载的资讯。' : undefined} action={<Button size="small" onClick={() => load()}>重试</Button>} />}
         {newCount > 0 && (
-        <Button type="link" className={styles.newMessages} onClick={() => { document.querySelector('section[aria-label="资讯列表"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); setNewCount(0); setNewAfter(null); }}>
+        <Button type="default" className={styles.newMessages} onClick={() => { document.querySelector('section[aria-label="资讯列表"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); setNewCount(0); setNewAfter(null); }}>
           新增 / 更新
           {newCount}
           {' '}
@@ -271,22 +273,34 @@ export default function Page() {
                   )}
                   {merge && relatedSources(item).length > 0 && (
                   <Tooltip title={relatedSources(item).join('、')}>
-                    <button type="button" className={styles.stockLink} onClick={() => openDetail(item)}>
+                    <InteractionButton intent="preview" onClick={() => openDetail(item)}>
                       另有
                       {relatedSources(item).length}
                       {' '}
                       个来源
-                    </button>
+                    </InteractionButton>
                   </Tooltip>
                   )}
                 </div>
-                <button type="button" className={styles.title} onClick={() => openDetail(item)}>{item.title}</button>
+                <button type="button" className={styles.title} aria-haspopup="dialog" title="打开资讯预览" onClick={() => openDetail(item)}>
+                  {item.title}
+                  <span className="interaction-preview-caption">
+                    <EyeOutlined aria-hidden />
+                    预览
+                  </span>
+                </button>
                 {item.translation && (
                   <div className={styles.translationTitle} lang="zh-CN">
-                    <Tooltip title="自动翻译，财经术语与专有名词可能有误，以英文原文为准。" trigger={['hover', 'focus', 'click']}>
+                    <Tooltip title="自动翻译，财经术语与专有名词可能有误，以英文原文为准。" trigger={['hover', 'click']}>
                       <button type="button" className={styles.translationLabel}>机器翻译</button>
                     </Tooltip>
-                    <button type="button" className={styles.title} onClick={() => openDetail(item)}>{item.translation.title}</button>
+                    <button type="button" className={styles.title} aria-haspopup="dialog" title="打开资讯预览" onClick={() => openDetail(item)}>
+                      {item.translation.title}
+                      <span className="interaction-preview-caption">
+                        <EyeOutlined aria-hidden />
+                        预览
+                      </span>
+                    </button>
                   </div>
                 )}
                 {item.body && item.body !== item.title && <p className={styles.preview}>{item.body}</p>}
@@ -298,9 +312,9 @@ export default function Page() {
                 )}
                 {(item.stocks || []).length > 0 && <Space wrap className={styles.stockTags}>{stockTags(item)}</Space>}
                 <div className={styles.actions}>
-                  <Button size="small" type="link" onClick={() => openDetail(item)}>查看详情</Button>
+                  <InteractionButton intent="preview" size="small" onClick={() => openDetail(item)}>查看详情</InteractionButton>
                   {item.originalUrl && (
-                  <a
+                  <ExternalLink
                     href={item.originalUrl}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -310,8 +324,7 @@ export default function Page() {
                     }}
                   >
                     阅读原文
-                    <ExportOutlined />
-                  </a>
+                  </ExternalLink>
                   )}
                 </div>
               </div>
@@ -358,8 +371,8 @@ export default function Page() {
             <p className={styles.note}>规则匹配，请结合各来源原文判断。</p>
             {detail.related.map((related) => (
               <div key={related.id}>
-                <Button
-                  type="link"
+                <InteractionButton
+                  intent="preview"
                   onClick={() => openDetail({
                     ...detail, ...related, stocks: [], related: [],
                   })}
@@ -367,8 +380,8 @@ export default function Page() {
                   {sources.sources.find((s) => s.code === related.source)?.name || related.source}
                   ：
                   {related.title}
-                </Button>
-                {related.originalUrl && <a href={related.originalUrl} target="_blank" rel="noopener noreferrer">原文 ↗</a>}
+                </InteractionButton>
+                {related.originalUrl && <ExternalLink href={related.originalUrl} target="_blank" rel="noopener noreferrer">原文</ExternalLink>}
               </div>
             ))}
           </section>
@@ -390,7 +403,7 @@ export default function Page() {
               <Space size={4}>
                 <strong>{s.name}</strong>
                 {s.description && (
-                  <Tooltip title={s.description} trigger={['hover', 'focus', 'click']}>
+                  <Tooltip title={s.description} trigger={['hover', 'click']}>
                     <Button type="text" size="small" aria-label={`${s.name}内容说明`} icon={<InfoCircleOutlined />} />
                   </Tooltip>
                 )}

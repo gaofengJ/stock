@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import Link from '@/components/Interaction';
 import {
   DatePicker, Input, Select, Space, Tag,
 } from 'antd';
@@ -37,7 +37,7 @@ export default function EventCalendar({ date, onDate, code }: { date: string; on
           {state.data?.nextTradeDate || '尚未更新'}
         </span>
       </Space>
-      <p className="basic-muted">预约披露日期可能调整；预告、快报按实际公告日列出，不预测尚未公布的事件。展示最近资料，非历史时点回放。</p>
+      <p className="basic-muted">事件来自最近取得的公开资料；预约披露日期可能调整，预告、快报按实际公告日列出。历史日期按当前可用资料查询。</p>
       <Table
         loading={state.loading}
         pagination={false}

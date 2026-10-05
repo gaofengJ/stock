@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/components/Interaction';
 import {
   Alert, Button, Space, Tag, Tooltip,
 } from 'antd';
@@ -116,7 +116,7 @@ export function RiskTags({
   return (
     <Space size={2} wrap>
       {labels.map((label) => (canLink ? <Link key={label} href={`/basic/stock/risk/?code=${code}&date=${date || ''}`}><Tag color={label === '复牌' ? 'blue' : 'orange'}>{label}</Tag></Link> : <Tag color="orange" key={label}>{label}</Tag>))}
-      {showSourceState && <Tooltip title="减持计划、重大利空及潜在ST／退市风险需逐股核验。无记录不代表无风险。"><span className="basic-muted">{!data || data.sources?.some((s: any) => s.state !== 'ready') ? '资料待补齐' : '其他风险待核验'}</span></Tooltip>}
+      {showSourceState && <Tooltip title="标签仅覆盖已取得的风险记录。减持计划、重大利空及潜在ST／退市风险需结合公告正文逐股核验。"><span className="basic-muted">{!data || data.sources?.some((s: any) => s.state !== 'ready') ? '资料待补齐' : '其他风险待核验'}</span></Tooltip>}
     </Space>
   );
 }

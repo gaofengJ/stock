@@ -1,5 +1,7 @@
 'use client';
 
+import { InteractionButton } from '@/components/Interaction';
+
 import { useEffect, useState } from 'react';
 import {
   Alert, Button, Empty, Modal, Segmented, Space, Tag,
@@ -83,7 +85,7 @@ export function PopularityChanges({ date, code, endpoint = '/analysis/market/pop
         </Space>
         )}
         <span>{data?.rankTime || '日终榜单待更新'}</span>
-        <HelpTooltip label="人气变化口径" title="对比上一交易日日终榜单，数字为上升／下降名次；热度不作为默认选股条件。" />
+        <HelpTooltip label="人气变化口径" title="对比上一交易日日终榜单，展示名次变化。上升表示排名前移，下降表示排名后移。" />
       </Space>
       {data?.ready && (!data.complete || !data.previousReady) && <Alert className="mb-16" type="info" message={`当日返回 ${data.count}/100 条。前后榜单有缺位时，仅比较已有排名，不将缺数据判为新上榜或离榜。`} />}
       {data && !data.ready && <Alert className="mb-16" type={data.stage?.status === 'failed' ? 'warning' : 'info'} message={data.stage?.status === 'failed' ? '日终人气数据暂不可用，请查看同步任务。' : '日终人气数据正在补齐。'} />}
@@ -98,7 +100,7 @@ export function PopularityChanges({ date, code, endpoint = '/analysis/market/pop
             maxBodyHeight={560}
             minBodyHeight={360}
             columns={[
-              { title: '排名', dataIndex: 'rank', width: 85 }, { title: '股票', key: 'stock', render: (_, r) => <Button type="link" onClick={() => setSelected(r)}>{`${r.name} ${r.code.split('.')[0]}`}</Button> },
+              { title: '排名', dataIndex: 'rank', width: 85 }, { title: '股票', key: 'stock', render: (_, r) => <InteractionButton intent="preview" onClick={() => setSelected(r)}>{`${r.name} ${r.code.split('.')[0]}`}</InteractionButton> },
               {
                 title: '上一交易日', dataIndex: 'previousRank', align: 'right', render: (v) => v ?? '—',
               }, {
@@ -106,7 +108,7 @@ export function PopularityChanges({ date, code, endpoint = '/analysis/market/pop
               },
               {
                 title: '连续上榜', key: 'streak', align: 'right', render: (_, r) => `${r.streakCapped ? '≥' : ''}${r.streak}个交易日`,
-              }, { title: '走势', key: 'trend', render: (_, r) => <Button type="link" onClick={() => setSelected(r)}>排名趋势</Button> },
+              }, { title: '走势', key: 'trend', render: (_, r) => <InteractionButton intent="preview" onClick={() => setSelected(r)}>排名趋势</InteractionButton> },
             ]}
           />
         )}
