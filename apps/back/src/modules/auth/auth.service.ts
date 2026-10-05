@@ -302,7 +302,8 @@ export class AuthService implements OnModuleInit {
     req?: AuthRequest,
     reply?: FastifyReply,
   ) {
-    if (dto.username === 'mufeng') throw new ConflictException('用户名不可用');
+    if (dto.username === 'mufeng')
+      throw new ConflictException('该用户名不可使用，请更换一个用户名');
     const encoded = await hashPassword(dto.password);
     try {
       return await this.db.transaction(async (m) => {
@@ -354,7 +355,7 @@ export class AuthService implements OnModuleInit {
       });
     } catch (e) {
       if (e.code === 'ER_DUP_ENTRY')
-        throw new ConflictException('用户名不可用');
+        throw new ConflictException('用户名已被使用，请更换一个用户名');
       throw e;
     }
   }

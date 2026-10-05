@@ -44,7 +44,7 @@ export default function AccountBoundary({
   const path = usePathname().replace(/\/$/, '') || '/';
   const router = useRouter();
   const [user, setUser] = useState<Account | null>(null);
-  const [ready, setReady] = useState(false);
+  const [checkedPublicPage, setCheckedPublicPage] = useState<boolean | null>(null);
   const [error, setError] = useState('');
   const [loadError, setLoadError] = useState('');
   const [trialEnd, setTrialEnd] = useState(0);
@@ -52,6 +52,9 @@ export default function AccountBoundary({
   const [trialExpired, setTrialExpired] = useState(false);
   const authRequest = useRef(0);
   const publicPage = ['/login', '/register'].includes(path);
+  // Public pages do not start trials. Wait for the destination's access check
+  // before redirecting a new visitor who follows the preview link.
+  const ready = checkedPublicPage === publicPage;
   const refresh = useCallback(async () => {
     authRequest.current += 1;
     const request = authRequest.current;
@@ -69,7 +72,7 @@ export default function AccountBoundary({
     } catch (e) {
       if (request === authRequest.current) setLoadError(errorMessage(e));
     } finally {
-      if (request === authRequest.current) setReady(true);
+      if (request === authRequest.current) setCheckedPublicPage(publicPage);
     }
   }, [publicPage]);
   const clear = useCallback(() => {
