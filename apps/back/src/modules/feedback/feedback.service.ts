@@ -42,7 +42,7 @@ export class FeedbackService {
 
   async create(user: CurrentUser, content: string) {
     const result = await this.db.query(
-      'INSERT INTO t_feedback(user_id,content) VALUES(?,?)',
+      'INSERT INTO t_feedback(user_id,content,created_at,updated_at) VALUES(?,?,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))',
       [user.id, content],
     );
     return { id: result.insertId };
@@ -64,7 +64,7 @@ export class FeedbackService {
     await this.db.transaction(async (m: EntityManager) => {
       await this.visible(id, user, m);
       await m.query(
-        'INSERT INTO t_feedback_reply(feedback_id,user_id,content,is_admin) VALUES(?,?,?,?)',
+        'INSERT INTO t_feedback_reply(feedback_id,user_id,content,is_admin,created_at) VALUES(?,?,?,?,UTC_TIMESTAMP(3))',
         [id, user.id, content, this.isAdmin(user)],
       );
       await m.query(

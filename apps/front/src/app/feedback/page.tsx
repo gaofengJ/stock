@@ -107,6 +107,7 @@ export default function Page() {
       <Modal title="提交反馈" open={creating} onCancel={() => { if (!saving) setCreating(false); }} footer={null}>
         <Form
           form={createForm}
+          name="create-feedback"
           layout="vertical"
           onFinish={async ({ content }) => {
             setSaving(true);
@@ -152,6 +153,7 @@ export default function Page() {
               {!detail.replies.length && <Typography.Text type="secondary">暂无回复</Typography.Text>}
               <Form
                 form={replyForm}
+                name="reply-feedback"
                 layout="vertical"
                 onFinish={async ({ content }) => {
                   const { id } = detail;

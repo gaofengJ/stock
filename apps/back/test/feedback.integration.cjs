@@ -21,6 +21,7 @@ module.exports = async function verifyFeedback({ inject, user, admin, db }) {
   assert.equal(own.total, 1);
   assert.deepEqual(own.items.map(v => v.id), [id]);
   assert.equal(own.items[0].content, '功能建议 🔒');
+  assert.ok(Math.abs(Date.now() - Date.parse(own.items[0].createdAt)) < 10000, 'Creation time uses UTC regardless of database timezone');
   assert.equal((await inject('GET', '/feedback', undefined, admin)).json().data.total, 2);
   assert.equal((await inject('GET', `/feedback/${hiddenId}`, undefined, user)).statusCode, 404);
   assert.equal((await inject('POST', `/feedback/${hiddenId}/replies`, { content: '越权回复' }, user)).statusCode, 404);
@@ -32,6 +33,7 @@ module.exports = async function verifyFeedback({ inject, user, admin, db }) {
   assert.equal(Number(detail.replies[0].isAdmin), 1);
   assert.equal(Number(detail.replies[1].isAdmin), 0);
   assert.equal(detail.replies[1].content, '谢谢，补充说明。');
+  assert.ok(Math.abs(Date.now() - Date.parse(detail.replies[1].createdAt)) < 10000, 'Reply time uses UTC');
   const [role] = await db.query("SELECT id FROM t_role WHERE code='admin'");
   await db.query('DELETE FROM t_user_role WHERE user_id=? AND role_id=?', [admin.user.id, role.id]);
   try {
