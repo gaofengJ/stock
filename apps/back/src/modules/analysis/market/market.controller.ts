@@ -15,7 +15,7 @@ import { SectorService } from './sector.service';
 import { SectorQueryDto } from './sector.dto';
 import { MarketResearchService } from './market-research.service';
 import { InsightService } from '../../strategy/insight.service';
-import { ExtremesDto } from '../../strategy/insight.dto';
+import { ExtremesDto, PopularityDto } from '../../strategy/insight.dto';
 
 @ApiTags('市场分析')
 @Controller('market')
@@ -34,6 +34,12 @@ export class MarketController {
     private research: MarketResearchService,
     private insights: InsightService,
   ) {}
+
+  @Get('popularity')
+  @Permit('analysis:senti')
+  popularity(@Query() q: PopularityDto) {
+    return this.insights.popularity(q.date, true, q.code);
+  }
 
   @Get('extremes')
   @Permit('analysis:overview')

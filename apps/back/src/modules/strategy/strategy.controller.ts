@@ -9,7 +9,12 @@ import { TabItem } from './strategy.entity';
 import { StrategyListQueryDto, StrategyChartQueryDto } from './strategy.dto';
 import { DailyEntity } from '../source/daily/daily.entity';
 import { InsightService } from './insight.service';
-import { InsightDateDto, PerformanceDto } from './insight.dto';
+import {
+  CandidateDetailsDto,
+  InsightDateDto,
+  PerformanceDto,
+  PopularityDto,
+} from './insight.dto';
 
 @ApiTags('策略选股')
 @Controller('strategy')
@@ -26,6 +31,18 @@ export class StrategyController {
   }
 
   @Permit('strategy:read')
+  @Get('/candidate-comparison')
+  compareCandidates(@Query() q: CandidateDetailsDto) {
+    return this.insights.comparison(q.date, q.codes);
+  }
+
+  @Permit('strategy:read')
+  @Get('/candidate-context')
+  candidateContext(@Query() q: CandidateDetailsDto) {
+    return this.strategyService.context(q.date, q.codes);
+  }
+
+  @Permit('strategy:read')
   @Get('/performance')
   @QueryTimeout(60000)
   performance(@Query() q: PerformanceDto) {
@@ -34,8 +51,8 @@ export class StrategyController {
 
   @Permit('strategy:read')
   @Get('/popularity')
-  popularity(@Query() q: InsightDateDto) {
-    return this.insights.popularity(q.date);
+  popularity(@Query() q: PopularityDto) {
+    return this.insights.popularity(q.date, true, q.code);
   }
 
   @Permit('strategy:read')

@@ -572,8 +572,12 @@ export class InsightService {
     };
   }
 
-  async popularity(date: string) {
-    const dates = await this.calendar(date, 20);
+  async popularity(
+    date: string,
+    history = true,
+    code: string | undefined = undefined,
+  ) {
+    const dates = await this.calendar(date, history ? 20 : 2);
     const policies: { date: string }[] = await this.db.query(
       "SELECT DATE_FORMAT(trade_date,'%Y-%m-%d') date FROM t_sync_day_policy WHERE trade_date IN (?)",
       [dates.length ? dates : [date]],
@@ -607,29 +611,32 @@ export class InsightService {
       current?.data || [],
       previous?.data || null,
       previous?.data.length === 100,
-    ).map((r) => {
-      let streak = 0;
-      for (const d of dates) {
-        if (!byDate.get(d)?.data.some((s) => s.code === r.code)) break;
-        streak += 1;
-      }
-      return {
-        ...r,
-        streak,
-        streakCapped:
-          streak === dates.length ||
-          (!!dates[streak] && byDate.get(dates[streak])?.data.length !== 100),
-        history: dates
-          .slice()
-          .reverse()
-          .map((d) => ({
-            date: d,
-            rank:
-              byDate.get(d)?.data.find((s) => s.code === r.code)?.rank ?? null,
-            ready: byDate.get(d)?.data.length === 100,
-          })),
-      };
-    });
+    )
+      .filter((r) => !code || r.code === code)
+      .map((r) => {
+        let streak = 0;
+        for (const d of dates) {
+          if (!byDate.get(d)?.data.some((s) => s.code === r.code)) break;
+          streak += 1;
+        }
+        return {
+          ...r,
+          streak,
+          streakCapped:
+            streak === dates.length ||
+            (!!dates[streak] && byDate.get(dates[streak])?.data.length !== 100),
+          history: (history && code ? dates : [])
+            .slice()
+            .reverse()
+            .map((d) => ({
+              date: d,
+              rank:
+                byDate.get(d)?.data.find((s) => s.code === r.code)?.rank ??
+                null,
+              ready: byDate.get(d)?.data.length === 100,
+            })),
+        };
+      });
     return {
       date,
       ready: !!current,
@@ -649,10 +656,10 @@ export class InsightService {
     };
   }
 
-  async comparison(date: string) {
+  async comparison(date: string, codes?: string[]) {
     const [records, popularity, members, dates] = await Promise.all([
       this.snapshots([date]),
-      this.popularity(date),
+      this.popularity(date, false),
       this.sectors.snapshots(date, undefined, false, 'I'),
       this.calendar(date, 61),
     ]);
@@ -681,31 +688,33 @@ export class InsightService {
       ready: !!record,
       ruleVersion: record?.signals.version || INSIGHT_VERSION,
       items:
-        record?.data.map((r) => {
-          const industries = sectorByStock.get(r.code) || [];
-          const member = industries.length === 1 ? industries[0] : null;
-          return {
-            code: r.code,
-            name: r.name,
-            periods: r.periods,
-            strategies: hits.get(r.code) || [],
-            industryCode: member?.tsCode || null,
-            industryAsOf: member?.asOf || null,
-            relative: Object.fromEntries(
-              [20, 60].map((p) => {
-                const start =
-                  member && closes.get(`${member.tsCode}:${dates[p]}`);
-                const end = member && closes.get(`${member.tsCode}:${date}`);
-                return [
-                  p,
-                  positive(start) && positive(end) && r.periods[p]
-                    ? r.periods[p]!.change - (end / start - 1) * 100
-                    : null,
-                ];
-              }),
-            ),
-          };
-        }) || [],
+        record?.data
+          .filter((r) => !codes || codes.includes(r.code))
+          .map((r) => {
+            const industries = sectorByStock.get(r.code) || [];
+            const member = industries.length === 1 ? industries[0] : null;
+            return {
+              code: r.code,
+              name: r.name,
+              periods: r.periods,
+              strategies: hits.get(r.code) || [],
+              industryCode: member?.tsCode || null,
+              industryAsOf: member?.asOf || null,
+              relative: Object.fromEntries(
+                [20, 60].map((p) => {
+                  const start =
+                    member && closes.get(`${member.tsCode}:${dates[p]}`);
+                  const end = member && closes.get(`${member.tsCode}:${date}`);
+                  return [
+                    p,
+                    positive(start) && positive(end) && r.periods[p]
+                      ? r.periods[p]!.change - (end / start - 1) * 100
+                      : null,
+                  ];
+                }),
+              ),
+            };
+          }) || [],
       popularity,
     };
   }

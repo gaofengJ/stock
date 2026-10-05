@@ -107,7 +107,7 @@ export const strategyColumns: ColumnsType = [
     title: '题材', key: 'topics', width: 240, render: (_, r) => <SectorLinks stock={r} type="N" date={r.tradeDate} />,
   },
   {
-    title: '板块背景', key: 'context', width: 280, render: (_, r) => <SectorContext sectors={r.sectorPerformance} date={r.tradeDate} ready={r.sectorContextReady} />,
+    title: '板块背景', key: 'context', width: 280, render: (_, r) => (r.sectorContextLoading ? <span>加载中…</span> : <SectorContext sectors={r.sectorPerformance} date={r.tradeDate} ready={r.sectorContextReady} />),
   },
   {
     title: '开盘价(元)',

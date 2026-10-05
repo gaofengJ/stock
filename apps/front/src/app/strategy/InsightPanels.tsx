@@ -1,34 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
-  Alert, Button, Card, Col, Empty, Modal, Row, Segmented, Select, Space, Tag,
+  Alert, Button, Card, Collapse, Segmented, Select, Space, Tag,
 } from 'antd';
 import Table from '@/components/DataTable';
-import CChart from '@/components/CChart';
 import HelpTooltip from '@/components/HelpTooltip';
 import { LoadingOverlay } from '@/components/Loading';
 import { changeClass, numberText } from '@/utils/format';
-import { chartColors } from '@/colors';
 import useInsight from './useInsight';
 
-interface HotRow { code: string; name: string; rank: number; previousRank: number | null; change: number | null; state: string; streak: number; streakCapped: boolean; history: { date: string; rank: number | null; ready: boolean }[] }
-interface Popularity { date: string; ready: boolean; complete: boolean; count: number; previousReady: boolean; previousDate: string | null; rankTime: string | null; items: HotRow[]; exited: { code: string; name: string; rank: number }[]; stage: { status: string; error: string | null } | null }
+import { Popularity, PopularityTrend, rankChange } from './PopularityChanges';
+
 interface CompareRow { code: string; name: string; strategies: string[]; periods: Record<string, { change: number; rps: number | null } | null>; relative: Record<string, number | null>; industryAsOf: string | null }
 interface Comparison { ready: boolean; items: CompareRow[]; popularity: Popularity }
 interface Summary { horizon: number; sample: number; total: number; pending: number; missing: number; average: number | null; median: number | null; riseRate: number | null }
 interface Observation { date: string; code: string; name: string; environment: string; outcomes: Record<string, { date: string | null; value: number | null; state: string }> }
 interface Performance { readyDays: number; expectedDays: number; version: string; summary: Summary[]; groups: { name: string; summary: Summary[] }[]; items: Observation[]; sectorSnapshots: { date: string; asOf: string | null }[] }
 const change = (v?: number | null) => <span className={changeClass(v)}>{numberText(v, 2, true)}</span>;
-function rankChange(row?: HotRow) {
-  if (row?.change != null) {
-    let label = '持平';
-    if (row.change > 0) label = `↑ ${row.change}`;
-    if (row.change < 0) label = `↓ ${-row.change}`;
-    return <span className={changeClass(row.change)}>{label}</span>;
-  }
-  return row?.state === 'new' ? <Tag color="blue">新上榜</Tag> : '—';
-}
 function PanelState({ loading, error, retry }: { loading: boolean; error: string; retry: () => void }) {
   return (
     <>
@@ -39,9 +28,10 @@ function PanelState({ loading, error, retry }: { loading: boolean; error: string
 }
 
 export function CandidateComparison({
-  date, candidates, strategies, onStock,
-}: { date: string; candidates: any[]; strategies: { key: string; label: string }[]; onStock: (row: any) => void }) {
-  const state = useInsight<Comparison>('comparison', { date });
+  date, candidates, allCandidates = candidates, strategies, onStock, active = true,
+}: { date: string; candidates: any[]; allCandidates?: any[]; strategies: { key: string; label: string }[]; onStock: (row: any) => void; active?: boolean }) {
+  const state = useInsight<Comparison>('candidate-comparison', { date, codes: allCandidates.map((r) => r.tsCode).sort() }, active && allCandidates.length > 0);
+  const [hotCode, setHotCode] = useState<string>();
   const [selected, setSelected] = useState<string[]>([]);
   const [period, setPeriod] = useState(20);
   const [codes, setCodes] = useState<React.Key[]>([]);
@@ -55,14 +45,14 @@ export function CandidateComparison({
         <Segmented aria-label="比较周期" value={period} onChange={(v) => setPeriod(Number(v))} options={[{ label: '20日', value: 20 }, { label: '60日', value: 60 }]} />
         <Select aria-label="多策略交集" placeholder="同时命中策略（标准参数）" mode="multiple" allowClear style={{ minWidth: 300 }} value={selected} onChange={setSelected} options={strategies.map((s) => ({ value: s.key, label: s.label }))} />
         <Button disabled={!onlySelected && !codes.length} onClick={() => setOnlySelected((v) => !v)}>{onlySelected ? '显示全部候选' : `只比较勾选的 ${codes.length} 只`}</Button>
-        <HelpTooltip label="横向比较口径" title="RPS为全市场同期涨幅百分位，越高越强；行业超额为个股涨幅减同花顺行业指数涨幅。多策略命中按标准参数计算。" />
+        <HelpTooltip label="横向比较口径" title="涨幅强度为全市场有效样本的同期涨幅百分位（0–100），越高越强，不是涨幅。领先行业为个股涨幅减同花顺行业指数涨幅。多策略命中按标准参数计算。" />
       </Space>
       {state.data && !state.data.ready && <Alert className="mb-16" type="info" message="观察数据待补齐，候选列表仍可查看。" />}
       <Table
         rowKey="tsCode"
         pagination={false}
         dataSource={rows}
-        rowSelection={{ selectedRowKeys: codes, onChange: setCodes }}
+        rowSelection={{ selectedRowKeys: codes.filter((code) => candidates.some((row) => row.tsCode === code)), onChange: setCodes }}
         scroll={{ x: 'max-content' }}
         maxBodyHeight={520}
         minBodyHeight={360}
@@ -78,10 +68,10 @@ export function CandidateComparison({
             title: `${period}日涨跌(%)`, key: 'period', align: 'right', sorter: (a, b) => (a.detail?.periods[period]?.change ?? -Infinity) - (b.detail?.periods[period]?.change ?? -Infinity), render: (_, r) => change(r.detail?.periods[period]?.change),
           },
           {
-            title: `RPS${period}`, key: 'rps', align: 'right', defaultSortOrder: 'descend', sorter: (a, b) => (a.detail?.periods[period]?.rps ?? -1) - (b.detail?.periods[period]?.rps ?? -1), render: (_, r) => numberText(r.detail?.periods[period]?.rps),
+            title: `${period}日涨幅强度（0–100）`, key: 'rps', align: 'right', defaultSortOrder: 'descend', sorter: (a, b) => (a.detail?.periods[period]?.rps ?? -1) - (b.detail?.periods[period]?.rps ?? -1), render: (_, r) => numberText(r.detail?.periods[period]?.rps),
           },
           {
-            title: '行业超额(百分点)',
+            title: `${period}日领先行业(百分点)`,
             key: 'relative',
             align: 'right',
             sorter: (a, b) => (a.detail?.relative[period] ?? -Infinity) - (b.detail?.relative[period] ?? -Infinity),
@@ -93,167 +83,159 @@ export function CandidateComparison({
             ),
           },
           {
-            title: '同时命中（标准参数）', key: 'hits', width: 270, render: (_, r) => <Space size={[0, 4]} wrap>{r.detail?.strategies.map((key: string) => <Tag key={key}>{strategies.find((s) => s.key === key)?.label || key}</Tag>) || '—'}</Space>,
+            title: '同时符合的标准策略', key: 'hits', width: 270, render: (_, r) => <Space size={[0, 4]} wrap>{r.detail?.strategies.map((key: string) => <Tag key={key}>{strategies.find((s) => s.key === key)?.label || key}</Tag>) || '—'}</Space>,
           },
           {
-            title: '人气排名', key: 'rank', width: 100, align: 'right', render: (_, r) => r.hot?.rank ?? '—',
+            title: '同花顺人气名次', key: 'rank', width: 140, align: 'right', render: (_, r) => { if (r.hot) return <Button type="link" onClick={() => setHotCode(r.tsCode)}>{`第${r.hot.rank}名`}</Button>; return state.data?.popularity.complete ? '未入榜' : '榜单缺失'; },
           },
           {
-            title: '排名变化', key: 'rankChange', width: 110, align: 'right', render: (_, r) => rankChange(r.hot),
+            title: '较上一交易日', key: 'rankChange', width: 110, align: 'right', render: (_, r) => rankChange(r.hot),
           },
         ]}
       />
+      <PopularityTrend date={date} code={hotCode} onClose={() => setHotCode(undefined)} />
       <PanelState loading={state.loading} error={state.error} retry={state.retry} />
     </div>
   );
 }
 
 export function SignalPerformance({
-  date, strategy, sector, onStock,
-}: { date: string; strategy: string; sector?: string; onStock: (row: Observation) => void }) {
+  date, strategy, sector, onStock, active = true,
+}: { date: string; strategy: string; sector?: string; onStock: (row: Observation) => void; active?: boolean }) {
   const [days, setDays] = useState(20);
   const [horizon, setHorizon] = useState(5);
+  const [filter, setFilter] = useState('valid');
   const state = useInsight<Performance>('performance', {
     date, strategyType: strategy, sector, days,
-  });
+  }, active && !!strategy);
   const { data } = state;
+  const current = data?.summary.find((row) => row.horizon === horizon);
+  const rows = (data?.items || []).filter((row) => filter === 'all' || (filter === 'valid' ? row.outcomes[horizon].value != null : row.outcomes[horizon].state === (filter === 'pending' ? '未到期' : '数据不足或无成交')));
+  const summaryColumns = [
+    { title: '观察周期', dataIndex: 'horizon', render: (v: number) => `后${v}个交易日` },
+    {
+      title: '平均涨跌(%)', dataIndex: 'average', align: 'right' as const, render: change,
+    },
+    {
+      title: '中位数(%)', dataIndex: 'median', align: 'right' as const, render: change,
+    },
+    {
+      title: '上涨比例(%)', dataIndex: 'riseRate', align: 'right' as const, render: (v: number | null) => numberText(v),
+    },
+    { title: '有效信号数', dataIndex: 'sample', align: 'right' as const },
+  ];
   return (
     <div className="strategy-insight-panel">
-      <Space wrap className="mb-16">
-        <strong>标准参数信号表现</strong>
+      <div className="strategy-result-toolbar">
+        <Space wrap>
+          <strong>历史信号表现</strong>
+          <Tag>标准参数</Tag>
+          <span>
+            统计截至
+            {date}
+          </span>
+        </Space>
         <Segmented aria-label="信号统计范围" value={days} onChange={(v) => setDays(Number(v))} options={[{ label: '近20个交易日', value: 20 }, { label: '近60个交易日', value: 60 }]} />
-        <HelpTooltip label="信号表现口径" title="信号日复权收盘至后续第1/3/5/10个交易日收盘。同股不同日期分别计样本；未到期、无成交与缺数据不计入均值。不是交易收益。" />
-        <span>{data ? `已就绪 ${data.readyDays}/${data.expectedDays} 个信号日` : ''}</span>
+      </div>
+      <p className="strategy-caption">按标准参数统计，不跟随自定义参数。信号日复权收盘至后续收盘的涨跌，不含交易成本；同股不同信号日分别计样本。</p>
+      {!!sector && <p className="strategy-caption">行业／题材按各信号日已有成分快照筛选；缺少历史成分的日期不纳入统计。</p>}
+      <Space wrap className="mb-16">
+        <strong>观察周期</strong>
+        <Segmented aria-label="信号观察周期" value={horizon} onChange={(v) => setHorizon(Number(v))} options={[1, 3, 5, 10].map((v) => ({ label: `后${v}日`, value: v }))} />
       </Space>
-      <Alert className="mb-16" type="info" message="按标准参数观察，不跟随上方自定义参数；不含交易成本。" />
-      {!!sector && <div className="market-environment-caption mb-16">按信号日已有的行业／题材成分筛选；没有历史成分的日期不纳入统计。</div>}
-      <Row gutter={[16, 16]} className="mb-16">
-        {data?.summary.map((r) => (
-          <Col xs={12} xl={6} key={r.horizon}>
-            <Card size="small" title={`后${r.horizon}日`}>
-              <div className="strategy-observation-main">
-                {change(r.average)}
-                <small> % 平均涨跌</small>
-              </div>
-              <div className="strategy-observation-meta">
-                <span>{`上涨占比 ${numberText(r.riseRate)}%`}</span>
-                <span>{`中位数 ${numberText(r.median)}%`}</span>
-              </div>
-              <div className="strategy-observation-meta">{`有效 ${r.sample} / 未到期 ${r.pending} / 数据不足 ${r.missing}`}</div>
-            </Card>
-          </Col>
-        ))}
-      </Row>
-      <Space className="mb-16">
-        <strong>不同市场环境</strong>
-        <Segmented aria-label="环境表现周期" value={horizon} onChange={(v) => setHorizon(Number(v))} options={[1, 3, 5, 10].map((v) => ({ label: `后${v}日`, value: v }))} />
-      </Space>
-      <Table
-        rowKey="name"
-        pagination={false}
-        dataSource={data?.groups.map((g) => ({ name: g.name, ...g.summary.find((r) => r.horizon === horizon) })) || []}
-        columns={[{ title: '信号日市场环境', dataIndex: 'name' }, { title: '有效样本', dataIndex: 'sample', align: 'right' }, {
-          title: '平均涨跌(%)', dataIndex: 'average', align: 'right', render: change,
-        }, {
-          title: '中位数(%)', dataIndex: 'median', align: 'right', render: change,
-        }, {
-          title: '上涨占比(%)', dataIndex: 'riseRate', align: 'right', render: (v) => numberText(v),
+      <div className="strategy-performance-metrics">
+        <Card size="small">
+          <span>平均涨跌</span>
+          <strong>
+            {change(current?.average)}
+            <small>{current?.average == null ? '' : '%'}</small>
+          </strong>
+        </Card>
+        <Card size="small">
+          <span>涨跌中位数</span>
+          <strong>
+            {change(current?.median)}
+            <small>{current?.median == null ? '' : '%'}</small>
+          </strong>
+        </Card>
+        <Card size="small">
+          <span>上涨比例</span>
+          <strong>
+            {numberText(current?.riseRate)}
+            <small>{current?.riseRate == null ? '' : '%'}</small>
+          </strong>
+        </Card>
+        <Card size="small">
+          <span>有效信号数</span>
+          <strong>
+            {current?.sample ?? '—'}
+            <small>条</small>
+          </strong>
+        </Card>
+      </div>
+      {data && (
+      <div className="strategy-data-status">
+        已就绪
+        {data.readyDays}
+        /
+        {data.expectedDays}
+        {' '}
+        个信号日 · 当前周期未到期
+        {current?.pending ?? 0}
+        {' '}
+        条 · 数据不足
+        {current?.missing ?? 0}
+        {' '}
+        条
+      </div>
+      )}
+      {data && (data.readyDays < data.expectedDays || (current?.missing || 0) > 0) && <Alert className="mb-16" type="warning" showIcon message="部分数据不足，当前统计仅覆盖已有有效样本。" />}
+      <Card size="small" title="各周期概览" className="mb-16">
+        <Table rowKey="horizon" minBodyHeight={0} maxBodyHeight={210} pagination={false} dataSource={data?.summary || []} columns={summaryColumns} scroll={{ x: 620 }} rowClassName={(row) => (row.horizon === horizon ? 'strategy-selected-horizon' : '')} onRow={(row) => ({ onClick: () => setHorizon(row.horizon) })} />
+      </Card>
+      <Collapse
+        className="mb-16"
+        items={[{
+          key: 'environment',
+          label: `按信号日市场环境比较 · 后${horizon}日`,
+          children: (
+            <>
+              <p className="strategy-caption">按信号当天全市场20日均线上方股票占比分组；样本数随观察周期变化。</p>
+              <Table rowKey="name" pagination={false} scroll={{ x: 680 }} dataSource={data?.groups.map((g) => ({ name: ({ 多数站上MA20: '20日均线上方占比 ≥ 50%', 少数站上MA20: '20日均线上方占比 < 50%' } as Record<string, string>)[g.name] || '环境数据缺失', ...g.summary.find((r) => r.horizon === horizon) })) || []} columns={[{ title: '信号日市场环境', dataIndex: 'name' }, ...summaryColumns.slice(1)]} />
+            </>
+          ),
         }]}
       />
       <div className="strategy-result-toolbar">
-        <strong>信号明细</strong>
-        <span>截止所选交易日，未到期保留空值</span>
+        <strong>
+          信号明细 · 后
+          {horizon}
+          日
+        </strong>
+        <Segmented aria-label="信号明细状态" value={filter} onChange={(v) => setFilter(String(v))} options={[{ label: '有效样本', value: 'valid' }, { label: '全部', value: 'all' }, { label: '未到期', value: 'pending' }, { label: '数据不足', value: 'missing' }]} />
       </div>
       <Table
         rowKey={(r) => `${r.date}-${r.code}`}
         virtual
         pagination={false}
-        dataSource={data?.items || []}
-        scroll={{ x: 1100 }}
+        dataSource={rows}
+        scroll={{ x: 720 }}
         maxBodyHeight={460}
-        minBodyHeight={360}
+        minBodyHeight={160}
+        locale={{ emptyText: state.loading ? '正在加载历史信号' : '当前范围没有符合条件的信号' }}
         columns={[
-          { title: '信号日期', dataIndex: 'date', width: 115 }, {
-            title: '股票', key: 'stock', width: 180, render: (_, r) => <Button type="link" onClick={() => onStock(r)}>{`${r.name} ${r.code.split('.')[0]}`}</Button>,
+          { title: '信号日期', dataIndex: 'date', width: 130 },
+          {
+            title: '股票', key: 'stock', width: 210, render: (_, r) => <Button type="link" onClick={() => onStock(r)}>{`${r.name} ${r.code.split('.')[0]}`}</Button>,
           },
-          ...[1, 3, 5, 10].map((h) => ({
-            title: `后${h}日(%)`, key: String(h), align: 'right' as const, render: (_: unknown, r: Observation) => (r.outcomes[h].value == null ? <span title={r.outcomes[h].state}>{r.outcomes[h].state === '未到期' ? '未到期' : '—'}</span> : change(r.outcomes[h].value)),
-          })),
+          {
+            title: '观察截至', key: 'end', width: 150, render: (_, r) => r.outcomes[horizon].date || '未到期',
+          },
+          {
+            title: `后${horizon}日涨跌(%)`, key: 'return', width: 180, align: 'right', sorter: (a, b) => (a.outcomes[horizon].value ?? -Infinity) - (b.outcomes[horizon].value ?? -Infinity), render: (_, r) => (r.outcomes[horizon].value == null ? <span className="strategy-caption">{r.outcomes[horizon].state}</span> : change(r.outcomes[horizon].value)),
+          },
         ]}
       />
-      <PanelState loading={state.loading} error={state.error} retry={state.retry} />
-    </div>
-  );
-}
-
-export function PopularityChanges({ date, code }: { date: string; code?: string | null }) {
-  const state = useInsight<Popularity>('popularity', { date });
-  const [filter, setFilter] = useState('all');
-  const [focusCode, setFocusCode] = useState(code || '');
-  useEffect(() => { setFocusCode(code || ''); }, [code]);
-  const [selected, setSelected] = useState<HotRow | null>(null);
-  const { data } = state;
-  const rows = data?.items.filter((r) => !focusCode || r.code === focusCode).filter((r) => filter === 'all' || (filter === 'new' && r.state === 'new') || (filter === 'up' && (r.change || 0) > 0) || (filter === 'down' && (r.change || 0) < 0)) || [];
-  const current = data?.items.find((r) => r.code === selected?.code);
-  return (
-    <div className="strategy-insight-panel">
-      <Space wrap className="mb-16">
-        <strong>同花顺日终热股 Top100</strong>
-        {focusCode && (
-        <Space>
-          <span>{focusCode}</span>
-          <Button size="small" onClick={() => setFocusCode('')}>查看全部</Button>
-        </Space>
-        )}
-        <span>{data?.rankTime || '日终榜单待更新'}</span>
-        <HelpTooltip label="人气变化口径" title="对比上一交易日日终榜单，数字为上升／下降名次；热度不作为默认选股条件。" />
-      </Space>
-      {data?.ready && (!data.complete || !data.previousReady) && <Alert className="mb-16" type="info" message={`当日返回 ${data.count}/100 条。前后榜单有缺位时，仅比较已有排名，不将缺数据判为新上榜或离榜。`} />}
-      {data && !data.ready && <Alert className="mb-16" type={data.stage?.status === 'failed' ? 'warning' : 'info'} message={data.stage?.status === 'failed' ? '日终人气数据暂不可用，请查看同步任务。' : '日终人气数据正在补齐。'} />}
-      <Segmented className="mb-16" aria-label="人气变化筛选" value={filter} onChange={(v) => setFilter(String(v))} options={[{ label: '全部', value: 'all' }, { label: '排名上升', value: 'up' }, { label: '排名下降', value: 'down' }, { label: '新上榜', value: 'new' }, { label: '离榜', value: 'exit' }]} />
-      {filter === 'exit' ? <Table rowKey="code" pagination={false} dataSource={data?.exited.filter((r) => !focusCode || r.code === focusCode) || []} locale={{ emptyText: !data?.complete ? '当日榜单不完整，暂不判断离榜' : '没有离榜股票' }} columns={[{ title: '股票', dataIndex: 'name' }, { title: '代码', dataIndex: 'code' }, { title: '上一交易日排名', dataIndex: 'rank' }]} />
-        : (
-          <Table
-            rowKey="code"
-            pagination={false}
-            dataSource={rows}
-            locale={{ emptyText: focusCode ? '该股票未出现在所选日期的已取得榜单中' : '暂无记录' }}
-            maxBodyHeight={560}
-            minBodyHeight={360}
-            columns={[
-              { title: '排名', dataIndex: 'rank', width: 85 }, { title: '股票', key: 'stock', render: (_, r) => <Button type="link" onClick={() => setSelected(r)}>{`${r.name} ${r.code.split('.')[0]}`}</Button> },
-              {
-                title: '上一交易日', dataIndex: 'previousRank', align: 'right', render: (v) => v ?? '—',
-              }, {
-                title: '排名变化', key: 'change', align: 'right', sorter: (a, b) => (a.change ?? -Infinity) - (b.change ?? -Infinity), render: (_, r) => rankChange(r),
-              },
-              {
-                title: '连续上榜', key: 'streak', align: 'right', render: (_, r) => `${r.streakCapped ? '≥' : ''}${r.streak}个交易日`,
-              }, { title: '走势', key: 'trend', render: (_, r) => <Button type="link" onClick={() => setSelected(r)}>排名趋势</Button> },
-            ]}
-          />
-        )}
-      <Modal title={`${current?.name || ''} - 近20个交易日人气排名`} open={!!current} onCancel={() => setSelected(null)} footer={null} width={900}>
-        {current ? (
-          <CChart genOptions={() => ({
-            tooltip: { trigger: 'axis', renderMode: 'richText', formatter: (p: any) => { const point = current.history[(Array.isArray(p) ? p[0] : p)?.dataIndex]; const label = point?.ready ? '未入榜' : '榜单数据不足'; return `${point?.date || ''}\n${point?.rank != null ? `第 ${point.rank} 名` : label}`; } },
-            grid: {
-              left: 40, right: 20, top: 35, bottom: 30, containLabel: true,
-            },
-            xAxis: {
-              type: 'category', data: current.history.map((r) => r.date), boundaryGap: false, axisTick: { alignWithLabel: true }, axisLabel: { hideOverlap: true },
-            },
-            yAxis: {
-              type: 'value', name: '名次', inverse: true, min: 1, max: 100,
-            },
-            series: [{
-              name: '人气排名', type: 'line', data: current.history.map((r) => r.rank), connectNulls: false, showSymbol: true, itemStyle: { color: chartColors.blue }, lineStyle: { width: 1.5 },
-            }],
-          })}
-          />
-        ) : <Empty />}
-        <div className="market-environment-caption">排名越靠上人气越高；未入榜或数据缺失均保留断点。</div>
-      </Modal>
       <PanelState loading={state.loading} error={state.error} retry={state.retry} />
     </div>
   );

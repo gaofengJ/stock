@@ -11,6 +11,7 @@ import { DailyEntity } from '../source/daily/daily.entity';
 import { TrendService } from './trend.service';
 import { TREND_KEYS, TrendKey, TREND_DEFAULTS } from './trend-rules';
 import { StrategyCacheService } from './strategy-cache.service';
+import { StrategyReadService } from './strategy-read.service';
 
 @Injectable()
 export class StrategyService {
@@ -20,6 +21,7 @@ export class StrategyService {
     @Optional() private sectors?: SectorService,
     @Optional() private trends?: TrendService,
     @Optional() private cache?: StrategyCacheService,
+    @Optional() private reads?: StrategyReadService,
   ) {}
 
   private logger = new Logger(StrategyService.name);
@@ -41,7 +43,10 @@ export class StrategyService {
 
     const dates = last4Days.map((i) => i.calDate);
     // dates[0] is latest (date4), dates[3] is oldest (date1)
-    return this.dailyService.findGapThreeUp(dates);
+    return this.dailyService.findGapThreeUp(
+      dates,
+      await this.reads?.sequence(dates, true, 'gapThreeUp'),
+    );
   }
 
   /**
@@ -61,7 +66,10 @@ export class StrategyService {
 
     const dates = last3Days.map((i) => i.calDate);
     // dates[0] is latest (date3), dates[2] is oldest (date1)
-    return this.dailyService.findGapTwoUp(dates);
+    return this.dailyService.findGapTwoUp(
+      dates,
+      await this.reads?.sequence(dates, true, 'gapTwoUp'),
+    );
   }
 
   /**
@@ -80,7 +88,10 @@ export class StrategyService {
     });
 
     const dates = last4Days.map((i) => i.calDate);
-    return this.dailyService.findGapThreeHighTurnover(dates);
+    return this.dailyService.findGapThreeHighTurnover(
+      dates,
+      await this.reads?.sequence(dates, false, 'gapThreeHighTurnover'),
+    );
   }
 
   /**
@@ -99,7 +110,10 @@ export class StrategyService {
     });
 
     const dates = last3Days.map((i) => i.calDate);
-    return this.dailyService.findThreeDaysHighVol(dates);
+    return this.dailyService.findThreeDaysHighVol(
+      dates,
+      await this.reads?.sequence(dates, true, 'threeDaysHighVol'),
+    );
   }
 
   /**
@@ -118,7 +132,10 @@ export class StrategyService {
     });
 
     const dates = last3Days.map((i) => i.calDate);
-    return this.dailyService.findContinuousGap(dates);
+    return this.dailyService.findContinuousGap(
+      dates,
+      await this.reads?.sequence(dates, false, 'continuousGap'),
+    );
   }
 
   /**
@@ -137,7 +154,10 @@ export class StrategyService {
     });
 
     const dates = last3Days.map((i) => i.calDate);
-    return this.dailyService.findShadowWrap(dates);
+    return this.dailyService.findShadowWrap(
+      dates,
+      await this.reads?.sequence(dates, true, 'shadowWrap'),
+    );
   }
 
   /**
@@ -200,7 +220,18 @@ export class StrategyService {
       const members = await this.sectors.codes(sector, date);
       rows = rows.filter((row) => members.has(row.tsCode));
     }
-    return this.sectors ? this.sectors.candidateContext(rows, date) : rows;
+    // Only membership labels belong on the critical path. Board performance is
+    // requested separately when the user enables the corresponding column.
+    if (this.reads && rows.length <= 20) return this.reads.decorate(rows, date);
+    return this.sectors ? this.sectors.decorate(rows, date) : rows;
+  }
+
+  async context(date: string, codes: string[]) {
+    if (!codes.length || !this.sectors) return [];
+    return this.sectors.candidateContext(
+      codes.map((tsCode) => ({ tsCode })),
+      date,
+    );
   }
 
   async chart(dto: StrategyListQueryDto & { code: string }) {

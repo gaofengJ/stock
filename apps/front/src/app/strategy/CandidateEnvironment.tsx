@@ -32,9 +32,9 @@ export default function CandidateEnvironment({ date }: { date: string }) {
   }, [date, attempt, requestConfig, runLatestRequest]);
   const current = data?.date === date ? data : null;
   const metrics = [
-    { label: '上涨占比', value: current?.market?.upRatio, unit: '%' },
-    { label: '站上20日线', value: current?.breadth?.ma20.ratio, unit: '%' },
-    { label: '站上60日线', value: current?.breadth?.ma60.ratio, unit: '%' },
+    { label: '上涨股票占比', value: current?.market?.upRatio, unit: '%' },
+    { label: '20日均线上方占比', value: current?.breadth?.ma20.ratio, unit: '%' },
+    { label: '60日均线上方占比', value: current?.breadth?.ma60.ratio, unit: '%' },
     { label: '市场成交额', value: current?.market?.amount, unit: '亿元' },
   ];
   return (
@@ -43,7 +43,13 @@ export default function CandidateEnvironment({ date }: { date: string }) {
       className="strategy-environment mb-16"
       title={(
         <Space>
-          大盘环境
+          <span>
+            大盘环境
+            <small className="strategy-caption">
+              全市场 ·
+              {date}
+            </small>
+          </span>
           <HelpTooltip label="大盘环境" title="沪深京全部A股，均线采用复权价格；仅作背景参考，不影响选股。" />
         </Space>
 )}
