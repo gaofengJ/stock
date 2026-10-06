@@ -163,6 +163,19 @@ jobs:
           docker run --rm stock-back-verify node scripts/check-image.cjs
           printf 'DB_HOST=runtime-config.invalid\nDB_DATABASE=stock_ci\nDB_PASSWORD="quoted # value"\n' > "$RUNNER_TEMP/runtime.env"
           docker run --rm --mount "type=bind,src=$RUNNER_TEMP/runtime.env,dst=/run/stock/runtime.env,readonly" -e APP_ENV_FILE=/run/stock/runtime.env stock-back-verify node scripts/check-image.cjs
+      - name: Verify private bindings preserve host and article proxy access
+        run: |
+          gateway=$(docker network inspect bridge --format '{{(index .IPAM.Config 0).Gateway}}')
+          external=$(hostname -I | awk '{print $1}')
+          trap 'docker stop stock-back-private-port-verify >/dev/null 2>&1 || true' EXIT
+          docker run --rm -d --name stock-back-private-port-verify -p 127.0.0.1:33009:3000 -p "$gateway:33009:3000" stock-back-verify node -e 'require("http").createServer((req,res)=>{res.writeHead(204);res.end()}).listen(3000,"0.0.0.0")'
+          for attempt in $(seq 1 15); do
+            if curl --noproxy '*' --fail --silent --max-time 2 "http://127.0.0.1:33009/"; then break; fi
+            sleep 1
+          done
+          curl --noproxy '*' --fail --silent --max-time 5 "http://127.0.0.1:33009/"
+          docker run --rm -e AUDIT_PRIVATE_GATEWAY="$gateway" stock-back-verify node -e '(async()=>{const r=await fetch("http://"+process.env.AUDIT_PRIVATE_GATEWAY+":33009/",{signal:AbortSignal.timeout(5000)});if(r.status!==204)process.exit(1)})().catch(()=>process.exit(1))'
+          if curl --noproxy '*' --fail --silent --max-time 3 "http://$external:33009/"; then echo 'Backend binding unexpectedly accepts public interface traffic'; exit 1; fi
   front:
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
