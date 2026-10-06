@@ -37,16 +37,36 @@ jobs:
             [[ "$ARCHIVE_BYTES" =~ ^[0-9]+$ ]]
             available=$(df -PB1 /opt | awk 'NR==2 {print $4}')
             [[ "$available" -ge "$((ARCHIVE_BYTES+1073741824))" ]] || { echo 'Insufficient image relay space'; exit 1; }
-      - name: Transfer the verified image over the existing SSH channel
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          source: image-relay/stock-back-image.tar.gz
-          target: /opt/stock-release/image-relay/ac730979b89711dafa5c8192e84ee8fda4469817
-          strip_components: 1
-          command_timeout: 10m
+      - name: Install the SSH transfer helper
+        run: sudo apt-get install -y sshpass
+      - name: Transfer bounded archive chunks over the existing SSH channel
+        timeout-minutes: 35
+        env:
+          RELAY_HOST: ${{ secrets.SSH_HOST }}
+          RELAY_USER: ${{ secrets.SSH_USERNAME }}
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, subprocess, concurrent.futures, time
+          host, user = os.environ['RELAY_HOST'], os.environ['RELAY_USER']
+          destination = '/opt/stock-release/image-relay/' + os.environ['SOURCE_SHA'] + '/chunks'
+          options = ['-o', 'StrictHostKeyChecking=accept-new', '-o', 'ConnectTimeout=20', '-o', 'ServerAliveInterval=15', '-o', 'ServerAliveCountMax=4']
+          subprocess.run(['sshpass', '-e', 'ssh', *options, user+'@'+host, 'mkdir -p '+destination+' && chmod 700 '+destination], check=True, timeout=60)
+          folder = pathlib.Path('image-relay/chunks'); folder.mkdir()
+          with open('image-relay/stock-back-image.tar.gz', 'rb') as archive:
+              index = 0
+              while True:
+                  block = archive.read(4*1024*1024)
+                  if not block: break
+                  (folder / ('part-%04d' % index)).write_bytes(block); index += 1
+          def transfer(part):
+              time.sleep(int(part.name[-4:]) % 8 * .3)
+              subprocess.run(['sshpass', '-e', 'scp', '-q', *options, str(part), user+'@'+host+':'+destination+'/'+part.name], check=True, timeout=1800)
+              print('Transferred chunk', part.name, 'bytes', part.stat().st_size, flush=True)
+          with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+              list(pool.map(transfer, sorted(folder.iterdir())))
+          print('Transferred all', index, 'verified archive chunks.', flush=True)
+          PY
       - name: Upload from the server to its existing registry
         uses: appleboy/ssh-action@v1.2.0
         env:
@@ -64,6 +84,7 @@ jobs:
             [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
             [[ "$EXPECTED_ARCHIVE_HASH" =~ ^[0-9a-f]{64}$ ]]
             archive="/opt/stock-release/image-relay/$SOURCE_SHA/stock-back-image.tar.gz"
+            cat "/opt/stock-release/image-relay/$SOURCE_SHA/chunks"/part-* > "$archive"
             [[ "$(sha256sum "$archive" | cut -d ' ' -f 1)" == "$EXPECTED_ARCHIVE_HASH" ]] || { echo 'Image relay checksum mismatch'; exit 1; }
             chmod 600 "$archive"
             available=$(awk '/MemAvailable:/ {print $2}' /proc/meminfo)
@@ -74,4 +95,5 @@ jobs:
             printf '%s' "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin registry.cn-hangzhou.aliyuncs.com
             timeout 600 docker push "$image"
             rm -f -- "$archive"
+            rm -f -- "/opt/stock-release/image-relay/$SOURCE_SHA/chunks"/part-*
             echo 'Verified image relayed; application and database were not changed.'
