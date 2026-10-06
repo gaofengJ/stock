@@ -78,6 +78,15 @@ export default function Page() {
   const [detailError, setDetailError] = useState('');
   const [busy, setBusy] = useState<{ id: number; action: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [linksReady, setLinksReady] = useState(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('status');
+    if (status && Object.hasOwn(labels, status)) setQuery({ status });
+    const job = Number(params.get('job'));
+    if (Number.isSafeInteger(job) && job > 0) setSelected(job);
+    setLinksReady(true);
+  }, []);
   const fail = (e: unknown) => message.error(errorMessage(e));
   const load = useCallback(async (silent = false) => {
     requests.current += 1;
@@ -100,10 +109,11 @@ export default function Page() {
     } finally { requests.current -= 1; }
   }, [query, page, pageSize, runLatestRequest]);
   useEffect(() => {
+    if (!linksReady) return undefined;
     load();
     const timer = setInterval(() => { if (!document.hidden && requests.current === 0) load(true); }, 5000);
     return () => clearInterval(timer);
-  }, [load]);
+  }, [load, linksReady]);
   useEffect(() => {
     if (!selected) return undefined;
     setDetail(null); setDetailError('');

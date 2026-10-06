@@ -3,10 +3,28 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { reverseLogLines } from './log-lines';
-import { LogsService } from './logs.service';
+import { LogsService, logRange } from './logs.service';
 import { retryOutcome } from './job-policy';
 
 describe('admin logs and retry policy', () => {
+  it('accepts seven inclusive dates and rejects wider log and audit queries', () => {
+    expect(
+      logRange({
+        page: 1,
+        pageSize: 20,
+        startDate: '2026-10-01',
+        endDate: '2026-10-07',
+      }),
+    ).toEqual({ start: '2026-10-01', end: '2026-10-07' });
+    expect(() =>
+      logRange({
+        page: 1,
+        pageSize: 20,
+        startDate: '2026-10-01',
+        endDate: '2026-10-08',
+      }),
+    ).toThrow('单次最多查询7天');
+  });
   let directory: string;
   let oldDirectory: string | undefined;
   beforeEach(() => {
@@ -72,6 +90,56 @@ describe('admin logs and retry policy', () => {
     expect(limited.truncated).toBe(true);
     expect(limited.bytes).toBe(0);
   });
+  it('shows errors and warnings without including ordinary request noise', async () => {
+    fs.writeFileSync(
+      path.join(directory, 'stock-back.2026-10-02.log'),
+      ['info', 'warn', 'error', 'debug']
+        .map((level) => JSON.stringify({ level, message: level }))
+        .join('\n'),
+    );
+    const service = new LogsService({} as any);
+    const query = { page: 1, pageSize: 20, startDate: '2026-10-02' };
+    const issues = await service.application({ ...query, view: 'issues' });
+    expect(issues.items.map((r) => r.level)).toEqual(['error', 'warn']);
+    expect(issues.levels).toEqual({ error: 1, warn: 1 });
+    expect(issues.trend).toEqual({ '2026-10-02': 1 });
+    expect((await service.application({ ...query, view: 'all' })).total).toBe(
+      4,
+    );
+    expect(
+      (await service.application({ ...query, view: 'all', level: 'info' }))
+        .total,
+    ).toBe(1);
+  });
+  it('searches audit actors and targets and interprets dates in Beijing', async () => {
+    const db = {
+      query: jest
+        .fn()
+        .mockResolvedValueOnce([{ total: 1 }])
+        .mockResolvedValueOnce([
+          {
+            id: 9,
+            actorName: 'mufeng',
+            action: 'sync.submit',
+            target: '123',
+            result: 'success',
+          },
+        ]),
+    };
+    const service = new LogsService(db as any);
+    const result = await service.audit({
+      page: 1,
+      pageSize: 20,
+      startDate: '2026-10-02',
+      keyword: '123',
+    });
+    expect(result.total).toBe(1);
+    const [sql, args] = db.query.mock.calls[0];
+    expect(sql).toContain('actor_name LIKE ?');
+    expect(sql).toContain('target LIKE ?');
+    expect(args[0].toISOString()).toBe('2026-10-01T16:00:00.000Z');
+    expect(args.slice(2)).toEqual(['%123%', '%123%', '%123%', '%123%']);
+  });
   it('statistics are independent of file scans and cache by date range', async () => {
     const db = {
       query: jest
@@ -95,6 +163,10 @@ describe('admin logs and retry policy', () => {
     expect(db.query).toHaveBeenCalledTimes(1);
     await service.stats({ ...query, endDate: '2026-10-02' });
     expect(db.query).toHaveBeenCalledTimes(2);
+    await service.stats({ ...query, refresh: '1' });
+    expect(db.query).toHaveBeenCalledTimes(3);
+    await service.stats(query);
+    expect(db.query).toHaveBeenCalledTimes(3);
     expect(scan).not.toHaveBeenCalled();
   });
   it('backs off and stops after five failed batches without limiting healthy batches', () => {

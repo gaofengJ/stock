@@ -33,6 +33,10 @@ export class SyncJobDto {
     | 'hot' = 'missing';
 }
 export class LogsQueryDto extends PageDto {
+  @IsOptional() @IsIn(['issues', 'all']) view?: string;
+
+  @IsOptional() @IsIn(['1']) refresh?: string;
+
   @IsOptional() @IsString() startDate?: string;
 
   @IsOptional() @IsString() endDate?: string;

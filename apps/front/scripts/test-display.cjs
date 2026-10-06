@@ -13,6 +13,27 @@ function load(file, imports = {}) {
   return exports;
 }
 const format = load('utils/format.ts');
+const logs = load('app/admin/logs/log-display.ts');
+
+test('admin log dates and timestamps stay in Beijing across UTC midnight', () => {
+  assert.equal(logs.beijingDate(new Date('2026-10-06T18:30:00.000Z')), '2026-10-07');
+  assert.equal(logs.beijingTime('2026-10-06T18:30:00.000Z'), '2026-10-07 02:30:00');
+  assert.equal(logs.beijingTime('2026-10-07 02:30:00'), '2026-10-07 02:30:00');
+  assert.equal(logs.beijingTime(undefined), '—');
+});
+
+test('audit targets link only sync job identifiers and preserve unfamiliar details', () => {
+  assert.equal(logs.jobLink('sync.complete', '123'), '/admin/sync/?job=123');
+  assert.equal(logs.jobLink('role.save', '123'), undefined);
+  assert.equal(logs.jobLink('sync.scheduled', null), undefined);
+  assert.equal(logs.jobLink(undefined, '123'), undefined);
+  assert.equal(logs.auditResult('sync.submit', 'success'), '已提交');
+  assert.equal(logs.auditResult('sync.complete', 'success'), '校验完成');
+  assert.equal(logs.auditTarget('role.save', 2), '角色 #2');
+  assert.equal(logs.auditTarget('user.update', 3), '用户 #3');
+  assert.deepEqual(logs.auditDetail('{"active":false}'), {active: false});
+  assert.deepEqual(logs.auditDetail('历史说明'), {内容: '历史说明'});
+});
 const avatars = load('auth/avatars.ts');
 const market = load('app/analysis/components/market-display.ts');
 const funds = load('utils/active-funds.ts');

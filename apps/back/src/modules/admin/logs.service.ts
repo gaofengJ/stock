@@ -71,6 +71,7 @@ export class LogsService {
           entry = redact(entry);
           const context = String(entry.context || '');
           if (
+            (q.view === 'issues' && !['error', 'warn'].includes(entry.level)) ||
             (q.level && entry.level !== q.level) ||
             (q.module && !context.includes(q.module)) ||
             (q.keyword && !JSON.stringify(entry).includes(q.keyword))
@@ -97,6 +98,7 @@ export class LogsService {
       malformed,
       truncated: budget.truncated,
       retentionDays: Number(process.env.LOGGER_MAX_FILES || 5),
+      range: { startDate: start, endDate: end },
     };
   }
 
@@ -119,8 +121,9 @@ export class LogsService {
         args.push(`%${value}%`);
       }
     if (q.keyword) {
-      where += ' AND (action LIKE ? OR detail LIKE ?)';
-      args.push(`%${q.keyword}%`, `%${q.keyword}%`);
+      where +=
+        ' AND (actor_name LIKE ? OR action LIKE ? OR target LIKE ? OR detail LIKE ?)';
+      args.push(...Array(4).fill(`%${q.keyword}%`));
     }
     const [{ total }] = await this.db.query(
       `SELECT COUNT(*) total FROM t_auth_audit${where}`,
@@ -134,6 +137,7 @@ export class LogsService {
       items: items.map((x: any) => redact(x)),
       total: Number(total),
       retentionDays: 90,
+      range: { startDate: start, endDate: end },
     };
   }
 
@@ -141,7 +145,8 @@ export class LogsService {
     const { start, end } = logRange(q);
     const key = `${start}:${end}`;
     const cached = this.summaries.get(key);
-    if (cached && cached.expires > Date.now()) return cached.value;
+    if (q.refresh !== '1' && cached && cached.expires > Date.now())
+      return cached.value;
     const sync = await this.db.query(
       "SELECT CASE WHEN actor_id IS NULL THEN 'scheduled' ELSE 'manual' END source,status,COUNT(*) count FROM t_admin_job WHERE created_at>=? AND created_at<DATE_ADD(?,INTERVAL 1 DAY) GROUP BY source,status",
       [new Date(`${start}T00:00:00+08:00`), new Date(`${end}T00:00:00+08:00`)],
