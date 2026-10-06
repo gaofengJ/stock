@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  useCallback, useEffect, useId, useRef, useState,
+  useCallback, useEffect, useId, useMemo, useRef, useState,
 } from 'react';
 import {
   Alert, Button, Empty, Modal,
@@ -44,6 +44,8 @@ export default function StockChart({
   const quoteRef = useRef<StockQuoteHandle>(null);
   const onAxisHover = useCallback((hoverDate: string | null) => quoteRef.current?.select(hoverDate), []);
   const code = stock?.tsCode;
+  const optionKey = JSON.stringify(options);
+  const queryOptions = useMemo(() => JSON.parse(optionKey) as TrendOptions, [optionKey]);
   const position = navigation.findIndex((row) => row.tsCode === code && (!stock?.date || row.date === stock.date));
   useEffect(() => {
     if (!code) { request.cancelRace(requestConfig.raceKey!); return; }
@@ -51,16 +53,16 @@ export default function StockChart({
       request: () => request.get<StockChartData>('/strategy/chart', {
         ...requestConfig,
         params: {
-          date, code, strategyType: strategy, ...options,
+          date, code, strategyType: strategy, ...queryOptions,
         },
-        timeout: 90000,
+        timeout: 30000,
       }),
       onStart: () => { setLoading(true); setError(''); setData(null); quoteRef.current?.select(null); },
       onSuccess: (response) => setData(response.data),
       onError: (e) => setError(errorMessage(e, 'K线加载失败')),
       onFinally: () => setLoading(false),
     });
-  }, [code, date, strategy, options, attempt, requestConfig, runLatestRequest]);
+  }, [code, date, strategy, queryOptions, attempt, requestConfig, runLatestRequest]);
   const candles = (data?.series || []).map((row) => ({
     date: row.date,
     start: row.date,

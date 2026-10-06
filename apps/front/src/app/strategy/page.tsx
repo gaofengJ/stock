@@ -149,22 +149,24 @@ function StrategyPage() {
   ];
   return (
     <Layout showAsideMenu={false} headerMenuActive={EHeaderMenuKey.strategy}>
-      <div className="p-16 rounded-[6px] bg-bg-white">
+      <div className="strategy-page p-16 rounded-[6px] bg-bg-white">
         <h1 className="page-heading">策略选股</h1>
         {dateError && !date && <Alert type="error" message={dateError} showIcon action={<Button onClick={retryDate}>重试</Button>} />}
         {loadError && <Alert type="error" message={loadError} showIcon action={<Button onClick={() => { if (navList.length) getList(true); else getTabs(); }}>重试</Button>} />}
         <Tabs size={screens.md ? 'middle' : 'small'} activeKey={strategy} items={navList} onChange={switchStrategy} />
-        <StrategyRules key={strategy} strategy={strategy} options={options} minTurnoverRateF={view === 'performance' ? 5 : minTurnoverRateF} />
-        {hasTurnoverFilter && view !== 'performance' && <TurnoverFilter key={`${strategy}-${minTurnoverRateF}`} value={minTurnoverRateF} onChange={(value) => updateQuery({ [turnoverQueryKey(strategy)]: String(value), code: undefined })} />}
-        {isTrendStrategy(strategy) && <TrendParameters key={`${strategy}-${optionKey}`} strategy={strategy} value={options} onChange={(value) => updateQuery({ ...writeStrategyOptions(value), code: undefined })} />}
-        <Space className="mb-16" size={[24, 12]} wrap>
-          <Space>
-            <span>{view === 'performance' ? '统计截至' : '交易日期'}</span>
-            <DatePicker aria-label="交易日期" value={date ? dayjs(date) : null} allowClear={false} onChange={(value) => { if (value) updateQuery({ date: value.format('YYYY-MM-DD'), code: undefined }); }} />
+        <div className="strategy-filter-stack">
+          <StrategyRules key={strategy} strategy={strategy} options={view === 'performance' ? trendDefaults : options} minTurnoverRateF={view === 'performance' ? 5 : minTurnoverRateF} />
+          {hasTurnoverFilter && view !== 'performance' && <TurnoverFilter key={`${strategy}-${minTurnoverRateF}`} value={minTurnoverRateF} onChange={(value) => updateQuery({ [turnoverQueryKey(strategy)]: String(value), code: undefined })} />}
+          {isTrendStrategy(strategy) && view !== 'performance' && <TrendParameters key={`${strategy}-${optionKey}`} strategy={strategy} value={options} onChange={(value) => updateQuery({ ...writeStrategyOptions(value), code: undefined })} />}
+          <Space size={[24, 12]} wrap>
+            <Space>
+              <span>{view === 'performance' ? '统计截至' : '交易日期'}</span>
+              <DatePicker aria-label="交易日期" value={date ? dayjs(date) : null} allowClear={false} onChange={(value) => { if (value) updateQuery({ date: value.format('YYYY-MM-DD'), code: undefined }); }} />
+            </Space>
+            <SectorFilter value={sector} onChange={(value) => updateQuery({ sector: value, code: undefined })} />
           </Space>
-          <SectorFilter value={sector} onChange={(value) => updateQuery({ sector: value, code: undefined })} />
-        </Space>
-        {view === 'performance' ? <Collapse className="mb-16" items={[{ key: 'market', label: `截至日大盘环境 · ${date}`, children: <CandidateEnvironment date={date} /> }]} /> : <CandidateEnvironment date={date} />}
+        </div>
+        {view === 'performance' ? <Collapse className="strategy-asof-environment" items={[{ key: 'market', label: `截至日大盘环境 · ${date}`, children: <CandidateEnvironment date={date} /> }]} /> : <CandidateEnvironment date={date} />}
         <div className="strategy-view-toolbar">
           <Tabs activeKey={view} onChange={(key) => updateQuery({ view: key })} items={[{ key: 'candidates', label: '候选列表' }, { key: 'comparison', label: '横向比较' }, { key: 'performance', label: '历史信号表现' }]} />
           {allowedPath(user, '/analysis/senti') && <Link href={`/analysis/senti/?date=${date}&scope=all&view=popularity#popularity`}>全市场人气榜</Link>}
@@ -194,6 +196,7 @@ function StrategyPage() {
               dataSource={decorated}
               columns={columns}
               bordered
+              bottomSpacing={8}
               locale={{ emptyText: loadError || (keyword || linkedCode ? '当前筛选中未找到该股票' : '当前条件没有符合的股票') }}
               scroll={{ x: 'max-content' }}
               onChange={(_pagination, _filters, _sorter, extra) => { visibleRows.current = extra.currentDataSource; }}

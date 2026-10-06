@@ -259,6 +259,12 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
     const history = await service.history(dates.slice(-2), ['volumeBreakout']);
     expect(single).toHaveLength(1);
     expect(history.items.find((r) => r.date === latest)?.rows).toEqual(single);
+    const chart = await service.chart({
+      date: latest,
+      code: '000001.SZ',
+      strategyType: 'volumeBreakout',
+    });
+    expect(chart.evidence).toEqual(single[0].trendEvidence);
   });
   test('回踩日收在下半区仍须保留量能，历史与单日回踩一致', async () => {
     const samples = [
@@ -296,6 +302,13 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
     );
     expect(single).toHaveLength(1);
     expect(history.items.find((r) => r.date === latest)?.rows).toEqual(single);
+    const chart = await service.chart({
+      date: latest,
+      code: '000001.SZ',
+      strategyType: 'breakoutPullback',
+      ...options,
+    });
+    expect(chart.evidence).toEqual(single[0].trendEvidence);
   });
   test('个股图表沿用策略复权口径、信号证据与成交量，不读取未来', async () => {
     const chart = await service.chart({
@@ -312,6 +325,8 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
       vol: 150,
     });
     expect(chart.evidence).toMatchObject({ breakoutPrice: 10 });
+    const candidates = await service.list(latest, 'volumeBreakout');
+    expect(chart.evidence).toEqual(candidates[0].trendEvidence);
     const legacy = await service.chart({
       date: dates[19],
       code: '000001.SZ',
@@ -319,6 +334,74 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
     });
     expect(legacy.basis).toBe('不复权');
     expect(legacy.series.every((r) => r.date <= dates[19])).toBe(true);
+  });
+  test('K线缓存不缓存价格，同秒价格更正和代码换位后仍返回正确股票', async () => {
+    const dto = {
+      date: latest,
+      code: '000001.SZ',
+      strategyType: 'volumeBreakout',
+    };
+    const original = await service.chart(dto);
+    expect(original.series.at(-1)?.close).toBe(11);
+    // Deliberately preserve updated_at: source corrections can occur within a
+    // second. The cached code position must never become a cached quote.
+    await db.query(
+      'UPDATE t_source_strategy_factor SET data=?,updated_at=updated_at WHERE trade_date=?',
+      [JSON.stringify([['000001.SZ', 10, 11.5, 12, 10]]), latest],
+    );
+    expect((await service.chart(dto)).series.at(-1)?.close).toBe(11.5);
+    await db.query(
+      'UPDATE t_source_strategy_factor SET data=?,updated_at=updated_at WHERE trade_date=?',
+      [
+        JSON.stringify([
+          ['000002.SZ', 100, 110, 120, 100],
+          ['000001.SZ', 10, 11.8, 12, 10],
+        ]),
+        latest,
+      ],
+    );
+    const moved = await service.chart(dto);
+    expect(moved.series.at(-1)?.close).toBe(11.8);
+    expect((await service.chart(dto)).series.at(-1)?.close).toBe(11.8);
+  });
+  test('K线缓存命中后仍遵守发布状态和主动删除保护，停牌不补零价格', async () => {
+    const dto = {
+      date: latest,
+      code: '000001.SZ',
+      strategyType: 'volumeBreakout',
+    };
+    await service.chart(dto, 260, false);
+    await db.manager.update(
+      SyncRunEntity,
+      { tradeDate: latest, task: 'strategy-factor' },
+      { status: 'running' },
+    );
+    expect(
+      (await service.chart(dto, 260, false)).series.at(-1)?.close,
+    ).toBeNull();
+    await db.manager.update(
+      SyncRunEntity,
+      { tradeDate: latest, task: 'strategy-factor' },
+      { status: 'success' },
+    );
+    await db.manager.insert(SyncDayPolicyEntity, {
+      tradeDate: latest,
+      reason: 'manual-delete',
+    });
+    expect((await service.chart(dto, 260, false)).series.at(-1)).toMatchObject({
+      close: null,
+      quote: null,
+    });
+    await db.manager.delete(SyncDayPolicyEntity, { tradeDate: latest });
+    await db.manager.update(
+      DailyEntity,
+      { tradeDate: latest },
+      { vol: '0', amount: '0' },
+    );
+    expect((await service.chart(dto, 260, false)).series.at(-1)).toMatchObject({
+      close: null,
+      quote: { vol: 0 },
+    });
   });
   test('某一天原始日线被部分删除，不能继续发布完整结果', async () => {
     await db.manager.delete(DailyEntity, { tradeDate: dates[19] });

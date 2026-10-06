@@ -50,6 +50,14 @@ export class StrategySnapshotReader {
     }
   }
 
+  invalidate(
+    table: SnapshotTable,
+    versions: SnapshotVersion[],
+    paths?: string[],
+  ) {
+    versions.forEach((row) => this.entries.delete(this.key(table, row, paths)));
+  }
+
   async read<T>(
     table: SnapshotTable,
     versions: SnapshotVersion[],

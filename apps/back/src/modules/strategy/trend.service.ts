@@ -45,6 +45,8 @@ import {
 export class TrendService {
   private snapshotReader: StrategySnapshotReader;
 
+  private chartIndexes: StrategySnapshotReader;
+
   constructor(
     private db: DataSource,
     private source: TushareService,
@@ -52,6 +54,8 @@ export class TrendService {
     private writes: SyncWriteService,
   ) {
     this.snapshotReader = new StrategySnapshotReader(db);
+    // One code index per day fits the cache; per-stock tuples are always fresh.
+    this.chartIndexes = new StrategySnapshotReader(db, 8 * 1024 * 1024);
   }
 
   private identityManager() {
@@ -138,7 +142,7 @@ export class TrendService {
     ];
     const adjusted = TREND_KEYS.includes(dto.strategyType as TrendKey);
     const rows: any[] = await this.db.query(
-      `SELECT DATE_FORMAT(d.trade_date,'%Y-%m-%d') date,d.ts_code code,d.open,d.close,d.high,d.low,d.vol,d.pre_close preClose,d.pct_chg pctChg,d.amount,d.turnover_rate_f turnoverRateF
+      `SELECT DATE_FORMAT(d.trade_date,'%Y-%m-%d') date,d.ts_code code,d.open,d.close,d.high,d.low,d.vol,d.pre_close preClose,d.pct_chg pctChg,d.amount,d.up_limit upLimit,d.turnover_rate_f turnoverRateF
        FROM t_source_daily d JOIN t_sync_run r ON r.trade_date=d.trade_date AND r.task='daily' AND r.status='success'
        LEFT JOIN t_sync_day_policy p ON p.trade_date=d.trade_date
        WHERE d.ts_code IN (?) AND d.trade_date IN (?) AND p.trade_date IS NULL ORDER BY d.trade_date`,
@@ -158,17 +162,20 @@ export class TrendService {
     });
     let points: (TrendPoint | undefined)[];
     if (adjusted) {
-      // Bound snapshot memory and avoid MySQL 5.7 repeatedly scanning each JSON
-      // array with JSON_SEARCH when opening an individual stock.
-      const published: (SnapshotVersion & { date: string })[] =
-        await this.db.query(
-          "SELECT f.id,f.updated_at updatedAt,MD5(f.data) contentHash,DATE_FORMAT(f.trade_date,'%Y-%m-%d') date FROM t_source_strategy_factor f JOIN t_sync_run r ON r.trade_date=f.trade_date AND r.task='strategy-factor' AND r.status='success' LEFT JOIN t_sync_day_policy p ON p.trade_date=f.trade_date WHERE f.trade_date IN (?) AND p.trade_date IS NULL",
-          [dates],
-        );
+      // Cache only code positions and read every selected tuple afresh. Avoid
+      // serializing/fingerprinting 260 whole-market blobs and one query per day.
+      const published: (SnapshotVersion & { date: string })[] = dates.some(
+        (day) => Number(raw.get(day)?.vol) > 0,
+      )
+        ? await this.db.query(
+            "SELECT f.id,f.updated_at updatedAt,DATE_FORMAT(f.trade_date,'%Y-%m-%d') date FROM t_source_strategy_factor f JOIN t_sync_run r ON r.trade_date=f.trade_date AND r.task='strategy-factor' AND r.status='success' LEFT JOIN t_sync_day_policy p ON p.trade_date=f.trade_date WHERE f.trade_date IN (?) AND p.trade_date IS NULL",
+            [dates.filter((day) => Number(raw.get(day)?.vol) > 0)],
+          )
+        : [];
       const byDate = new Map<string, TrendPoint>();
-      const tuples = await this.factorData(published, new Set([code]));
+      const tuples = await this.chartTuples(published, code);
       for (const snapshot of published) {
-        const tuple = tuples.get(snapshot.id)?.[0];
+        const tuple = tuples.get(snapshot.id);
         if (!tuple || tuple.slice(1, 5).some((value) => value == null))
           continue;
         const [, open, close, high, low, basis, conversion] = tuple;
@@ -225,25 +232,147 @@ export class TrendService {
           : null,
       };
     });
-    const hit =
+    const evidence =
       adjusted && includeEvidence
-        ? await this.history(
-            [dto.date],
-            [dto.strategyType as TrendKey],
-            dto,
-            [code],
-            true,
-          )
+        ? await this.chartEvidence(dto, code, dates, points, raw)
         : null;
     return {
       code,
       date: dto.date,
       basis: adjusted ? '后复权' : '不复权',
       series,
-      evidence:
-        hit?.items[0]?.rows.find((row) => row.tsCode === code)?.trendEvidence ||
-        null,
+      evidence,
     };
+  }
+
+  private async chartTuples(versions: SnapshotVersion[], code: string) {
+    const result = new Map<number, TrendFactor>();
+    if (!versions.length) return result;
+    const indexes = await this.chartIndexes.read(
+      't_source_strategy_factor',
+      versions,
+      (value) => value as string[],
+      ['$[*][0]'],
+    );
+    const positions = versions
+      .map((row) => ({ row, index: indexes.get(row.id)?.indexOf(code) ?? -1 }))
+      .filter(({ index }) => index >= 0);
+    const decode = (value: any): TrendFactor | null =>
+      typeof value === 'string' ? JSON.parse(value) : value;
+    if (positions.length) {
+      const rows = await this.db.query<{ id: number; tuple: any }[]>(
+        `SELECT f.id,JSON_EXTRACT(f.data,CASE f.id ${positions
+          .map(() => 'WHEN ? THEN ?')
+          .join(' ')} END) tuple
+         FROM t_source_strategy_factor f JOIN t_sync_run r ON r.trade_date=f.trade_date AND r.task='strategy-factor' AND r.status='success'
+         LEFT JOIN t_sync_day_policy p ON p.trade_date=f.trade_date WHERE f.id IN (?) AND p.trade_date IS NULL`,
+        [
+          ...positions.flatMap(({ row, index }) => [row.id, `$[${index}]`]),
+          positions.map(({ row }) => row.id),
+        ],
+      );
+      rows.forEach((row) => {
+        const tuple = decode(row.tuple);
+        if (tuple?.[0] === code) result.set(row.id, tuple);
+      });
+    }
+    // An in-place correction can keep a second-resolution updated_at. Validate
+    // the actual code at its slot, invalidate a moved/removed index, then locate
+    // it once in the current blob. Numeric corrections never use cached prices.
+    const missing = versions.filter((row) => !result.has(row.id));
+    if (missing.length) {
+      this.chartIndexes.invalidate('t_source_strategy_factor', missing, [
+        '$[*][0]',
+      ]);
+      const rows = await this.db.query<{ id: number; tuple: any }[]>(
+        "SELECT f.id,JSON_EXTRACT(f.data,REPLACE(JSON_UNQUOTE(JSON_SEARCH(f.data,'one',?,NULL,'$[*][0]')),'][0]',']')) tuple FROM t_source_strategy_factor f JOIN t_sync_run r ON r.trade_date=f.trade_date AND r.task='strategy-factor' AND r.status='success' LEFT JOIN t_sync_day_policy p ON p.trade_date=f.trade_date WHERE f.id IN (?) AND p.trade_date IS NULL",
+        [code, missing.map((row) => row.id)],
+      );
+      rows.forEach((row) => {
+        const tuple = decode(row.tuple);
+        if (tuple?.[0] === code) result.set(row.id, tuple);
+      });
+    }
+    return result;
+  }
+
+  private async chartEvidence(
+    dto: TrendOptions & { date: string; strategyType: string },
+    code: string,
+    dates: string[],
+    points: (TrendPoint | undefined)[],
+    raw: Map<string, any>,
+  ) {
+    const key = dto.strategyType as TrendKey;
+    const required = requiredTrendDays(key, dto);
+    if (
+      dates.length < required ||
+      points.slice(-required).some((point) => !point)
+    )
+      return null;
+    const volumeWindow =
+      (key === 'breakoutPullback' ? dto.pullbackDays ?? 10 : 0) +
+      (dto.volumeDays ?? 5) +
+      1;
+    await this.identity.assertReady(dates.slice(-Math.max(3, volumeWindow)));
+    const manager = this.identityManager();
+    // Charts are read-only: use persisted identity/catalogs without fetching
+    // missing historical names from the provider on the critical path.
+    const identity = await this.identity.load([], [code], manager);
+    if (!identity.listed(code, dates[dates.length - required])) return null;
+    const eligibleDates =
+      key === 'breakoutPullback'
+        ? dates.slice(-((dto.pullbackDays ?? 10) + 1))
+        : dates.slice(-1);
+    const missingNames = eligibleDates.filter(
+      (day) => !identity.name(code, day),
+    );
+    const names = new Map<string, string>();
+    if (missingNames.length) {
+      const catalogs = await manager.find(StockHistoryEntity, {
+        where: { snapshotKey: In(missingNames.map((day) => `day:${day}`)) },
+        select: ['id', 'updatedAt', 'snapshotKey'],
+      });
+      const values = await this.snapshotReader.read(
+        't_source_stock_history',
+        catalogs,
+        (value) => value as StockHistoryEntity['data'],
+      );
+      catalogs.forEach((row) => {
+        const day = row.snapshotKey.slice(4);
+        const name = values
+          .get(row.id)
+          ?.names.find(
+            (entry) =>
+              identity.canonical(entry.tsCode) === code &&
+              entry.startDate <= day &&
+              (!entry.endDate || entry.endDate >= day),
+          )?.name;
+        if (name) names.set(day, name);
+      });
+    }
+    const enriched = points.map((point, i) => {
+      if (!point) return undefined;
+      const day = dates[i];
+      const row = raw.get(day);
+      const tradingDay = row && {
+        ...row,
+        name: identity.name(code, day) || names.get(day) || '',
+      };
+      return {
+        ...point,
+        vol: row?.vol == null ? undefined : Number(row.vol),
+        turnoverRateF:
+          row?.turnoverRateF == null ? null : Number(row.turnoverRateF),
+        eligible:
+          !!tradingDay &&
+          hasValidStrategySequence([tradingDay]) &&
+          meetsCommonStrategyConditions([tradingDay]),
+      };
+    });
+    if (!enriched.at(-1)?.eligible) return null;
+    const evidence = evaluateTrend(key, enriched, dto);
+    return evidence ? { strategy: key, ...evidence } : null;
   }
 
   async syncDay(manager: EntityManager, date: string, refresh = false) {
