@@ -15,6 +15,7 @@ import { useAccount } from '@/auth/Boundary';
 import { allowedPath } from '@/auth/client';
 import { changeClass, numberText, scaledNumber } from '@/utils/format';
 import Table from '@/components/DataTable';
+import { SectorResearch } from '@/components/LiveResearch/MarketResearch';
 import CChart from '@/components/CChart';
 import { useSiteTheme } from '@/components/SiteTheme';
 import { quoteColors, withAlpha } from '@/colors';
@@ -323,6 +324,7 @@ export default function Page() {
           )}
         </div>
       </DataState>
+      <SectorResearch date={date} kind={kind} />
     </MarketShell>
   );
 }

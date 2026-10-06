@@ -21,6 +21,48 @@ class TushareRequestError extends Error {
 export class TushareService {
   constructor(private readonly httpService: HttpService) {}
 
+  /** Interactive reads have a total deadline and never publish a truncated page. */
+  async queryLiveData(
+    api: string,
+    params: Record<string, unknown>,
+    fields: string,
+    pageSize: number,
+    deadline: number,
+  ): Promise<ITushareData> {
+    const output: ITushareData = { fields: [], items: [] };
+    const seen = new Set<string>();
+    for (let page = 0; page < 8; page += 1) {
+      const remaining = deadline - Date.now();
+      if (remaining < 200) throw new Error('来源请求超时，请重试');
+      // eslint-disable-next-line no-await-in-loop
+      const response = await this.requestOnce({
+        timeout: Math.min(6500, remaining),
+        data: {
+          api_name: api,
+          params: { ...params, limit: pageSize, offset: page * pageSize },
+          fields,
+        },
+      });
+      const data = response.data as ITushareData;
+      if (!Array.isArray(data?.fields) || !Array.isArray(data.items))
+        throw new Error('来源返回结构异常');
+      if (page === 0) output.fields = data.fields;
+      if (JSON.stringify(output.fields) !== JSON.stringify(data.fields))
+        throw new Error('来源分页字段不一致');
+      if (data.items.length) {
+        const signature = JSON.stringify(data.items);
+        if (seen.has(signature))
+          throw new Error('来源分页重复，资料未完整取得');
+        seen.add(signature);
+      }
+      if (output.items.length + data.items.length > 24000)
+        throw new Error('来源记录较多，请缩小查询范围');
+      output.items.push(...data.items);
+      if (data.items.length < pageSize) return output;
+    }
+    throw new Error('来源资料未完整取得，请缩小查询范围');
+  }
+
   /** 分页读取并拒绝重复页，防止接口静默截断后误发布完整数据。 */
   async queryData(
     api: string,
