@@ -1,25 +1,133 @@
-name: Inspect article release
+name: Deploy the exact verified release after registry relay
 on:
   workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: stock-verified-recovery-release
+  cancel-in-progress: false
+env:
+  RELEASE_SHA: ac730979b89711dafa5c8192e84ee8fda4469817
 jobs:
-  inspect:
+  gate:
     runs-on: ubuntu-latest
     steps:
-      - name: Read server release progress
-        uses: appleboy/ssh-action@master
+      - name: Require successful checks for the exact current application source
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node - <<'JS'
+          const base='https://api.github.com/repos/gaofengJ/stock';
+          async function get(path){const r=await fetch(base+path,{headers:{Authorization:'Bearer '+process.env.GH_TOKEN,Accept:'application/vnd.github+json'},signal:AbortSignal.timeout(20000)});if(!r.ok)throw new Error('Release gate API failed: '+r.status);return r.json()}
+          (async()=>{
+            const run=await get('/actions/runs/37488216220');
+            if(run.head_sha!==process.env.RELEASE_SHA||run.status!=='completed')throw new Error('Source run must be finished and match the release');
+            const master=await get('/git/ref/heads/master');
+            if(master.object.sha!==process.env.RELEASE_SHA)throw new Error('Current master changed; release stopped');
+            const jobs=(await get('/actions/runs/37488216220/jobs?filter=latest&per_page=100')).jobs;
+            for(const name of ['verify','image','front / build','publish-front'])if(!jobs.some(j=>j.name===name&&j.conclusion==='success'))throw new Error('Required source check failed: '+name);
+            if(jobs.some(j=>['deploy-back','deploy-front'].includes(j.name)&&j.started_at&&j.conclusion!=='skipped'))throw new Error('A normal application deployment has already started; recovery stopped');
+            console.log('Exact master source, backend tests, database integration, runtime image checks and frontend publication verified.');
+          })().catch(e=>{console.error(e.message);process.exitCode=1});
+          JS
+      - uses: actions/download-artifact@v4
+        with:
+          name: stock-back-image-ac730979b89711dafa5c8192e84ee8fda4469817
+          path: verified-image
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: gaofengJ/stock
+          run-id: 37488216220
+      - uses: docker/login-action@v3
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Verify published backend configuration equals the tested runtime image
+        env:
+          IMAGE: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-back:ac730979b89711dafa5c8192e84ee8fda4469817
+        run: |
+          gzip -dc verified-image/stock-back-image.tar.gz | docker load
+          expected=$(docker image inspect stock-back-verify --format '{{.Id}}')
+          timeout 60 docker buildx imagetools inspect "$IMAGE" --raw > manifest.json
+          actual=$(jq -er '.config.digest' manifest.json)
+          [[ "$expected" == "$actual" ]] || { echo 'Registry image differs from the tested artifact'; exit 1; }
+          echo 'Registry runtime image matches the verified artifact.'
+  deploy-back:
+    needs: gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ac730979b89711dafa5c8192e84ee8fda4469817
+          sparse-checkout: |-
+            apps/back
+            .github
+      - name: Prepare production environment without logging credentials
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          TUSHARE_CONF_TOKEN: ${{ secrets.TUSHARE_CONF_TOKEN }}
+        run: node .github/scripts/render-runtime-env.cjs apps/back/.env.production apps/back/ops/release/runtime.env
+      - name: Upload versioned release scripts
+        # Composite action runs as the runner user and can read mode-600 configuration.
+        uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
-          script: |
-            echo 'Running Docker operations (arguments omitted):'
-            ps -eo pid,etime,args | awk '$3 ~ /(^|\/)docker$/ {print $1,$2,$3,$4}'
-            echo 'Article containers:'
-            docker ps --filter name=stock-blog --format '{{.Names}} {{.Status}} {{.Image}}'
-            echo 'Article images:'
-            docker images --format '{{.Repository}}:{{.Tag}} {{.Size}}' | grep 'stock-blog' || true
-            echo 'Media-verified release build directories:'
-            find /opt/stock-blog-style -maxdepth 2 -name Dockerfile -print
-            echo 'Memory and disk:'
-            free -m
-            df -h / /opt
+          source: apps/back/ops/release,apps/back/ops/test-db
+          target: /opt/stock-release/packages/${{ env.RELEASE_SHA }}
+          strip_components: 3
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          RELEASE_SHA: ${{ env.RELEASE_SHA }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          envs: DOCKER_USERNAME,DOCKER_PASSWORD,RELEASE_SHA
+          command_timeout: 120m
+          script: bash /opt/stock-release/packages/${{ env.RELEASE_SHA }}/release/deploy.sh
+  deploy-front:
+    needs: deploy-back
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ac730979b89711dafa5c8192e84ee8fda4469817
+          sparse-checkout: |
+            apps/back/ops/release
+            .github
+      - name: Upload versioned frontend release scripts
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: apps/back/ops/release
+          target: /opt/stock-release/packages/${{ env.RELEASE_SHA }}
+          strip_components: 3
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          RELEASE_SHA: ${{ env.RELEASE_SHA }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          envs: DOCKER_USERNAME,DOCKER_PASSWORD,RELEASE_SHA
+          script: bash /opt/stock-release/packages/${{ env.RELEASE_SHA }}/release/deploy-front.sh
+      - name: Notify participating search engines of public pages
+        continue-on-error: true
+        env:
+          SITE_INDEXNOW_KEY: ${{ secrets.SITE_INDEXNOW_KEY }}
+        run: node .github/scripts/submit-indexnow.cjs
