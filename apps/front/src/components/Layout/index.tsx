@@ -21,7 +21,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 import AccountAvatar from '@/auth/AccountAvatar';
@@ -38,6 +38,7 @@ import { withAlpha } from '@/colors';
 import { ThemeToggle, useSiteTheme } from '@/components/SiteTheme';
 
 import { headerMenuItems } from './config';
+import FeedbackFloating from './FeedbackFloating';
 
 const { Header, Sider, Content } = Layout;
 
@@ -82,7 +83,6 @@ const CommonLayout: React.FC<ILayoutProps> = ({
 }) => {
   const { colors } = useSiteTheme();
   const router = useRouter();
-  const path = usePathname().replace(/\/$/, '') || '/';
   const screens = Grid.useBreakpoint();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -90,7 +90,6 @@ const CommonLayout: React.FC<ILayoutProps> = ({
   const mobile = !screens.md;
   const { user, logout, trialRemaining } = useAccount();
   const { unread: feedbackUnread } = useFeedbackNotifications();
-  const showFeedback = allowedPath(user, '/feedback') && !user?.mustChangePassword;
   const canReadActivity = !!user?.permissions.includes('users:manage');
   const activity = useLoginActivity(canReadActivity);
   const adminLabel = (
@@ -137,7 +136,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
   return (
     <Layout className="platform-layout">
       <Header
-        className={`platform-header${user?.guest ? ' is-guest' : ''}${showFeedback ? ' has-feedback' : ''}`}
+        className={`platform-header${user?.guest ? ' is-guest' : ''}`}
         style={{ backgroundColor: colors.surface }}
       >
         {mobile && <Button type="text" icon={<MenuOutlined />} aria-label="打开栏目导航" onClick={() => setDrawerOpen(true)} />}
@@ -156,19 +155,6 @@ const CommonLayout: React.FC<ILayoutProps> = ({
         />
         )}
         <div className="header-tools">
-          {showFeedback && (
-            <Link
-              href="/feedback"
-              className="header-feedback"
-              aria-label={`意见反馈${feedbackUnread ? '，有未读反馈或回复' : ''}`}
-              aria-current={path === '/feedback' ? 'page' : undefined}
-            >
-              <Badge dot={feedbackUnread} offset={[3, -2]}>
-                <CommentOutlined />
-              </Badge>
-              <span>意见反馈</span>
-            </Link>
-          )}
           <ThemeToggle />
           <Popover
             trigger={['hover', 'click']}
@@ -302,6 +288,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
           </Content>
         </Layout>
       </Layout>
+      <FeedbackFloating />
     </Layout>
   );
 };
