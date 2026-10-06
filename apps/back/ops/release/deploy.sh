@@ -71,6 +71,10 @@ chmod 600 "$ENV_FILE"
 command -v systemctl >/dev/null || { echo 'systemd is required for independent backups'; false; }
 python3 --version
 systemctl --version | head -n 1
+start_phase private-network-verify
+# Preserve the host reverse proxy and the existing article authorization proxy.
+# Verify the private gateway before stopping any working service.
+docker network inspect bridge --format '{{json .IPAM.Config}}' | python3 -c 'import json,sys; assert any(x.get("Gateway")=="172.17.0.1" for x in json.load(sys.stdin)), "Expected private Docker gateway is unavailable"'
 start_phase image-pull
 if [[ -n "${DOCKER_PASSWORD:-}" ]]; then
   printf '%s' "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin registry.cn-hangzhou.aliyuncs.com
@@ -155,7 +159,7 @@ fi
 start_phase start-new-service
 install -d -m 755 /opt/stock-news/feeds
 new_started=1
-docker run --restart unless-stopped --label "stock.release.sha=$RELEASE_SHA" --add-host host.docker.internal:172.17.0.1 --mount "type=bind,src=$ENV_FILE,dst=/run/stock/runtime.env,readonly" --mount "type=bind,src=/opt/stock-news/feeds,dst=/run/stock/news-feeds,readonly" -e APP_ENV_FILE=/run/stock/runtime.env -e SYNC_ON_STARTUP=false -d -p 3000:3000 -v /home/logs/stock-back:/usr/src/app/apps/back/logs --name stock-back "$IMAGE"
+docker run --restart unless-stopped --label "stock.release.sha=$RELEASE_SHA" --add-host host.docker.internal:172.17.0.1 --mount "type=bind,src=$ENV_FILE,dst=/run/stock/runtime.env,readonly" --mount "type=bind,src=/opt/stock-news/feeds,dst=/run/stock/news-feeds,readonly" -e APP_ENV_FILE=/run/stock/runtime.env -e SYNC_ON_STARTUP=false -d -p 127.0.0.1:3000:3000 -p 172.17.0.1:3000:3000 -v /home/logs/stock-back:/usr/src/app/apps/back/logs --name stock-back "$IMAGE"
 if docker network inspect stock-news >/dev/null 2>&1; then
   docker network connect stock-news stock-back
 fi
@@ -166,6 +170,10 @@ for attempt in $(seq 1 30); do
   sleep 2
 done
 [[ "$healthy" == 1 ]] || { echo 'New application failed API checks'; false; }
+start_phase private-proxy-smoke
+for address in 127.0.0.1 172.17.0.1; do
+  [[ "$(curl --noproxy '*' --silent --max-time 5 --output /dev/null --write-out '%{http_code}' "http://$address:3000/api/auth/me")" == 401 ]] || { echo 'Private API proxy connectivity failed'; false; }
+done
 start_phase enqueue-and-resume
 db enqueue-market > "$RUN/backfill.json"
 restore_refresh

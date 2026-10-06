@@ -63,6 +63,7 @@ shellDescribe('发布脚本故障恢复', () => {
 docker() {
   echo "docker $*" >> "$TEST_LOG"
   case "$*" in
+    "network inspect bridge --format"*) [[ "$FAIL" != network ]] || return 1; echo '[{"Gateway":"172.17.0.1"}]' ;;
     "pull "*) [[ "$FAIL" != pull ]] || return 1 ;;
     *" preflight") echo '{"requiredFreeBytes":100,"database":"stock","spaceBudget":{"migrationBytes":0,"reserveBytes":100}}' ;;
     *" client-config") echo '[client]' ;;
@@ -97,7 +98,8 @@ df() {
 mysqldump() { echo 'backup'; touch "$TEST_BACKUP_DONE"; [[ "$FAIL" != backup && "$FAIL" != backup-timing ]]; }
 tee() { if [[ "$FAIL" == backup-timing ]]; then cat; return 1; else command tee "$@"; fi; }
 sleep() { return 0; }
-export -f docker python3 flock df mysqldump sleep tee systemctl install
+curl() { echo "curl $*" >> "$TEST_LOG"; if [[ "$FAIL" == app-proxy ]]; then printf 502; else printf 401; fi; }
+export -f docker python3 flock df mysqldump sleep tee systemctl install curl
 `,
     );
     const result = spawnSync(bash, [posix(join(dir, 'release', 'deploy.sh'))], {
@@ -127,6 +129,12 @@ export -f docker python3 flock df mysqldump sleep tee systemctl install
     const result = run('pull');
     expect(result.status).not.toBe(0);
     expect(result.log).not.toContain('docker stop');
+  });
+  it('私有网关不可用时保留运行中的旧服务', () => {
+    const result = run('network');
+    expect(result.status).not.toBe(0);
+    expect(result.log).not.toContain('docker stop');
+    expect(result.stdout).toContain('phase=private-network-verify');
   });
   it('配置缺失在接触生产容器之前失败', () => {
     const result = run('missing-env');
@@ -214,16 +222,19 @@ export -f docker python3 flock df mysqldump sleep tee systemctl install
       'systemctl enable --now stock-release-backup.timer',
     );
   });
-  it('无迁移发布启动后校验失败，保留新版现场并恢复旧服务', () => {
-    const result = run('app-smoke');
-    expect(result.status).not.toBe(0);
-    expect(result.log).toContain('docker stop stock-back');
-    expect(result.log).toContain('stock-back-failed-');
-    expect(result.log).toContain('docker rename old-id stock-back');
-    expect(result.log).toContain('docker start old-id');
-    expect(result.log).not.toContain('database.cjs migrate');
-    expect(result.paused).toBe(false);
-  });
+  it.each(['app-smoke', 'app-proxy'])(
+    '无迁移发布启动后校验失败，保留新版现场并恢复旧服务 %s',
+    (failure) => {
+      const result = run(failure);
+      expect(result.status).not.toBe(0);
+      expect(result.log).toContain('docker stop stock-back');
+      expect(result.log).toContain('stock-back-failed-');
+      expect(result.log).toContain('docker rename old-id stock-back');
+      expect(result.log).toContain('docker start old-id');
+      expect(result.log).not.toContain('database.cjs migrate');
+      expect(result.paused).toBe(false);
+    },
+  );
   it.each(['app-schema', 'app-backup-missing'])(
     '无迁移发布缺少兼容结构或有效备份时不停止旧服务 %s',
     (fail) => {
