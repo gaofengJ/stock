@@ -140,6 +140,12 @@ describe('basic workbench temporal and source safety', () => {
       orderBy: jest.fn().mockReturnThis(),
       getOne: jest.fn(async () => ({ calDate: '2026-10-09' })),
     };
+    Object.assign(cache, {
+      readCalendarBatch: (requests: any[]) =>
+        Promise.all(
+          requests.map(([source, params]) => cache.read(source, params)),
+        ),
+    });
     const service = new WorkbenchService(
       {
         manager: {

@@ -1,0 +1,40 @@
+.calendar-workbench { padding: 16px; border-radius: 6px; }
+.calendar-workbench .page-heading { margin-bottom: 8px; }
+.calendar-workbench .ant-tabs-nav { margin-bottom: 12px; }
+.calendar-view-tools, .calendar-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.calendar-filters { margin-bottom: 12px; }
+.calendar-legend { display: flex; flex-wrap: wrap; gap: 16px; color: var(--text-secondary); font-size: 12px; }
+.calendar-legend span { display: flex; align-items: center; gap: 6px; }
+.calendar-legend i { width: 12px; height: 12px; border-radius: 50%; background: var(--text-disabled); }
+.calendar-legend .open { background: var(--color-primary); }
+.calendar-legend .unknown { background: transparent; border: 1px dashed var(--text-secondary); }
+.trading-months { display: grid; gap: 12px; }
+.trading-months.annual { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.trading-months.monthly { max-width: 900px; margin: 0 auto; }
+.trading-month { padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 6px; }
+.trading-month h2 { font-size: 14px; font-weight: 600; margin: 0 0 6px; }
+.trading-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); text-align: center; gap: 3px 4px; }
+.trading-days.weekdays { color: var(--text-secondary); font-size: 12px; margin-bottom: 5px; }
+.trading-day { min-width: 0; height: clamp(20px, calc((100dvh - 640px) / 18), 34px); padding: 0; border-radius: 4px; cursor: pointer; font-size: 13px; color: var(--text-secondary); background: transparent; border: 1px solid transparent; }
+.trading-day.open { background: color-mix(in srgb, var(--color-primary) 24%, transparent); color: var(--color-black); }
+.trading-day.unknown { border-style: dashed; border-color: var(--color-border); }
+.trading-day.today { border: 1px solid var(--color-primary); font-weight: 700; }
+.trading-day:hover, .trading-day:focus-visible { outline: 1px solid var(--color-primary); outline-offset: 1px; }
+.monthly .trading-day { height: clamp(36px, 6vh, 68px); font-size: 16px; }
+.trading-day small { display: block; font-size: 11px; opacity: .75; }
+.calendar-events .ant-table-tbody > tr > td { height: 58px; padding: 6px 10px; }
+.calendar-secondary { display: block; color: var(--text-secondary); font-size: 11px; line-height: 18px; }
+.calendar-summary { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.calendar-reserved { margin-left: 4px; padding: 0 3px; font-size: 10px; }
+.calendar-note { max-width: 420px; line-height: 1.7; }
+.calendar-detail { overflow-wrap: anywhere; line-height: 1.8; }
+.calendar-detail p { margin: 12px 0; }
+.calendar-detail h3 { font-size: 16px; }
+.calendar-modal .ant-modal-body { max-height: calc(100dvh - 180px); overflow: auto; overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  .calendar-workbench { padding: 12px; }
+  .calendar-filters .ant-input-search { max-width: 190px; }
+  .calendar-events .ant-table { font-size: 11px; }
+  .calendar-events .ant-table-tbody > tr > td { padding: 6px 4px; }
+  .calendar-events .ant-table-thead > tr > th { padding: 8px 4px; }
+}

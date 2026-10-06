@@ -24,4 +24,12 @@ export class WorkbenchQuery {
   @IsOptional() @IsIn(['7', '30']) days?: string;
 
   @IsOptional() @IsString() @MaxLength(64) keyword?: string;
+
+  @IsOptional() @Matches(/^[1-9]\d{0,5}$/) page?: string;
+
+  @IsOptional() @Matches(/^([1-9]|[1-4]\d|50)$/) pageSize?: string;
+
+  @IsOptional()
+  @IsIn(['解禁', '财报披露', '业绩预告', '业绩快报', '除权除息'])
+  eventType?: string;
 }

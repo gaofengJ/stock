@@ -18,8 +18,9 @@ import { useLatestRequest } from '@/hooks/useLatestRequest';
 
 import CSearchForm from '@/components/common/CSearchForm';
 import EventCalendar from '../components/EventCalendar';
+import InvestmentCalendar from '../components/InvestmentCalendar';
 import { useTradeCalConfigs } from './form-configs';
-import './limits.sass';
+import './calendar.css';
 
 const TradeCalendarGrid = dynamic(() => import('./TradeCalendarGrid'), {
   ssr: false,
@@ -75,8 +76,8 @@ function BasicTradeCalPage() {
   );
 
   useEffect(() => {
-    getTradeCal();
-  }, [getTradeCal]);
+    if (view === 'calendar') getTradeCal();
+  }, [getTradeCal, view]);
 
   const tradeCalConfigs = useTradeCalConfigs();
 
@@ -98,11 +99,12 @@ function BasicTradeCalPage() {
       headerMenuActive={EHeaderMenuKey.basic}
       asideMenuActive={EBasicAsideMenuKey.basicTradeCal}
     >
-      <div className="p-16 rounded-[6px] bg-bg-white">
+      <div className="calendar-workbench bg-bg-white">
         <h1 className="page-heading">交易与事件日历</h1>
-        <Tabs activeKey={view} onChange={setView} items={[{ key: 'calendar', label: '交易日历' }, { key: 'events', label: '事件日历' }]} />
+        <Tabs activeKey={view} onChange={setView} items={[{ key: 'calendar', label: '交易日历' }, { key: 'investment', label: '投资日历' }, { key: 'events', label: '公司事件' }]} />
+        {view === 'investment' && <InvestmentCalendar date={date} onDate={setDate} />}
         {view === 'events' && <EventCalendar date={date} onDate={setDate} code={params.get('code') || undefined} />}
-        {loadError && <Alert type="error" message={loadError} showIcon action={<Button size="small" onClick={getTradeCal}>重试</Button>} />}
+        {view === 'calendar' && loadError && <Alert type="error" message={loadError} showIcon action={<Button size="small" onClick={getTradeCal}>重试</Button>} />}
         <div className="mb-16" style={{ display: view === 'calendar' ? undefined : 'none' }}>
           <CSearchForm
             configs={tradeCalConfigs}
@@ -113,8 +115,8 @@ function BasicTradeCalPage() {
             setSearchParams={handleSetSearchParams}
           />
         </div>
-        <div className="overflow-y-auto overflow-x-hidden" style={{ display: view === 'calendar' ? undefined : 'none' }}>
-          <p className="interaction-hint">圆形标记为交易日，未标记为休市，“?”为尚未更新。选择日期，在本页切换至该日事件日历。</p>
+        <div style={{ display: view === 'calendar' ? undefined : 'none' }}>
+          <p className="interaction-hint">选择日期查看当日公司事件；屏幕较小时按月查看，所有日期均可查询。</p>
           {!loadError && (loading ? (
             <Loading />
           ) : (

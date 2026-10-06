@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test:calendar": "node --test scripts/test-calendar.cjs",
     "test:dragon": "node --test scripts/test-dragon.cjs",
     "test:profile": "node --test scripts/test-profile.cjs",
     "test:intraday-counts": "node --test scripts/test-intraday-counts.cjs",
@@ -12,7 +13,7 @@
     "test:market-environment": "node --test scripts/test-market-environment.cjs",
     "test:errors": "node --test scripts/test-errors.cjs",
     "dev": "next dev -p 8081",
-    "build": "next build && node scripts/verify-export.cjs && node --test scripts/test-strategy-state.cjs scripts/test-dragon.cjs",
+    "build": "next build && node scripts/verify-export.cjs && node --test scripts/test-strategy-state.cjs scripts/test-dragon.cjs scripts/test-calendar.cjs",
     "start": "next start -p 8081",
     "lint": "next lint .",
     "test:strategy": "node --test scripts/test-strategy-state.cjs"

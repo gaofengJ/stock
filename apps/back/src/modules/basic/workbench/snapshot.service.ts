@@ -8,6 +8,8 @@ import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
 import { BasicSnapshotEntity } from './snapshot.entity';
 import { publicAnnouncements } from './public-announcements';
 import { publicReductionPlans } from './public-reduction-plans';
+import { compactUnlockRows } from './unlock-calendar';
+import { publicInvestmentCalendar } from './investment-calendar';
 
 export interface SourceSnapshot {
   key: string;
@@ -40,6 +42,9 @@ const caps: Record<string, number> = {
   balancesheet: 1000,
   eastmoney_ann: 100,
   reduction_plans: 3000,
+  investment_calendar: 3000,
+  eco_cal: 100,
+  cn_schedule: 3000,
 };
 
 @Injectable()
@@ -52,11 +57,204 @@ export class BasicSnapshotService implements OnModuleInit {
 
   private active = 0;
 
+  private investmentQueue: (() => Promise<void>)[] = [];
+
+  private investmentActive = false;
+
+  private enqueue(job: () => Promise<void>, investment: boolean) {
+    (investment ? this.investmentQueue : this.queue).push(job);
+  }
+
   private deferred = new Map<string, number>();
 
   private nextRequest = 0;
 
   private writeTail: Promise<unknown> = Promise.resolve();
+
+  private calendarRows = new Map<
+    string,
+    { version: string; rows: Record<string, any>[] }
+  >();
+
+  private preparing = new Set<string>();
+
+  private prepareRetry = new Map<string, number>();
+
+  private calendarQueue: (() => Promise<void>)[] = [];
+
+  private calendarActive = false;
+
+  private drainCalendar() {
+    if (this.calendarActive || !this.calendarQueue.length) return;
+    this.calendarActive = true;
+    this.calendarQueue.shift()!().finally(() => {
+      this.calendarActive = false;
+      this.drainCalendar();
+    });
+  }
+
+  /** Read compact calendar projections; prepare missing projections outside the HTTP request. */
+  async readCalendarBatch(requests: [string, Record<string, unknown>][]) {
+    const keys = requests.map(([source, params]) =>
+      createHash('sha256')
+        .update(JSON.stringify([source, params, '']))
+        .digest('hex'),
+    );
+    const metadata = await this.db.manager.find(BasicSnapshotEntity, {
+      select: {
+        snapshotKey: true,
+        source: true,
+        fetchedAt: true,
+        retryAt: true,
+        error: true,
+        updatedAt: true,
+      },
+      where: { snapshotKey: In(keys) },
+    });
+    // Failed refreshes change retry/error metadata but preserve rows and fetchedAt.
+    const version = (r: BasicSnapshotEntity) =>
+      String(r.fetchedAt?.getTime() || 'empty');
+    const projectionKey = (key: string) =>
+      createHash('sha256').update(`calendar-v1:${key}`).digest('hex');
+    const byKey = new Map(metadata.map((r) => [r.snapshotKey, r]));
+    const prepared = new Map<
+      string,
+      { version: string; rows: Record<string, any>[]; fetchedAt: Date | null }
+    >();
+    metadata.forEach((r) => {
+      const memo = this.calendarRows.get(r.snapshotKey);
+      if (memo?.version === version(r))
+        prepared.set(r.snapshotKey, { ...memo, fetchedAt: r.fetchedAt });
+    });
+    const missing = metadata.filter((r) => !prepared.has(r.snapshotKey));
+    if (missing.length) {
+      const records = await this.db.manager.find(BasicSnapshotEntity, {
+        where: {
+          snapshotKey: In(missing.map((r) => projectionKey(r.snapshotKey))),
+        },
+      });
+      records.forEach((r) => {
+        const key = String(r.params.originalKey);
+        const v = String(r.params.version);
+        prepared.set(key, { version: v, rows: r.rows, fetchedAt: r.fetchedAt });
+        if (this.calendarRows.size >= 128)
+          this.calendarRows.delete(this.calendarRows.keys().next().value);
+        this.calendarRows.set(key, { version: v, rows: r.rows });
+      });
+    }
+    missing
+      .filter((r) => prepared.get(r.snapshotKey)?.version !== version(r))
+      .forEach((r) => {
+        if (
+          this.preparing.size >= 80 ||
+          this.preparing.has(r.snapshotKey) ||
+          (this.prepareRetry.get(r.snapshotKey) || 0) > Date.now()
+        )
+          return;
+        this.preparing.add(r.snapshotKey);
+        this.calendarQueue.push(async () => {
+          try {
+            const original = await this.db.manager.findOneBy(
+              BasicSnapshotEntity,
+              { snapshotKey: r.snapshotKey },
+            );
+            if (!original) return;
+            const rows: Record<string, any>[] =
+              original.source === 'share_float'
+                ? compactUnlockRows(original.rows)
+                : original.rows.map((row) => {
+                    const fields = [
+                      'ts_code',
+                      'name',
+                      'float_date',
+                      'actual_date',
+                      'pre_date',
+                      'ex_date',
+                      'ann_date',
+                      'imp_ann_date',
+                      'end_date',
+                      'cash_div_tax',
+                      'stk_div',
+                      'summary',
+                      'perf_summary',
+                      'date',
+                      'time',
+                      'event',
+                      'country',
+                      'value',
+                      'pre_value',
+                      'fore_value',
+                      'publish_date',
+                      'title',
+                      'issuing_org',
+                      'importance',
+                      'sectors',
+                    ];
+                    return Object.fromEntries(
+                      fields
+                        .filter((field) => row[field] !== undefined)
+                        .map((field) => [field, row[field]]),
+                    );
+                  });
+            if (this.calendarRows.size >= 128)
+              this.calendarRows.delete(this.calendarRows.keys().next().value);
+            this.calendarRows.set(r.snapshotKey, {
+              version: version(original),
+              rows,
+            });
+            await this.writes.withLock((manager) =>
+              manager.upsert(
+                BasicSnapshotEntity,
+                {
+                  snapshotKey: projectionKey(r.snapshotKey),
+                  source: 'calendar_cache',
+                  params: {
+                    originalKey: r.snapshotKey,
+                    version: version(original),
+                  },
+                  rows,
+                  fetchedAt: original.fetchedAt,
+                  retryAt: original.retryAt,
+                  error: original.error,
+                },
+                ['snapshotKey'],
+              ),
+            );
+          } catch {
+            if (this.prepareRetry.size >= 128)
+              this.prepareRetry.delete(this.prepareRetry.keys().next().value);
+            this.prepareRetry.set(r.snapshotKey, Date.now() + 60000);
+            this.logger.warn('日历资料整理延后');
+          } finally {
+            this.preparing.delete(r.snapshotKey);
+          }
+        });
+      });
+    setTimeout(() => this.drainCalendar(), 0);
+    return Promise.all(
+      requests.map(async ([source, params], i) => {
+        const r = byKey.get(keys[i]);
+        const entry = prepared.get(keys[i]);
+        const result = await this.read(
+          source,
+          params,
+          undefined,
+          undefined,
+          false,
+          r ? { ...r, rows: entry?.rows || [] } : null,
+        );
+        if (r && entry?.version !== version(r)) {
+          result.state = this.preparing.has(r.snapshotKey)
+            ? 'loading'
+            : 'error';
+          result.fetchedAt = entry?.fetchedAt?.toISOString() || null;
+          result.message =
+            result.state === 'loading' ? null : '资料整理延后，可稍后检查更新';
+        }
+        return result;
+      }),
+    );
+  }
 
   constructor(
     private db: DataSource,
@@ -85,15 +283,22 @@ export class BasicSnapshotService implements OnModuleInit {
     params: Record<string, unknown>,
     fields?: string,
     rowCodes?: string[],
-    allMatches = false,
+    allMatches?: boolean,
+    prefetched?: Pick<
+      BasicSnapshotEntity,
+      'rows' | 'fetchedAt' | 'retryAt' | 'error'
+    > | null,
   ): Promise<SourceSnapshot> {
     if (!caps[source]) throw new Error('Unsupported basic source');
     const snapshotKey = this.key(source, params, fields);
-    const cached = rowCodes?.length
-      ? allMatches
-        ? await this.readProjectedRows(snapshotKey, rowCodes)
-        : await this.readProjected(snapshotKey, rowCodes)
-      : await this.db.manager.findOneBy(BasicSnapshotEntity, { snapshotKey });
+    const cached =
+      prefetched !== undefined
+        ? prefetched
+        : rowCodes?.length
+        ? allMatches
+          ? await this.readProjectedRows(snapshotKey, rowCodes)
+          : await this.readProjected(snapshotKey, rowCodes)
+        : await this.db.manager.findOneBy(BasicSnapshotEntity, { snapshotKey });
     return this.readCached(
       source,
       params,
@@ -101,6 +306,7 @@ export class BasicSnapshotService implements OnModuleInit {
       snapshotKey,
       cached,
       rowCodes,
+      prefetched !== undefined,
     );
   }
 
@@ -151,20 +357,26 @@ export class BasicSnapshotService implements OnModuleInit {
       'rows' | 'fetchedAt' | 'retryAt' | 'error'
     > | null,
     rowCodes?: string[],
+    projected = false,
   ): Promise<SourceSnapshot> {
     this.deferred.forEach((until, key) => {
       if (until <= Date.now()) this.deferred.delete(key);
     });
     const deferred = this.deferred.has(snapshotKey);
     const due = !cached || cached.retryAt.getTime() <= Date.now();
+    const investment = [
+      'investment_calendar',
+      'eco_cal',
+      'cn_schedule',
+    ].includes(source);
     if (
       due &&
       !deferred &&
       !this.pending.has(snapshotKey) &&
-      this.pending.size < 80
+      this.pending.size < (investment ? 88 : 80)
     ) {
       this.pending.add(snapshotKey);
-      this.queue.push(async () => {
+      this.enqueue(async () => {
         let record: Partial<BasicSnapshotEntity>;
         try {
           const start = Math.max(Date.now(), this.nextRequest);
@@ -173,7 +385,9 @@ export class BasicSnapshotService implements OnModuleInit {
             setTimeout(resolve, start - Date.now());
           });
           const response =
-            source === 'reduction_plans'
+            source === 'investment_calendar'
+              ? await publicInvestmentCalendar(params)
+              : source === 'reduction_plans'
               ? await publicReductionPlans()
               : source === 'eastmoney_ann'
               ? await publicAnnouncements(params)
@@ -185,7 +399,19 @@ export class BasicSnapshotService implements OnModuleInit {
                   15000,
                 );
           const { data } = response;
-          if (response.code !== 0 || !data || !data.fields.includes('ts_code'))
+          const required =
+            source === 'investment_calendar'
+              ? ['date', 'title']
+              : source === 'eco_cal'
+              ? ['date', 'event']
+              : source === 'cn_schedule'
+              ? ['publish_date', 'title']
+              : ['ts_code'];
+          if (
+            response.code !== 0 ||
+            !data ||
+            !required.every((field) => data.fields.includes(field))
+          )
             throw new Error('来源字段不完整');
           const rows = data.items.map((values) => {
             if (!Array.isArray(values) || values.length !== data.fields.length)
@@ -220,7 +446,7 @@ export class BasicSnapshotService implements OnModuleInit {
             this.writes.withLock(
               (manager): Promise<unknown> =>
                 // A projected response must never replace the complete cached catalog on failure.
-                rowCodes?.length && cached && record.error
+                (rowCodes?.length || projected) && cached && record.error
                   ? manager.update(
                       BasicSnapshotEntity,
                       { snapshotKey },
@@ -243,7 +469,7 @@ export class BasicSnapshotService implements OnModuleInit {
         } finally {
           this.pending.delete(snapshotKey);
         }
-      });
+      }, investment);
       this.drain();
     }
     return {
@@ -348,6 +574,16 @@ export class BasicSnapshotService implements OnModuleInit {
   }
 
   private drain() {
+    // Global calendars get one reserved slot; all source requests still share the 400ms rate budget.
+    if (!this.investmentActive && this.investmentQueue.length) {
+      this.investmentActive = true;
+      this.investmentQueue.shift()!()
+        .catch(() => this.logger.warn('投资日历暂未写入'))
+        .finally(() => {
+          this.investmentActive = false;
+          this.drain();
+        });
+    }
     while (this.active < 2 && this.queue.length) {
       this.active += 1;
       const job = this.queue.shift()!;

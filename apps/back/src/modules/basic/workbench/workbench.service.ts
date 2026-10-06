@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-syntax, no-await-in-loop, no-nested-ternary */
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { DataSource, LessThanOrEqual } from 'typeorm';
 import * as dayjs from 'dayjs';
@@ -14,6 +14,7 @@ import { AsyncTtlCache } from '@/modules/analysis/async-ttl-cache';
 import { shanghaiDate } from '@/modules/daily-task/sync.utils';
 import { BasicSnapshotService, SourceSnapshot } from './snapshot.service';
 import { WorkbenchQuery } from './workbench.dto';
+import { investmentCategory } from './investment-calendar';
 import { readProfileHistory } from './profile-reader';
 import {
   latestReductionRecords,
@@ -62,7 +63,28 @@ export function groupUnlockEvents(items: Record<string, any>[]) {
   const groups = new Map<string, Record<string, any>[]>();
   const other = items.filter((r) => r.source !== 'share_float');
   items
-    .filter((r) => r.source === 'share_float')
+    .filter((r) => r.source === 'share_float' && r.calendarCount != null)
+    .forEach((r) =>
+      other.push({
+        tsCode: r.tsCode,
+        name: r.name,
+        type: '解禁',
+        source: r.source,
+        eventDate: r.eventDate,
+        reportDate: '',
+        announcedAt: r.announcedAt,
+        recordCount: r.calendarCount,
+        detail: `解禁${
+          r.float_share == null
+            ? '数量待核实'
+            : `${(Number(r.float_share) / 10000).toFixed(2)}万股`
+        }；${r.calendarCount}条股东记录${
+          r.calendarMissing ? '（部分数量缺失）' : ''
+        }；${r.share_type || ''}`,
+      }),
+    );
+  items
+    .filter((r) => r.source === 'share_float' && r.calendarCount == null)
     .forEach((r) => {
       const key = `${r.tsCode}:${r.eventDate}`;
       if (!groups.has(key)) groups.set(key, []);
@@ -106,16 +128,28 @@ export function groupUnlockEvents(items: Record<string, any>[]) {
 }
 
 @Injectable()
-export class WorkbenchService {
+export class WorkbenchService implements OnModuleInit {
   private readonly profileIdentityCache = new AsyncTtlCache(30000);
 
   private readonly riskCache = new AsyncTtlCache(10000);
+
+  private readonly eventCache = new AsyncTtlCache(5000);
 
   constructor(
     private db: DataSource,
     private cache: BasicSnapshotService,
     private sectors: SectorService,
   ) {}
+
+  onModuleInit() {
+    if (
+      process.env.NODE_ENV === 'production' &&
+      process.env.SCHEDULE_ENABLED !== 'false'
+    )
+      setTimeout(() => {
+        this.warm().catch(() => undefined);
+      }, 1000);
+  }
 
   async profile(dto: WorkbenchQuery) {
     if (!dto.code) throw new BadRequestException('请选择股票');
@@ -671,6 +705,33 @@ export class WorkbenchService {
   }
 
   async events(dto: WorkbenchQuery) {
+    const result = await this.eventCache.getOrCreate(
+      JSON.stringify([
+        shanghaiDate(),
+        dto.date,
+        dto.days,
+        dto.code,
+        dto.keyword,
+        dto.sector,
+      ]),
+      () => this.loadEvents(dto),
+    );
+    const items = result.items.filter(
+      (r) => !dto.eventType || r.type === dto.eventType,
+    );
+    const pageSize = Number(dto.pageSize || 20);
+    const page = Math.min(
+      Number(dto.page || 1),
+      Math.max(1, Math.ceil(items.length / pageSize)),
+    );
+    return {
+      ...result,
+      items: items.slice((page - 1) * pageSize, page * pageSize),
+      meta: { totalItems: items.length, page, pageSize },
+    };
+  }
+
+  private async loadEvents(dto: WorkbenchQuery) {
     const date = dto.date || shanghaiDate();
     const end = dayjs(date)
       .add(Number(dto.days || 7) - 1, 'day')
@@ -718,9 +779,22 @@ export class WorkbenchService {
           '业绩预告',
         ]);
     }
-    const snapshots = await Promise.all(
-      requests.map(([api, params]) => this.cache.read(api, params)),
-    );
+    const [snapshots, names, next] = await Promise.all([
+      this.cache.readCalendarBatch(
+        requests.map(([api, params]) => [api, params]),
+      ),
+      this.profileIdentityCache.getOrCreate('calendar-names', () =>
+        this.db.manager.find(StockEntity, {
+          select: { tsCode: true, name: true },
+        }),
+      ),
+      this.db.manager
+        .getRepository(TradeCalEntity)
+        .createQueryBuilder('c')
+        .where('c.calDate > :date AND c.isOpen=1', { date })
+        .orderBy('c.calDate', 'ASC')
+        .getOne(),
+    ]);
     let items: Record<string, any>[] = snapshots
       .flatMap((snapshot, i) =>
         snapshot.rows.map((r) => ({
@@ -758,9 +832,7 @@ export class WorkbenchService {
       const codes = await this.sectors.codes(dto.sector, date);
       items = items.filter((r) => codes.has(r.tsCode));
     }
-    const stockNames = new Map(
-      (await this.db.manager.find(StockEntity)).map((r) => [r.tsCode, r.name]),
-    );
+    const stockNames = new Map(names.map((r) => [r.tsCode, r.name]));
     items = items.map((r) => ({
       ...r,
       name: r.name || stockNames.get(r.tsCode) || r.tsCode,
@@ -787,12 +859,6 @@ export class WorkbenchService {
         ]),
       ).values(),
     ];
-    const next = await this.db.manager
-      .getRepository(TradeCalEntity)
-      .createQueryBuilder('c')
-      .where('c.calDate > :date AND c.isOpen=1', { date })
-      .orderBy('c.calDate', 'ASC')
-      .getOne();
     return {
       date,
       end,
@@ -801,6 +867,76 @@ export class WorkbenchService {
         (a, b) =>
           a.eventDate.localeCompare(b.eventDate) ||
           a.tsCode.localeCompare(b.tsCode),
+      ),
+      sources: sourceStatus(snapshots),
+    };
+  }
+
+  async marketEvents(dto: WorkbenchQuery) {
+    const date = dto.date || shanghaiDate();
+    const end = dayjs(date)
+      .add(Number(dto.days || 30) - 1, 'day')
+      .format('YYYY-MM-DD');
+    const requests: [string, Record<string, unknown>][] = [];
+    for (
+      let month = dayjs(date).startOf('month');
+      month.format('YYYY-MM-DD') <= end;
+      month = month.add(1, 'month')
+    ) {
+      requests.push(['investment_calendar', { month: month.format('YYYYMM') }]);
+      requests.push([
+        'eco_cal',
+        {
+          start_date: month.format('YYYYMMDD'),
+          end_date: month.endOf('month').format('YYYYMMDD'),
+        },
+      ]);
+      requests.push(['cn_schedule', { m: month.format('YYYYMM') }]);
+    }
+    const snapshots = await this.cache.readCalendarBatch(requests);
+    const items = snapshots
+      .flatMap((s) =>
+        s.rows.map((r) => {
+          const title = r.title || r.event;
+          return {
+            date: isoDate(r.date || r.publish_date),
+            time: r.time || null,
+            title,
+            category:
+              s.source === 'investment_calendar'
+                ? investmentCategory(title)
+                : '经济数据',
+            country: r.country || (s.source === 'cn_schedule' ? '中国' : null),
+            issuingOrg: r.issuing_org || null,
+            importance: r.importance || null,
+            sectors: r.sectors || [],
+            previous: r.pre_value ?? null,
+            forecast: r.fore_value ?? null,
+            actual: r.value ?? null,
+            source: s.source,
+            url:
+              s.source === 'investment_calendar'
+                ? `https://stock.10jqka.com.cn/fincalendar.shtml#${r.date}`
+                : null,
+          };
+        }),
+      )
+      .filter((r) => r.date >= date && r.date <= end && r.title);
+    return {
+      date,
+      end,
+      items: [
+        ...new Map(
+          items.map((r) => [
+            JSON.stringify([r.date, r.time, r.country, r.title]),
+            r,
+          ]),
+        ).values(),
+      ].sort(
+        (a, b) =>
+          a.date.localeCompare(b.date) ||
+          String(a.time || '').localeCompare(String(b.time || '')) ||
+          a.title.localeCompare(b.title),
       ),
       sources: sourceStatus(snapshots),
     };
@@ -867,6 +1003,7 @@ export class WorkbenchService {
     await Promise.allSettled([
       this.risk({ date: latest?.calDate || shanghaiDate() }),
       this.events({ date: shanghaiDate(), days: '30' }),
+      this.marketEvents({ date: shanghaiDate(), days: '30' }),
     ]);
   }
 }

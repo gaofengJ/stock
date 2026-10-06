@@ -46,4 +46,10 @@ export class WorkbenchController {
   ) {
     return this.service.seat(dto);
   }
+
+  @Get('market-events') @Permit('basic:calendar') marketEvents(
+    @Query() dto: WorkbenchQuery,
+  ) {
+    return this.service.marketEvents(dto);
+  }
 }
