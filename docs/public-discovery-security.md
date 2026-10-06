@@ -14,23 +14,36 @@
 - 当前跟踪的生产环境文件使用占位符，部署使用 Actions Secrets 生成受限权限的运行配置。本次新增生产模板凭据检查，阻止后续提交明文密码或令牌。
 - 增加 Nginx 与 API 安全响应头，禁止静态目录下隐藏文件访问；前端镜像使用经过校验的默认站点配置。CSP 保持与现有主题、同源文章嵌入、脚本及请求兼容。
 - 更新当前主版本范围内 Next.js、NestJS、Fastify、Axios、qs、mysql2、TypeORM 等安全补丁及兼容依赖。
-- 本地后端 lint/build、66 个测试套件共 640 项通过；数据库依赖的套件由 CI MySQL 环境执行。前端静态构建和公开路由边界、元数据、JSON-LD 注入、异常脱敏测试通过。CI 验证镜像 Nginx 配置和后端原生依赖。
+- 最终 CI 后端 72 个测试套件共 707 项通过，含 MySQL 账户与旧账户迁移集成检查；前端静态构建和公开路由边界、元数据、JSON-LD 注入、异常脱敏测试通过。CI 验证镜像 Nginx 配置、后端原生依赖和私有网络连接。
 
 ## 未完成的安全事项
 
 1. **历史凭据记录**：公开 Git 历史中发现早期生产模板包含一处常见示例形式的数据库密码字符串。已通过不输出凭据的哈希比较，确认当前 GitHub 部署密码没有复用该历史字符串；用于此次比较的一次性校验配置已删除。当前模板使用占位符。其他环境若复用历史密码仍需轮换，删除当前文件不能消除历史记录。此次未擅自轮换密码或重写 Git 历史。
 2. **框架主版本迁移**：官方注册表生产依赖审计仍报告 3 项 critical、65 项 high、42 项 moderate、8 项 low（依赖路径计数，不代表同等数量可利用入口）。`@fastify/middie` 的子插件中间件鉴权告警需要新版框架处理。当前应用鉴权使用 Nest 全局 Guard，尚未发现该公告描述的路径级中间件用法；这不能替代框架升级和专项验证。
 3. **Next 服务端告警**：两项 critical 分别涉及 Windows 托管的 Next 服务端和 AVIF 图片优化接口。生产前端为静态导出与 Nginx，不运行 Next 服务端或图片优化接口，因此当前部署不提供这些入口；仍需安排 Next 主版本升级，避免未来托管模式变更引入风险。
-4. **运行时升级**：服务器核验后端实际为 Node.js 18.20.8，应安排受支持版本升级。
+4. **服务器与运行时升级**：服务器核验为 Ubuntu 16.04、Docker 18.09.7、Node.js 18.20.8。Node 18 已结束社区维护。Ubuntu 16.04 的标准维护和常规 ESM 阶段已结束，尚未核验服务器是否订阅 Legacy 扩展维护。应安排受支持系统与运行时迁移，独立验证备份、恢复及应用兼容性。
+5. **数据库公网入口**：外部 runner 无认证连接探测确认宿主机 3306 可达，监听服务为 MySQL 5.7.33，宿主 INPUT 策略为 ACCEPT 且没有入口规则。本站应用解析后的数据库地址为 Docker 私有网关，因此公网入口不是本站应用连接的必要条件。外部工具直连用途尚待确认，未直接关闭端口，以免中断未知连接；应优先限制公网来源或改用 SSH 隧道。MySQL 5.7 已结束活跃开发，当前版本还低于该系列最终版本 5.7.44。其他被检查的 5432、6379、9200 端口未连接成功；一次探测不构成完整网络审计。
 
 ## 服务器网络补查与修复
 
 外部 GitHub runner 确认可以直连后端 3000 端口，匿名账户请求仍返回 401。服务器检查确认主站反向代理使用 loopback，文章授权代理使用 Docker 网关 172.17.0.1，前端没有覆盖镜像 Nginx 配置的挂载。发布脚本改为只绑定 127.0.0.1 与 172.17.0.1 两个私有地址，保留主站和文章连接，取消公共接口绑定。停止旧服务前验证网关；启动后验证两个私有入口的匿名请求均返回 401，失败走原发布回滚流程。CI 在实际 Docker 网络中验证宿主和文章容器访问成功、宿主其他接口访问失败。
 
-发布过程中发现重复构建镜像的导出阶段停滞。后端发布改为保存、加载并推送经过原生依赖与网络检查的同一镜像，推送超时为十分钟。验证镜像没有生产凭据，Actions 镜像产物保留一天。
+发布过程中发现跨境镜像传输超时。后端发布保存经过原生依赖与网络检查的同一镜像，加载后推送；发布重试有时限，最多三次，Actions 镜像产物保留一天。本次使用 SSH 分块中转，并校验完整归档哈希。更新主分支后再次比较测试产物与已发布镜像的配置摘要，确认完整运行镜像相同才复用。恢复发布沿用已审查的部署脚本，仍要求当前应用版本、全部测试、数据库集成、前端发布和镜像身份检查通过，没有绕过备份及回滚检查。镜像中不包含生产凭据。
+
+## 线上验收（2026-10-07，北京时间）
+
+应用版本为 `a7a3a25456e0265dcc9585915212bc6de866f05d`。[前后端发布记录](https://github.com/gaofengJ/stock/actions/runs/37500868700) 的门禁、后端、前端全部成功。后端为 application 发布模式，未执行数据库结构迁移。后端服务切换后，API 健康检查、两个私有代理入口、独立备份调度及发布保留检查均通过。
+
+- 六个公开入口均返回 200，原始 HTML 包含正文和独立 canonical，使用 `index, follow`；robots 与 sitemap 返回 200，地图只包含上述六个公开入口。
+- 登录和策略页面保持 200 与 `noindex, nofollow`；匿名账户及管理员接口返回 401，隐藏环境文件和 Git 文件返回 404。安全响应头已在线生效。
+- [发布后网络核验](https://github.com/gaofengJ/stock/actions/runs/37501757878) 确认后端容器运行、重启次数为零、版本匹配、不绑定公共接口，外部 runner 无法连接 3000。
+- 生产浏览器复核：首页和指南在 390、768、1440、1920 像素宽度下无横向溢出；主题切换、指南导航和 FAQ 正常，控制台无错误；匿名公开浏览不会启动体验计时。
+- IndexNow 于 01:13 接收六个公开 URL，返回 HTTP 202；这是接收回执，不是收录或排名证明。Google 和百度的域名所有权验证与站点地图提交仍需站长账号完成。
+
+数据库公网入口与旧系统、运行时、框架主版本风险仍按上文列为未解决事项，未将此次验收表述为全面安全审计通过。
 
 ## 后续收录维护
 
 验证 Google Search Console 与百度搜索资源平台的域名所有权并提交 `https://stock.mufengtongxue.com/sitemap.xml`。观察公开页面收录及关键词表现，围绕实际操作问题持续更新原创指南；不要批量创建空股票页或复制供应商数据充当内容。
 
-参考：[Google 搜索入门指南](https://developers.google.com/search/docs/fundamentals/seo-starter-guide?hl=zh-cn)、[IndexNow 文档](https://www.indexnow.org/documentation)、[Fastify middie 公告](https://github.com/fastify/middie/security/advisories/GHSA-72c6-fx6q-fr5w)、[Next Windows 公告](https://github.com/vercel/next.js/security/advisories/GHSA-p293-qw3h-jr36)、[Next AVIF 公告](https://github.com/vercel/next.js/security/advisories/GHSA-2xp9-vwfh-vxw4)。
+参考：[Google 搜索入门指南](https://developers.google.com/search/docs/fundamentals/seo-starter-guide?hl=zh-cn)、[IndexNow 文档](https://www.indexnow.org/documentation)、[Fastify middie 公告](https://github.com/fastify/middie/security/advisories/GHSA-72c6-fx6q-fr5w)、[Next Windows 公告](https://github.com/vercel/next.js/security/advisories/GHSA-p293-qw3h-jr36)、[Next AVIF 公告](https://github.com/vercel/next.js/security/advisories/GHSA-2xp9-vwfh-vxw4)、[Node.js 维护状态](https://nodejs.org/en/about/eol)、[Ubuntu 16.04 Legacy 维护](https://ubuntu.com/16-04)、[MySQL 支持周期](https://www.mysql.com/support/eol-notice.html)。
