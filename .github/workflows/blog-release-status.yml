@@ -106,3 +106,17 @@ jobs:
             echo 'Memory and disk:'
             free -m
             df -h / /opt
+            echo 'Aggregate outbound transfer rate sample (no destinations):'
+            python3 - <<'PY'
+            import time
+            def transmitted():
+                total=0
+                for line in open('/proc/net/dev'):
+                    if ':' not in line: continue
+                    interface, values=line.split(':',1)
+                    if interface.strip().startswith(('eth','ens','enp')):
+                        total+=int(values.split()[8])
+                return total
+            previous=transmitted(); time.sleep(10)
+            print('Outbound bytes per second sample:',int((transmitted()-previous)/10))
+            PY
