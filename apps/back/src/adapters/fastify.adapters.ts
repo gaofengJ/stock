@@ -26,6 +26,8 @@ fastifyApp.register(FastifyCookie, {});
 
 // eslint-disable-next-line consistent-return
 fastifyApp.getInstance().addHook('onRequest', (request, reply, done) => {
+  reply.header('X-Content-Type-Options', 'nosniff');
+  reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
   const { url } = request;
   // 跳过 favicon.ico 和 manifest.json 请求，返回 204 状态码
   if (url.match(/favicon.ico$/) || url.match(/manifest.json$/))

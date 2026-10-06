@@ -1,0 +1,30 @@
+# 公开入口与安全检查（2026-10-06）
+
+## 本次范围
+
+新增公开首页、指南目录及四篇原创操作指南，沿用现有主题。公开页面直接输出正文 HTML，提供独立标题、描述、canonical、分享元数据和 JSON-LD。站点地图只有六个公开入口；原业务、账户和管理页面默认 noindex，权限及五分钟体验机制保持原样。首页不启动游客计时，已登录用户仍进入原首页。
+
+公开内容不包含实时行情、账户信息或数据库内容。未新增数据库表。移除研究资料中供应商名称的默认展示，保留资料状态、日期和获取时间；接口异常避免将供应商、凭据字段、URL 或技术堆栈回显给用户。
+
+发布时生成 IndexNow 域名验证文件，上线后核验验证文件与站点地图，再向官方端点提交六个公开 URL。HTTP 200/202 仅代表接收，不能视为已经收录。Google 与百度站长平台仍需要域名所有者账号验证；未代操作其账号。
+
+## 检查与加固
+
+- 检查默认权限策略、管理员接口、反馈归属、会话 Cookie、CSRF、登录限速和参数化查询。未登录的管理员与账户接口返回 401；环境文件、Git 文件和接口文档未公开。
+- 当前跟踪的生产环境文件使用占位符，部署使用 Actions Secrets 生成受限权限的运行配置。本次新增生产模板凭据检查，阻止后续提交明文密码或令牌。
+- 增加 Nginx 与 API 安全响应头，禁止静态目录下隐藏文件访问；前端镜像使用经过校验的默认站点配置。CSP 保持与现有主题、同源文章嵌入、脚本及请求兼容。
+- 更新当前主版本范围内 Next.js、NestJS、Fastify、Axios、qs、mysql2、TypeORM 等安全补丁及兼容依赖。
+- 本地后端 lint/build、66 个测试套件共 640 项通过；数据库依赖的套件由 CI MySQL 环境执行。前端静态构建和公开路由边界、元数据、JSON-LD 注入、异常脱敏测试通过。CI 验证镜像 Nginx 配置和后端原生依赖。
+
+## 未完成的安全事项
+
+1. **历史凭据记录**：公开 Git 历史中发现早期生产模板包含一处常见示例形式的数据库密码字符串。当前模板已是占位符，不能从历史字符串证明线上仍在使用。若该历史密码仍用于任何环境，必须轮换；删除当前文件不能消除历史记录。此次未读取线上密码、擅自轮换或重写 Git 历史。
+2. **框架主版本迁移**：官方注册表生产依赖审计仍报告 3 项 critical、65 项 high、42 项 moderate、8 项 low（依赖路径计数，不代表同等数量可利用入口）。`@fastify/middie` 的子插件中间件鉴权告警需要新版框架处理。当前应用鉴权使用 Nest 全局 Guard，尚未发现该公告描述的路径级中间件用法；这不能替代框架升级和专项验证。
+3. **Next 服务端告警**：两项 critical 分别涉及 Windows 托管的 Next 服务端和 AVIF 图片优化接口。生产前端为静态导出与 Nginx，不运行 Next 服务端或图片优化接口，因此当前部署不提供这些入口；仍需安排 Next 主版本升级，避免未来托管模式变更引入风险。
+4. **运行时与网络边界**：后端镜像仍使用 Node.js 18，应安排受支持版本升级。现有 Docker 后端端口绑定所有接口，需核验主机防火墙与外网可达性。文章反向代理使用 Docker 网关，未经验证直接改为 loopback 可能破坏现有文章功能，本次未改动该连接。
+
+## 后续收录维护
+
+验证 Google Search Console 与百度搜索资源平台的域名所有权并提交 `https://stock.mufengtongxue.com/sitemap.xml`。观察公开页面收录及关键词表现，围绕实际操作问题持续更新原创指南；不要批量创建空股票页或复制供应商数据充当内容。
+
+参考：[Google 搜索入门指南](https://developers.google.com/search/docs/fundamentals/seo-starter-guide?hl=zh-cn)、[IndexNow 文档](https://www.indexnow.org/documentation)、[Fastify middie 公告](https://github.com/fastify/middie/security/advisories/GHSA-72c6-fx6q-fr5w)、[Next Windows 公告](https://github.com/vercel/next.js/security/advisories/GHSA-p293-qw3h-jr36)、[Next AVIF 公告](https://github.com/vercel/next.js/security/advisories/GHSA-2xp9-vwfh-vxw4)。

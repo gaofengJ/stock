@@ -894,9 +894,10 @@ export class DailyTaskService {
     await this.withLock((manager) =>
       manager.transaction(async (tx) => {
         if (this.market) {
-          await tx.delete(MarketDailyEntity, {});
-          await tx.delete(IndexDailyEntity, {});
-          await tx.delete(BseMappingEntity, {});
+          // The administrator's existing clear action intentionally deletes all.
+          await tx.deleteAll(MarketDailyEntity);
+          await tx.deleteAll(IndexDailyEntity);
+          await tx.deleteAll(BseMappingEntity);
         }
         const dates = await tx.query(
           'SELECT trade_date AS date FROM t_source_daily UNION SELECT trade_date FROM t_source_limit UNION SELECT trade_date FROM t_processed_senti UNION SELECT cal_date FROM t_source_trade_cal WHERE is_open=1 AND cal_date<=CURDATE()',

@@ -51,7 +51,7 @@ export function SourceBlock({
     <section className="live-research-section">
       <div className="live-research-heading">
         <h3>{title}</h3>
-        <span className="live-research-note">{source ? `${sourceLabels[source.source] || 'Tushare'} · 获取于 ${beijingTime(source.fetchedAt)}` : '资料未取得'}</span>
+        <span className="live-research-note">{source ? `${sourceLabels[source.source] || '研究资料'} · 获取于 ${beijingTime(source.fetchedAt)}` : '资料未取得'}</span>
       </div>
       {note && <p className="live-research-note">{note}</p>}
       {body}

@@ -225,7 +225,9 @@ mysqlDescribe('市场分析迁移、发布及持久化续跑', () => {
     }
   });
   beforeEach(async () => {
-    for (const entity of entities) await db.manager.delete(entity, {});
+    // This isolated test database deliberately resets all fixture rows.
+    // Use explicit deleteAll: newer TypeORM rejects accidental empty criteria.
+    for (const entity of entities) await db.manager.deleteAll(entity);
     await db.query('DELETE FROM t_admin_job');
     Object.values(source).forEach((fn) => fn.mockReset());
     remote.queryData.mockReset().mockImplementation(indexReply);
@@ -362,6 +364,21 @@ mysqlDescribe('市场分析迁移、发布及持久化续跑', () => {
     await market.invalidate(db.manager, dates[4]);
     await market.enqueueBackfill(db.manager, dates[5]);
     expect((await db.query('SELECT id FROM t_admin_job')).length).toBe(2);
+  });
+  it('管理员清空同时删除市场派生数据并保留主动排除记录', async () => {
+    await daily.marketBatch(dates[1], dates[5]);
+    expect(await db.manager.count(MarketDailyEntity)).toBeGreaterThan(0);
+    expect(await db.manager.count(IndexDailyEntity)).toBeGreaterThan(0);
+    await daily.clear();
+    for (const entity of [
+      MarketDailyEntity,
+      IndexDailyEntity,
+      BseMappingEntity,
+      DailyEntity,
+    ]) {
+      expect(await db.manager.count(entity)).toBe(0);
+    }
+    expect(await db.manager.count(SyncDayPolicyEntity)).toBeGreaterThan(0);
   });
   it('22点核对遇到写锁也会持久化，释放后优先于历史任务执行', async () => {
     await market.enqueueBackfill(db.manager, dates[5]);

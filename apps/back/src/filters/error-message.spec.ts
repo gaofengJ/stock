@@ -20,6 +20,13 @@ describe('中文错误边界', () => {
     [500, '连接异常 SELECT * FROM users', '服务出现异常，请稍后重试'],
     [502, '<html>Bad Gateway</html>', '暂时无法连接服务，请稍后重试'],
     [400, '日期范围不能超过两年', '日期范围不能超过两年'],
+    [400, 'Tushare 请求失败：权限不足', '请求参数有误，请检查后重试'],
+    [400, '请求失败 token=fixture-private', '请求参数有误，请检查后重试'],
+    [
+      400,
+      '上游 https://api.example.test 请求失败',
+      '请求参数有误，请检查后重试',
+    ],
   ])('状态 %s 返回中文提示', (status, source, expected) => {
     expect(localizedErrorMessage(source, status)).toBe(expected);
   });
