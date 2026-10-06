@@ -24,7 +24,14 @@ jobs:
             const run=await get('/actions/runs/37502480529');
             if(run.head_sha!==process.env.RELEASE_SHA||run.status!=='completed')throw new Error('Source run must be finished and match the release');
             const master=await get('/git/ref/heads/master');
-            if(master.object.sha!==process.env.RELEASE_SHA)throw new Error('Current master changed; release stopped');
+            if(master.object.sha!==process.env.RELEASE_SHA){
+              const paths=new Set(['package.json','pnpm-lock.yaml','pnpm-workspace.yaml','.npmrc','.dockerignore','.github/scripts/render-runtime-env.cjs','.github/workflows/back-cd.yml']);
+              const backend=tree=>{if(tree.truncated)throw new Error('Incomplete source tree; release stopped');return tree.tree.filter(entry=>entry.type==='blob'&&(entry.path.startsWith('apps/back/')||paths.has(entry.path))).map(entry=>entry.path+':'+entry.sha).sort().join('\n')};
+              const tested=await get('/git/trees/'+process.env.RELEASE_SHA+'?recursive=1');
+              const current=await get('/git/trees/'+master.object.sha+'?recursive=1');
+              if(backend(tested)!==backend(current))throw new Error('Current backend or deployment configuration changed; release stopped');
+              console.log('Current backend and deployment configuration are identical to the fully tested backend source.');
+            }
             const jobs=(await get('/actions/runs/37502480529/jobs?filter=latest&per_page=100')).jobs;
             for(const name of ['verify','image','front / build','publish-front'])if(!jobs.some(j=>j.name===name&&j.conclusion==='success'))throw new Error('Required source check failed: '+name);
             if(jobs.some(j=>['deploy-back','deploy-front'].includes(j.name)&&(j.conclusion==='success'||j.steps.some(step=>step.name==='Deploy to Server'&&step.started_at&&step.conclusion!=='skipped'&&step.status!=='queued'))))throw new Error('A normal application deployment has already started; recovery stopped');
@@ -96,39 +103,3 @@ jobs:
           envs: DOCKER_USERNAME,DOCKER_PASSWORD,RELEASE_SHA
           command_timeout: 120m
           script: bash /opt/stock-release/packages/${{ env.RELEASE_SHA }}/release/deploy.sh
-  deploy-front:
-    needs: deploy-back
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: 87eb6bcd2a38d42e5304f82179260cede4f2b124
-          sparse-checkout: |
-            apps/back/ops/release
-            .github
-      - name: Upload versioned frontend release scripts
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          source: apps/back/ops/release
-          target: /opt/stock-release/packages/${{ env.RELEASE_SHA }}
-          strip_components: 3
-      - name: Deploy to Server
-        uses: appleboy/ssh-action@v1.2.0
-        env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          RELEASE_SHA: ${{ env.RELEASE_SHA }}
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          envs: DOCKER_USERNAME,DOCKER_PASSWORD,RELEASE_SHA
-          script: bash /opt/stock-release/packages/${{ env.RELEASE_SHA }}/release/deploy-front.sh
-      - name: Notify participating search engines of public pages
-        continue-on-error: true
-        env:
-          SITE_INDEXNOW_KEY: ${{ secrets.SITE_INDEXNOW_KEY }}
-        run: node .github/scripts/submit-indexnow.cjs
