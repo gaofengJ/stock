@@ -19,6 +19,7 @@ const { MarketAnalysis1790553600000 } = require('../dist/migrations/179055360000
 const { LoginActivity1790640000000 } = require('../dist/migrations/1790640000000-LoginActivity');
 const { LoginActivityItemRead1792022400000 } = require('../dist/migrations/1792022400000-LoginActivityItemRead');
 const verifyLoginActivity = require('./login-activity.integration.cjs');
+const verifyUsersManagement = require('./users-management.integration.cjs');
 const { DragonPermission1790812800000 } = require('../dist/migrations/1790812800000-DragonPermission');
 const { RealTimeNews1790812800001 } = require('../dist/migrations/1790812800001-RealTimeNews');
 const { ExpandedNewsSources1790832000000, EXPANDED_NEWS_CODES } = require('../dist/migrations/1790832000000-ExpandedNewsSources');
@@ -160,6 +161,8 @@ async function main() {
     assert.equal((await inject('POST', '/auth/register', { username: 'mufeng', password: 'test-password-123' }, anon)).statusCode, 409);
     let user = await login('alice', 'test-password-123');
     const admin = await login('mufeng', adminPassword);
+    await verifyUsersManagement({ db, inject, admin, user, login });
+    if (process.argv.includes('--users-management-only')) return;
     if (process.argv.includes('--login-activity-only')) {
       await verifyLoginActivity({ db, auth: app.get(AuthService), inject, admin, user });
       return;

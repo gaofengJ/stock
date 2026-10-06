@@ -16,6 +16,15 @@
 .account-identity { display: flex; gap: 12px; align-items: center; }
 .account-identity strong { display: block; font-size: 14px; font-weight: 500; }
 .account-identity small { display: block; margin-top: 4px; color: var(--text-muted); }
+.users-filters .users-search { width: 280px; max-width: 100%; }
+.users-select { width: 150px; }
+.users-summary { margin: 0 0 12px; color: var(--text-secondary); font-size: 14px; }
+.users-name { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; overflow-wrap: anywhere; }
+.users-name .ant-tag { margin: 0; white-space: nowrap; }
+@media (max-width: 600px) {
+  .users-filters .users-search { width: 100%; }
+  .users-filters .users-select { flex: 1; min-width: 120px; }
+}
 .account-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 0 0 24px; }
 .account-stats .ant-card { border-color: var(--color-border); box-shadow: none; }
 .account-stats .ant-card-head { border: 0; font-size: 14px; color: var(--text-secondary); }

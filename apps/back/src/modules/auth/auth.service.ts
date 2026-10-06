@@ -17,7 +17,6 @@ import { checkPassword, hashPassword } from './password';
 import {
   ActivityQueryDto,
   LoginDto,
-  PageDto,
   ProfileDto,
   RegisterDto,
   RoleDto,
@@ -45,7 +44,6 @@ export type AuthRequest = FastifyRequest & {
   authUser?: CurrentUser;
   authSession?: any;
 };
-const offset = (q: PageDto) => (q.page - 1) * q.pageSize;
 const fail = () => new UnauthorizedException('账号或密码错误');
 
 @Injectable()
@@ -525,25 +523,60 @@ export class AuthService implements OnModuleInit {
   }
 
   async users(q: UserQueryDto) {
-    const where = ` WHERE username LIKE ?${
-      q.active === undefined ? '' : ' AND is_active=?'
-    }`;
-    const args: any[] = [`%${q.keyword || ''}%`];
-    if (q.active !== undefined) args.push(q.active);
-    const [{ total }] = await this.db.query(
-      `SELECT COUNT(*) total FROM t_user${where}`,
-      args,
-    );
-    const items = await this.db.query(
-      `SELECT id,username,nickname,avatar,is_active active,must_change_password mustChangePassword,last_login lastLogin,created_at createdAt FROM t_user${where} ORDER BY id DESC LIMIT ? OFFSET ?`,
-      [...args, q.pageSize, offset(q)],
-    );
-    for (const u of items)
-      u.roles = await this.db.query(
-        'SELECT r.id,r.code,r.role_name name FROM t_role r JOIN t_user_role ur ON r.id=ur.role_id WHERE ur.user_id=?',
-        [u.id],
+    return this.db.transaction('REPEATABLE READ', async (m) => {
+      const keyword = q.keyword?.trim() || '';
+      const clauses = ['(LOCATE(?,u.username)>0 OR LOCATE(?,u.nickname)>0)'];
+      const args: (string | number)[] = [keyword, keyword];
+      if (q.active !== undefined) {
+        clauses.push('u.is_active=?');
+        args.push(q.active);
+      }
+      if (q.roleId !== undefined) {
+        clauses.push(
+          'EXISTS (SELECT 1 FROM t_user_role ur WHERE ur.user_id=u.id AND ur.role_id=?)',
+        );
+        args.push(q.roleId);
+      }
+      const where = ` WHERE ${clauses.join(' AND ')}`;
+      const [{ total }] = await m.query(
+        `SELECT COUNT(*) total FROM t_user u${where}`,
+        args,
       );
-    return { items, total: Number(total) };
+      // This count deliberately ignores list filters and pagination.
+      const [{ activeAdminCount }] = await m.query(
+        "SELECT COUNT(*) activeAdminCount FROM t_user u WHERE u.is_active=1 AND EXISTS (SELECT 1 FROM t_user_role ur JOIN t_role r ON r.id=ur.role_id WHERE ur.user_id=u.id AND r.code='admin')",
+      );
+      const page = Math.min(
+        q.page,
+        Math.max(1, Math.ceil(Number(total) / q.pageSize)),
+      );
+      const items = await m.query(
+        `SELECT u.id,u.username,u.nickname,u.avatar,u.is_active active,u.must_change_password mustChangePassword,u.last_login lastLogin,u.created_at createdAt FROM t_user u${where} ORDER BY u.id DESC LIMIT ? OFFSET ?`,
+        [...args, q.pageSize, (page - 1) * q.pageSize],
+      );
+      const roles = items.length
+        ? await m.query(
+            'SELECT ur.user_id userId,r.id,r.code,r.role_name name FROM t_role r JOIN t_user_role ur ON r.id=ur.role_id WHERE ur.user_id IN (?) ORDER BY r.id',
+            [items.map((u: { id: number }) => u.id)],
+          )
+        : [];
+      return {
+        items: items.map((u: { id: number }) => ({
+          ...u,
+          roles: roles
+            .filter((r: { userId: number }) => r.userId === u.id)
+            .map((r: { id: number; code: string; name: string }) => ({
+              id: r.id,
+              code: r.code,
+              name: r.name,
+            })),
+        })),
+        total: Number(total),
+        page,
+        pageSize: q.pageSize,
+        activeAdminCount: Number(activeAdminCount),
+      };
+    });
   }
 
   async lockAdministration(m: EntityManager) {

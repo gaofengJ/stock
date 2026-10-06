@@ -25,7 +25,7 @@ async function check(path, cookie, needsRows = false, expectedStatus = 200) {
               (needsRows && !body.data?.items?.length)
             )
               throw new Error('API check failed: ' + path);
-            resolve();
+            resolve(body.data);
           } catch (error) {
             reject(error);
           }
@@ -69,7 +69,24 @@ async function check(path, cookie, needsRows = false, expectedStatus = 200) {
       '/api/analysis/senti/list?startDate=' + date + '&endDate=' + date,
       cookie,
     );
-    await check('/api/admin/users?pageSize=1', cookie);
+    const users = await check('/api/admin/users?pageSize=1', cookie);
+    if (users.page !== 1 || users.pageSize !== 1 || users.activeAdminCount < 1)
+      throw new Error('User list metadata verification failed');
+    const [adminRole] = await ds.query(
+      "SELECT id FROM t_role WHERE code='admin'",
+    );
+    const filtered = await check(
+      '/api/admin/users?pageSize=1&active=1&roleId=' + adminRole.id,
+      cookie,
+      true,
+    );
+    if (
+      !filtered.items.every(
+        (user) =>
+          user.active && user.roles.some((role) => role.code === 'admin'),
+      )
+    )
+      throw new Error('User role/status filter verification failed');
     await check('/api/admin/login-activity?pageSize=1', cookie);
     await check('/api/admin/login-activity?pageSize=1&status=unread', cookie);
     await check('/api/admin/sync-jobs?pageSize=1', cookie);

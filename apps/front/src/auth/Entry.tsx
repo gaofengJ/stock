@@ -20,6 +20,12 @@ export default function Entry({ register = false }: { register?: boolean }) {
   const { themeConfig } = useSiteTheme();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  useEffect(() => {
+    const reason = new URLSearchParams(window.location.search).get('reason');
+    if (reason === 'password-reset') setNotice('密码已重置，请使用新临时密码重新登录，登录后需修改密码。');
+    if (reason === 'account-disabled') setNotice('当前账号已禁用，已退出登录。请联系其他管理员重新启用账号。');
+  }, []);
   const [form] = Form.useForm();
   const usernameInput = useRef<InputRef>(null);
   useEffect(() => {
@@ -89,6 +95,7 @@ export default function Entry({ register = false }: { register?: boolean }) {
                 : '登录后，继续查看行情与复盘内容。'}
             </Typography.Paragraph>
             {trialExpired && <Alert type="info" showIcon message="5 分钟游客体验已结束，登录或免费注册后即可继续浏览。" className="entry-alert" />}
+            {!register && notice && <Alert type="info" showIcon message={notice} className="entry-alert" />}
             {error && (
             <Alert
               type="error"

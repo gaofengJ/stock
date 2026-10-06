@@ -15,17 +15,18 @@ type Props<Row extends object> = Omit<TableProps<Row>, 'loading' | 'scroll'> & {
   maxBodyHeight?: number;
   minBodyHeight?: number;
   bottomSpacing?: number;
+  autoHeight?: boolean;
 };
 
 /** Shared table body sizing and loading; Ant Design handles synchronized fixed headers. */
 export default function DataTable<Row extends object = any>({
-  loading = false, scroll, locale, maxBodyHeight = 720, minBodyHeight = 240, bottomSpacing = 48, ...props
+  loading = false, scroll, locale, maxBodyHeight = 720, minBodyHeight = 240, bottomSpacing = 48, autoHeight = false, ...props
 }: Props<Row>) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(minBodyHeight);
   useEffect(() => {
     const root = rootRef.current;
-    if (!root) return undefined;
+    if (!root || autoHeight) return undefined;
     const area = root.closest<HTMLElement>('.ant-drawer-body, .ant-modal-body, .platform-content');
     let frame = 0;
     const measure = () => {
@@ -57,18 +58,18 @@ export default function DataTable<Row extends object = any>({
       cancelAnimationFrame(frame);
       window.removeEventListener('resize', measure);
     };
-  }, [maxBodyHeight, minBodyHeight, bottomSpacing]);
+  }, [maxBodyHeight, minBodyHeight, bottomSpacing, autoHeight]);
   return (
     <div ref={rootRef} className={`data-table${loading ? ' is-loading' : ''}`} aria-busy={loading} style={{ '--table-body-height': `${height}px` } as CSSProperties}>
       <div className="data-table-content" aria-hidden={loading || undefined}>
         <Table<Row>
           {...props}
-          scroll={{ x: 'max-content', ...scroll, y: height }}
+          scroll={{ x: 'max-content', ...scroll, ...(autoHeight ? {} : { y: height }) }}
           loading={false}
           locale={{ ...locale, ...(loading ? { emptyText: <div className="data-table-loading-space" /> } : {}) }}
         />
       </div>
-      {loading && <LoadingOverlay regionSelector=".ant-table-body" />}
+      {loading && <LoadingOverlay regionSelector={autoHeight ? '.ant-table-content' : '.ant-table-body'} />}
     </div>
   );
 }

@@ -79,6 +79,8 @@ export class PageDto {
 }
 export class UserQueryDto extends PageDto {
   @IsOptional() @Type(() => Number) @IsIn([0, 1]) active?: number;
+
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) roleId?: number;
 }
 export class ActivityQueryDto extends PageDto {
   @IsOptional() @IsIn(['read', 'unread']) status?: 'read' | 'unread';
