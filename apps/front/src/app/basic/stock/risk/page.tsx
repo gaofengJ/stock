@@ -14,39 +14,81 @@ import RiskInspect from '../../components/RiskInspect';
 import {
   BasicShell, StockLink, SourceState, useWorkbench,
 } from '../../components/workbench';
+import { riskDate } from '../../components/risk-display';
 
 function Risk() {
-  const params = useSearchParams(); const fallback = useDefaultTradeDate();
-  const [selected, setSelected] = useState(params.get('date') || ''); const date = selected || (fallback.ready ? fallback.tradeDate : '');
-  const [keyword, setKeyword] = useState(params.get('code') || ''); const [sector, setSector] = useState<string>(); const [type, setType] = useState<string>();
+  const params = useSearchParams();
+  const fallback = useDefaultTradeDate();
+  const [selected, setSelected] = useState(params.get('date') || '');
+  const date = selected || (fallback.ready ? fallback.tradeDate : '');
+  const [keyword, setKeyword] = useState(params.get('code') || '');
+  const [sector, setSector] = useState<string>();
+  const [type, setType] = useState<string>();
+  const [page, setPage] = useState(1);
+  const [size, setSize] = useState(50);
   const state = useWorkbench('risk', { date, keyword, sector }, !!date);
   return (
     <BasicShell title="风险与交易状态" path="/basic/stock/risk">
       <Space className="mb-16" wrap>
-        <DatePicker aria-label="交易日期" value={date ? dayjs(date) : null} allowClear={false} onChange={(v) => { if (v) setSelected(v.format('YYYY-MM-DD')); }} />
-        <Input.Search placeholder="股票代码／名称" defaultValue={keyword} allowClear onSearch={setKeyword} />
-        <SectorFilter value={sector} onChange={setSector} />
-        <Select allowClear placeholder="风险类型" value={type} onChange={setType} style={{ width: 150 }} options={['ST', '减持', '停牌', '复牌', '异常波动', '严重异常波动', '交易所提示'].map((v) => ({ label: v, value: v }))} />
+        <DatePicker aria-label="交易日期" value={date ? dayjs(date) : null} allowClear={false} onChange={(value) => { if (value) { setSelected(value.format('YYYY-MM-DD')); setPage(1); } }} />
+        <Input.Search placeholder="股票代码／名称" defaultValue={keyword} allowClear onSearch={(value) => { setKeyword(value); setPage(1); }} />
+        <SectorFilter value={sector} onChange={(value) => { setSector(value); setPage(1); }} />
+        <Select allowClear placeholder="风险类型" value={type} onChange={(value) => { setType(value); setPage(1); }} style={{ width: 150 }} options={['ST', '减持', '停牌', '复牌', '异常波动', '严重异常波动', '交易所提示'].map((value) => ({ label: value, value }))} />
       </Space>
-      <SourceState data={state.data} error={state.error} retry={state.retry} />
+      <SourceState data={state.data} error={state.error} retry={state.retry} pollingStopped={state.pollingStopped} />
       {/^[0-9]{6}\.(SH|SZ|BJ)$/.test(keyword) && <RiskInspect code={keyword} date={date} />}
-      <p className="basic-muted">{state.data?.note || '按所选日期展示已取得的风险记录；其余事项需结合公告正文核验。'}</p>
+      <p className="basic-muted">{state.data?.note || '状态日期、公告日与发生／实施日分别展示。缺失日期显示“—”。'}</p>
       <Table
         loading={state.loading}
-        rowKey={(r: any) => `${r.tsCode}-${r.type}-${r.eventDate}-${r.detail}`}
-        dataSource={(state.data?.items || []).filter((r: any) => !type || r.type === type)}
-        pagination={{ pageSize: 20, showSizeChanger: true }}
-        scroll={{ x: 1000 }}
+        rowKey={(record: any) => `${record.tsCode}-${record.type}-${record.eventDate}-${record.detail}`}
+        dataSource={(state.data?.items || []).filter((record: any) => !type || record.type === type)}
+        pagination={{
+          current: page, pageSize: size, showSizeChanger: true, pageSizeOptions: [20, 50, 100], onChange: (next, pageSize) => { setPage(pageSize !== size ? 1 : next); setSize(pageSize); }, showTotal: (total) => `共 ${total} 条记录`,
+        }}
+        scroll={{ x: 1250 }}
         columns={[
           {
-            title: '股票', key: 'stock', width: 180, render: (_, r: any) => <StockLink code={r.tsCode} name={`${r.name || ''} ${r.tsCode}`} date={date} />,
+            title: '股票',
+            key: 'stock',
+            width: 180,
+            render: (_, record: any) => (
+              <div>
+                <StockLink code={record.tsCode} name={record.name || record.tsCode} date={date} />
+                <div className="basic-muted">{record.tsCode}</div>
+              </div>
+            ),
+          },
+          { title: '类型', dataIndex: 'type', width: 90 },
+          {
+            title: '公告日', dataIndex: 'announcementDate', width: 115, render: riskDate, sorter: (a: any, b: any) => String(a.announcementDate || '').localeCompare(String(b.announcementDate || '')),
           },
           {
-            title: '核验', key: 'check', width: 100, render: (_, r: any) => <RiskInspect code={r.tsCode} date={date} />,
+            title: '发生／实施日', dataIndex: 'effectiveDate', width: 120, render: riskDate,
           },
-          { title: '类型', dataIndex: 'type', width: 130 }, { title: '公告／发生日期', dataIndex: 'eventDate', width: 140 }, {
-            title: '参考截止日期', dataIndex: 'endDate', width: 140, render: (v) => v || '—',
-          }, { title: '说明', dataIndex: 'detail', ellipsis: true },
+          {
+            title: '状态日期', dataIndex: 'statusDate', width: 115, render: riskDate,
+          },
+          {
+            title: '截止日', dataIndex: 'endDate', width: 115, render: riskDate,
+          },
+          {
+            title: '说明',
+            dataIndex: 'detail',
+            render: (value, record: any) => (
+              <div>
+                {record.changeType && (
+                <div className="basic-muted">
+                  最近变更：
+                  {record.changeType}
+                </div>
+                )}
+                <div className="risk-table-summary">{value}</div>
+              </div>
+            ),
+          },
+          {
+            title: '资料', key: 'detail', width: 100, render: (_, record: any) => <RiskInspect code={record.tsCode} name={record.name} date={date} />,
+          },
         ]}
       />
     </BasicShell>

@@ -86,20 +86,54 @@ const sourceNames: Record<string, string> = {
   cashflow: '现金流',
   top_inst: '龙虎榜席位',
 };
-export function SourceState({ data, error, retry }: { data: any; error?: string; retry: () => void }) {
+export function SourceState({
+  data, error, retry, pollingStopped = false,
+}: { data: any; error?: string; retry: () => void; pollingStopped?: boolean }) {
   const pending = data?.sources?.filter((s: any) => s.state !== 'ready') || [];
   const sources = Array.from(new Set<string>(pending.map((s: any) => s.source)));
-  const hasError = pending.some((s: any) => s.message);
+  const hasError = pending.some((s: any) => s.message || s.state === 'error');
+  let notice = '正在获取资料，完成后自动更新';
+  if (pollingStopped) notice = '部分资料尚未就绪，可稍后检查更新';
+  if (hasError) notice = '部分资料暂时无法获取';
   return (
     <>
       {error && <Alert className="mb-16" type="error" message={error} action={<Button onClick={retry}>重试</Button>} />}
-      {!!pending.length && <Alert className="mb-16" type={hasError ? 'warning' : 'info'} message={hasError ? '部分来源暂不可用，已保留可用资料' : '正在补齐资料，完成后自动更新'} description={<Space wrap>{sources.map((source) => <Tooltip key={source} title={pending.find((s: any) => s.source === source)?.message || '尚未取得完整快照'}><span>{sourceNames[source] || source}</span></Tooltip>)}</Space>} action={<Button size="small" onClick={retry}>刷新</Button>} />}
+      {!error && !!pending.length && (
+      <Alert
+        className="mb-16"
+        type={hasError ? 'warning' : 'info'}
+        message={notice}
+        description={(
+          <div>
+            <Space wrap>
+              {sources.map((source) => {
+                const entries = pending.filter((s: any) => s.source === source);
+                const failed = entries.find((s: any) => s.message || s.state === 'error');
+                const nextRetryAt = entries.map((s: any) => s.nextRetryAt).filter(Boolean).sort()[0];
+                const title = nextRetryAt ? `下次可获取时间：${new Date(nextRetryAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}` : '可检查资料是否已更新';
+                let status = '获取中';
+                if (pollingStopped) status = '尚未就绪';
+                if (failed) status = '获取失败';
+                return (
+                  <Tooltip key={source} title={title}>
+                    <span>
+                      {sourceNames[source] || '其他资料'}
+                      ：
+                      {status}
+                    </span>
+                  </Tooltip>
+                );
+              })}
+            </Space>
+            {hasError && <p className="basic-muted">已取得的资料仍可查看。检查更新会重新读取现有资料；暂时无法获取的项目将在可重试时间后重新获取。</p>}
+          </div>
+      )}
+        action={<Button size="small" onClick={retry}>检查更新</Button>}
+      />
+      )}
       {!pending.length && !!data?.sources?.length && (
       <p className="basic-muted">
-        数据来源：Tushare
-        {data.sources.some((s: any) => s.source === 'eastmoney_ann') ? '、东方财富公告' : ''}
-        。
-        <Tooltip title={data.sources.map((s: any) => `${sourceNames[s.source] || s.source}：${s.fetchedAt ? new Date(s.fetchedAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : '尚未获取'}`).join('；')}><span>查看更新时间</span></Tooltip>
+        <Tooltip title={data.sources.map((s: any) => `${sourceNames[s.source] || '其他资料'}：${s.fetchedAt ? new Date(s.fetchedAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : '尚未获取'}`).join('；')}><span>查看资料更新时间</span></Tooltip>
       </p>
       )}
     </>
@@ -116,7 +150,7 @@ export function RiskTags({
   return (
     <Space size={2} wrap>
       {labels.map((label) => (canLink ? <Link key={label} href={`/basic/stock/risk/?code=${code}&date=${date || ''}`}><Tag color={label === '复牌' ? 'blue' : 'orange'}>{label}</Tag></Link> : <Tag color="orange" key={label}>{label}</Tag>))}
-      {showSourceState && <Tooltip title="标签仅覆盖已取得的风险记录。减持计划、重大利空及潜在ST／退市风险需结合公告正文逐股核验。"><span className="basic-muted">{!data || data.sources?.some((s: any) => s.state !== 'ready') ? '资料待补齐' : '其他风险待核验'}</span></Tooltip>}
+      {showSourceState && <Tooltip title="标签仅覆盖已取得的风险记录，具体影响需结合公告正文核实。"><span className="basic-muted">{!data || data.sources?.some((s: any) => s.state !== 'ready') ? '资料尚不完整' : '标签仅含已取得记录'}</span></Tooltip>}
     </Space>
   );
 }

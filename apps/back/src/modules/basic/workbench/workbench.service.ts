@@ -5,7 +5,6 @@ import { DataSource, LessThanOrEqual } from 'typeorm';
 import * as dayjs from 'dayjs';
 import { DailyEntity } from '@/modules/source/daily/daily.entity';
 import { StockEntity } from '@/modules/source/stock/stock.entity';
-import { StockHistoryEntity } from '@/modules/source/stock/stock-history.entity';
 import { TradeCalEntity } from '@/modules/source/trade-cal/trade-cal.entity';
 import { ActiveFundsEntity } from '@/modules/source/active-funds/active-funds.entity';
 import { BseMappingEntity } from '@/modules/analysis/market/market.entity';
@@ -103,6 +102,8 @@ export function groupUnlockEvents(items: Record<string, any>[]) {
 @Injectable()
 export class WorkbenchService {
   private readonly profileIdentityCache = new AsyncTtlCache(30000);
+
+  private readonly riskCache = new AsyncTtlCache(10000);
 
   constructor(
     private db: DataSource,
@@ -229,6 +230,29 @@ export class WorkbenchService {
     const date = dto.date || shanghaiDate();
     if (date > shanghaiDate())
       throw new BadRequestException('不能核验未来日期的风险');
+    return this.riskCache.getOrCreate(
+      JSON.stringify([date, dto.code, dto.keyword, dto.sector]),
+      () => this.readRisk({ ...dto, date }),
+    );
+  }
+
+  private async readRisk(dto: WorkbenchQuery & { date: string }) {
+    const { date } = dto;
+    const mappings = await this.profileIdentityCache.getOrCreate(
+      'mapping',
+      () =>
+        this.db.manager.find(BseMappingEntity, {
+          select: { oldCode: true, newCode: true },
+        }),
+    );
+    const canonical = new Map(mappings.map((r) => [r.oldCode, r.newCode]));
+    const code = dto.code ? canonical.get(dto.code) || dto.code : undefined;
+    const aliases = code
+      ? [
+          code,
+          ...mappings.filter((r) => r.newCode === code).map((r) => r.oldCode),
+        ]
+      : undefined;
     const tradeDate = compact(date);
     const definitions = [
       ['stock_st', { trade_date: tradeDate }, 'ST'],
@@ -248,7 +272,9 @@ export class WorkbenchService {
       ],
     ] as const;
     const snapshots = await Promise.all(
-      definitions.map(([api, params]) => this.cache.read(api, params)),
+      definitions.map(([api, params]) =>
+        this.cache.read(api, params, undefined, aliases, true),
+      ),
     );
     const reasons = snapshots[1].rows.filter(
       (r) => isoDate(r.pub_date) <= date && isoDate(r.imp_date) <= date,
@@ -265,11 +291,26 @@ export class WorkbenchService {
                   (!r.end_date || isoDate(r.end_date) >= date)),
             )
             .map((r) => {
-              const reason = reasons
-                .filter((v) => v.ts_code === r.ts_code)
-                .sort((a, b) =>
-                  String(b.imp_date).localeCompare(String(a.imp_date)),
-                )[0];
+              const changes = reasons
+                .filter(
+                  (v) =>
+                    (canonical.get(v.ts_code) || v.ts_code) ===
+                    (canonical.get(r.ts_code) || r.ts_code),
+                )
+                .sort(
+                  (a, b) =>
+                    String(b.imp_date).localeCompare(String(a.imp_date)) ||
+                    String(b.pub_date).localeCompare(String(a.pub_date)),
+                );
+              const reason = changes[0];
+              const announcementDate =
+                isoDate(index === 0 ? reason?.pub_date : r.ann_date) || null;
+              const effectiveDate =
+                isoDate(
+                  index === 0
+                    ? reason?.imp_date
+                    : r.start_date || r.trade_date || date,
+                ) || null;
               return {
                 ...r,
                 tsCode: r.ts_code,
@@ -284,13 +325,24 @@ export class WorkbenchService {
                   index === 0
                     ? reason?.st_explain || r.type_name || '原因暂缺'
                     : r.reason || r.suspend_timing || r.type || '—',
-                eventDate: isoDate(r.start_date || r.trade_date || date),
+                eventDate: index === 0 ? announcementDate || '' : effectiveDate,
+                announcementDate,
+                effectiveDate,
+                statusDate: index === 0 ? date : null,
+                ...(index === 0 && {
+                  changeType: reason?.st_type || null,
+                  changes: changes.map((change) => ({
+                    announcementDate: isoDate(change.pub_date),
+                    effectiveDate: isoDate(change.imp_date),
+                    type: change.st_type,
+                    detail: change.st_explain || change.st_reason,
+                  })),
+                }),
                 endDate: isoDate(r.end_date),
                 source: snapshot.source,
               };
             }),
     );
-    const stocks = await this.db.manager.find(StockEntity);
     // Bound each market-wide source snapshot and share it across strategy/report users.
     const reductionStart = dayjs(date)
       .subtract(179, 'day')
@@ -306,6 +358,8 @@ export class WorkbenchService {
             trade_type: 'DE',
           },
           'ts_code,ann_date,holder_name,in_de,change_vol,change_ratio,begin_date,close_date',
+          aliases,
+          true,
         );
       }),
     );
@@ -324,6 +378,9 @@ export class WorkbenchService {
           type: '减持',
           date,
           eventDate: announced,
+          announcementDate: announced,
+          effectiveDate: isoDate(r.begin_date) || null,
+          statusDate: null,
           endDate: isoDate(r.close_date),
           source: snapshot.source,
           detail: `${r.holder_name || '股东'}；变动数量 ${
@@ -336,23 +393,55 @@ export class WorkbenchService {
         });
       }),
     );
-    const mappings = await this.db.manager.find(BseMappingEntity);
-    const canonical = new Map(mappings.map((r) => [r.oldCode, r.newCode]));
     items = items.map((r) => ({
       ...r,
       tsCode: canonical.get(r.tsCode) || r.tsCode,
     }));
-    const history = await this.db.manager.findOneBy(StockHistoryEntity, {
-      snapshotKey: 'identity',
-    });
-    const stockMap = new Map(stocks.map((r) => [r.tsCode, r.name]));
-    history?.data.stocks.forEach((r) => {
-      if (!stockMap.has(r.tsCode)) stockMap.set(r.tsCode, r.name);
-    });
+    const stockMap = code
+      ? new Map<string, string>()
+      : await this.profileIdentityCache.getOrCreate(
+          'risk-directory',
+          async () => {
+            const [stocks, history] = await Promise.all([
+              this.db.manager.find(StockEntity, {
+                select: { tsCode: true, name: true },
+              }),
+              this.db.query(
+                `SELECT JSON_EXTRACT(data,'$.stocks[*].tsCode') codes,
+               JSON_EXTRACT(data,'$.stocks[*].name') names
+               FROM t_source_stock_history WHERE snapshot_key='identity'`,
+              ),
+            ]);
+            const names = new Map(stocks.map((r) => [r.tsCode, r.name]));
+            const list = (value: any): string[] => {
+              const parsed =
+                typeof value === 'string' ? JSON.parse(value) : value;
+              if (parsed == null) return [];
+              return Array.isArray(parsed) ? parsed : [parsed];
+            };
+            const oldNames = list(history[0]?.names);
+            list(history[0]?.codes).forEach((oldCode, index) => {
+              const currentCode = canonical.get(oldCode) || oldCode;
+              if (!names.has(currentCode))
+                names.set(currentCode, oldNames[index]);
+            });
+            return names;
+          },
+        );
+    if (code) {
+      const stock = await this.db.manager.findOneBy(StockEntity, {
+        tsCode: code,
+      });
+      const archived = stock
+        ? null
+        : await readProfileHistory(this.db, aliases!);
+      const name = stock?.name || archived?.data.stocks[0]?.name;
+      if (name) stockMap.set(code, name);
+    }
     items = items
       .filter((r) => stockMap.has(r.tsCode))
       .map((r) => ({ ...r, name: r.name || stockMap.get(r.tsCode) }));
-    if (dto.code) items = items.filter((r) => r.tsCode === dto.code);
+    if (code) items = items.filter((r) => r.tsCode === code);
     if (dto.keyword)
       items = items.filter(
         (r) =>
@@ -365,11 +454,22 @@ export class WorkbenchService {
     }
     return {
       date,
-      items: await this.sectors.decorate(items, date),
+      code,
+      name: code ? stockMap.get(code) : undefined,
+      items: items.sort(
+        (a, b) =>
+          String(
+            b.statusDate || b.announcementDate || b.eventDate,
+          ).localeCompare(
+            String(a.statusDate || a.announcementDate || a.eventDate),
+          ) ||
+          a.tsCode.localeCompare(b.tsCode) ||
+          a.type.localeCompare(b.type),
+      ),
       sources: sourceStatus([...snapshots, ...reductions]),
       reductionStart,
       checklist: RISK_CHECKLIST,
-      note: 'ST、停复牌按所选日展示；减持记录覆盖近180日已披露公告，包含已完成事项。标签覆盖范围以已取得资料为限；公告计划、重大利空及潜在ST／退市风险需结合公告正文逐股核验。',
+      note: 'ST为所选日状态；公告日与实施日分别展示，最近状态变更不代表全部触发原因。减持记录覆盖近180日已披露公告，包含已完成事项。',
     };
   }
 
@@ -478,14 +578,48 @@ export class WorkbenchService {
         ...base.sources,
         ...sourceStatus([...announcements, financial, audit, balance]),
       ],
-      checks: RISK_CHECKLIST.map((check) => ({
-        ...check,
-        state: 'pending',
-        leads:
-          notices.filter((r) => r.categories.includes(check.key)).length +
-          findings.filter((r) => r.category === check.key).length,
-      })),
-      note: '公告按所选日已披露内容筛选，资料于当前查询时获取。标题匹配和财务异常用于提供核验线索；ST认定需结合所属板块适用规则、公告正文及持续事项进一步核实，未完成的事项保留待核验状态。',
+      checks: RISK_CHECKLIST.map((check) => {
+        const evidence = [
+          ...notices
+            .filter((r) => r.categories.includes(check.key))
+            .map((r) => ({
+              kind: 'announcement',
+              date: r.date,
+              title: r.title,
+              url: r.url,
+            })),
+          ...findings
+            .filter((r) => r.category === check.key)
+            .map((r) => ({
+              kind: 'financial',
+              date: r.date,
+              title: r.detail,
+              url: null,
+            })),
+        ];
+        const relevant = [
+          ...announcements,
+          ...(check.key === 'financial' ? [financial, audit, balance] : []),
+        ];
+        const incomplete =
+          relevant.some((s) => s.state !== 'ready') ||
+          (check.key === 'reduction' &&
+            base.sources.some(
+              (s) => s.source === 'stk_holdertrade' && s.state !== 'ready',
+            ));
+        return {
+          ...check,
+          evidence,
+          leads: evidence.length,
+          state: evidence.length
+            ? 'leads'
+            : incomplete
+            ? 'incomplete'
+            : 'no_matches',
+          requiresReview: true,
+        };
+      }),
+      note: '标题匹配和财务异常提供待核实线索。未检索到相关线索不表示没有风险，具体影响需结合公告正文和适用规则核对。',
     };
   }
 

@@ -78,3 +78,22 @@ test('stale usable values refresh quietly, but failed refreshes are terminal', (
   assert.equal(p.sourcePending({ state: 'stale', message: 'unavailable' }), false);
   assert.equal(p.sourcePending({ state: 'ready' }), false);
 });
+const riskDisplay = load('app/basic/components/risk-display.ts', { require: name => name === './workbench-polling' ? polling() : require(name) });
+test('risk dates distinguish missing dates from status and normalize report periods', () => {
+  assert.equal(riskDisplay.riskDate('20260630'), '2026-06-30');
+  assert.equal(riskDisplay.riskDate('2026-09-30'), '2026-09-30');
+  assert.equal(riskDisplay.riskDate(null), '—');
+});
+test('risk missing fields distinguish source failure, pending, stopped and no disclosed records', () => {
+  const make = (state, message = null) => [{ source: 'balancesheet', state, message }];
+  assert.equal(riskDisplay.riskMissing(make('error', 'unavailable'), 'balancesheet'), '暂时无法获取');
+  assert.equal(riskDisplay.riskMissing(make('stale', 'unavailable'), 'balancesheet'), '暂时无法获取');
+  assert.equal(riskDisplay.riskMissing(make('loading'), 'balancesheet'), '正在获取资料');
+  assert.equal(riskDisplay.riskMissing(make('loading'), 'balancesheet', true), '资料尚未就绪');
+  assert.equal(riskDisplay.riskMissing(make('ready'), 'balancesheet'), '暂无截至所选日已披露的资料');
+});
+test('risk title matches are review leads and missing evidence never claims no risk', () => {
+  assert.equal(riskDisplay.riskCheckLabel({ state: 'leads', leads: 7 }), '7条待核实线索');
+  assert.equal(riskDisplay.riskCheckLabel({ state: 'incomplete', leads: 0 }), '资料不完整');
+  assert.equal(riskDisplay.riskCheckLabel({ state: 'no_matches', leads: 0 }), '未检索到相关线索');
+});

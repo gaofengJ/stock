@@ -3,6 +3,7 @@ export interface WorkbenchSource {
   state: 'ready' | 'loading' | 'stale' | 'error';
   message?: string | null;
   fetchedAt?: string | null;
+  nextRetryAt?: string | null;
 }
 
 export const sourcePending = (source?: WorkbenchSource) => !!source && (source.state === 'loading' || (source.state === 'stale' && !source.message));

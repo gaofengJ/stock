@@ -15,6 +15,7 @@ export interface SourceSnapshot {
   fetchedAt: string | null;
   state: 'ready' | 'loading' | 'stale' | 'error';
   message: string | null;
+  nextRetryAt?: string | null;
 }
 const caps: Record<string, number> = {
   stock_company: 4500,
@@ -66,13 +67,16 @@ export class BasicSnapshotService {
     params: Record<string, unknown>,
     fields?: string,
     rowCodes?: string[],
+    allMatches = false,
   ): Promise<SourceSnapshot> {
     if (!caps[source]) throw new Error('Unsupported basic source');
     const snapshotKey = createHash('sha256')
       .update(JSON.stringify([source, params, fields || '']))
       .digest('hex');
     const cached = rowCodes?.length
-      ? await this.readProjected(snapshotKey, rowCodes)
+      ? allMatches
+        ? await this.readProjectedRows(snapshotKey, rowCodes)
+        : await this.readProjected(snapshotKey, rowCodes)
       : await this.db.manager.findOneBy(BasicSnapshotEntity, { snapshotKey });
     this.deferred.forEach((until, key) => {
       if (until <= Date.now()) this.deferred.delete(key);
@@ -180,6 +184,7 @@ export class BasicSnapshotService {
         : this.pending.has(snapshotKey)
         ? null
         : cached?.error || null,
+      nextRetryAt: cached?.error && !due ? cached.retryAt.toISOString() : null,
     };
   }
 
@@ -205,6 +210,61 @@ export class BasicSnapshotService {
         .map((value) =>
           typeof value === 'string' ? JSON.parse(value) : value,
         ),
+    };
+  }
+
+  /** Keep every event for this stock, including old-code records, without transferring the market snapshot. */
+  private async readProjectedRows(
+    snapshotKey: string,
+    codes: string[],
+    attempt = 0,
+  ): Promise<{
+    fetchedAt: Date | null;
+    retryAt: Date;
+    error: string | null;
+    rows: Record<string, any>[];
+  } | null> {
+    const list = (value: any) => {
+      const parsed =
+        typeof value === 'string' && !value.startsWith('$')
+          ? JSON.parse(value)
+          : value;
+      if (parsed == null) return [];
+      return Array.isArray(parsed) ? parsed : [parsed];
+    };
+    const [record] = await this.db.query(
+      `SELECT fetched_at fetchedAt,retry_at retryAt,error,${codes
+        .map(
+          (_, index) =>
+            `JSON_SEARCH(data,'all',?,NULL,'$[*].ts_code') paths${index}`,
+        )
+        .join(',')} FROM t_source_basic_snapshot WHERE snapshot_key=?`,
+      [...codes, snapshotKey],
+    );
+    if (!record) return null;
+    const paths = [
+      ...new Set(codes.flatMap((_, index) => list(record[`paths${index}`]))),
+    ]
+      .filter((path) => /^\$\[\d+\]\.ts_code$/.test(path))
+      .map((path: string) => path.replace(/\.ts_code$/, ''));
+    let rows: Record<string, any>[] = [];
+    if (paths.length) {
+      const [projected] = await this.db.query(
+        `SELECT JSON_EXTRACT(data,${paths.map(() => '?').join(',')}) rows
+         FROM t_source_basic_snapshot WHERE snapshot_key=? AND fetched_at <=> ?`,
+        [...paths, snapshotKey, record.fetchedAt],
+      );
+      if (!projected) {
+        if (!attempt) return this.readProjectedRows(snapshotKey, codes, 1);
+        throw new Error('资料正在更新，请稍后重试');
+      }
+      rows = list(projected.rows).filter((row) => codes.includes(row.ts_code));
+    }
+    return {
+      fetchedAt: record.fetchedAt ? new Date(record.fetchedAt) : null,
+      retryAt: new Date(record.retryAt),
+      error: record.error,
+      rows,
     };
   }
 

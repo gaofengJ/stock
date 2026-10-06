@@ -121,11 +121,56 @@ describe('risk evidence sources', () => {
     expect(result.announcements).toHaveLength(1);
     expect(result.findings).toHaveLength(3);
     expect(result.financial?.profit_dedt).toBe(-1);
-    expect(result.checks.every((check) => check.state === 'pending')).toBe(
-      true,
-    );
+    expect(result.checks.every((check) => check.requiresReview)).toBe(true);
+    expect(
+      result.checks.find((check) => check.key === 'financial')?.state,
+    ).toBe('leads');
+    expect(
+      result.checks.find((check) => check.key === 'governance')?.state,
+    ).toBe('no_matches');
     expect(
       result.checks.find((check) => check.key === 'reduction')?.leads,
     ).toBe(1);
+    expect(
+      result.checks.find((check) => check.key === 'reduction')?.evidence,
+    ).toEqual([
+      {
+        kind: 'announcement',
+        date: '2026-09-30',
+        title: '减持计划',
+        url: 'https://example.com/ann',
+      },
+    ]);
+  });
+  it('distinguishes incomplete evidence from a complete search without title matches', async () => {
+    const service = new WorkbenchService(
+      { manager: { find: async () => [] } } as any,
+      {
+        read: async (source: string) => ({
+          source,
+          state: source === 'balancesheet' ? 'error' : 'ready',
+          rows: [],
+        }),
+      } as any,
+      {} as any,
+    );
+    jest
+      .spyOn(service, 'risk')
+      .mockResolvedValue({ items: [], sources: [], date: '2026-09-30' } as any);
+    const result = await service.riskDetail({
+      code: '000001.SZ',
+      date: '2026-09-30',
+    });
+    expect(
+      result.checks.find((check) => check.key === 'financial'),
+    ).toMatchObject({
+      state: 'incomplete',
+      leads: 0,
+      evidence: [],
+      requiresReview: true,
+    });
+    expect(result.checks.find((check) => check.key === 'adverse')?.state).toBe(
+      'no_matches',
+    );
   });
 });

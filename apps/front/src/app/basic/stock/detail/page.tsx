@@ -32,8 +32,7 @@ function SourceNote({ sources = [], stopped, retry }: { sources?: WorkbenchSourc
   const pending = sources.some(sourcePending);
   const stale = sources.some((source) => source.state === 'stale');
   const dates = sources.map((source) => source.fetchedAt).filter(Boolean).sort();
-  let text = '数据来源：Tushare';
-  if (dates.length) text += ` · 更新于 ${dayjs(dates[0]).format('YYYY-MM-DD HH:mm')}`;
+  let text = dates.length ? `资料更新于 ${dayjs(dates[0]).format('YYYY-MM-DD HH:mm')}` : '资料更新时间暂缺';
   if (stale && pending && !stopped) text += ' · 正在更新，当前展示上次取得的资料';
   if (failed) text += ' · 部分资料暂时无法获取，已取得的内容仍可查看';
   if (pending && stopped && !failed) text += ' · 加载时间较长，可稍后重试';
@@ -178,7 +177,7 @@ function Profile() {
                 <Space wrap size={[16, 8]}>{routes.filter((route) => allowedPath(user, route.path)).map((route) => <Link key={route.path} href={`${route.path}/?${route.query}`}>{route.label}</Link>)}</Space>
                 <div className="profile-actions-secondary">
                   {allowedPath(user, '/basic/stock/risk') && <Link href={`/basic/stock/risk/?code=${linkedCode}&date=${date}`}>交易状态</Link>}
-                  <InteractionButton intent="preview" onClick={() => setRisk(true)}>公告与财务风险核验</InteractionButton>
+                  <InteractionButton intent="preview" onClick={() => setRisk(true)}>公告与财务风险资料</InteractionButton>
                   {allowedPath(user, '/basic/trade-cal') && <Link href={`/basic/trade-cal/?code=${linkedCode}&date=${date}`}>相关事件</Link>}
                 </div>
               </nav>
@@ -257,7 +256,7 @@ function Profile() {
               </Card>
             )}
             {chart && stock && <StockChart key={`${linkedCode}-${date}`} neutral stock={stock} date={date} strategy="fiveMaUp" options={trendDefaults} onClose={() => setChart(false)} />}
-            <Modal open={risk} title={`${stock?.name || linkedCode} · 公告与财务风险核验`} onCancel={() => setRisk(false)} footer={null} width={960} destroyOnClose>{risk && <RiskDetails code={linkedCode} date={date} />}</Modal>
+            <Modal className="basic-risk-modal" open={risk} title={`${stock?.name || linkedCode} · 公告与财务风险资料`} onCancel={() => setRisk(false)} footer={null} width={1000} destroyOnClose>{risk && <RiskDetails code={linkedCode} date={date} />}</Modal>
           </>
         )}
       </div>
