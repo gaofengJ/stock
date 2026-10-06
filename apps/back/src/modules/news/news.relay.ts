@@ -1,6 +1,6 @@
 import { open } from 'fs/promises';
 
-export const RELAY_DELAY_MS = 45 * 60000;
+export const RELAY_DELAY_MS = 15 * 60000;
 export const RELAY_MAX_AGE_MS = 24 * 3600000;
 
 /** Keep delayed public snapshots readable, while preserving their actual fetch time. */

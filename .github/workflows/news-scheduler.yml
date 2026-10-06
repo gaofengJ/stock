@@ -1,0 +1,88 @@
+name: Manage server news scheduler
+on:
+  pull_request:
+    paths:
+      - ops/news-dispatch/**
+      - .github/workflows/news-scheduler.yml
+      - .github/workflows/bloomberg-news.yml
+  push:
+    branches: [master]
+    paths:
+      - ops/news-dispatch/**
+      - .github/workflows/news-scheduler.yml
+      - .github/workflows/bloomberg-news.yml
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Deploy, inspect or disable the server timer
+        type: choice
+        options: [inspect, deploy, disable]
+        default: inspect
+permissions:
+  contents: read
+concurrency:
+  group: stock-news-scheduler-${{ github.event_name == 'workflow_dispatch' && 'installation' || github.ref }}
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: ops/news-dispatch
+      - name: Test dispatch, recovery and feed health
+        run: python3 -m unittest discover -s ops/news-dispatch -p 'test_*.py'
+      - name: Check installer syntax and timer calendar
+        run: |
+          bash -n ops/news-dispatch/install.sh
+          systemd-analyze calendar '*-*-* *:0/5:00'
+      - name: Verify production Python 3.5 compatibility
+        run: docker run --rm -v "$PWD/ops/news-dispatch:/tests:ro" -w /tests python:3.5-slim python -B -m unittest discover -p 'test_*.py'
+  manage:
+    needs: verify
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        if: inputs.operation == 'deploy'
+        with:
+          sparse-checkout: ops/news-dispatch
+      - name: Prepare dedicated credential
+        if: inputs.operation == 'deploy'
+        env:
+          NEWS_DISPATCH_TOKEN: ${{ secrets.NEWS_DISPATCH_TOKEN }}
+        run: python3 -B ops/news-dispatch/render-credential.py ops/news-dispatch/credential.env
+      - name: Upload scheduler installation package
+        if: inputs.operation == 'deploy'
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: ops/news-dispatch
+          target: /opt/stock-news/scheduler-packages/${{ github.run_id }}
+      - name: Apply requested scheduler operation
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          OPERATION: ${{ inputs.operation }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          envs: OPERATION
+          command_timeout: 4m
+          script: |
+            set -eu
+            case "$OPERATION" in
+              deploy) bash /opt/stock-news/scheduler-packages/${{ github.run_id }}/ops/news-dispatch/install.sh ;;
+              inspect) ;;
+              disable) systemctl disable --now stock-news-dispatch.timer ;;
+              *) echo 'Unsupported operation'; exit 1 ;;
+            esac
+            systemctl list-timers stock-news-dispatch.timer --no-pager
+            if [ -f /opt/stock-news/scheduler/dispatch.py ]; then
+              python3 -B /opt/stock-news/scheduler/dispatch.py --inspect
+            fi
+            journalctl -u stock-news-dispatch.service -n 20 --no-pager

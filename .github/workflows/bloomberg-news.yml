@@ -1,13 +1,18 @@
 name: Collect public Bloomberg news
+run-name: 资讯采集 · ${{ inputs.dispatch_id || github.event_name }}
 on:
   workflow_dispatch:
     inputs:
       deliver:
-        description: Deliver translated feed to the website
+        description: Deliver collected feeds and subsequent translations to the website
         type: boolean
         default: true
+      dispatch_id:
+        description: Unique server dispatch identifier
+        type: string
+        default: ''
   schedule:
-    - cron: '3-59/5 * * * *'
+    - cron: '43 * * * *'
 permissions:
   contents: read
 concurrency:
@@ -42,6 +47,41 @@ jobs:
         id: bloomberg
         continue-on-error: true
         run: python3 .github/scripts/bloomberg_relay.py collect --file bloomberg.json
+      - name: Upload original Bloomberg feed immediately
+        if: steps.bloomberg.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.deliver)
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: bloomberg.json,.github/scripts/bloomberg_relay.py,.github/scripts/sina_relay.py
+          target: /opt/stock-news/staging/${{ github.run_id }}
+      - name: Upload Sina feed immediately
+        if: steps.sina.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.deliver)
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: sina.json,.github/scripts/bloomberg_relay.py,.github/scripts/sina_relay.py
+          target: /opt/stock-news/staging/${{ github.run_id }}
+      - name: Deliver originals before translation
+        if: (steps.bloomberg.outcome == 'success' || steps.sina.outcome == 'success') && (github.event_name != 'workflow_dispatch' || inputs.deliver)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          command_timeout: 2m
+          script: |
+            set -eu
+            if [ '${{ steps.bloomberg.outcome }}' = success ]; then
+              python3 -B /opt/stock-news/staging/${{ github.run_id }}/.github/scripts/bloomberg_relay.py receive --file /opt/stock-news/staging/${{ github.run_id }}/bloomberg.json
+            fi
+            if [ '${{ steps.sina.outcome }}' = success ]; then
+              python3 -B /opt/stock-news/staging/${{ github.run_id }}/.github/scripts/sina_relay.py receive --file /opt/stock-news/staging/${{ github.run_id }}/sina.json
+            fi
+            docker exec stock-back node -e "require('dotenv').config({path:process.env.APP_ENV_FILE});const ds=require('./dist/migration-data-source').default;(async()=>{await ds.initialize();try{await ds.query(\"UPDATE t_news_source SET next_attempt=NULL,consecutive_failures=0 WHERE enabled=1 AND source IN ('sina','bloomberg')\");}finally{await ds.destroy();}})().catch(()=>{process.exitCode=1;});"
       - uses: actions/setup-python@v5
         if: steps.bloomberg.outcome == 'success'
         with:
@@ -106,8 +146,10 @@ jobs:
             echo '::warning::Translation unavailable; original English feed will still be delivered and retried next run.'
           fi
           du -sh .argos-venv .argos .translation-cache 2>/dev/null || true
-      - name: Upload to isolated staging directory
-        if: steps.bloomberg.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.deliver)
+      - name: Upload translated Bloomberg snapshot
+        id: translated_upload
+        if: steps.translate.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.deliver)
+        continue-on-error: true
         uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -115,17 +157,10 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           source: bloomberg.json,.github/scripts/bloomberg_relay.py,.github/scripts/sina_relay.py
           target: /opt/stock-news/staging/${{ github.run_id }}
-      - name: Upload Sina to the same isolated staging directory
-        if: steps.sina.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.deliver)
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          source: sina.json,.github/scripts/bloomberg_relay.py,.github/scripts/sina_relay.py
-          target: /opt/stock-news/staging/${{ github.run_id }}
-      - name: Atomically replace the validated feed
-        if: (steps.bloomberg.outcome == 'success' || steps.sina.outcome == 'success') && (github.event_name != 'workflow_dispatch' || inputs.deliver)
+      - name: Deliver translations without delaying originals
+        id: translated_delivery
+        if: steps.translated_upload.outcome == 'success'
+        continue-on-error: true
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -134,13 +169,11 @@ jobs:
           command_timeout: 2m
           script: |
             set -eu
-            if [ '${{ steps.bloomberg.outcome }}' = success ]; then
-              python3 -B /opt/stock-news/staging/${{ github.run_id }}/.github/scripts/bloomberg_relay.py receive --file /opt/stock-news/staging/${{ github.run_id }}/bloomberg.json
-            fi
-            if [ '${{ steps.sina.outcome }}' = success ]; then
-              python3 -B /opt/stock-news/staging/${{ github.run_id }}/.github/scripts/sina_relay.py receive --file /opt/stock-news/staging/${{ github.run_id }}/sina.json
-            fi
-            docker exec stock-back node -e "require('dotenv').config({path:process.env.APP_ENV_FILE});const ds=require('./dist/migration-data-source').default;(async()=>{await ds.initialize();try{await ds.query(\"UPDATE t_news_source SET next_attempt=NULL,consecutive_failures=0 WHERE enabled=1 AND source IN ('sina','bloomberg')\");}finally{await ds.destroy();}})().catch(()=>{process.exitCode=1;});"
+            python3 -B /opt/stock-news/staging/${{ github.run_id }}/.github/scripts/bloomberg_relay.py receive --file /opt/stock-news/staging/${{ github.run_id }}/bloomberg.json
+            docker exec stock-back node -e "require('dotenv').config({path:process.env.APP_ENV_FILE});const ds=require('./dist/migration-data-source').default;(async()=>{await ds.initialize();try{await ds.query(\"UPDATE t_news_source SET next_attempt=NULL WHERE enabled=1 AND source='bloomberg'\");}finally{await ds.destroy();}})().catch(()=>{process.exitCode=1;});"
+      - name: Report translation delivery failure
+        if: steps.translated_upload.outcome == 'failure' || steps.translated_delivery.outcome == 'failure'
+        run: echo '::warning::Translation delivery failed; original feeds have already been delivered.'
       - name: Report source collection failures
         if: steps.bloomberg.outcome != 'success' || steps.sina.outcome != 'success'
         run: |

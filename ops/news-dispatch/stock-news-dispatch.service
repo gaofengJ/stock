@@ -1,0 +1,17 @@
+[Unit]
+Description=Trigger overseas public news collection
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=stock-news-dispatch
+Group=stock-news-dispatch
+EnvironmentFile=/etc/stock-news-dispatch.env
+ExecStart=/usr/bin/python3 -B /opt/stock-news/scheduler/dispatch.py
+UMask=0077
+TimeoutStartSec=3min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full

@@ -59,13 +59,13 @@ docker logs --tail 100 rsshub
 
 ## 彭博外部采集
 
-`.github/workflows/bloomberg-news.yml` 在 GitHub 标准 Ubuntu 执行器上每 5 分钟请求固定的 `https://www.bloomberg.com/feeds/markets/news.rss`，只取公开标题、摘要、时间与链接，最多 30 条。同一任务独立采集新浪滚动列表 `https://feed.mix.sina.com.cn/api/roll/get?pageid=384&lid=2519&num=30&page=1`，不请求文章全文；两路采集失败互不阻塞。新浪快照为 `sina.json`，后端以只读文件采集，保留原 `sina` 来源标识。不请求文章全文、不需要彭博账号。已实测读取 20 条带时间及原文链接的市场新闻。
+`.github/workflows/bloomberg-news.yml` 由生产服务器每 5 分钟触发，在 GitHub 标准 Ubuntu 执行器上请求固定的 `https://www.bloomberg.com/feeds/markets/news.rss`，只取公开标题、摘要、时间与链接，最多 30 条。同一任务独立采集新浪滚动列表 `https://feed.mix.sina.com.cn/api/roll/get?pageid=384&lid=2519&num=30&page=1`，不请求文章全文；两路采集失败互不阻塞。新浪快照为 `sina.json`，后端以只读文件采集，保留原 `sina` 来源标识。不请求文章全文、不需要彭博账号。已实测读取 20 条带时间及原文链接的市场新闻。
 
 任务复用现有 SSH Secrets，把 JSON 与接收程序传到 `/opt/stock-news/staging/<run_id>`。接收程序校验来源、条目域名、时间和大小后原子替换 `/opt/stock-news/feeds/bloomberg.json`，成功后仅清理该任务自己的暂存文件。交付后重置已启用来源的重试计时，后端下一个调度周期即可读取。上一次有效快照在失败时保留，不长期积累 XML、JSON 或 GitHub artifacts。后端通过只读目录挂载 `/run/stock/news-feeds` 读取，再走相同的清洗、去重、入库与 30 天保留流程；不开放额外公网接口。
 
-后端再次验证快照和文章来源，超过 45 分钟的快照标注“更新延迟”，保留阅读；超过 24 小时的快照视为故障并隐藏；30 天内的历史新闻仍保留。默认文件位置可通过受信任的服务器配置 `BLOOMBERG_FEED_FILE`、`SINA_FEED_FILE` 调整。`last_success` 记录境外真实采集时间，重复读取同一快照不会刷新该时间；普通页面及来源管理均明确提示延迟。手动更新：在 GitHub Actions 中运行 “Collect public Bloomberg news”。
+后端再次验证快照和文章来源，超过 15 分钟的快照标注“更新延迟”，保留阅读；超过 24 小时的快照视为故障并隐藏；30 天内的历史新闻仍保留。默认文件位置可通过受信任的服务器配置 `BLOOMBERG_FEED_FILE`、`SINA_FEED_FILE` 调整。`last_success` 记录境外真实采集时间，重复读取同一快照不会刷新该时间；普通页面及来源管理均明确提示延迟。手动更新：在 GitHub Actions 中运行 “Collect public Bloomberg news”。
 
-GitHub 定时任务可能排队或被丢弃，5 分钟是计划间隔，不是实时保证；公开仓库连续 60 天无活动会自动停用定时任务，需在 Actions 中重新启用。若将来需要严格、持续的更新时延，可将同一个标准库采集程序迁到长期运行的境外节点。标准 GitHub 执行器在本公开仓库免费，无须额外 VPS 或代理订阅，但仍受 GitHub 调度和可用性约束。
+服务器 systemd 每 5 分钟调用 workflow_dispatch，GitHub 每小时定时任务作为后备，避免依赖容易漏触发的 GitHub cron。部署与凭据轮换见 [服务器采集调度](../../../../ops/news-dispatch/README.md)。执行器仍可能排队，5 分钟是触发间隔，不是实时保证；公开仓库连续 60 天无活动会自动停用定时任务，需在 Actions 中重新启用。若将来需要严格、持续的更新时延，可将同一个标准库采集程序迁到长期运行的境外节点。标准 GitHub 执行器在本公开仓库免费，无须额外 VPS 或代理订阅，但仍受 GitHub 调度和可用性约束。
 
 参考：[GitHub 定时任务](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)、[标准公开仓库执行器](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)。
 
