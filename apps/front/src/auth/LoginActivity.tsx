@@ -213,6 +213,7 @@ export default function LoginActivity() {
         size="middle"
         loading={loading}
         scroll={{ x: 820 }}
+        autoHeight={data.items.length <= 5}
         rowClassName={(item) => (item.unread ? 'login-activity-unread' : '')}
         dataSource={data.items}
         locale={{ emptyText: error ? '登录动态加载失败，请重试' : emptyText }}
@@ -221,6 +222,7 @@ export default function LoginActivity() {
           pageSize,
           total: data.total,
           showSizeChanger: true,
+          hideOnSinglePage: true,
           pageSizeOptions: [20, 50, 100],
           onChange: (next, size) => { setPage(size === pageSize ? next : 1); setPageSize(size); },
           showTotal: (total) => `共 ${total} 条`,

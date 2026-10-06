@@ -1,4 +1,17 @@
 .account-page { max-width: 1480px; margin: 0 auto; color: var(--color-black); }
+.account-page.admin-page { width: 100%; max-width: none; min-width: 0; margin: 0; }
+.admin-page .ant-table-cell { overflow-wrap: anywhere; }
+.admin-page .admin-cell-nowrap { white-space: nowrap; overflow-wrap: normal; }
+.admin-page .admin-log-message { white-space: pre-wrap; overflow-wrap: anywhere; }
+.admin-page .account-toolbar .ant-form-item { max-width: 100%; min-width: 0; }
+.admin-page .account-toolbar .ant-picker-range { max-width: 100%; min-width: 0; }
+@media (max-width: 767px) {
+  .admin-page .account-toolbar .ant-form-item { flex: 1 1 100%; margin-inline-end: 0; }
+  .admin-page .account-toolbar .ant-form-item-control { min-width: 0; }
+  .admin-page .account-toolbar .ant-form-item-row { flex-direction: column; align-items: stretch; }
+  .admin-page .account-toolbar .ant-form-item-label { text-align: left; padding: 0 0 6px; }
+  .admin-page .account-toolbar .ant-picker-range { width: 100%; }
+}
 .account-surface { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 6px; padding: 16px; }
 .account-heading { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
 .account-heading-icon { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; border-radius: 12px; background: var(--color-primary-soft); color: var(--color-primary); font-size: 21px; }
@@ -21,9 +34,30 @@
 .users-summary { margin: 0 0 12px; color: var(--text-secondary); font-size: 14px; }
 .users-name { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; overflow-wrap: anywhere; }
 .users-name .ant-tag { margin: 0; white-space: nowrap; }
+.roles-filters .roles-search { width: 280px; max-width: 100%; }
+.roles-type { width: 150px; }
+.roles-summary { margin-bottom: 12px; color: var(--text-secondary); font-size: 14px; }
+.role-identity { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; overflow-wrap: anywhere; }
+.role-identity .ant-tag { margin: 0; }
+.account-page .ant-btn.role-action[aria-disabled="true"], .account-page .ant-btn.role-action[aria-disabled="true"]:hover { color: var(--text-disabled); background: transparent; cursor: default; }
+.role-members > div { display: flex; flex-wrap: wrap; gap: 4px; }
+.role-members .ant-tag { max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.role-members .ant-btn-link { padding-inline: 0; }
+.role-member-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.role-member-toolbar + .ant-input-search { margin-bottom: 16px; }
+.role-permission-options { width: 100%; }
+.role-permission-options > .account-permission-group { width: 100%; }
+.role-permission-group-items { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+.role-changes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 16px 0; padding: 16px; border: 1px solid var(--color-border); border-radius: 6px; }
+.role-changes strong { display: block; margin-bottom: 8px; }
+.role-changes .ant-tag { margin-bottom: 6px; }
+.role-metadata-changes { overflow-wrap: anywhere; }
 @media (max-width: 600px) {
   .users-filters .users-search { width: 100%; }
   .users-filters .users-select { flex: 1; min-width: 120px; }
+  .roles-filters .roles-search { width: 100%; }
+  .roles-filters .roles-type { flex: 1; min-width: 120px; }
+  .role-changes { grid-template-columns: 1fr; }
 }
 .account-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 0 0 24px; }
 .account-stats .ant-card { border-color: var(--color-border); box-shadow: none; }

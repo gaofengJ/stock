@@ -193,7 +193,8 @@ export default function Page() {
         locale={{ emptyText: loading ? '加载中…' : (loadError || '没有符合条件的日志') }}
         loading={loading}
         size="middle"
-        scroll={{ x: 900 }}
+        scroll={{ x: tab === 'logs' ? 900 : 1000 }}
+        autoHeight={data.items.length <= 5}
         rowKey="id"
         dataSource={data.items}
         pagination={{
@@ -202,34 +203,41 @@ export default function Page() {
           total: data.total,
           onChange: setPage,
           showSizeChanger: false,
+          hideOnSinglePage: true,
         }}
         columns={
           tab === 'logs'
             ? [
-              { title: '时间', dataIndex: 'timestamp' },
-              { title: '级别', dataIndex: 'level' },
-              { title: '模块', dataIndex: 'context' },
+              {
+                title: '时间', dataIndex: 'timestamp', width: 210, className: 'admin-cell-nowrap',
+              },
+              { title: '级别', dataIndex: 'level', width: 90 },
+              { title: '模块', dataIndex: 'context', width: 180 },
               {
                 title: '内容',
                 dataIndex: 'message',
-                ellipsis: true,
+                className: 'admin-log-message',
                 render: (v) => (typeof v === 'string' ? v : JSON.stringify(v)),
               },
               {
                 title: '详情',
+                width: 80,
                 render: (_, r) => (
                   <InteractionButton intent="preview" onClick={() => setDetail(r)}>查看</InteractionButton>
                 ),
               },
             ]
             : [
-              { title: '时间', dataIndex: 'createdAt', render: (v) => (v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '—') },
-              { title: '用户', dataIndex: 'actorName' },
-              { title: '操作', dataIndex: 'action' },
+              {
+                title: '时间', dataIndex: 'createdAt', width: 210, className: 'admin-cell-nowrap', render: (v) => (v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '—'),
+              },
+              { title: '用户', dataIndex: 'actorName', width: 160 },
+              { title: '操作', dataIndex: 'action', width: 220 },
               { title: '目标', dataIndex: 'target' },
-              { title: '结果', dataIndex: 'result' },
+              { title: '结果', dataIndex: 'result', width: 100 },
               {
                 title: '详情',
+                width: 80,
                 render: (_, r) => (
                   <InteractionButton intent="preview" onClick={() => setDetail(r)}>查看</InteractionButton>
                 ),

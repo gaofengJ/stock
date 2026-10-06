@@ -88,6 +88,22 @@ async function check(path, cookie, needsRows = false, expectedStatus = 200) {
     )
       throw new Error('User role/status filter verification failed');
     await check('/api/admin/login-activity?pageSize=1', cookie);
+    const roles = await check('/api/admin/roles', cookie);
+    if (
+      !Array.isArray(roles) ||
+      !roles.length ||
+      !roles.every(
+        (role) =>
+          /^[a-f0-9]{64}$/.test(role.revision) &&
+          role.users.every(
+            (user) =>
+              typeof user.username === 'string' &&
+              typeof user.nickname === 'string' &&
+              typeof user.active === 'boolean',
+          ),
+      )
+    )
+      throw new Error('Role revision and member metadata verification failed');
     await check('/api/admin/login-activity?pageSize=1&status=unread', cookie);
     await check('/api/admin/sync-jobs?pageSize=1', cookie);
     await check('/api/admin/logs?pageSize=1', cookie);

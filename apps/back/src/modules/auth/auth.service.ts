@@ -45,6 +45,24 @@ export type AuthRequest = FastifyRequest & {
   authSession?: any;
 };
 const fail = () => new UnauthorizedException('账号或密码错误');
+const roleRevision = (role: {
+  code: string;
+  name: string;
+  description: string;
+  builtin: number | boolean;
+  permissions: string[];
+  users: { id: number }[];
+}) =>
+  digest(
+    JSON.stringify([
+      role.code,
+      role.name,
+      role.description || '',
+      !!role.builtin,
+      [...new Set(role.permissions)].sort(),
+      [...new Set(role.users.map((u) => u.id))].sort((a, b) => a - b),
+    ]),
+  );
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -737,25 +755,43 @@ export class AuthService implements OnModuleInit {
   }
 
   async roles() {
-    const rows = await this.db.query(
-      'SELECT id,code,role_name name,`desc` description,builtin FROM t_role ORDER BY id',
-    );
-    for (const r of rows) {
-      r.permissions = (
-        await this.db.query(
-          'SELECT p.code FROM t_permission p JOIN t_role_permission rp ON p.id=rp.permission_id WHERE rp.role_id=?',
-          [r.id],
-        )
-      ).map((p: { code: string }) => p.code);
-      r.users = await this.db.query(
-        'SELECT u.id,u.username FROM t_user u JOIN t_user_role ur ON u.id=ur.user_id WHERE ur.role_id=?',
-        [r.id],
+    return this.db.transaction('REPEATABLE READ', async (m) => {
+      const rows = await m.query(
+        'SELECT id,code,role_name name,`desc` description,builtin FROM t_role ORDER BY id',
       );
-    }
-    return rows;
+      const permissions = await m.query(
+        'SELECT DISTINCT rp.role_id roleId,p.code FROM t_permission p JOIN t_role_permission rp ON p.id=rp.permission_id ORDER BY p.code',
+      );
+      const users = await m.query(
+        'SELECT DISTINCT ur.role_id roleId,u.id,u.username,u.nickname,u.avatar,u.is_active active FROM t_user u JOIN t_user_role ur ON u.id=ur.user_id ORDER BY u.id',
+      );
+      return rows.map((r: any) => {
+        const role = {
+          ...r,
+          permissions: permissions
+            .filter((p: { roleId: number }) => p.roleId === r.id)
+            .map((p: { code: string }) => p.code),
+          users: users
+            .filter((u: { roleId: number }) => u.roleId === r.id)
+            .map((u: any) => ({
+              id: u.id,
+              username: u.username,
+              nickname: u.nickname,
+              avatar: u.avatar,
+              active: !!u.active,
+            })),
+        };
+        return { ...role, revision: roleRevision(role) };
+      });
+    });
   }
 
-  async saveRole(actor: CurrentUser, id: number | null, dto: RoleDto) {
+  async saveRole(
+    actor: CurrentUser,
+    id: number | null,
+    dto: RoleDto,
+    expectedRevision?: string,
+  ) {
     const known = new Set(PERMISSIONS.map((p) => p.code));
     if (dto.permissions.some((p) => !known.has(p)))
       throw new BadRequestException('未知权限');
@@ -767,7 +803,7 @@ export class AuthService implements OnModuleInit {
         if (id) {
           await this.assertManageableRole(current, id, m);
           const [r] = await m.query(
-            'SELECT code,builtin FROM t_role WHERE id=? FOR UPDATE',
+            'SELECT code,role_name name,`desc` description,builtin FROM t_role WHERE id=? FOR UPDATE',
             [id],
           );
           if (!r) throw new NotFoundException('角色不存在');
@@ -782,6 +818,22 @@ export class AuthService implements OnModuleInit {
             throw new ForbiddenException('普通用户角色仅可配置业务查看权限');
           if (r.builtin && dto.code !== r.code)
             throw new ForbiddenException('内置角色编码不可修改');
+          if (expectedRevision === undefined)
+            throw new BadRequestException('角色版本缺失，请重新加载后编辑');
+          {
+            const permissions = (
+              await m.query(
+                'SELECT p.code FROM t_permission p JOIN t_role_permission rp ON p.id=rp.permission_id WHERE rp.role_id=?',
+                [id],
+              )
+            ).map((p: { code: string }) => p.code);
+            const users = await m.query(
+              'SELECT DISTINCT u.id FROM t_user u JOIN t_user_role ur ON u.id=ur.user_id WHERE ur.role_id=?',
+              [id],
+            );
+            if (roleRevision({ ...r, permissions, users }) !== expectedRevision)
+              throw new ConflictException('角色已变更，请重新加载后核对再保存');
+          }
           await m.query(
             'UPDATE t_role SET role_name=?,`desc`=?,code=? WHERE id=?',
             [dto.name, dto.description || '', dto.code, id],

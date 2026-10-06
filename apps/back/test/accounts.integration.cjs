@@ -20,6 +20,7 @@ const { LoginActivity1790640000000 } = require('../dist/migrations/1790640000000
 const { LoginActivityItemRead1792022400000 } = require('../dist/migrations/1792022400000-LoginActivityItemRead');
 const verifyLoginActivity = require('./login-activity.integration.cjs');
 const verifyUsersManagement = require('./users-management.integration.cjs');
+const verifyRolesManagement = require('./roles-management.integration.cjs');
 const { DragonPermission1790812800000 } = require('../dist/migrations/1790812800000-DragonPermission');
 const { RealTimeNews1790812800001 } = require('../dist/migrations/1790812800001-RealTimeNews');
 const { ExpandedNewsSources1790832000000, EXPANDED_NEWS_CODES } = require('../dist/migrations/1790832000000-ExpandedNewsSources');
@@ -161,6 +162,8 @@ async function main() {
     assert.equal((await inject('POST', '/auth/register', { username: 'mufeng', password: 'test-password-123' }, anon)).statusCode, 409);
     let user = await login('alice', 'test-password-123');
     const admin = await login('mufeng', adminPassword);
+    await verifyRolesManagement({ db, inject, admin, user });
+    if (process.argv.includes('--roles-management-only')) return;
     await verifyUsersManagement({ db, inject, admin, user, login });
     if (process.argv.includes('--users-management-only')) return;
     if (process.argv.includes('--login-activity-only')) {
@@ -332,7 +335,8 @@ async function main() {
     const merged = (await inject('GET', '/auth/me', undefined, user)).json().data;
     assert.ok(merged.permissions.includes('sync:read') && merged.permissions.includes('strategy:read'));
     assert.equal((await inject('DELETE', '/admin/roles/' + roleId, undefined, admin)).statusCode, 409);
-    assert.equal((await inject('PATCH', '/admin/roles/' + defaultRole, { code: 'user', name: '普通用户', permissions: ['strategy:read'] }, admin)).statusCode, 200);
+    const defaultRevision = (await inject('GET', '/admin/roles', undefined, admin)).json().data.find(r => r.id === defaultRole).revision;
+    assert.equal((await inject('PATCH', '/admin/roles/' + defaultRole, { code: 'user', name: '普通用户', permissions: ['strategy:read'], revision: defaultRevision }, admin)).statusCode, 200);
     const reduced = (await inject('GET', '/auth/me', undefined, user)).json().data;
     assert.deepEqual(new Set(reduced.permissions), new Set(['strategy:read', 'sync:read']));
     const repeatRunner = db.createQueryRunner(); await migration.up(repeatRunner); await repeatRunner.release();

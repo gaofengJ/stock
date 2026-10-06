@@ -128,3 +128,10 @@ export class RoleDto {
 
   @IsArray() @ArrayUnique() @IsString({ each: true }) permissions: string[];
 }
+
+export class RoleUpdateDto extends RoleDto {
+  @StrictValue()
+  @IsString()
+  @Matches(/^[a-f0-9]{64}$/, { message: '角色版本无效，请刷新页面后重新编辑' })
+  revision: string;
+}

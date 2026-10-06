@@ -28,6 +28,13 @@ export default function Page() {
   const [search, setSearch] = useState('');
   const [active, setActive] = useState<number | undefined>();
   const [roleId, setRoleId] = useState<number | undefined>();
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const linkedRole = query.get('roleId');
+    if (linkedRole && /^[1-9]\d*$/.test(linkedRole) && Number.isSafeInteger(Number(linkedRole))) setRoleId(Number(linkedRole));
+    const linkedKeyword = query.get('keyword')?.slice(0, 100) || '';
+    if (linkedKeyword) { setSearch(linkedKeyword); setKeyword(linkedKeyword); }
+  }, []);
   const [activeAdminCount, setActiveAdminCount] = useState(0);
   const [roles, setRoles] = useState<any[]>([]);
   const [rolesLoading, setRolesLoading] = useState(true);

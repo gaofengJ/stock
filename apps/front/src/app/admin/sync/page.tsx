@@ -127,7 +127,8 @@ export default function Page() {
         loading={loading}
         locale={{ emptyText: loading ? '加载中…' : (loadError || '没有符合条件的记录') }}
         size="middle"
-        scroll={{ x: 900 }}
+        scroll={{ x: 1340 }}
+        autoHeight={rows.length <= 5}
         rowKey="id"
         dataSource={rows}
         pagination={{
@@ -136,16 +137,20 @@ export default function Page() {
           total,
           onChange: setPage,
           showSizeChanger: false,
+          hideOnSinglePage: true,
         }}
         columns={[
-          { title: '任务', dataIndex: 'id' },
-          { title: '执行人', dataIndex: 'actorName' },
+          { title: '任务', dataIndex: 'id', width: 72 },
+          { title: '执行人', dataIndex: 'actorName', width: 160 },
           {
             title: '日期范围',
+            width: 220,
+            className: 'admin-cell-nowrap',
             render: (_, r) => `${r.startDate} 至 ${r.endDate}`,
           },
           {
             title: '状态',
+            width: 110,
             render: (_, r) => (
               <Tag
                 color={
@@ -163,13 +168,17 @@ export default function Page() {
             ),
           },
           { title: '阶段', dataIndex: 'stage' },
-          { title: '失败次数', dataIndex: 'retryCount' },
-          { title: '下次重试', dataIndex: 'nextRetryAt', render: (v) => (v ? new Date(v).toLocaleString() : '—') },
+          { title: '失败次数', dataIndex: 'retryCount', width: 90 },
+          {
+            title: '下次重试', dataIndex: 'nextRetryAt', width: 190, className: 'admin-cell-nowrap', render: (v) => (v ? new Date(v).toLocaleString() : '—'),
+          },
           {
             title: '操作',
+            width: 280,
             render: (_, r) => (
-              <Space>
+              <Space size={8} wrap>
                 <Button
+                  size="small"
                   onClick={() => {
                     setDetail(null);
                     setSelected(r.id);
@@ -181,6 +190,7 @@ export default function Page() {
                 {user?.permissions.includes('sync:run')
                   && ['failed', 'pending', 'interrupted', 'paused'].includes(r.status) && (
                     <Button
+                      size="small"
                       loading={busy}
                       onClick={() => control(r.id, 'retry')}
                     >
@@ -188,11 +198,11 @@ export default function Page() {
                     </Button>
                 )}
                 {user?.permissions.includes('sync:run') && ['queued', 'pending', 'running'].includes(r.status) && (
-                  <Button disabled={busy} onClick={() => control(r.id, 'pause')}>暂停</Button>
+                  <Button size="small" disabled={busy} onClick={() => control(r.id, 'pause')}>暂停</Button>
                 )}
                 {user?.permissions.includes('sync:run') && ['queued', 'pending', 'running', 'paused', 'pausing'].includes(r.status) && (
                   <Popconfirm title="取消此任务？已保存的数据会保留。" onConfirm={() => control(r.id, 'cancel')}>
-                    <Button danger disabled={busy}>取消</Button>
+                    <Button size="small" danger disabled={busy}>取消</Button>
                   </Popconfirm>
                 )}
               </Space>

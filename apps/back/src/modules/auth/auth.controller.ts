@@ -24,6 +24,7 @@ import {
   RegisterDto,
   ResetDto,
   RoleDto,
+  RoleUpdateDto,
   UserQueryDto,
   UserUpdateDto,
   ReadActivityDto,
@@ -210,9 +211,10 @@ export class AccountsController {
   role(
     @Req() req: AuthRequest,
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: RoleDto,
+    @Body() dto: RoleUpdateDto,
   ) {
-    return this.auth.saveRole(req.authUser!, id, dto);
+    const { revision, ...values } = dto;
+    return this.auth.saveRole(req.authUser!, id, values, revision);
   }
 
   @Permit('roles:manage')
