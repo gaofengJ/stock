@@ -15,7 +15,8 @@ import { paginate } from '@/helper/paginate/index';
 import { Pagination } from '@/helper/paginate/pagination';
 import { Order } from '@/dto/pager.dto';
 import { SentiUpDownCountEntity } from '@/modules/analysis/senti/senti.entity';
-import { StockHistoryEntity } from '../stock/stock-history.entity';
+import { AsyncTtlCache } from '@/modules/analysis/async-ttl-cache';
+import { readHistoricNames } from '../stock/stock-list-reader';
 
 import { DailyEntity } from './daily.entity';
 import { DailyDto, DailyQueryDto, DailyUpdateDto } from './daily.dto';
@@ -29,6 +30,8 @@ import {
 
 @Injectable()
 export class DailyService {
+  private readonly listIdentityCache = new AsyncTtlCache(30000);
+
   constructor(
     private readonly writes: SyncWriteService,
     @InjectRepository(DailyEntity)
@@ -74,11 +77,21 @@ export class DailyService {
       ...(tradingState === 'traded' && { amount: Not(0) }),
     });
     if (tsCode || name) {
-      const [mappings, history] = await Promise.all([
-        this.DailyRepository.manager.find(BseMappingEntity),
-        this.DailyRepository.manager.findOneBy(StockHistoryEntity, {
-          snapshotKey: 'identity',
-        }),
+      const [mappings, names] = await Promise.all([
+        tsCode
+          ? this.listIdentityCache.getOrCreate<BseMappingEntity[]>(
+              'mapping',
+              () =>
+                this.DailyRepository.manager.find(BseMappingEntity, {
+                  select: { oldCode: true, newCode: true },
+                }),
+            )
+          : Promise.resolve<BseMappingEntity[]>([]),
+        name
+          ? this.listIdentityCache.getOrCreate<
+              Awaited<ReturnType<typeof readHistoricNames>>
+            >('names', () => readHistoricNames(this.DailyRepository.manager))
+          : Promise.resolve<Awaited<ReturnType<typeof readHistoricNames>>>([]),
       ]);
       const aliases = mappings
         .filter(
@@ -97,9 +110,7 @@ export class DailyService {
       if (name) {
         const codes = [
           ...new Set(
-            (history?.data.names || [])
-              .filter((n) => n.name.includes(name))
-              .map((n) => n.tsCode),
+            names.filter((n) => n.name.includes(name)).map((n) => n.tsCode),
           ),
         ];
         queryBuilder.andWhere(

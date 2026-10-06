@@ -300,26 +300,38 @@ export class SectorService {
   }
 
   async links(codes?: string[], date?: string) {
-    if (!this.db.hasMetadata(SectorMembersEntity))
+    if (!this.db.hasMetadata(SectorMembersEntity) || codes?.length === 0)
       return new Map<string, SectorLink[]>();
-    const sectors = await this.db.manager.findBy(SectorEntity, {
-      active: true,
-    });
-    const result = new Map<string, SectorLink[]>();
-    const wanted = codes && new Set(codes);
-    const snapshots = (
-      await Promise.all([
+    const day = date || shanghaiDate();
+    const links = await this.memberCache.getOrCreate(`links:${day}`, () =>
+      this.buildLinks(day),
+    );
+    return codes
+      ? new Map(
+          codes
+            .filter((code) => links.has(code))
+            .map((code) => [code, links.get(code)!]),
+        )
+      : new Map(links);
+  }
+
+  private async buildLinks(date: string) {
+    const [sectors, mappingRows, snapshots] = await Promise.all([
+      this.db.manager.find(SectorEntity, {
+        where: { active: true },
+        select: { tsCode: true, name: true, type: true },
+      }),
+      this.db.manager.find(BseMappingEntity, {
+        select: { oldCode: true, newCode: true },
+      }),
+      Promise.all([
         this.snapshots(date, undefined, false, 'I'),
         this.snapshots(date, undefined, false, 'N'),
-      ])
-    ).flat();
+      ]).then((rows) => rows.flat()),
+    ]);
+    const result = new Map<string, SectorLink[]>();
     const catalog = new Map(sectors.map((s) => [s.tsCode, s]));
-    const mapping = new Map(
-      (await this.db.manager.find(BseMappingEntity)).map((r) => [
-        r.oldCode,
-        r.newCode,
-      ]),
-    );
+    const mapping = new Map(mappingRows.map((r) => [r.oldCode, r.newCode]));
     const reverse = new Map<string, string[]>();
     mapping.forEach((current, old) =>
       reverse.set(current, [...(reverse.get(current) || []), old]),
@@ -327,19 +339,16 @@ export class SectorService {
     snapshots.forEach((s) => {
       const sector = catalog.get(s.tsCode);
       if (!sector) return;
+      const link: SectorLink = {
+        code: sector.tsCode,
+        name: sector.name,
+        type: sector.type,
+        asOf: s.asOf,
+      };
       s.members.forEach((m) => {
         const aliases = [m.code, ...(reverse.get(m.code) || [])];
         aliases.forEach((code) => {
-          if (!wanted || wanted.has(code))
-            result.set(code, [
-              ...(result.get(code) || []),
-              {
-                code: sector.tsCode,
-                name: sector.name,
-                type: sector.type,
-                asOf: s.asOf,
-              },
-            ]);
+          result.set(code, [...(result.get(code) || []), link]);
         });
       });
     });

@@ -199,6 +199,23 @@ describe('basic stock directory', () => {
               names: [{ tsCode: '830001.BJ', name: '曾用名' }],
             },
           }),
+          query: async (sql: string) => {
+            if (sql.includes('$.names'))
+              return [{ codes: ['830001.BJ'], names: ['曾用名'] }];
+            if (sql.includes('$.stocks[*].tsCode'))
+              return [{ asOf: '2026-10-04', codes: ['600001.SH'] }];
+            return [
+              {
+                stocks: {
+                  tsCode: '600001.SH',
+                  name: '退市公司',
+                  delistDate: '2020-01-01',
+                  listStatus: 'D',
+                  profile: { actName: '历史实控人' },
+                },
+              },
+            ];
+          },
         },
       } as any,
       { decorate: async (rows: any) => rows } as any,
