@@ -36,7 +36,7 @@ export const useActiveFundsColumns = (selectedOrg: string, onDetail: (fund: Fund
   {
     title: '简介',
     dataIndex: 'desc',
-    render: (desc: string) => <span className="active-funds-summary">{desc || '暂无简介'}</span>,
+    render: (desc: string) => <span className="active-funds-summary">{desc?.replace(/\s*\n+\s*/g, ' ') || '暂无简介'}</span>,
   },
   {
     title: '',

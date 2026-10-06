@@ -45,6 +45,7 @@
   overflow: hidden
   overflow-wrap: anywhere
   line-height: 1.7
+  color: var(--text-secondary)
 
 .active-funds-muted
   color: var(--text-secondary)
@@ -62,7 +63,24 @@
   white-space: pre-wrap
   overflow-wrap: anywhere
   line-height: 1.8
-  margin-bottom: 20px
+  margin: 0
+
+.active-funds-detail
+  display: flex
+  flex-direction: column
+  gap: 24px
+  padding-top: 8px
+
+.active-funds-detail-section
+  display: flex
+  flex-direction: column
+  gap: 10px
+  h3
+    margin: 0
+    font-weight: 600
+    line-height: 1.5
+  .active-funds-muted
+    margin: 0
 
 .active-funds-detail-seats
   display: flex

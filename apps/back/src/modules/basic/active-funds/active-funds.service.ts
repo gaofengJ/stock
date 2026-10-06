@@ -14,7 +14,11 @@ export class ActiveFundsService {
     return ret.map((i) => ({
       name: i.name,
       orgs: fundOrgs(i.orgs),
-      desc: i.desc || '',
+      // Imported descriptions can contain literal escape sequences instead of line breaks.
+      desc: (i.desc || '')
+        .replace(/\\r\\n|\\[rn]/g, '\n')
+        .replace(/\r\n?/g, '\n')
+        .trim(),
     }));
   }
 }

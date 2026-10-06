@@ -107,14 +107,18 @@ function BasicActiveFundsPage() {
         </div>
         <Modal className="active-funds-modal" centered width={760} open={!!detail} title={detail?.name} footer={null} onCancel={() => setDetail(null)}>
           {detail && (
-            <div>
-              <h3>简介</h3>
-              <p className="active-funds-biography">{detail.desc || '暂无简介'}</p>
-              <h3>{`关联营业部／席位（${uniqueFundOrgs(detail.orgs).length}）`}</h3>
-              <div className="active-funds-detail-seats">
-                {uniqueFundOrgs(detail.orgs).map((seat) => <Link href={`/basic/active-funds/detail/?org=${encodeURIComponent(seat)}`} key={seat} className={`active-funds-org${normalizeOrg(seat) === normalizeOrg(keyword) ? ' is-selected' : ''}`}>{seat}</Link>)}
-                {!uniqueFundOrgs(detail.orgs).length && <span className="active-funds-muted">暂无关联席位</span>}
-              </div>
+            <div className="active-funds-detail">
+              <section className="active-funds-detail-section" aria-label="简介">
+                <h3>简介</h3>
+                <p className="active-funds-biography">{detail.desc || '暂无简介'}</p>
+              </section>
+              <section className="active-funds-detail-section" aria-label="关联营业部和席位">
+                <h3>{`关联营业部／席位（${uniqueFundOrgs(detail.orgs).length}）`}</h3>
+                <div className="active-funds-detail-seats">
+                  {uniqueFundOrgs(detail.orgs).map((seat) => <Link href={`/basic/active-funds/detail/?org=${encodeURIComponent(seat)}`} key={seat} className={`active-funds-org${normalizeOrg(seat) === normalizeOrg(keyword) ? ' is-selected' : ''}`}>{seat}</Link>)}
+                  {!uniqueFundOrgs(detail.orgs).length && <span className="active-funds-muted">暂无关联席位</span>}
+                </div>
+              </section>
             </div>
           )}
         </Modal>

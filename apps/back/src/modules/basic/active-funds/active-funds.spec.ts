@@ -32,3 +32,19 @@ it('keeps a directory readable when legacy records contain null, invalid or mixe
   ]);
   expect(fundOrgs('{"org":"证券上海营业部"}')).toEqual([]);
 });
+
+it('normalizes imported biography line endings without interpreting markup or other escapes', async () => {
+  const service = new ActiveFundsService({
+    list: async () => [
+      {
+        name: '葛卫东',
+        orgs: '[]',
+        desc: '  第一段\\r\\n第二段\r\n第三段\\n末段\\r\\n  ',
+      },
+      { name: '乙', orgs: '[]', desc: '<b>原始文字</b>\\t仍保留' },
+    ],
+  } as any);
+  const rows = await service.list();
+  expect(rows[0].desc).toBe('第一段\n第二段\n第三段\n末段');
+  expect(rows[1].desc).toBe('<b>原始文字</b>\\t仍保留');
+});
