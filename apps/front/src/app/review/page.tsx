@@ -4,7 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Alert, Button, Card, Checkbox, Collapse, DatePicker, Input, Select, Space, Tag, Tooltip,
+  Alert, Button, Card, Checkbox, Collapse, DatePicker, Input, Modal, Select, Space, Tag, Tooltip,
 } from 'antd';
 import dayjs from 'dayjs';
 import Layout from '@/components/Layout';
@@ -43,6 +43,7 @@ function Report({ date, account }: { date: string; account: number }) {
   const [scrollContainer, setScrollContainer] = useState<HTMLElement>();
   const [holdingsResult, setHoldingsResult] = useState<any>(null);
   const [exported, setExported] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   useEffect(() => { setScrollContainer(document.querySelector<HTMLElement>('.platform-content') || undefined); }, []);
   useEffect(() => { setPage(1); }, [filter, keyword, strategy]);
   const {
@@ -86,7 +87,6 @@ function Report({ date, account }: { date: string; account: number }) {
   const goToStep = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ block: 'start' });
     document.getElementById(`${id}-title`)?.focus({ preventScroll: true });
-    if (id === 'review-plan') document.querySelector('.review-plan-scroll')?.scrollTo({ top: 0 });
   };
   const plan = (code?: string) => {
     goToStep('review-plan');
@@ -130,7 +130,10 @@ function Report({ date, account }: { date: string; account: number }) {
           {' '}
           · 按账号和交易日期分别保存
         </span>
-        <Button loading={loading} onClick={() => setAttempt((v) => v + 1)}>更新候选数据</Button>
+        <Space wrap>
+          <Button onClick={() => setHelpOpen(true)}>页面说明</Button>
+          <Button loading={loading} onClick={() => setAttempt((v) => v + 1)}>更新候选数据</Button>
+        </Space>
       </div>
       <div className="review-steps" aria-label="复盘操作流程">
         {[
@@ -163,7 +166,6 @@ function Report({ date, account }: { date: string; account: number }) {
               <span className="review-step-number">2</span>
               筛选观察股票
             </h2>
-            <Button onClick={() => plan()}>下一步：填写计划</Button>
           </div>
           {error && <Alert className="review-candidate-notice" type="error" showIcon message={error} description={data ? '当前仍展示上次取得的候选；观察名单和草稿已保留。' : '可以继续填写计划并导出草稿。'} action={<Button onClick={() => setAttempt((v) => v + 1)}>重试</Button>} />}
           {data && !data.complete && <Alert className="review-candidate-notice" type="warning" showIcon message="部分策略未取得结果，候选范围不完整" description="可继续记录计划，稍后点击“更新候选数据”重试。" />}
@@ -254,48 +256,12 @@ function Report({ date, account }: { date: string; account: number }) {
               ]}
             />
           </div>
-          <div className="review-support">
-            <h3 className="review-support-title">辅助资料与持仓分析</h3>
-            <p className="review-caption">按需展开；不影响观察名单和计划填写。</p>
-            <Collapse
-              className="review-details"
-              items={[
-                {
-                  key: 'rules',
-                  label: '候选生成规则与数据说明',
-                  children: (
-                    <>
-                      <p>使用平台全部策略的默认参数，合并同一只股票的命中结果。观察名单限定总市值小于200亿元，最多3只，也可以不选股票。</p>
-                      <p>“入选线索”表示触发的策略条件。请结合K线判断走势，并在计划中记录观察条件、支撑位和放弃条件。</p>
-                      <p>已知ST、停牌及进行中的已核实减持计划会被排除。可观察股票仍需逐项查看风险资料，核验记录填写在计划中。</p>
-                      <p>行情截至所选交易日收盘；公告按该日已披露信息筛选。历史日期采用当前可用资料回看。人工核验记录与系统风险状态分别保留。</p>
-                      <p>短线复核参考：跌破5日线后下一交易日未收回，或持有约3个交易日未走强时，复核原观察逻辑。</p>
-                      <SourceState data={risk.data || data} error={risk.error} loading={risk.loading} pollingStopped={risk.pollingStopped} retry={risk.retry} />
-                    </>
-                  ),
-                },
-                {
-                  key: 'strategies',
-                  label: `各策略命中数量${data ? `（已取得 ${data.strategies.filter((s: any) => s.state === 'ready').length}/${data.strategies.length}）` : ''}`,
-                  children: (
-                    <>
-                      <p>一只股票可以同时命中多个策略，各策略数量可能重叠。</p>
-                      <p className="review-caption">点击策略可筛选候选表；数量为该策略原始命中数，仍受上方范围和搜索条件限制。</p>
-                      <Space wrap>{data?.strategies.map((s: any) => <InteractionButton key={s.key} intent="select" selected={strategy === s.key} disabled={s.state !== 'ready'} aria-controls="review-candidate-table" onClick={() => { setStrategy(strategy === s.key ? 'all' : s.key); candidatesTop(); }}>{`${s.label}：${s.count ?? '暂不可用'}`}</InteractionButton>)}</Space>
-                    </>
-                  ),
-                },
-                {
-                  key: 'holdings',
-                  label: '已有持仓分析（可选）',
-                  forceRender: true,
-                  children: <Holdings date={date} candidates={chosen.map((r) => `${r.name} ${r.tsCode}`)} onResult={setHoldingsResult} />,
-                },
-              ]}
-            />
+          <div className="review-candidate-next">
+            <span className="review-caption">{`已选 ${selected.length}/3 只${selected.length ? '' : ' · 也可只记录市场计划'}`}</span>
+            <Button type="primary" onClick={() => plan()}>下一步：填写计划</Button>
           </div>
         </section>
-        <aside className="review-plan" id="review-plan" aria-labelledby="review-plan-title">
+        <section className="review-plan" id="review-plan" aria-labelledby="review-plan-title">
           <Card
             title={(
               <div className="review-plan-title">
@@ -307,8 +273,8 @@ function Report({ date, account }: { date: string; account: number }) {
               </div>
             )}
           >
-            <div className="review-plan-scroll">
-              <p className="review-caption">先核验观察名单，再填写下一交易日计划，完成后在本区底部导出。</p>
+            <div className="review-plan-content">
+              <p className="review-caption">为选中的股票记录观察条件，再整理下一交易日计划。</p>
               {!chosen.length && (
               <div className="review-empty">
                 还没有选观察股票。
@@ -316,45 +282,63 @@ function Report({ date, account }: { date: string; account: number }) {
                 在候选表勾选股票后，会在这里出现；也可只填写市场计划，保持空名单。
               </div>
               )}
-              {chosen.map(({ name, tsCode, row }) => (
-                <div key={tsCode} className="review-pick">
-                  <div className="review-pick-summary">
-                    <div className="review-pick-heading">
-                      <strong>{row?.name || name}</strong>
-                      <Button size="small" aria-label={`将${name}移出观察名单`} onClick={() => remove(tsCode)}>移出</Button>
+              <div className="review-picks" data-count={chosen.length}>
+                {chosen.map(({ name, tsCode, row }) => (
+                  <div key={tsCode} className="review-pick">
+                    <div className="review-pick-summary">
+                      <div className="review-pick-heading">
+                        <strong>{row?.name || name}</strong>
+                        <Button size="small" aria-label={`将${name}移出观察名单`} onClick={() => remove(tsCode)}>移出</Button>
+                      </div>
+                      <span className="review-caption">{tsCode}</span>
+                      <div className="review-stock-actions">
+                        {row && <InteractionButton intent="preview" onClick={() => setStock(row)}>看K线</InteractionButton>}
+                        <RiskInspect code={tsCode} name={name} date={date} />
+                      </div>
                     </div>
-                    <span className="review-caption">{tsCode}</span>
-                    <div className="review-stock-actions">
-                      {row && <InteractionButton intent="preview" onClick={() => setStock(row)}>看K线</InteractionButton>}
-                      <RiskInspect code={tsCode} name={name} date={date} />
+                    <div className="review-risk-state">
+                      <Tag color={row && blocked(row) ? 'red' : 'orange'}>{riskLabel(row)}</Tag>
                     </div>
+                    <div className="review-pick-fields">
+                      <label className="review-field" htmlFor={`review-note-${tsCode}`}>
+                        <span>观察理由与触发条件</span>
+                        <Input.TextArea id={`review-note-${tsCode}`} aria-label={`${name}看图与计划`} disabled={!ready} value={draft.notes[tsCode] || ''} maxLength={2000} rows={3} placeholder="例如：观察回踩支撑后的走势；记录支撑位、观察条件及放弃条件" onChange={(e) => update({ notes: { ...draft.notes, [tsCode]: e.target.value } })} />
+                      </label>
+                      <label className="review-field" htmlFor={`review-risk-${tsCode}`}>
+                        <span>人工风险核验记录</span>
+                        <Input.TextArea id={`review-risk-${tsCode}`} aria-label={`${name}风险核验记录`} disabled={!ready} value={draft.riskNotes[tsCode] || ''} maxLength={2000} rows={3} placeholder="查看风险资料后，记录公告原文、核验结论与时间；缺失事项也请记录" onChange={(e) => update({ riskNotes: { ...draft.riskNotes, [tsCode]: e.target.value } })} />
+                      </label>
+                    </div>
+                    {draft.riskNotes[tsCode]?.trim() && <span className="review-caption">已填写人工记录，系统风险资料状态仍单独显示。</span>}
                   </div>
-                  <div className="review-risk-state">
-                    <Tag color={row && blocked(row) ? 'red' : 'orange'}>{riskLabel(row)}</Tag>
-                  </div>
-                  <label className="review-field" htmlFor={`review-note-${tsCode}`}>
-                    <span>观察理由与触发条件</span>
-                    <Input.TextArea id={`review-note-${tsCode}`} aria-label={`${name}看图与计划`} disabled={!ready} value={draft.notes[tsCode] || ''} maxLength={2000} rows={3} placeholder="例如：观察回踩支撑后的走势；记录支撑位、观察条件及放弃条件" onChange={(e) => update({ notes: { ...draft.notes, [tsCode]: e.target.value } })} />
+                ))}
+              </div>
+              <Collapse
+                className="review-details"
+                items={[{
+                  key: 'holdings',
+                  label: '分析已有持仓（可选）',
+                  forceRender: true,
+                  children: <Holdings date={date} candidates={chosen.map((r) => `${r.name} ${r.tsCode}`)} onResult={setHoldingsResult} />,
+                }]}
+              />
+              <div className="review-day-plan">
+                <h3>下一交易日计划</h3>
+                <div className="review-day-fields">
+                  <label className="review-field" htmlFor="review-focus">
+                    <span>下一交易日重点观察</span>
+                    <Input.TextArea id="review-focus" aria-label="下一交易日重点观察" disabled={!ready} value={draft.focus} onChange={(e) => update({ focus: e.target.value })} maxLength={2000} rows={3} placeholder="例如：关注哪些方向、市场量能和候选走势" />
                   </label>
-                  <label className="review-field" htmlFor={`review-risk-${tsCode}`}>
-                    <span>人工风险核验记录</span>
-                    <Input.TextArea id={`review-risk-${tsCode}`} aria-label={`${name}风险核验记录`} disabled={!ready} value={draft.riskNotes[tsCode] || ''} maxLength={2000} rows={2} placeholder="查看风险资料后，记录公告原文、核验结论与时间；缺失事项也请记录" onChange={(e) => update({ riskNotes: { ...draft.riskNotes, [tsCode]: e.target.value } })} />
+                  <label className="review-field" htmlFor="review-exit">
+                    <span>放弃或退出条件</span>
+                    <Input.TextArea id="review-exit" aria-label="放弃或退出条件" disabled={!ready} value={draft.exit} onChange={(e) => update({ exit: e.target.value })} maxLength={2000} rows={3} placeholder="例如：走势未兑现、出现新风险时如何处理" />
                   </label>
-                  {draft.riskNotes[tsCode]?.trim() && <span className="review-caption">已填写人工记录，系统风险资料状态仍单独显示。</span>}
+                  <label className="review-field" htmlFor="review-reason">
+                    <span>新机会与持仓比较（可选）</span>
+                    <Input.TextArea id="review-reason" aria-label="新机会理由" disabled={!ready} value={draft.reason} onChange={(e) => update({ reason: e.target.value })} maxLength={2000} rows={3} placeholder="比较走势、风险和原持仓理由，记录是否调整观察计划" />
+                  </label>
                 </div>
-              ))}
-              <label className="review-field" htmlFor="review-focus">
-                <span>下一交易日重点观察</span>
-                <Input.TextArea id="review-focus" aria-label="下一交易日重点观察" disabled={!ready} value={draft.focus} onChange={(e) => update({ focus: e.target.value })} maxLength={2000} rows={3} placeholder="例如：关注哪些方向、市场量能和候选走势" />
-              </label>
-              <label className="review-field" htmlFor="review-exit">
-                <span>放弃或退出条件</span>
-                <Input.TextArea id="review-exit" aria-label="放弃或退出条件" disabled={!ready} value={draft.exit} onChange={(e) => update({ exit: e.target.value })} maxLength={2000} rows={2} placeholder="例如：走势未兑现、出现新风险时如何处理" />
-              </label>
-              <label className="review-field" htmlFor="review-reason">
-                <span>新机会与持仓比较（可选）</span>
-                <Input.TextArea id="review-reason" aria-label="新机会理由" disabled={!ready} value={draft.reason} onChange={(e) => update({ reason: e.target.value })} maxLength={2000} rows={3} placeholder="比较走势、风险和原持仓理由，记录是否调整观察计划" />
-              </label>
+              </div>
             </div>
             <div className="review-plan-footer">
               <div className="review-plan-actions">
@@ -364,12 +348,21 @@ function Report({ date, account }: { date: string; account: number }) {
               <p role="status" className="review-caption">
                 {exported ? '已导出，请查看浏览器下载。' : ''}
                 {status}
-                。刷新、切换日期后可恢复；更换浏览器或设备需使用导出文件。
               </p>
             </div>
           </Card>
-        </aside>
+        </section>
       </div>
+      <Modal title="复盘说明" open={helpOpen} onCancel={() => setHelpOpen(false)} footer={<Button onClick={() => setHelpOpen(false)}>知道了</Button>}>
+        <div className="review-help-content">
+          <p>候选使用全部策略默认参数，合并重复股票。观察名单最多3只，限定总市值小于200亿元，排除已知ST、停牌和进行中的已核实减持计划。</p>
+          <p>行情截至所选交易日收盘，公告按当日已披露信息筛选。历史日期使用当前可用资料回看；人工核验记录不会改变系统风险资料状态。</p>
+          <p>草稿按账号和交易日期保存在当前浏览器。刷新或切换日期可恢复；更换浏览器或设备时，请使用导出文件。</p>
+          <p>策略命中数量可能重叠，可使用候选表上方的策略筛选。</p>
+          <Space wrap>{data?.strategies.map((s: any) => <Tag key={s.key}>{`${s.label}：${s.count ?? '暂不可用'}`}</Tag>)}</Space>
+          <SourceState data={risk.data || data} error={risk.error} loading={risk.loading} pollingStopped={risk.pollingStopped} retry={risk.retry} />
+        </div>
+      </Modal>
       <StockChart stock={stock} date={date} strategy={stock?.strategies?.[0]?.key || 'fiveMaUp'} options={trendDefaults} onClose={() => setStock(null)} />
     </>
   );
@@ -391,7 +384,7 @@ export default function Page() {
   const date = chosenDate || (fallback.ready ? fallback.tradeDate : '');
   return (
     <Layout showAsideMenu={false} headerMenuActive={EHeaderMenuKey.review}>
-      <main className="review-page p-16 rounded-[6px] bg-bg-white">
+      <main className="review-page rounded-[6px] bg-bg-white">
         <h1 className="page-heading">每日复盘</h1>
         <p className="review-intro">查看当天市场背景，从策略候选中选出0–3只观察股票，整理下一交易日的观察名单与计划。</p>
         <Space className="mb-16" wrap>
