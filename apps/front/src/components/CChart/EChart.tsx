@@ -91,11 +91,12 @@ interface IEchartsProps {
   height?: number;
   onLegendChange?: (selected: Record<string, boolean>) => void;
   onAxisHover?: (date: string | null) => void;
+  onDateClick?: (date: string) => void;
   formatHoverLegend?: (name: string, date: string | null) => string;
 }
 
 const EChart = ({
-  genOptions, appearance, height = 360, onLegendChange, onAxisHover, formatHoverLegend,
+  genOptions, appearance, height = 360, onLegendChange, onAxisHover, onDateClick, formatHoverLegend,
 }: IEchartsProps) => {
   const { mode } = useSiteTheme();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -110,6 +111,12 @@ const EChart = ({
       if (formatHoverLegend) instance.setOption({ legend: { formatter: (name: string) => formatHoverLegend(name, date) } });
     };
     return {
+      ...(onDateClick ? {
+        click: (event: { componentType: string; name?: string; value?: unknown }) => {
+          const date = event.componentType === 'xAxis' ? event.value : event.name;
+          if (['series', 'xAxis'].includes(event.componentType) && typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) onDateClick(date);
+        },
+      } : {}),
       ...(onLegendChange ? { legendselectchanged: (event: { selected: Record<string, boolean> }) => onLegendChange(event.selected) } : {}),
       ...(onAxisHover || formatHoverLegend ? {
         updateAxisPointer: (event: { axesInfo?: { axisDim: string; value: number | string }[] }, instance: echarts.ECharts) => {
@@ -126,7 +133,7 @@ const EChart = ({
         hover(null, instance);
       },
     };
-  }, [onLegendChange, onAxisHover, formatHoverLegend]);
+  }, [onLegendChange, onAxisHover, onDateClick, formatHoverLegend]);
 
   useEffect(() => {
     const container = containerRef.current;

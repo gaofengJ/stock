@@ -1,0 +1,20 @@
+.chains-ladder { margin: 16px 0; border: 1px solid var(--color-border); border-radius: 6px; overflow: hidden; }
+.chains-ladder-row { display: flex; gap: 16px; padding: 12px 16px; }
+.chains-ladder-row + .chains-ladder-row { border-top: 1px solid var(--color-border); }
+.chains-ladder-label { flex: 0 0 84px; display: flex; flex-direction: column; gap: 4px; padding-top: 4px; }
+.chains-ladder-label span, .chains-filter-note { color: var(--text-secondary); font-size: 12px; }
+.chains-ladder-content { flex: 1; min-width: 0; }
+.chains-ladder .market-ladder-stocks { gap: 8px; }
+.chains-ladder .market-ladder-stock { min-width: 116px; padding: 6px 10px; border: 0; }
+.chains-ladder-content > button { margin-top: 8px; }
+.chains-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 16px 0 8px; }
+.chains-history-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.chains-history-toolbar .ant-picker { width: 150px; }
+.chains-current-cell { display: flex; flex-direction: column; gap: 4px; font-variant-numeric: tabular-nums; }
+.chains-mobile-current { display: none; }
+@media (max-width: 575px) {
+  .chains-mobile-current { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+  .chains-ladder-row { gap: 8px; padding: 12px 8px; }
+  .chains-ladder-label { flex-basis: 58px; }
+  .chains-ladder .market-ladder-stock { min-width: 100px; }
+}

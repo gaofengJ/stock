@@ -48,7 +48,7 @@ export interface LimitRow extends ClassifiedStock {
 }
 export interface Ladder {
   ready: boolean; items: LimitRow[];
-  transitions: { tsCode: string; name: string; previousHeight: number; height: number; state: string; pctChg: number | null }[];
+  transitions: { tsCode: string; name: string; previousHeight: number; height: number | null; state: string; pctChg: number | null }[];
 }
 export interface DragonData {
   summary: { reason: string; lBuy: number | null; lSell: number | null; netAmount: number | null }[];

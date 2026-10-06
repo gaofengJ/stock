@@ -88,11 +88,12 @@ const seriesColor = (label: string, index: number) => {
   return chartPalette[index % chartPalette.length];
 };
 function TrendChart({
-  title, description, data, fields, percent = false, unit = '', digits = 0, type = 'line', controls = false, average = false,
+  title, description, data, fields, percent = false, unit = '', digits = 0, type = 'line', controls = false, average = false, onDateClick,
 }: {
   title: string; description?: string; data: MarketSeries;
   fields: { label: string; value: (s: MarketStats) => number | null; tooltip?: (s: MarketStats | null) => string }[];
   percent?: boolean; unit?: string; digits?: number; type?: 'line' | 'bar'; controls?: boolean; average?: boolean;
+  onDateClick?: (date: string) => void;
 }) {
   const { colors } = useSiteTheme();
   const [legendSelected, setLegendSelected] = useState<Record<string, boolean>>({});
@@ -116,6 +117,7 @@ function TrendChart({
     >
       <CChart
         onLegendChange={setLegendSelected}
+        onDateClick={onDateClick}
         genOptions={() => ({
           tooltip: {
             trigger: 'axis',
@@ -142,7 +144,7 @@ function TrendChart({
             left: 16, right: 20, top: 56, bottom: 24, containLabel: true,
           },
           xAxis: {
-            type: 'category', data: series.map((r) => r.date), axisTick: { alignWithLabel: true }, axisPointer: { snap: true }, axisLabel: { hideOverlap: true },
+            type: 'category', data: series.map((r) => r.date), triggerEvent: !!onDateClick, axisTick: { alignWithLabel: true }, axisPointer: { snap: true }, axisLabel: { hideOverlap: true },
           },
           yAxis: {
             type: 'value', name: suffix, nameGap: 16, max: references.at(-1), minInterval: percent || digits ? undefined : 1, axisLabel: { formatter: (v: number) => numberText(v, percent ? 2 : digits) },

@@ -1,8 +1,56 @@
 import { DataSource } from 'typeorm';
 import { TushareService } from '@/shared/tushare/tushare.service';
 import { ACCESS } from '@/modules/auth/permissions';
+import { DailyEntity } from '@/modules/source/daily/daily.entity';
+import { LimitEntity } from '@/modules/source/limit/limit.entity';
 import { MarketService } from './market.service';
 import { MarketController } from './market.controller';
+
+describe('ladder transition data quality', () => {
+  it('distinguishes missing quotes, no turnover, a failed promotion and a successful promotion', async () => {
+    const previous = ['600001.SH', '600002.SH', '600003.SH', '600004.SH'].map(
+      (tsCode) => ({ tsCode, name: tsCode, limitTimes: 2 }),
+    );
+    const db = {
+      manager: {
+        findOneBy: jest.fn().mockResolvedValue({ preTradeDate: '2026-09-29' }),
+        find: jest.fn().mockResolvedValue([]),
+        findBy: jest.fn().mockImplementation((entity, query) => {
+          if (entity === LimitEntity)
+            return Promise.resolve(
+              query.tradeDate === '2026-09-29'
+                ? previous
+                : [{ tsCode: '600004.SH', limitTimes: 3 }],
+            );
+          if (entity === DailyEntity)
+            return Promise.resolve([
+              { tsCode: '600002.SH', amount: '0', pctChg: '0' },
+              { tsCode: '600003.SH', amount: '100', pctChg: '0' },
+              { tsCode: '600004.SH', amount: '200', pctChg: '10' },
+            ]);
+          return Promise.resolve([]);
+        }),
+      },
+    };
+    const service = new MarketService(
+      db as unknown as DataSource,
+      {} as TushareService,
+    );
+    jest.spyOn(service, 'limits').mockResolvedValue({ ready: true, items: [] });
+    const result = await service.ladder({
+      date: '2026-09-30',
+      scope: 'all',
+      days: 20,
+      type: 'U',
+    });
+    expect(result.transitions).toMatchObject([
+      { tsCode: '600001.SH', state: '无行情', height: null, pctChg: null },
+      { tsCode: '600002.SH', state: '无成交', height: null, pctChg: null },
+      { tsCode: '600003.SH', state: '断板', height: 0, pctChg: 0 },
+      { tsCode: '600004.SH', state: '晋级', height: 3, pctChg: 10 },
+    ]);
+  });
+});
 
 describe('Market status date-specific update times', () => {
   it('preserves each published date timestamp instead of applying the latest one to history', async () => {

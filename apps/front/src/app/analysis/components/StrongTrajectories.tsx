@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  Button, Checkbox, Drawer, Input, Select, Space, Tag, Tooltip,
+  Button, Checkbox, Drawer, Grid, Input, Select, Space, Tag, Tooltip,
 } from 'antd';
 import Link from '@/components/Interaction';
 import Table from '@/components/DataTable';
@@ -15,22 +15,49 @@ import { useAccount } from '@/auth/Boundary';
 import { allowedPath } from '@/auth/client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { EyeOutlined } from '@ant-design/icons';
-import SectorFilter, { useSectorSelection } from '@/components/SectorFilter';
+import SectorFilter from '@/components/SectorFilter';
+import { filterTrajectories } from '../chains/chains-display';
 import useMarketData from './useMarketData';
 import { useMarket } from './MarketContext';
 import { DataState, Metrics, SectionTitle } from './MarketCharts';
 import { marketHref } from './market-navigation';
 
-export default function StrongTrajectories() {
+function HistoricalSectors({ date, code }: { date: string; code: string }) {
+  const request = useMarketData<TrajectoryBoard>('trajectories', {
+    date, code, trajectoryDays: 1, days: 20,
+  });
+  const stock = request.data?.date === date ? request.data.items.find((row) => row.tsCode === code) : undefined;
+  return (
+    <DataState loading={request.loading} error={request.error} retry={request.retry} empty={!stock}>
+      {stock && (
+      <>
+        <div className="mb-16">
+          所属行业：
+          <SectorLinks stock={stock} date={date} />
+        </div>
+        <div className="mb-16">
+          所属题材：
+          <SectorLinks stock={stock} type="N" date={date} />
+        </div>
+      </>
+      )}
+    </DataState>
+  );
+}
+
+export default function StrongTrajectories({ sector, onSectorChange, active }: { sector?: string; onSectorChange: (value?: string) => void; active: boolean }) {
+  const screens = Grid.useBreakpoint();
   const { date, scope } = useMarket(); const { user } = useAccount(); const params = useSearchParams();
   const router = useRouter();
   const code = /^\d{6}\.(SH|SZ|BJ)$/.test(params.get('code') || '') ? params.get('code') : undefined;
-  const { sector, setSector } = useSectorSelection(); const [count, setCount] = useState(10); const [keyword, setKeyword] = useState('');
+  const [count, setCount] = useState(10); const [keyword, setKeyword] = useState('');
+  const [state, setState] = useState('all');
   const [showSignals, setShowSignals] = useState(false); const [detail, setDetail] = useState<{ row: TrajectoryRow; cell: TrajectoryCell } | null>(null);
   const request = useMarketData<TrajectoryBoard>('trajectories', {
     trajectoryDays: count, days: 20, sector, ...(code ? { code } : {}),
-  });
-  const signals = useMarketData<StrategySignals>('strategy-signals', { trajectoryDays: count, days: 20, ...(code ? { code } : {}) }, showSignals && allowedPath(user, '/strategy'));
+  }, active);
+  const signals = useMarketData<StrategySignals>('strategy-signals', { trajectoryDays: count, days: 20, ...(code ? { code } : {}) }, active && showSignals && allowedPath(user, '/strategy'));
+  useEffect(() => { setDetail(null); }, [date, scope, sector, count, code, active]);
   const data = request.data?.date === date ? request.data : null;
   const signalMap = useMemo(() => new Map(signals.data?.items.map((r) => [`${r.date}:${r.tsCode}`, r.strategies]) || []), [signals.data]);
   const labels = new Map(signals.data?.strategies.map((r) => [r.key, r.label]) || []);
@@ -54,14 +81,20 @@ export default function StrongTrajectories() {
       <div className="market-section-toolbar">
         <SectionTitle title="强势股多日轨迹" description="跟踪区间内涨停、炸板股票；未涨停且有成交时高度为0，缺数据保留空态。策略按现行规则回看。" />
         <Space wrap>
-          <SectorFilter value={sector} onChange={setSector} />
+          <SectorFilter value={sector} onChange={onSectorChange} />
           <Input.Search aria-label="搜索轨迹股票" allowClear placeholder="股票名称／代码" value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ width: 190 }} />
           <Select aria-label="轨迹范围" value={count} onChange={setCount} options={[5, 10, 20].map((value) => ({ value, label: `近${value}个交易日` }))} />
+          <Select aria-label="所选日状态" value={state} onChange={setState} style={{ width: 148 }} options={[{ value: 'all', label: '所选日全部状态' }, ...['连板', '首板', '断板', '炸板', '跌停', '交易', '无成交', '待补齐'].map((value) => ({ value, label: value === '交易' ? '普通交易（未涨停）' : value }))]} />
           {allowedPath(user, '/strategy') && <Checkbox checked={showSignals} onChange={(e) => setShowSignals(e.target.checked)}>策略标记</Checkbox>}
           {code && <Button size="small" onClick={() => router.replace(marketHref('/analysis/chains', { date, scope }, { view: 'trajectory', ...(sector ? { sector } : {}) }), { scroll: false })}>显示全部股票</Button>}
         </Space>
       </div>
-      <p className="interaction-hint">点击每日状态，预览当日行情与策略。</p>
+      <p className="interaction-hint">
+        状态筛选以
+        {date}
+        {' '}
+        为准；行业／题材与当日梯队同步。点击每日状态预览详情。
+      </p>
       {showSignals && <p className="market-note">{signals.loading ? '策略标记加载中…' : signals.error || '★ 表示命中默认参数策略，点击查看；数据未补齐显示“待更新”。'}</p>}
       <DataState loading={request.loading} error={request.error} retry={request.retry} empty={!data?.ready}>
         <Table<TrajectoryRow>
@@ -71,19 +104,44 @@ export default function StrongTrajectories() {
           pagination={false}
           maxBodyHeight={560}
           minBodyHeight={360}
-          scroll={{ x: 200 + count * 105 }}
-          dataSource={data?.items.filter((r) => `${r.name} ${r.tsCode}`.includes(keyword.trim()))}
+          scroll={{ x: (screens.sm ? 260 : 140) + (data?.dates.length || count) * 105 }}
+          locale={{ emptyText: keyword || state !== 'all' || sector ? '当前筛选条件下无匹配股票' : '当前区间内无涨停或炸板股票' }}
+          dataSource={filterTrajectories(data?.items || [], date, keyword, state)}
           columns={[
             {
               title: '股票',
               fixed: 'left',
-              width: 180,
+              width: 140,
               render: (_, r) => (
                 <Space direction="vertical" size={0}>
                   <strong>{r.name}</strong>
                   <span className="market-note">{r.tsCode}</span>
+                  <div className="chains-mobile-current">
+                    <span className="market-note">{`${date.slice(5)} 状态`}</span>
+                    <strong>{r.cells.find((c) => c.date === date)?.state === '交易' ? '未涨停' : r.cells.find((c) => c.date === date)?.state || '待更新'}</strong>
+                  </div>
                 </Space>
               ),
+            },
+            {
+              title: <Tooltip title={`所选交易日 ${date}，点击表头按连板高度排序`}>{`${date.slice(5)} 状态`}</Tooltip>,
+              key: 'current',
+              responsive: ['sm'],
+              width: 120,
+              fixed: 'left',
+              sorter: (a, b) => (a.cells.find((c) => c.date === date)?.height ?? -1) - (b.cells.find((c) => c.date === date)?.height ?? -1),
+              render: (_, row) => {
+                const cell = row.cells.find((c) => c.date === date);
+                return (
+                  <div className="chains-current-cell">
+                    <strong>{cell?.state === '交易' ? '未涨停' : cell?.state || '待更新'}</strong>
+                    <span className={changeClass(cell?.pctChg)}>
+                      {numberText(cell?.pctChg, 2, true)}
+                      {cell?.pctChg == null ? '' : '%'}
+                    </span>
+                  </div>
+                );
+              },
             },
             ...(data?.dates || []).map((day) => ({
               title: <Tooltip title={day}>{day.slice(5)}</Tooltip>,
@@ -95,7 +153,7 @@ export default function StrongTrajectories() {
                 const hits = signalMap.get(`${day}:${row.tsCode}`) || [];
                 return (
                   <button type="button" className={`trajectory-cell ${changeClass(cell.pctChg)}`} aria-haspopup="dialog" title="在侧栏预览当日详情" onClick={() => setDetail({ row, cell })} aria-label={`预览${row.name} ${day} ${cell.state}`}>
-                    <span className="trajectory-state">{cell.state === '交易' ? '—' : cell.state}</span>
+                    <span className="trajectory-state">{cell.state === '交易' ? '未涨停' : cell.state}</span>
                     <span>
                       {numberText(cell.pctChg, 2, true)}
                       {cell.pctChg == null ? '' : '%'}
@@ -120,11 +178,7 @@ export default function StrongTrajectories() {
             title: '成交额', value: detail.cell.amount, suffix: '亿元', digits: 2,
           }]}
           />
-          <p>
-            <SectorLinks stock={detail.row} date={date} />
-            {' '}
-            <SectorLinks stock={detail.row} type="N" date={date} />
-          </p>
+          <HistoricalSectors key={`${detail.row.tsCode}:${detail.cell.date}`} date={detail.cell.date} code={detail.row.tsCode} />
           <Space wrap>
             {allowedPath(user, '/analysis/limits') && ['首板', '炸板', '跌停'].some((s) => detail.cell.state === s) && <Link href={marketHref('/analysis/limits', { date: detail.cell.date, scope }, { keyword: detail.row.tsCode, type: recapType(detail.cell.state) })}>查看复盘明细</Link>}
             {allowedPath(user, '/analysis/limits') && /\d+板/.test(detail.cell.state) && <Link href={marketHref('/analysis/limits', { date: detail.cell.date, scope }, { keyword: detail.row.tsCode, type: 'U' })}>查看复盘明细</Link>}

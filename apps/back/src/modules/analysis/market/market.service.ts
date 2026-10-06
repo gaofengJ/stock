@@ -232,9 +232,9 @@ export class MarketService {
         : null;
     const limits = new Map(allCurrent.map((r) => [canonical(r.tsCode), r]));
     const trading = new Map(
-      (await this.db.manager.findBy(DailyEntity, { tradeDate: q.date }))
-        .filter((r) => Number(r.amount) > 0)
-        .map((r) => [canonical(r.tsCode), r]),
+      (await this.db.manager.findBy(DailyEntity, { tradeDate: q.date })).map(
+        (r) => [canonical(r.tsCode), r],
+      ),
     );
     return {
       ...current,
@@ -249,14 +249,16 @@ export class MarketService {
           const today = limits.get(canonical(r.tsCode));
           const daily = trading.get(canonical(r.tsCode));
           let state = today?.limitTimes === r.limitTimes + 1 ? '晋级' : '断板';
-          if (!daily) state = '停牌／无成交';
+          const traded = daily && Number(daily.amount) > 0;
+          if (!daily) state = '无行情';
+          else if (!traded) state = '无成交';
           return {
             tsCode: canonical(r.tsCode),
             name: r.name,
             previousHeight: r.limitTimes,
-            height: today?.limitTimes || 0,
+            height: traded ? today?.limitTimes || 0 : null,
             state,
-            pctChg: daily ? Number(daily.pctChg) : null,
+            pctChg: traded ? Number(daily.pctChg) : null,
           };
         })
         .sort((a, b) => b.previousHeight - a.previousHeight),
