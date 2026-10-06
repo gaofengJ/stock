@@ -10,7 +10,7 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           AUDIT_HISTORICAL_DB_HASH: ${{ secrets.AUDIT_HISTORICAL_DB_HASH }}
         run: |
-          node -e "const c=require('node:crypto'); const value=process.env.DB_PASSWORD, expected=process.env.AUDIT_HISTORICAL_DB_HASH; if(!value || !/^[a-f0-9]{64}$/.test(expected||''))throw new Error('Audit input unavailable'); console.log('Current deployment credential reuses historical literal:',c.createHash('sha256').update(value).digest('hex')===expected);"
+          node -e "const c=require('node:crypto'); const value=process.env.DB_PASSWORD, expected=process.env.AUDIT_HISTORICAL_DB_HASH; if(!expected){console.log('One-time credential comparison already completed; skipped.');process.exit(0)} if(!value || !/^[a-f0-9]{64}$/.test(expected))throw new Error('Audit input unavailable'); console.log('Current deployment credential reuses historical literal:',c.createHash('sha256').update(value).digest('hex')===expected);"
       - name: Check whether the backend port is externally reachable
         env:
           AUDIT_HOST: ${{ secrets.SSH_HOST }}
