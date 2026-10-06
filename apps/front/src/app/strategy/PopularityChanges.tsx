@@ -86,8 +86,8 @@ export function PopularityChanges({ date, code, endpoint = '/analysis/market/pop
   const rows = data?.items.filter((r) => !focusCode || r.code === focusCode).filter((r) => filter === 'all' || (filter === 'new' && r.state === 'new') || (filter === 'up' && (r.change || 0) > 0) || (filter === 'down' && (r.change || 0) < 0)) || [];
 
   return (
-    <div className="strategy-insight-panel">
-      <Space wrap className="mb-16">
+    <div className="strategy-insight-panel popularity-panel">
+      <Space wrap size={[12, 8]} className="popularity-heading">
         <strong>同花顺日终热股 Top100</strong>
         {focusCode && (
         <Space>
@@ -100,7 +100,9 @@ export function PopularityChanges({ date, code, endpoint = '/analysis/market/pop
       </Space>
       {data?.ready && (!data.complete || !data.previousReady) && <Alert className="mb-16" type="info" message={`当日返回 ${data.count}/100 条。前后榜单有缺位时，仅比较已有排名，不将缺数据判为新上榜或离榜。`} />}
       {data && !data.ready && <Alert className="mb-16" type={data.stage?.status === 'failed' ? 'warning' : 'info'} message={data.stage?.status === 'failed' ? '日终人气数据暂不可用，请查看同步任务。' : '日终人气数据正在补齐。'} />}
-      <Segmented className="mb-16" aria-label="人气变化筛选" value={filter} onChange={(v) => setFilter(String(v))} options={[{ label: '全部', value: 'all' }, { label: '排名上升', value: 'up' }, { label: '排名下降', value: 'down' }, { label: '新上榜', value: 'new' }, { label: '离榜', value: 'exit' }]} />
+      <div className="popularity-filters">
+        <Segmented aria-label="人气变化筛选" value={filter} onChange={(v) => setFilter(String(v))} options={[{ label: '全部', value: 'all' }, { label: '排名上升', value: 'up' }, { label: '排名下降', value: 'down' }, { label: '新上榜', value: 'new' }, { label: '离榜', value: 'exit' }]} />
+      </div>
       {filter === 'exit' ? <Table rowKey="code" pagination={false} maxBodyHeight={Number.POSITIVE_INFINITY} bottomSpacing={24} dataSource={data?.exited.filter((r) => !focusCode || r.code === focusCode) || []} locale={{ emptyText: !data?.complete ? '当日榜单不完整，暂不判断离榜' : '没有离榜股票' }} columns={[{ title: '股票', dataIndex: 'name' }, { title: '代码', dataIndex: 'code' }, { title: '上一交易日排名', dataIndex: 'rank' }]} />
         : (
           <Table

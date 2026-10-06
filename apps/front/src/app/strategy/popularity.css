@@ -1,3 +1,7 @@
+.popularity-panel { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.popularity-panel > .popularity-heading, .strategy-insight-panel.popularity-panel > .ant-alert { margin: 0; }
+.popularity-filters { display: flex; min-width: 0; max-width: 100%; overflow-x: auto; }
+.popularity-filters > .ant-segmented { flex: 0 0 auto; }
 .popularity-trend-chart { position: relative; min-height: 360px; }
 .popularity-trend-chart .ant-empty { padding-top: 112px; margin: 0; }
 .popularity-trend-caption { margin: 12px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 20px; }
