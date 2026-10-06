@@ -3,6 +3,7 @@ import { validate } from 'class-validator';
 import { StrategyListQueryDto } from './strategy.dto';
 import {
   breakoutAt,
+  evaluateTrend,
   pullbackAt,
   fiveMaAt,
   fiveMaState,
@@ -53,6 +54,36 @@ const pullback = () => [
 ];
 
 describe('趋势策略：窗口、边界和缺失数据', () => {
+  test.each([undefined, null, NaN, 0, 4.99, 5, 5.01])(
+    '放量突破信号日换手率%s必须严格大于5%%',
+    (turnoverRateF) => {
+      const rows = breakout();
+      rows[20].turnoverRateF = turnoverRateF;
+      expect(evaluateTrend('volumeBreakout', rows) !== null).toBe(
+        turnoverRateF === 5.01,
+      );
+    },
+  );
+  test('放量突破参考日不设换手率限制，回踩策略独立保持原条件', () => {
+    const rows = breakout();
+    rows.forEach((row) => {
+      Object.assign(row, { turnoverRateF: 0 });
+    });
+    rows[20].turnoverRateF = 6;
+    expect(evaluateTrend('volumeBreakout', rows)).not.toBeNull();
+    expect(evaluateTrend('breakoutPullback', pullback())).not.toBeNull();
+  });
+  test('放量突破支持用户门槛，并始终使用严格大于', () => {
+    const rows = breakout();
+    rows[20].turnoverRateF = 3;
+    expect(
+      evaluateTrend('volumeBreakout', rows, { minTurnoverRateF: 2 }),
+    ).not.toBeNull();
+    expect(evaluateTrend('volumeBreakout', rows)).toBeNull();
+    expect(
+      evaluateTrend('volumeBreakout', rows, { minTurnoverRateF: 3 }),
+    ).toBeNull();
+  });
   test('突破基准排除当日最高价及成交量，正好1.5倍可以命中', () => {
     expect(breakoutAt(breakout(), 20)).toMatchObject({
       breakoutPrice: 10,
@@ -260,6 +291,10 @@ describe('策略参数校验', () => {
     { contractionRatio: 0 },
     { fiveMaMode: 'x' },
     { aboveMa5: 'yes' },
+    { minTurnoverRateF: -1 },
+    { minTurnoverRateF: 'NaN' },
+    { minTurnoverRateF: 1001 },
+    { minTurnoverRateF: 5.001 },
   ])('拒绝无效参数 %j', async (query) => {
     expect((await validate(dto(query))).length).toBeGreaterThan(0);
   });

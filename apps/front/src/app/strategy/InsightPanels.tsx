@@ -149,7 +149,7 @@ export function SignalPerformance({
         </Space>
         <Segmented aria-label="信号统计范围" value={days} onChange={(v) => setDays(Number(v))} options={[{ label: '近20个交易日', value: 20 }, { label: '近60个交易日', value: 60 }]} />
       </div>
-      <p className="strategy-caption">按标准参数统计，不跟随自定义参数。信号日复权收盘至后续收盘的涨跌，不含交易成本；同股不同信号日分别计样本。</p>
+      <p className="strategy-caption">按标准参数统计，不跟随自定义参数或换手率筛选；设有换手率条件的策略默认每天 &gt; 5%。信号日复权收盘至后续收盘的涨跌，不含交易成本；同股不同信号日分别计样本。</p>
       {!!sector && <p className="strategy-caption">行业／题材按各信号日已有成分快照筛选；缺少历史成分的日期不纳入统计。</p>}
       <Space wrap className="mb-16">
         <strong>观察周期</strong>

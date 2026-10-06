@@ -1,4 +1,5 @@
 export interface TrendOptions {
+  minTurnoverRateF?: number;
   breakoutDays: number; volumeDays: number; volumeMultiple: number;
   pullbackDays: number; pullbackBelow: number; pullbackAbove: number; contractionRatio: number;
   fiveMaMode: 'new' | 'current'; aboveMa5: boolean; bullish: boolean; expandingVolume: boolean;

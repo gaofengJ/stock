@@ -520,9 +520,17 @@ export class TrendService {
         ? []
         : await this.db.query(
             `SELECT ${fields} FROM t_source_daily d WHERE d.trade_date IN (?) AND d.amount>50000 AND d.close*2>=d.high+d.low AND d.vol>0${
-              expanded ? ' AND d.ts_code IN (?)' : ''
-            }`,
-            expanded ? [visible, expanded] : [visible],
+              keys.every((key) => key === 'volumeBreakout')
+                ? ' AND d.turnover_rate_f>?'
+                : ''
+            }${expanded ? ' AND d.ts_code IN (?)' : ''}`,
+            [
+              visible,
+              ...(keys.every((key) => key === 'volumeBreakout')
+                ? [options.minTurnoverRateF ?? 5]
+                : []),
+              ...(expanded ? [expanded] : []),
+            ],
           );
     // Supplement historical names only for actual candidates. Unrelated,
     // inactive registry entries must not trigger repeated upstream lookups.
@@ -582,7 +590,7 @@ export class TrendService {
       !eligibleCodes.length || !volumeDates.length
         ? Promise.resolve([] as DailyEntity[])
         : (this.db.query(
-            "SELECT ts_code tsCode,DATE_FORMAT(trade_date,'%Y-%m-%d') tradeDate,open,close,high,low,pre_close preClose,vol,amount,up_limit upLimit FROM t_source_daily WHERE trade_date IN (?) AND ts_code IN (?)",
+            "SELECT ts_code tsCode,DATE_FORMAT(trade_date,'%Y-%m-%d') tradeDate,open,close,high,low,pre_close preClose,vol,amount,up_limit upLimit,turnover_rate_f turnoverRateF FROM t_source_daily WHERE trade_date IN (?) AND ts_code IN (?)",
             [volumeDates, eligibleCodes],
           ) as Promise<DailyEntity[]>),
     ]);
@@ -678,6 +686,8 @@ export class TrendService {
           basis,
           conversion,
           vol: volume == null ? undefined : Number(volume),
+          turnoverRateF:
+            row?.turnoverRateF == null ? null : Number(row.turnoverRateF),
           eligible: row
             ? hasValidStrategySequence([row]) &&
               meetsCommonStrategyConditions([row])

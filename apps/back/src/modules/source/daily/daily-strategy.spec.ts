@@ -270,7 +270,11 @@ describe.each(strategies)('%s通用校验接入', (method, count) => {
       find,
     } as unknown as Repository<DailyEntity>);
     const dates = rows.map((row) => row.tradeDate).reverse();
-    return { rows, find, run: () => service[method](dates) };
+    return {
+      rows,
+      find,
+      run: (minimum = 5) => service[method](dates, undefined, minimum),
+    };
   }
 
   it('保留满足当前策略的候选，只查一次数据库并读取成交量', async () => {
@@ -301,6 +305,52 @@ describe.each(strategies)('%s通用校验接入', (method, count) => {
       rows[0].amount = '100';
       expect(await run()).toHaveLength(1);
     }
+  });
+
+  it('每个形态日自由流通换手率必须严格大于5%，参照日不参与', async () => {
+    const start = method === 'findThreeDaysHighVol' ? 0 : 1;
+    for (let index = start; index < count; index += 1) {
+      const { rows, run } = setup();
+      // eslint-disable-next-line no-restricted-syntax -- Verify sequential mutations of the same fixture.
+      for (const rate of ['5', '4.99', '0']) {
+        rows[index].turnoverRateF = rate;
+        // eslint-disable-next-line no-await-in-loop
+        expect(await run()).toEqual([]);
+      }
+      rows[index].turnoverRateF = '5.01';
+      // eslint-disable-next-line no-await-in-loop
+      expect(await run()).toHaveLength(1);
+    }
+    if (start === 1) {
+      const { rows, run } = setup();
+      rows[0].turnoverRateF = undefined;
+      expect(await run()).toHaveLength(1);
+    }
+  });
+
+  it('缺失或非数字换手率不会误入候选', async () => {
+    const { rows, run } = setup();
+    rows[1].turnoverRateF = undefined;
+    if (method === 'findGapThreeHighTurnover') {
+      await expect(run()).rejects.toThrow('换手率数据不完整');
+    } else {
+      expect(await run()).toEqual([]);
+      rows[1].turnoverRateF = 'invalid';
+      expect(await run()).toEqual([]);
+    }
+  });
+  it('用户换手率门槛参与每个形态日判定，而非仅过滤最后一天', async () => {
+    const { rows, run } = setup();
+    const start = method === 'findThreeDaysHighVol' ? 0 : 1;
+    rows.slice(start).forEach((row) => {
+      Object.assign(row, { turnoverRateF: '10.01' });
+    });
+    rows[start].turnoverRateF = '10';
+    expect(await run(10)).toEqual([]);
+    expect(await run(9.99)).toHaveLength(1);
+    rows[start].turnoverRateF = '3';
+    expect(await run(2)).toHaveLength(1);
+    expect(await run()).toEqual([]);
   });
 
   it('形态期任一天一字涨停都不能入选', async () => {

@@ -1,4 +1,6 @@
 /* eslint-disable no-continue -- Ordered breakout search skips dates without a signal. */
+import { hasHighFreeTurnover } from '../source/daily/strategy-validation';
+
 export const TREND_KEYS = [
   'volumeBreakout',
   'breakoutPullback',
@@ -6,6 +8,7 @@ export const TREND_KEYS = [
 ] as const;
 export type TrendKey = (typeof TREND_KEYS)[number];
 export interface TrendOptions {
+  minTurnoverRateF?: number;
   breakoutDays?: number;
   volumeDays?: number;
   volumeMultiple?: number;
@@ -38,6 +41,7 @@ export type TrendPoint = {
   high: number;
   low: number;
   vol?: number;
+  turnoverRateF?: number | null;
   eligible?: boolean;
   basis?: string;
   conversion?: number;
@@ -242,7 +246,12 @@ export function evaluateTrend(
   options: TrendOptions = {},
 ) {
   const end = points.length - 1;
-  if (key === 'volumeBreakout') return breakoutAt(points, end, options);
+  if (key === 'volumeBreakout') {
+    const today = points[end];
+    return today && hasHighFreeTurnover([today], options.minTurnoverRateF ?? 5)
+      ? breakoutAt(points, end, options)
+      : null;
+  }
   if (key === 'breakoutPullback') return pullbackAt(points, end, options);
   return fiveMaAt(points, end, options);
 }

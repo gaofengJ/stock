@@ -55,7 +55,12 @@ export class StrategyReadService {
     });
   }
 
-  async sequence(dates: string[], bullish: boolean, strategy: string) {
+  async sequence(
+    dates: string[],
+    bullish: boolean,
+    strategy: string,
+    minTurnoverRateF = 5,
+  ) {
     await this.identity.assertReady(dates);
     const mapping = await this.db.manager.find(BseMappingEntity);
     const canonical = (code: string) =>
@@ -85,8 +90,15 @@ export class StrategyReadService {
     const selected: { code: string }[] = await this.db.query(
       `SELECT ts_code code FROM t_source_daily current WHERE trade_date=? AND amount>50000 AND vol>0 AND close*2>=high+low${
         bullish ? ' AND close>open' : ''
+      }${
+        strategy === 'gapThreeHighTurnover' ? '' : ' AND turnover_rate_f>?'
       } AND (${aliases.length ? 'ts_code IN (?) OR ' : ''}(${geometry}))`,
-      [dates[0], ...(aliases.length ? [aliases] : []), ...geometryDates],
+      [
+        dates[0],
+        ...(strategy === 'gapThreeHighTurnover' ? [] : [minTurnoverRateF]),
+        ...(aliases.length ? [aliases] : []),
+        ...geometryDates,
+      ],
     );
     const codes = new Set(selected.map((r) => canonical(r.code)));
     mapping.forEach((r) => {

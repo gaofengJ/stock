@@ -293,7 +293,7 @@ describe('股票历史身份与策略数据完整性', () => {
   });
 
   it('新旧代码跨日窗口合并后入选；相同日期行情冲突明确报错', async () => {
-    const rows = dates
+    const rows: DailyEntity[] = dates
       .slice()
       .reverse()
       .map((tradeDate, index) =>
@@ -308,6 +308,7 @@ describe('股票历史身份与策略数据完整性', () => {
           preClose: String(10 + index),
           vol: '100',
           amount: '60000',
+          turnoverRateF: '6',
           upLimit: '20',
         }),
       );

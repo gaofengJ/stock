@@ -817,6 +817,7 @@ export namespace NSGetCommonAllOptions {
  */
 export namespace NSGetStrategyList {
   export interface IParams {
+    minTurnoverRateF?: number;
     /**
      * 日期
      */

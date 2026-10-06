@@ -763,6 +763,13 @@ export class InsightService {
 
   /** A published standard signal is only a prefilter; trend evidence is still evaluated. */
   async standardCandidates(date: string, strategy: string, options: object) {
+    // Standard >5% hits remain a superset for stricter filters. Lower thresholds
+    // must evaluate all stocks rather than drop hits outside the standard list.
+    if (
+      strategy === 'volumeBreakout' &&
+      ((options as any).minTurnoverRateF ?? 5) < 5
+    )
+      return undefined;
     if (
       !Object.entries(TREND_DEFAULTS).every(
         ([key, value]) => (options as any)[key] === value,

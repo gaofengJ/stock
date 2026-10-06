@@ -1,5 +1,19 @@
 type NumericValue = string | number | null | undefined;
 
+/** Only shape days participate; reference days do not impose turnover limits. */
+export function hasHighFreeTurnover(
+  days: readonly { turnoverRateF?: NumericValue }[],
+  minimum = 5,
+) {
+  return (
+    days.length > 0 &&
+    days.every((day) => {
+      const rate = Number(day.turnoverRateF);
+      return Number.isFinite(rate) && rate > minimum;
+    })
+  );
+}
+
 interface StrategyTradingDay {
   name: string;
   open: NumericValue;

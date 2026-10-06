@@ -148,6 +148,7 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
         downLimit: '8',
         vol: i === 20 ? '150' : '100',
         amount: '60000',
+        turnoverRateF: '6',
       })),
     );
     await db.manager.insert(
@@ -184,6 +185,44 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
         volumeMultiple: 1.5,
       },
     });
+  });
+  test('真实SQL和历史信号同时执行突破日换手门槛，参考日不受限制', async () => {
+    await db.manager.update(
+      DailyEntity,
+      { tradeDate: dates[0] },
+      { turnoverRateF: '0' },
+    );
+    expect(await service.list(latest, 'volumeBreakout')).toHaveLength(1);
+    await db.manager.update(
+      DailyEntity,
+      { tradeDate: latest },
+      { turnoverRateF: '5' },
+    );
+    expect(await service.list(latest, 'volumeBreakout')).toEqual([]);
+    const history = await service.history(
+      [latest],
+      ['volumeBreakout', 'breakoutPullback'],
+    );
+    expect(
+      history.items.find((row) => row.key === 'volumeBreakout')?.rows,
+    ).toEqual([]);
+    await db.manager.update(
+      DailyEntity,
+      { tradeDate: latest },
+      { turnoverRateF: '5.01' },
+    );
+    expect(await service.list(latest, 'volumeBreakout')).toHaveLength(1);
+    expect(
+      await service.list(latest, 'volumeBreakout', { minTurnoverRateF: 8 }),
+    ).toEqual([]);
+    await db.manager.update(
+      DailyEntity,
+      { tradeDate: latest },
+      { turnoverRateF: '3' },
+    );
+    expect(
+      await service.list(latest, 'volumeBreakout', { minTurnoverRateF: 2 }),
+    ).toHaveLength(1);
   });
   test('缓存版本查询兼容实际数据库，修复或保护行情后立即失效', async () => {
     const cache = new StrategyCacheService(db);

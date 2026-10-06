@@ -9,15 +9,16 @@ import { isTrendStrategy, trendDefaults, TrendOptions } from './TrendParameters'
 const rules: Record<string, { summary: string; detail: string }> = {
   gapThreeUp: { summary: '向上缺口 + 连续三天收阳', detail: '从跳空日起连续三天收阳。后续低点始终高于跳空前一天最高价，允许部分回补，触及缺口下沿则排除。' },
   gapTwoUp: { summary: '向上缺口 + 连续两天收阳', detail: '从跳空日起连续两天收阳。后续低点始终高于跳空前一天最高价，允许部分回补，触及缺口下沿则排除。' },
-  gapThreeHighTurnover: { summary: '向上缺口 + 三天换手率均 > 5%', detail: '从跳空日起三天自由流通换手率均大于5%；跳空当天成交额高于前一天。后续低点始终高于跳空前一天最高价，不要求收阳。' },
+  gapThreeHighTurnover: { summary: '向上缺口 + 连续三天高换手', detail: '从跳空日起三天自由流通换手率均超过当前筛选门槛；跳空当天成交额高于前一天。后续低点始终高于跳空前一天最高价，不要求收阳。' },
   threeDaysHighVol: { summary: '连续三天收阳', detail: '连续三个交易日收盘价均高于当日开盘价。不限制量比，不要求形成缺口。' },
   continuousGap: { summary: '连续两次完整向上缺口', detail: '连续两天最低价均高于前一天最高价，不要求收阳。' },
   shadowWrap: { summary: '向上缺口 + 上影反包', detail: '跳空日上影长度大于昨收价的3%；次日收阳且收盘突破跳空日最高价，低点仍高于跳空前一天最高价。' },
 };
 
-export default function StrategyRules({ strategy, options = trendDefaults }: { strategy: string; options?: TrendOptions }) {
+export default function StrategyRules({ strategy, options = trendDefaults, minTurnoverRateF = 5 }: { strategy: string; options?: TrendOptions; minTurnoverRateF?: number }) {
   const [open, setOpen] = useState(false);
   const trend = isTrendStrategy(strategy);
+  const requiresTurnover = !trend || strategy === 'volumeBreakout';
   const newRules: typeof rules = {
     volumeBreakout: { summary: `收盘突破前${options.breakoutDays}日高点 + 成交量 ≥ ${options.volumeMultiple}倍均量`, detail: `收盘高于此前${options.breakoutDays}个交易日最高价，成交量至少为此前${options.volumeDays}日均量的${options.volumeMultiple}倍。两项基准均不包含当日。` },
     breakoutPullback: { summary: '放量突破 + 缩量回踩 + 当日收阳回升', detail: `近${options.pullbackDays}个交易日内，最近一次满足放量突破条件的日期作为突破日。至少间隔一个回踩日；当日最低价位于突破位下方${options.pullbackBelow}%至上方${options.pullbackAbove}%之间，突破后收盘均未跌破下方容差。当日收阳、收盘高于昨日及突破位；中间回踩日均量不超过突破日成交量的${Math.round(options.contractionRatio * 100)}%。` },
@@ -32,6 +33,7 @@ export default function StrategyRules({ strategy, options = trendDefaults }: { s
         <strong>{rule.summary}</strong>
         <div className="strategy-rules-common">
           <Tag>成交额 &gt; 5000万</Tag>
+          {requiresTurnover && <Tag>{`${trend ? '当日' : '每天'}自由流通换手率 > ${minTurnoverRateF}%`}</Tag>}
           <Tag>排除一字涨停</Tag>
           <Tag>{trend ? '当日收盘在上半区' : '末日收盘在上半区'}</Tag>
         </div>
@@ -44,6 +46,7 @@ export default function StrategyRules({ strategy, options = trendDefaults }: { s
           <h3>成交与价格要求</h3>
           <p>{trend ? '共同条件检查信号日，回踩策略的突破日也需满足。' : '每个形态日成交额均大于5000万元，且排除一字涨停。收盘位置只检查最后一天。'}</p>
           <p>信号日收盘不低于当天最高价与最低价的中点。</p>
+          {requiresTurnover && <p>{trend ? `突破当天自由流通换手率必须严格大于${minTurnoverRateF}%；高点及均量参考日不参与该门槛。` : `每个形态日的自由流通换手率都必须严格大于${minTurnoverRateF}%，不要求逐日增加，也不与跳空前的参照日比较。`}</p>}
           <h3>排除条件</h3>
           <p>排除ST、退市整理及上市初期股票；缺价或历史不足时不参与。</p>
           <h3>计算口径</h3>

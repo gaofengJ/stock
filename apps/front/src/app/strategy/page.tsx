@@ -25,7 +25,10 @@ import SectorFilter from '@/components/SectorFilter';
 import useInsight from './useInsight';
 import { strategyColumns, trendColumns } from './columns';
 import TrendParameters, { isTrendStrategy, trendDefaults } from './TrendParameters';
-import { readStrategyOptions, writeStrategyOptions, validStrategyDate } from './strategy-state';
+import {
+  readStrategyOptions, writeStrategyOptions, validStrategyDate, readStrategyTurnover, turnoverQueryKey, turnoverStrategies,
+} from './strategy-state';
+import TurnoverFilter from './TurnoverFilter';
 import CandidateEnvironment from './CandidateEnvironment';
 import StrategyRules from './StrategyRules';
 import StockChart from './StockChart';
@@ -66,7 +69,9 @@ function StrategyPage() {
   const linkedCode = /^\d{6}\.(SH|SZ|BJ)$/.test(params.get('code') || '') ? params.get('code') : null;
   const optionKey = JSON.stringify(readStrategyOptions(params));
   const options = useMemo(() => JSON.parse(optionKey), [optionKey]);
-  const listKey = JSON.stringify([date, strategy, sector, optionKey]);
+  const hasTurnoverFilter = turnoverStrategies.includes(strategy);
+  const minTurnoverRateF = readStrategyTurnover(params, strategy);
+  const listKey = JSON.stringify([date, strategy, sector, optionKey, hasTurnoverFilter ? minTurnoverRateF : null]);
   const listCurrent = loadedListKey === listKey;
   const loadingCandidates = !loadError && !dateError && (!date || tableLoading || !listCurrent);
   const updateQuery = useCallback((changes: Record<string, string | undefined>) => {
@@ -85,14 +90,14 @@ function StrategyPage() {
     if (!date || !strategy || !needsCandidates || (!force && loadedListKey === listKey)) return;
     runLatestRequest({
       request: () => getStrategyList({
-        date, strategyType: strategy, includeLabels: false, ...(sector ? { sector } : {}), ...(isTrendStrategy(strategy) ? options : {}),
+        date, strategyType: strategy, includeLabels: false, ...(sector ? { sector } : {}), ...(isTrendStrategy(strategy) ? options : {}), ...(hasTurnoverFilter ? { minTurnoverRateF } : {}),
       }, { ...requestConfig, timeout: 90000 }),
       onStart: () => { setLoadError(''); setTableLoading(true); },
       onSuccess: ({ data }) => { setItems(data); setLoadedListKey(listKey); },
       onError: (error) => { setItems([]); setLoadedListKey(listKey); setLoadError(errorMessage(error, '策略加载失败，请重试')); },
       onFinally: () => setTableLoading(false),
     });
-  }, [date, strategy, sector, options, requestConfig, runLatestRequest, needsCandidates, listKey, loadedListKey]);
+  }, [date, strategy, sector, options, requestConfig, runLatestRequest, needsCandidates, listKey, loadedListKey, hasTurnoverFilter, minTurnoverRateF]);
   useEffect(() => { getTabs(); }, [getTabs]);
   useEffect(() => { getList(); }, [getList]);
   useEffect(() => { setSelectedStock(null); setObservation(null); }, [listKey]);
@@ -149,7 +154,8 @@ function StrategyPage() {
         {dateError && !date && <Alert type="error" message={dateError} showIcon action={<Button onClick={retryDate}>重试</Button>} />}
         {loadError && <Alert type="error" message={loadError} showIcon action={<Button onClick={() => { if (navList.length) getList(true); else getTabs(); }}>重试</Button>} />}
         <Tabs size={screens.md ? 'middle' : 'small'} activeKey={strategy} items={navList} onChange={switchStrategy} />
-        <StrategyRules key={strategy} strategy={strategy} options={options} />
+        <StrategyRules key={strategy} strategy={strategy} options={options} minTurnoverRateF={view === 'performance' ? 5 : minTurnoverRateF} />
+        {hasTurnoverFilter && view !== 'performance' && <TurnoverFilter key={`${strategy}-${minTurnoverRateF}`} value={minTurnoverRateF} onChange={(value) => updateQuery({ [turnoverQueryKey(strategy)]: String(value), code: undefined })} />}
         {isTrendStrategy(strategy) && <TrendParameters key={`${strategy}-${optionKey}`} strategy={strategy} value={options} onChange={(value) => updateQuery({ ...writeStrategyOptions(value), code: undefined })} />}
         <Space className="mb-16" size={[24, 12]} wrap>
           <Space>
@@ -200,7 +206,7 @@ function StrategyPage() {
         {labels.error && needsCandidates && <Alert type="warning" message={labels.error} action={<Button onClick={labels.retry}>重试行业</Button>} />}
         <div hidden={view !== 'comparison'}><CandidateComparison loadingCandidates={loadingCandidates} date={date} allCandidates={tableLoading || !listCurrent ? [] : items} candidates={tableLoading ? [] : decorated} active={view === 'comparison'} strategies={navList} onStock={openStock} /></div>
         <div hidden={view !== 'performance'}><SignalPerformance date={date} strategy={strategy} sector={sector} active={view === 'performance'} onStock={(row, rows) => { setChartList(rows.map((r) => ({ ...r, tsCode: r.code }))); setObservation({ ...row, tsCode: row.code }); }} /></div>
-        <StockChart navigation={chartList} onNavigate={setSelectedStock} stock={selectedStock} date={date} strategy={strategy} options={options} onClose={() => setSelectedStock(null)} />
+        <StockChart navigation={chartList} onNavigate={setSelectedStock} stock={selectedStock} date={date} strategy={strategy} options={{ ...options, ...(hasTurnoverFilter ? { minTurnoverRateF } : {}) }} onClose={() => setSelectedStock(null)} />
         <StockChart navigation={chartList} onNavigate={setObservation} stock={observation} date={observation?.date || date} strategy={strategy} options={trendDefaults} onClose={() => setObservation(null)} />
       </div>
     </Layout>

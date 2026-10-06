@@ -1,6 +1,14 @@
 import dayjs from 'dayjs';
 import { trendDefaults, TrendOptions } from './strategy-options';
 
+export const turnoverStrategies = ['gapThreeUp', 'gapTwoUp', 'gapThreeHighTurnover', 'threeDaysHighVol', 'continuousGap', 'shadowWrap', 'volumeBreakout'];
+export const turnoverQueryKey = (strategy: string) => `turnover_${strategy}`;
+export function readStrategyTurnover(params: { get: (key: string) => string | null }, strategy: string) {
+  const raw = params.get(turnoverQueryKey(strategy));
+  const value = Number(raw);
+  return raw !== null && raw.trim() !== '' && Number.isFinite(value) && value >= 0 && value <= 1000 && Math.abs(value * 100 - Math.round(value * 100)) < 1e-8 ? value : 5;
+}
+
 const bounds: Record<string, [number, number, boolean?]> = {
   breakoutDays: [5, 120, true],
   volumeDays: [3, 20, true],

@@ -31,7 +31,7 @@ export class StrategyService {
   /**
    * 策略选股结果列表-向上跳空缺口后三连阳
    */
-  async gapThreeUp(date: CommonDateDto['date']) {
+  async gapThreeUp(date: CommonDateDto['date'], minTurnoverRateF = 5) {
     const isOpen = await this.tradeCalService.isOpen(date);
     if (!isOpen) {
       this.logger.log(`${date}非交易日，请重新选择交易日期`);
@@ -47,14 +47,15 @@ export class StrategyService {
     // dates[0] is latest (date4), dates[3] is oldest (date1)
     return this.dailyService.findGapThreeUp(
       dates,
-      await this.reads?.sequence(dates, true, 'gapThreeUp'),
+      await this.reads?.sequence(dates, true, 'gapThreeUp', minTurnoverRateF),
+      minTurnoverRateF,
     );
   }
 
   /**
    * 策略选股结果列表-向上跳空缺口后二连阳
    */
-  async gapTwoUp(date: CommonDateDto['date']) {
+  async gapTwoUp(date: CommonDateDto['date'], minTurnoverRateF = 5) {
     const isOpen = await this.tradeCalService.isOpen(date);
     if (!isOpen) {
       this.logger.log(`${date}非交易日，请重新选择交易日期`);
@@ -70,14 +71,18 @@ export class StrategyService {
     // dates[0] is latest (date3), dates[2] is oldest (date1)
     return this.dailyService.findGapTwoUp(
       dates,
-      await this.reads?.sequence(dates, true, 'gapTwoUp'),
+      await this.reads?.sequence(dates, true, 'gapTwoUp', minTurnoverRateF),
+      minTurnoverRateF,
     );
   }
 
   /**
    * 策略选股结果列表-向上跳空缺口后连续三日高换手率
    */
-  async gapThreeHighTurnover(date: CommonDateDto['date']) {
+  async gapThreeHighTurnover(
+    date: CommonDateDto['date'],
+    minTurnoverRateF = 5,
+  ) {
     const isOpen = await this.tradeCalService.isOpen(date);
     if (!isOpen) {
       this.logger.log(`${date}非交易日，请重新选择交易日期`);
@@ -92,14 +97,20 @@ export class StrategyService {
     const dates = last4Days.map((i) => i.calDate);
     return this.dailyService.findGapThreeHighTurnover(
       dates,
-      await this.reads?.sequence(dates, false, 'gapThreeHighTurnover'),
+      await this.reads?.sequence(
+        dates,
+        false,
+        'gapThreeHighTurnover',
+        minTurnoverRateF,
+      ),
+      minTurnoverRateF,
     );
   }
 
   /**
    * 策略选股结果列表-连续三日收阳
    */
-  async threeDaysHighVol(date: CommonDateDto['date']) {
+  async threeDaysHighVol(date: CommonDateDto['date'], minTurnoverRateF = 5) {
     const isOpen = await this.tradeCalService.isOpen(date);
     if (!isOpen) {
       this.logger.log(`${date}非交易日，请重新选择交易日期`);
@@ -114,14 +125,20 @@ export class StrategyService {
     const dates = last3Days.map((i) => i.calDate);
     return this.dailyService.findThreeDaysHighVol(
       dates,
-      await this.reads?.sequence(dates, true, 'threeDaysHighVol'),
+      await this.reads?.sequence(
+        dates,
+        true,
+        'threeDaysHighVol',
+        minTurnoverRateF,
+      ),
+      minTurnoverRateF,
     );
   }
 
   /**
    * 策略选股结果列表-连续两次向上缺口
    */
-  async continuousGap(date: CommonDateDto['date']) {
+  async continuousGap(date: CommonDateDto['date'], minTurnoverRateF = 5) {
     const isOpen = await this.tradeCalService.isOpen(date);
     if (!isOpen) {
       this.logger.log(`${date}非交易日，请重新选择交易日期`);
@@ -136,14 +153,20 @@ export class StrategyService {
     const dates = last3Days.map((i) => i.calDate);
     return this.dailyService.findContinuousGap(
       dates,
-      await this.reads?.sequence(dates, false, 'continuousGap'),
+      await this.reads?.sequence(
+        dates,
+        false,
+        'continuousGap',
+        minTurnoverRateF,
+      ),
+      minTurnoverRateF,
     );
   }
 
   /**
    * 策略选股结果列表-向上跳空上影反包
    */
-  async shadowWrap(date: CommonDateDto['date']) {
+  async shadowWrap(date: CommonDateDto['date'], minTurnoverRateF = 5) {
     const isOpen = await this.tradeCalService.isOpen(date);
     if (!isOpen) {
       this.logger.log(`${date}非交易日，请重新选择交易日期`);
@@ -158,7 +181,8 @@ export class StrategyService {
     const dates = last3Days.map((i) => i.calDate);
     return this.dailyService.findShadowWrap(
       dates,
-      await this.reads?.sequence(dates, true, 'shadowWrap'),
+      await this.reads?.sequence(dates, true, 'shadowWrap', minTurnoverRateF),
+      minTurnoverRateF,
     );
   }
 
@@ -212,7 +236,11 @@ export class StrategyService {
           sector: undefined,
           includeLabels: undefined,
         }
-      : { date, strategyType };
+      : { date, strategyType, minTurnoverRateF: dto.minTurnoverRateF ?? 5 };
+    if (strategyType === 'volumeBreakout')
+      parameters.minTurnoverRateF = dto.minTurnoverRateF ?? 5;
+    if (strategyType === 'breakoutPullback' || strategyType === 'fiveMaUp')
+      delete parameters.minTurnoverRateF;
     // Volume options do not change five-MA results unless enabled.
     if (strategyType === 'fiveMaUp' && !parameters.expandingVolume) {
       parameters.volumeDays = TREND_DEFAULTS.volumeDays;
@@ -282,22 +310,22 @@ export class StrategyService {
     }
     switch (strategyType) {
       case EStrategyType.gapThreeUp:
-        ret = await this.gapThreeUp(date);
+        ret = await this.gapThreeUp(date, dto.minTurnoverRateF);
         break;
       case EStrategyType.gapTwoUp:
-        ret = await this.gapTwoUp(date);
+        ret = await this.gapTwoUp(date, dto.minTurnoverRateF);
         break;
       case EStrategyType.gapThreeHighTurnover:
-        ret = await this.gapThreeHighTurnover(date);
+        ret = await this.gapThreeHighTurnover(date, dto.minTurnoverRateF);
         break;
       case EStrategyType.threeDaysHighVol:
-        ret = await this.threeDaysHighVol(date);
+        ret = await this.threeDaysHighVol(date, dto.minTurnoverRateF);
         break;
       case EStrategyType.continuousGap:
-        ret = await this.continuousGap(date);
+        ret = await this.continuousGap(date, dto.minTurnoverRateF);
         break;
       case EStrategyType.shadowWrap:
-        ret = await this.shadowWrap(date);
+        ret = await this.shadowWrap(date, dto.minTurnoverRateF);
         break;
       default:
         ret = [];

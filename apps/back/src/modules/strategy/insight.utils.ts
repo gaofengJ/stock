@@ -3,7 +3,7 @@ import { normalizeTrendSeries, TrendPoint } from './trend-rules';
 import { StockInsight, HotStock } from './insight.entity';
 import { MARKET_SCOPES, inScope } from '../analysis/market/market.constants';
 
-export const INSIGHT_VERSION = 'signals-20261004-v1';
+export const INSIGHT_VERSION = 'signals-20261006-turnover5-v1';
 export const HORIZONS = [1, 3, 5, 10] as const;
 const round = (v: number) => Math.round(v * 10000) / 10000;
 export const positive = (v: unknown): v is number =>

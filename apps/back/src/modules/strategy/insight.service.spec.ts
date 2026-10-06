@@ -277,6 +277,34 @@ describe('InsightService observation boundaries', () => {
       await service.standardCandidates(days[0], 'fiveMaUp', TREND_DEFAULTS),
     ).toBeUndefined();
   });
+  it('uses standard >5% signals only as a superset for stricter turnover filters', async () => {
+    const { service, db } = setup();
+    db.manager.findOne = jest.fn().mockResolvedValue({
+      updatedAt: new Date('2026-09-30'),
+      revision: 'valid',
+      signals: {
+        version: INSIGHT_VERSION,
+        ready: ['volumeBreakout'],
+        parameters: TREND_DEFAULTS,
+        items: [{ code: '000001.SZ', keys: ['volumeBreakout'] }],
+      },
+    });
+    jest.spyOn(service as any, 'revisions').mockResolvedValue([]);
+    jest.spyOn(service as any, 'revision').mockReturnValue('valid');
+    expect(
+      await service.standardCandidates(days[0], 'volumeBreakout', {
+        ...TREND_DEFAULTS,
+        minTurnoverRateF: 3,
+      }),
+    ).toBeUndefined();
+    expect(db.manager.findOne).not.toHaveBeenCalled();
+    expect(
+      await service.standardCandidates(days[0], 'volumeBreakout', {
+        ...TREND_DEFAULTS,
+        minTurnoverRateF: 10,
+      }),
+    ).toEqual(['000001.SZ']);
+  });
   it('uses the immediately preceding trading session, never an older available snapshot', async () => {
     const { service, db } = setup();
     const stock = {

@@ -36,6 +36,18 @@ export class StrategyListQueryDto {
   @IsEnum(EStrategyType)
   strategyType: string;
 
+  @ApiProperty({
+    description: '形态日自由流通换手率须严格大于该百分比，默认5',
+    required: false,
+    default: 5,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(1000)
+  minTurnoverRateF?: number;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()

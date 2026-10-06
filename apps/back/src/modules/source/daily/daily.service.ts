@@ -21,6 +21,7 @@ import { DailyEntity } from './daily.entity';
 import { DailyDto, DailyQueryDto, DailyUpdateDto } from './daily.dto';
 import { StockIdentityService } from '../stock/stock-identity.service';
 import {
+  hasHighFreeTurnover,
   hasValidStrategySequence,
   hasUpperShadowAboveThreePercent,
   meetsCommonStrategyConditions,
@@ -275,6 +276,7 @@ export class DailyService {
   async findGapThreeUp(
     dates: string[],
     sequence?: Map<string, Record<string, DailyEntity>>,
+    minTurnoverRateF = 5,
   ): Promise<DailyEntity[]> {
     const [date4, date3, date2, date1] = dates;
     const map = sequence || (await this.getDailyDataByDates(dates));
@@ -290,6 +292,7 @@ export class DailyService {
 
       if (!hasValidStrategySequence([d1, d2, d3, d4])) return;
       if (!meetsCommonStrategyConditions([d2, d3, d4])) return;
+      if (!hasHighFreeTurnover([d2, d3, d4], minTurnoverRateF)) return;
 
       if (
         +d1.high < +d2.low && // 缺口
@@ -313,6 +316,7 @@ export class DailyService {
   async findGapTwoUp(
     dates: string[],
     sequence?: Map<string, Record<string, DailyEntity>>,
+    minTurnoverRateF = 5,
   ): Promise<DailyEntity[]> {
     const [date3, date2, date1] = dates;
     const map = sequence || (await this.getDailyDataByDates(dates));
@@ -327,6 +331,7 @@ export class DailyService {
 
       if (!hasValidStrategySequence([d1, d2, d3])) return;
       if (!meetsCommonStrategyConditions([d2, d3])) return;
+      if (!hasHighFreeTurnover([d2, d3], minTurnoverRateF)) return;
 
       if (
         +d1.high < +d2.low && // 缺口
@@ -348,6 +353,7 @@ export class DailyService {
   async findGapThreeHighTurnover(
     dates: string[],
     sequence?: Map<string, Record<string, DailyEntity>>,
+    minTurnoverRateF = 5,
   ): Promise<DailyEntity[]> {
     const [date4, date3, date2, date1] = dates;
     const map = sequence || (await this.getDailyDataByDates(dates));
@@ -383,8 +389,7 @@ export class DailyService {
             '自由流通换手率数据不完整，请补同步后重试',
           );
         }
-        if (shapeDays.every((day) => Number(day.turnoverRateF) > 5))
-          result.push(d4);
+        if (hasHighFreeTurnover(shapeDays, minTurnoverRateF)) result.push(d4);
       }
     });
     return result;
@@ -398,6 +403,7 @@ export class DailyService {
   async findThreeDaysHighVol(
     dates: string[],
     sequence?: Map<string, Record<string, DailyEntity>>,
+    minTurnoverRateF = 5,
   ): Promise<DailyEntity[]> {
     const [date3, date2, date1] = dates;
     const map = sequence || (await this.getDailyDataByDates(dates));
@@ -412,6 +418,7 @@ export class DailyService {
 
       if (!hasValidStrategySequence([d1, d2, d3])) return;
       if (!meetsCommonStrategyConditions([d1, d2, d3])) return;
+      if (!hasHighFreeTurnover([d1, d2, d3], minTurnoverRateF)) return;
 
       if (
         +d1.close > +d1.open &&
@@ -432,6 +439,7 @@ export class DailyService {
   async findContinuousGap(
     dates: string[],
     sequence?: Map<string, Record<string, DailyEntity>>,
+    minTurnoverRateF = 5,
   ): Promise<DailyEntity[]> {
     const [date3, date2, date1] = dates;
     const map = sequence || (await this.getDailyDataByDates(dates));
@@ -446,6 +454,7 @@ export class DailyService {
 
       if (!hasValidStrategySequence([d1, d2, d3])) return;
       if (!meetsCommonStrategyConditions([d2, d3])) return;
+      if (!hasHighFreeTurnover([d2, d3], minTurnoverRateF)) return;
 
       if (
         +d2.low > +d1.high && // 昨天最低价高于前天最高价，形成第一个向上缺口
@@ -467,6 +476,7 @@ export class DailyService {
   async findShadowWrap(
     dates: string[],
     sequence?: Map<string, Record<string, DailyEntity>>,
+    minTurnoverRateF = 5,
   ): Promise<DailyEntity[]> {
     const [date3, date2, date1] = dates;
     const map = sequence || (await this.getDailyDataByDates(dates));
@@ -481,6 +491,7 @@ export class DailyService {
 
       if (!hasValidStrategySequence([d1, d2, d3])) return;
       if (!meetsCommonStrategyConditions([d2, d3])) return;
+      if (!hasHighFreeTurnover([d2, d3], minTurnoverRateF)) return;
 
       if (
         +d2.low > +d1.high && // 第一天形成向上跳空缺口，且当日未回补
