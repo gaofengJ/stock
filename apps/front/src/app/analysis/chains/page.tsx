@@ -91,7 +91,8 @@ function ChainsPage() {
     });
     router.push(`/analysis/chains/?${query}`, { scroll: false });
   };
-  const setSector = (value?: string) => navigate(tab, { sector: value });
+  const setSector = (value?: string) => navigate('ladder', { sector: value });
+  const setTrajectorySector = (value?: string) => navigate('trajectory', { trajectorySector: value });
   const openLadder = (day: string) => navigate('ladder', { date: day, sector: undefined, code: undefined });
   const series = useMarketData<MarketSeries>('chains', { days: 730 }, tab !== 'trajectory');
   const ladder = useMarketData<Ladder>('ladder', { sector }, tab === 'ladder');
@@ -133,7 +134,7 @@ function ChainsPage() {
                 <SectionTitle title="股票梯队与去向" />
                 <div className="chains-filter">
                   <SectorFilter value={sector} onChange={setSector} />
-                  <span className="chains-filter-note">筛选下方股票，同时用于多日轨迹</span>
+                  <span className="chains-filter-note">仅筛选当日股票梯队与昨日连板股去向</span>
                 </div>
                 <DataState loading={ladder.loading} error={ladder.error} retry={ladder.retry} empty={!ladder.data?.ready}>
                   {!ladder.data?.items.length ? <Empty description={sector ? '当前筛选范围内无涨停股票' : '当前统计范围内当日无涨停股票'} /> : <LadderGroups key={`${date}:${scope}:${sector}`} items={ladder.data.items} />}
@@ -152,10 +153,10 @@ function ChainsPage() {
                           title: '股票',
                           width: 170,
                           render: (_, r) => (
-                            <div>
-                              <Link href={marketHref('/analysis/chains', { date, scope }, { view: 'trajectory', code: r.tsCode })}>{r.name}</Link>
-                              <div className="market-note">{r.tsCode}</div>
-                            </div>
+                            <Link className="chains-stock-link" href={marketHref('/analysis/chains', { date, scope }, { view: 'trajectory', code: r.tsCode })} title={`查看${r.name}多日轨迹`}>
+                              <span>{r.name}</span>
+                              <span className="chains-stock-code">{r.tsCode}</span>
+                            </Link>
                           ),
                         },
                         {
@@ -186,7 +187,7 @@ function ChainsPage() {
               </>
             ),
           },
-          { key: 'trajectory', label: '多日轨迹', children: <StrongTrajectories key={`${date}:${scope}`} sector={sector} onSectorChange={setSector} active={tab === 'trajectory'} /> },
+          { key: 'trajectory', label: '多日轨迹', children: <StrongTrajectories key={`${date}:${scope}`} sector={params.get('trajectorySector') || undefined} onSectorChange={setTrajectorySector} active={tab === 'trajectory'} /> },
           {
             key: 'history',
             label: '历史统计',

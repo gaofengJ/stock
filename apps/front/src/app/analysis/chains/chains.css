@@ -12,7 +12,22 @@
 .chains-history-toolbar .ant-picker { width: 150px; }
 .chains-current-cell { display: flex; flex-direction: column; gap: 4px; font-variant-numeric: tabular-nums; }
 .chains-mobile-current { display: none; }
+.chains-stock-link { display: inline-flex; flex-direction: column; gap: 4px; }
+.chains-stock-code { color: var(--text-secondary); font-size: 12px; }
+.chains-stock-link:hover .chains-stock-code { color: inherit; }
+.chains-trajectory-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
+.chains-trajectory-hint { margin: 8px 0; font-size: 12px; line-height: 20px; color: var(--text-secondary); }
+.chains-trajectory .trajectory-cell { min-height: 56px; gap: 2px; }
+.chains-detail-caption { margin: 0 0 16px; font-size: 12px; line-height: 20px; color: var(--text-secondary); }
+.chains-detail-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0 0 20px; padding: 16px; border-radius: 6px; background: var(--color-surface-muted); }
+.chains-detail-metrics dt { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+.chains-detail-metrics dd { margin: 0; font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.chains-detail-actions { margin: 4px 0 12px; }
+.chains-detail-modal .ant-modal-header { padding-inline-end: 24px; }
+.chains-detail-modal .market-data-state { min-height: 80px; }
+.chains-detail-modal .section-heading { margin: 12px 0; font-size: 16px; }
 @media (max-width: 575px) {
+  .chains-detail-modal .ant-modal-content { padding: 16px; }
   .chains-mobile-current { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
   .chains-ladder-row { gap: 8px; padding: 12px 8px; }
   .chains-ladder-label { flex-basis: 58px; }
