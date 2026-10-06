@@ -764,6 +764,7 @@ mysqlDescribe('MySQL 同步事务与迁移回归', () => {
         'BasicWorkbench1791763200000',
         'PrivateFeedback1791849600000',
         'FeedbackRead1791936000000',
+        'LoginActivityItemRead1792022400000',
       ]);
       expect(before.counts.t_source_daily).toEqual({ rows: 2, duplicates: 1 });
       expect(before.requiredFreeBytes).toBe(before.totalBytes * 4 + 1024 ** 3);
