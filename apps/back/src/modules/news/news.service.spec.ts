@@ -47,6 +47,37 @@ describe('News service safety', () => {
       expect(source.lastError).toBe('');
     });
   });
+  it('warns only after 15 minutes without a real upstream collection', async () => {
+    const now = Date.parse('2026-10-06T14:00:00Z');
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(now);
+    try {
+      const db = {
+        query: jest.fn().mockResolvedValue([
+          {
+            source: 'sina',
+            enabled: 1,
+            status: 'ok',
+            last_success: new Date(now - 15 * 60000),
+          },
+          {
+            source: 'bloomberg',
+            enabled: 1,
+            status: 'ok',
+            last_success: new Date(now - 15 * 60000 - 1),
+          },
+        ]),
+      } as unknown as DataSource;
+      const { sources } = await new NewsService(db, config).sources();
+      expect(sources.find((source) => source.code === 'sina')?.status).toBe(
+        'ok',
+      );
+      expect(
+        sources.find((source) => source.code === 'bloomberg')?.status,
+      ).toBe('delayed');
+    } finally {
+      clock.mockRestore();
+    }
+  });
   it('interprets MySQL string flags without marking another reader as read', async () => {
     const query = jest
       .fn()
