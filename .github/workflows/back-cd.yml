@@ -55,6 +55,7 @@ jobs:
           sparse-checkout: .github
       - run: node --test .github/scripts/test-release-tools.cjs
       - run: python3 -m unittest discover -s .github/scripts -p 'test_*bloomberg*.py'
+      - run: python3 -m unittest discover -s .github/scripts -p 'test_sina_relay.py'
       - uses: actions/github-script@v7
         id: scope
         with:
