@@ -1,11 +1,21 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { Permit } from '@/modules/auth/permissions';
 import { ResearchService } from './research.service';
-import { MarketResearchQuery, ResearchQuery } from './research.dto';
+import {
+  BrokerResearchQuery,
+  MarketResearchQuery,
+  ResearchQuery,
+} from './research.dto';
 
 @Controller('workbench/research')
 export class ResearchController {
   constructor(private service: ResearchService) {}
+
+  @Get('broker-picks') @Permit('basic:stock') brokerPicks(
+    @Query() dto: BrokerResearchQuery,
+  ) {
+    return this.service.brokerPicks(dto);
+  }
 
   @Get('stock') @Permit('basic:stock') stock(@Query() dto: ResearchQuery) {
     return this.service.stock(dto);

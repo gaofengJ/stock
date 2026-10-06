@@ -2,7 +2,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import * as dayjs from 'dayjs';
 import { shanghaiDate } from '@/modules/daily-task/sync.utils';
-import { MarketResearchQuery, ResearchQuery } from './research.dto';
+import {
+  BrokerResearchQuery,
+  MarketResearchQuery,
+  ResearchQuery,
+} from './research.dto';
 import {
   ResearchSource,
   ResearchSourceService,
@@ -28,6 +32,34 @@ export class ResearchService {
       date > shanghaiDate()
     )
       throw new BadRequestException('请选择有效且不晚于今天的观察日期');
+  }
+
+  async brokerPicks(dto: BrokerResearchQuery) {
+    if (
+      !/^\d{4}-(0[1-9]|1[0-2])$/.test(dto.month || '') ||
+      !dayjs(`${dto.month}-01`).isValid() ||
+      dayjs(`${dto.month}-01`).format('YYYY-MM') !== dto.month ||
+      dto.month > shanghaiDate().slice(0, 7)
+    )
+      throw new BadRequestException('请选择有效且不晚于本月的金股月份');
+    const month = dto.month.replace('-', '');
+    const source = await this.source.read(
+      'broker_recommend',
+      { month },
+      'month,broker,ts_code,name',
+      1000,
+    );
+    return {
+      month: dto.month,
+      sources: [
+        {
+          ...source,
+          rows: source.rows.filter(
+            (r) => String(r.month).replace('-', '') === month,
+          ),
+        },
+      ],
+    };
   }
 
   async stock(dto: ResearchQuery) {
@@ -145,7 +177,6 @@ export class ResearchService {
           'ts_code,name,surv_date,fund_visitors,rece_mode,rece_org,org_type,comp_rece,content',
           100,
         ],
-        ['broker_recommend', { month }, 'month,broker,ts_code,name', 1000],
       ],
     };
     const sources = (

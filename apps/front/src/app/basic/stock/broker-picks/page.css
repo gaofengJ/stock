@@ -1,0 +1,10 @@
+.broker-picks { min-width: 0; }
+.broker-picks-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
+.broker-picks-month { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.broker-picks-month .ant-picker { width: 150px; }
+.broker-picks .broker-picks-broker { width: 200px; max-width: 100%; }
+.broker-picks .broker-picks-search { width: 240px; max-width: 100%; }
+.broker-picks-summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; color: var(--text-secondary); margin-bottom: 12px; }
+@media (max-width: 767px) {
+  .broker-picks .broker-picks-broker, .broker-picks .broker-picks-search { width: 100%; }
+}

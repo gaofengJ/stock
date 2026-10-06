@@ -13,6 +13,7 @@ function load(file, imports = {}) {
 }
 const format = load('utils/format.ts');
 const data = load('components/LiveResearch/data.ts', { '@/utils/format': format });
+const picks = load('app/basic/stock/broker-picks/display.ts', { '@/utils/format': format });
 
 test('business composition deduplicates revisions and never combines currencies or incomplete subtotals', () => {
   const rows = [
@@ -85,4 +86,40 @@ test('changing stock/date cancels old requests and blocks late data and late err
   assert.equal(render(second).error, undefined);
   assert.equal(calls.length, 4);
   cleanup?.();
+});
+
+test('monthly broker lists deduplicate each broker/stock without collapsing recommendations from different brokers', () => {
+  const rows = picks.brokerRows([
+    { month: '202609', broker: ' A ', ts_code: '000001.sz', name: '平安银行' },
+    { month: '202609', broker: 'A', ts_code: '000001.SZ', name: '平安银行' },
+    { month: '202609', broker: 'B', ts_code: '000001.SZ', name: '平安银行' },
+    { month: '2026-09', broker: 'B', ts_code: '600000.SH', name: '浦发银行' },
+    { month: '202608', broker: 'A', ts_code: '000001.SZ', name: '平安银行' },
+  ], '2026-09');
+  assert.equal(rows.length, 3);
+  assert.equal(picks.filterBrokerRows(rows, 'A', '').length, 1);
+  assert.equal(picks.filterBrokerRows(rows, '', '000001.sz').length, 2);
+  assert.equal(picks.filterBrokerRows(rows, 'B', ' 浦发 ').length, 1);
+  assert.equal(picks.filterBrokerRows(rows, '', '没有').length, 0);
+});
+
+test('monthly links preserve the selected month and stock, cap the observation date at today, and reject invalid/future months', () => {
+  assert.equal(picks.brokerMonth('2026-09', '2026-10'), '2026-09');
+  for (const month of ['2026-00', '2026-13', '2026-9', '2026-11', null]) assert.equal(picks.brokerMonth(month, '2026-10'), '2026-10');
+  const september = new URL(picks.brokerStockHref('600000.SH', '2026-09', '2026-10-06'), 'http://localhost');
+  assert.equal(september.searchParams.get('code'), '600000.SH');
+  assert.equal(september.searchParams.get('date'), '2026-09-30');
+  const october = new URL(picks.brokerStockHref('600000.SH', '2026-10', '2026-10-06'), 'http://localhost');
+  assert.equal(october.searchParams.get('date'), '2026-10-06');
+  assert.equal(picks.validStockCode('javascript:alert(1)'), false);
+  assert.equal(picks.validStockCode('920001.BJ'), true);
+});
+
+test('the standalone monthly page inherits existing stock permission and appears immediately after individual stocks', () => {
+  const enums = load('components/Layout/enum.ts');
+  const client = load('auth/client.ts', { '@/api/errors': {}, '@/components/Layout/enum': enums });
+  const user = { permissions: ['basic:stock'], catalog: [{ code: 'basic:stock', route: '/basic/stock' }] };
+  assert.equal(client.allowedPath(user, '/basic/stock/broker-picks/'), true);
+  assert.equal(client.allowedPath({ ...user, permissions: [] }, '/basic/stock/broker-picks/'), false);
+  assert.equal(enums.basicNavigationOrder[1], '/basic/stock/broker-picks');
 });

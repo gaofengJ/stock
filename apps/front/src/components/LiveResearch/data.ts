@@ -25,7 +25,7 @@ export const sourceLabels: Record<string, string> = {
 };
 export type Source = { source: string; state: 'ready' | 'error'; message: string | null; fetchedAt: string; rows: Row[] };
 export type Research = {
-  date: string; code?: string; section?: string; sources: Source[]; month?: string;
+  date?: string; code?: string; section?: string; sources: Source[]; month?: string;
   financial?: Row[]; holders?: { period: string; previousPeriod: string; rows: Row[]; exited: Row[] };
   floatHolders?: Research['holders'];
 };
