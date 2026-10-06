@@ -27,7 +27,7 @@ jobs:
             if(master.object.sha!==process.env.RELEASE_SHA)throw new Error('Current master changed; release stopped');
             const jobs=(await get('/actions/runs/37488216220/jobs?filter=latest&per_page=100')).jobs;
             for(const name of ['verify','image','front / build','publish-front'])if(!jobs.some(j=>j.name===name&&j.conclusion==='success'))throw new Error('Required source check failed: '+name);
-            if(jobs.some(j=>['deploy-back','deploy-front'].includes(j.name)&&j.started_at&&j.conclusion!=='skipped'))throw new Error('A normal application deployment has already started; recovery stopped');
+            if(jobs.some(j=>['deploy-back','deploy-front'].includes(j.name)&&(j.conclusion==='success'||j.steps.some(step=>step.name==='Deploy to Server'&&step.started_at&&step.conclusion!=='skipped'&&step.status!=='queued'))))throw new Error('A normal application deployment has already started; recovery stopped');
             console.log('Exact master source, backend tests, database integration, runtime image checks and frontend publication verified.');
           })().catch(e=>{console.error(e.message);process.exitCode=1});
           JS
