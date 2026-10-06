@@ -68,6 +68,7 @@ export default function Page() {
   const request = useRef(0);
   const detailRequest = useRef(0);
   const pending = useRef(false);
+  const listRef = useRef<HTMLElement>(null);
 
   const loadSources = useCallback(async () => {
     try { setSources(await api<SourceState>('/news/sources')); setSourceError(''); } catch (e) { setSourceError(errorMessage(e)); }
@@ -104,6 +105,7 @@ export default function Page() {
     } catch (e) { if (current === request.current) setError(errorMessage(e)); } finally { if (current === request.current) { setLoading(false); pending.current = false; } }
   }, [date, source, kind, keyword, important, page, range, merge, stock, watchlist, following, signedIn]);
   useEffect(() => {
+    listRef.current?.scrollTo({ top: 0 });
     setData(null); latestId.current = null; setNewCount(0); setNewAfter(null); load();
     return () => { request.current += 1; pending.current = false; };
   }, [load, preferences, user?.id]);
@@ -173,86 +175,89 @@ export default function Page() {
     return { ok: 'green', delayed: 'orange', error: 'orange' }[s.status] || 'blue';
   };
   return (
-    <CommonLayout headerMenuActive="/news" showAsideMenu={false}>
+    <CommonLayout headerMenuActive="/news" showAsideMenu={false} contentClassName={`p-16 ${styles.viewport}`}>
       <main className={styles.news}>
-        <div className={styles.heading}>
-          <div>
-            <h1>实时资讯</h1>
-            <p>市场快讯与财经报道 · 持续采集，按发布时间排序</p>
+        <div className={styles.toolbar}>
+          <div className={styles.heading}>
+            <div>
+              <h1>实时资讯</h1>
+              <p>市场快讯与财经报道 · 持续采集，按发布时间排序</p>
+            </div>
+            <Space wrap>
+              <span className={styles.auto}>
+                <Switch size="small" checked={auto} onChange={setAuto} aria-label="自动刷新资讯" />
+                {' '}
+                自动刷新
+              </span>
+              <Button icon={<ReloadOutlined />} loading={loading} onClick={() => { load(); loadSources(); }}>刷新</Button>
+              <Tooltip title={signedIn ? '管理关注关键词和自选股票' : '登录后保存关注设置'}><InteractionButton intent="preview" disabled={!signedIn} onClick={() => setFocusOpen(true)}>我的关注</InteractionButton></Tooltip>
+              <Button icon={<SettingOutlined />} onClick={() => setSettings(true)}>{manager ? '来源管理' : '来源状态'}</Button>
+            </Space>
           </div>
-          <Space wrap>
-            <span className={styles.auto}>
-              <Switch size="small" checked={auto} onChange={setAuto} aria-label="自动刷新资讯" />
+          {availableSources.filter((s) => s.warning && (!source || source === s.code)).map((s) => (
+            <Alert key={s.code} className={styles.relayWarning} showIcon type="warning" message={`${s.name}更新延迟 · 最近采集 ${formatTime(s.lastSuccess, true)}`} description={s.warning} />
+          ))}
+          <div className={styles.filters}>
+            <Segmented value={kind} options={[{ label: '全部资讯', value: '' }, { label: '快讯', value: 'flash' }, { label: '报道', value: 'article' }]} onChange={(v) => { setKind(String(v)); setPage(1); }} />
+            <Space size={0}>
+              <Select aria-label="资讯来源" showSearch optionFilterProp="label" value={source} popupMatchSelectWidth={240} className={styles.sourceSelect} options={[{ label: '全部来源', value: '' }, ...availableSources.map((s) => ({ label: s.name, value: s.code }))]} onChange={(v) => { setSource(v); setPage(1); }} />
+              <Tooltip title={sourceTip} trigger={['hover', 'click']}>
+                <Button type="text" size="small" aria-label="来源内容说明" icon={<InfoCircleOutlined />} />
+              </Tooltip>
+            </Space>
+            <Select aria-label="资讯时间范围" value={range} className={styles.sourceSelect} options={[{ label: '最近一小时', value: 'hour' }, { label: '今天', value: 'today' }, { label: '最近三天', value: 'three-days' }, { label: '指定日期', value: 'date' }]} onChange={(value) => { setRange(value); setPage(1); }} />
+            {range === 'date' && <DatePicker aria-label="资讯日期" allowClear={false} value={dayjs(date)} disabledDate={(d) => d.format('YYYY-MM-DD') > chinaDate()} onChange={(d) => { if (d) { setDate(d.format('YYYY-MM-DD')); setPage(1); } }} />}
+            <Input.Search placeholder="搜索标题或正文" aria-label="搜索资讯" allowClear maxLength={80} className={styles.search} onSearch={(v) => { setKeyword(v.trim()); setPage(1); }} />
+            <Checkbox checked={important} onChange={(e) => { setImportant(e.target.checked); setPage(1); }}>仅重点</Checkbox>
+            <Tooltip title="按标题相似度和数字合并，保留各来源。可关闭查看全部。"><Checkbox checked={merge} onChange={(e) => { setMerge(e.target.checked); setPage(1); }}>合并相似</Checkbox></Tooltip>
+            <Checkbox disabled={!signedIn} checked={following} onChange={(e) => { setFollowing(e.target.checked); setPage(1); }}>仅关注词</Checkbox>
+            <Checkbox disabled={!signedIn} checked={watchlist} onChange={(e) => { setWatchlist(e.target.checked); setPage(1); }}>仅自选股</Checkbox>
+          </div>
+          {stock && (
+          <div className={styles.focusBar}>
+            <Tag closable onClose={() => { setStock(''); setPage(1); }}>
+              关联股票：
+              {stock}
+            </Tag>
+          </div>
+          )}
+          {preferences.keywords.length > 0 && (
+          <Space wrap className={styles.focusBar}>
+            <span>关注词：</span>
+            {preferences.keywords.map((word) => <InteractionButton intent="select" selected={keyword === word} key={word} title="按关键词筛选资讯" onClick={() => { setKeyword(word); setPage(1); }}>{word}</InteractionButton>)}
+          </Space>
+          )}
+          <div className={styles.summary}>
+            <span>
+              {`${rangeText[range]} · 北京时间`}
               {' '}
-              自动刷新
+              · 共
+              {' '}
+              {data?.total ?? '—'}
+              {' '}
+              条
+              {keyword ? ` · 关键词：${keyword}` : ''}
             </span>
-            <Button icon={<ReloadOutlined />} loading={loading} onClick={() => { load(); loadSources(); }}>刷新</Button>
-            <Tooltip title={signedIn ? '管理关注关键词和自选股票' : '登录后保存关注设置'}><InteractionButton intent="preview" disabled={!signedIn} onClick={() => setFocusOpen(true)}>我的关注</InteractionButton></Tooltip>
-            <Button icon={<SettingOutlined />} onClick={() => setSettings(true)}>{manager ? '来源管理' : '来源状态'}</Button>
-          </Space>
-        </div>
-        {availableSources.filter((s) => s.warning && (!source || source === s.code)).map((s) => (
-          <Alert key={s.code} className={styles.relayWarning} showIcon type="warning" message={`${s.name}更新延迟 · 最近采集 ${formatTime(s.lastSuccess, true)}`} description={s.warning} />
-        ))}
-        <div className={styles.filters}>
-          <Segmented value={kind} options={[{ label: '全部资讯', value: '' }, { label: '快讯', value: 'flash' }, { label: '报道', value: 'article' }]} onChange={(v) => { setKind(String(v)); setPage(1); }} />
-          <Space size={0}>
-            <Select aria-label="资讯来源" showSearch optionFilterProp="label" value={source} popupMatchSelectWidth={240} className={styles.sourceSelect} options={[{ label: '全部来源', value: '' }, ...availableSources.map((s) => ({ label: s.name, value: s.code }))]} onChange={(v) => { setSource(v); setPage(1); }} />
-            <Tooltip title={sourceTip} trigger={['hover', 'click']}>
-              <Button type="text" size="small" aria-label="来源内容说明" icon={<InfoCircleOutlined />} />
-            </Tooltip>
-          </Space>
-          <Select aria-label="资讯时间范围" value={range} className={styles.sourceSelect} options={[{ label: '最近一小时', value: 'hour' }, { label: '今天', value: 'today' }, { label: '最近三天', value: 'three-days' }, { label: '指定日期', value: 'date' }]} onChange={(value) => { setRange(value); setPage(1); }} />
-          {range === 'date' && <DatePicker aria-label="资讯日期" allowClear={false} value={dayjs(date)} disabledDate={(d) => d.format('YYYY-MM-DD') > chinaDate()} onChange={(d) => { if (d) { setDate(d.format('YYYY-MM-DD')); setPage(1); } }} />}
-          <Input.Search placeholder="搜索标题或正文" aria-label="搜索资讯" allowClear maxLength={80} className={styles.search} onSearch={(v) => { setKeyword(v.trim()); setPage(1); }} />
-          <Checkbox checked={important} onChange={(e) => { setImportant(e.target.checked); setPage(1); }}>仅重点</Checkbox>
-          <Tooltip title="按标题相似度和数字合并，保留各来源。可关闭查看全部。"><Checkbox checked={merge} onChange={(e) => { setMerge(e.target.checked); setPage(1); }}>合并相似</Checkbox></Tooltip>
-          <Checkbox disabled={!signedIn} checked={following} onChange={(e) => { setFollowing(e.target.checked); setPage(1); }}>仅关注词</Checkbox>
-          <Checkbox disabled={!signedIn} checked={watchlist} onChange={(e) => { setWatchlist(e.target.checked); setPage(1); }}>仅自选股</Checkbox>
-        </div>
-        {stock && (
-        <div className={styles.focusBar}>
-          <Tag closable onClose={() => { setStock(''); setPage(1); }}>
-            关联股票：
-            {stock}
-          </Tag>
-        </div>
-        )}
-        {preferences.keywords.length > 0 && (
-        <Space wrap className={styles.focusBar}>
-          <span>关注词：</span>
-          {preferences.keywords.map((word) => <InteractionButton intent="select" selected={keyword === word} key={word} title="按关键词筛选资讯" onClick={() => { setKeyword(word); setPage(1); }}>{word}</InteractionButton>)}
-        </Space>
-        )}
-        <div className={styles.summary}>
-          <span>
-            {`${rangeText[range]} · 北京时间`}
+            <span>
+              {availableSources.length}
+              {' '}
+              个可用来源
+              {data ? ` · 页面更新 ${formatTime(data.updatedAt)}` : ''}
+              {auto && page === 1 ? ' · 每 30 秒刷新' : ' · 自动更新列表已暂停'}
+            </span>
+          </div>
+          {error && <Alert className={styles.alert} type="error" showIcon message={error} description={data ? '当前显示上次成功加载的资讯。' : undefined} action={<Button size="small" onClick={() => load()}>重试</Button>} />}
+          {newCount > 0 && (
+          <Button type="default" className={styles.newMessages} onClick={() => { listRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); setNewCount(0); setNewAfter(null); }}>
+            新增 / 更新
+            {newCount}
             {' '}
-            · 共
-            {' '}
-            {data?.total ?? '—'}
-            {' '}
-            条
-            {keyword ? ` · 关键词：${keyword}` : ''}
-          </span>
-          <span>
-            {availableSources.length}
-            {' '}
-            个可用来源
-            {data ? ` · 页面更新 ${formatTime(data.updatedAt)}` : ''}
-            {auto && page === 1 ? ' · 每 30 秒刷新' : ' · 自动更新列表已暂停'}
-          </span>
+            条，查看最新资讯 ↑
+          </Button>
+          )}
         </div>
-        {error && <Alert className={styles.alert} type="error" showIcon message={error} description={data ? '当前显示上次成功加载的资讯。' : undefined} action={<Button size="small" onClick={() => load()}>重试</Button>} />}
-        {newCount > 0 && (
-        <Button type="default" className={styles.newMessages} onClick={() => { document.querySelector('section[aria-label="资讯列表"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); setNewCount(0); setNewAfter(null); }}>
-          新增 / 更新
-          {newCount}
-          {' '}
-          条，查看最新资讯 ↑
-        </Button>
-        )}
-        <section className={styles.list} aria-label="资讯列表" aria-busy={loading}>
+        {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- The independent scroll area must be keyboard reachable. */}
+        <section ref={listRef} className={styles.list} aria-label="资讯列表" aria-busy={loading} tabIndex={0}>
           {loading && !data ? <div className={styles.skeleton}><Skeleton active paragraph={{ rows: 5 }} /></div> : null}
           {!loading && !data?.items.length && !error ? <Empty className={styles.empty} description={emptyText} /> : null}
           {data?.items.map((item) => (
@@ -335,7 +340,7 @@ export default function Page() {
           ))}
         </section>
         {Boolean(data?.total) && <div className={styles.pagination}><Pagination current={page} pageSize={20} total={data?.total} showSizeChanger={false} showLessItems onChange={setPage} /></div>}
-        <p className={styles.note}>资讯来自各来源公开内容，采集和刷新可能存在延迟。来源未提供有效发布时间时，以首次采集时间展示并标注。重点标记来自各来源的重点快讯。雪球内容为用户讨论。报道以原文为准。</p>
+        <p className={`${styles.note} ${styles.footerNote}`}>资讯来自各来源公开内容，采集和刷新可能存在延迟。来源未提供有效发布时间时，以首次采集时间展示并标注。重点标记来自各来源的重点快讯。雪球内容为用户讨论。报道以原文为准。</p>
       </main>
       <Drawer title="资讯详情" width="min(640px, 100vw)" open={detailOpen} onClose={() => { setDetailOpen(false); detailRequest.current += 1; }}>
         {detail && (
