@@ -119,6 +119,9 @@ jobs:
         run: docker run --rm --mount "type=bind,src=$PWD/apps/back/ops/release,dst=/work,readonly" --workdir /work python:3.5-slim python -m unittest discover -p 'test_*.py'
       - run: pnpm -C apps/back run test --runInBand
         env:
+          # Set at process startup, matching the runtime image. Jest's env proxy
+          # cannot change the host timezone used by daily log filenames.
+          TZ: Asia/Shanghai
           SYNC_TEST_MYSQL_PORT: 3306
           SYNC_TEST_MYSQL_PASSWORD: ci-local-only
       - run: node --test apps/back/ops/backfill-intraday-counts.test.cjs
