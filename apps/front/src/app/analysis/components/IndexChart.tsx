@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  memo, useEffect, useRef, useState,
+  memo, useEffect, useState,
 } from 'react';
 import {
   Button, Card, Empty, Modal,
@@ -18,21 +18,7 @@ import {
 import {
   ChartWindow, pairedIndexCandles, movingAverage, averagePeriods, unfilledGaps,
 } from './market-display';
-
-function ExpandedChart({ render }: { render: (height: number) => React.ReactNode }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState(560);
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return undefined;
-    const update = () => setHeight(Math.max(160, container.clientHeight));
-    const observer = new ResizeObserver(update);
-    observer.observe(container);
-    update();
-    return () => observer.disconnect();
-  }, []);
-  return <div ref={containerRef} className="market-expanded-chart">{render(height)}</div>;
-}
+import ExpandedChart from './ExpandedChart';
 
 function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][number]; dates: string[]; window: ChartWindow }) {
   const { mode, colors } = useSiteTheme();

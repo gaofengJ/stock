@@ -6,7 +6,7 @@ import { forwardRef, ComponentProps, ComponentRef } from 'react';
 import Link from 'next/link';
 import { Button, ButtonProps } from 'antd';
 import {
-  CheckOutlined, DownOutlined, ExportOutlined, EyeOutlined, UpOutlined,
+  CaretDownOutlined, CaretUpOutlined, CheckOutlined, ExportOutlined, EyeOutlined,
 } from '@ant-design/icons';
 
 /** Content navigation only; menus, breadcrumbs and page-local filters keep their own semantics. */
@@ -53,8 +53,8 @@ export const InteractionButton = forwardRef<ComponentRef<typeof Button>, Interac
   const marks = {
     select: <CheckOutlined />,
     preview: <EyeOutlined />,
-    expand: expanded ? <UpOutlined /> : <DownOutlined />,
-    popover: <DownOutlined />,
+    expand: expanded ? <CaretUpOutlined /> : <CaretDownOutlined />,
+    popover: <CaretDownOutlined />,
   };
   return (
     <Button

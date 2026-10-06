@@ -23,8 +23,10 @@ export default function SectorLinks({ stock, type = 'I', date }: { stock: Classi
       {links!.length > visible.length && (
       <Popover title={type === 'I' ? '同花顺行业' : '同花顺题材'} content={<Space wrap style={{ maxWidth: 360 }}>{links!.slice(visible.length).map(renderLink)}</Space>} trigger={['hover', 'click']}>
         <InteractionButton intent="popover" aria-label={`展开其余${links!.length - visible.length}个${type === 'I' ? '行业' : '题材'}`}>
-          更多
-          {links!.length - visible.length}
+          <span>
+            更多
+            <span className="interaction-count">{links!.length - visible.length}</span>
+          </span>
         </InteractionButton>
       </Popover>
 )}

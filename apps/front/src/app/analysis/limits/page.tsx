@@ -34,7 +34,7 @@ const fieldNames: Record<string, string> = {
 };
 // Minimum widths keep compact values readable; text columns get more of the spare space.
 const columnSizing: Record<string, { width: number; grow: number }> = {
-  stock: { width: 160, grow: 1.2 },
+  stock: { width: 160, grow: 0 },
   topics: { width: 260, grow: 3 },
   industry: { width: 130, grow: 1.2 },
   pctChg: { width: 96, grow: 0.4 },

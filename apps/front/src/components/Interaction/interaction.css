@@ -56,6 +56,8 @@
 }
 .interaction-button.interaction-select[aria-pressed="true"] > .ant-btn-icon { color: inherit; }
 .interaction-button.interaction-expand, .interaction-button.interaction-popover { color: var(--text-secondary); }
+.interaction-button.interaction-expand > .ant-btn-icon, .interaction-button.interaction-popover > .ant-btn-icon { display: inline-flex; align-items: center; font-size: 10px; }
+.interaction-count { margin-inline-start: 4px; font-variant-numeric: tabular-nums; }
 .interaction-button.ant-btn:disabled { color: var(--text-disabled); background: transparent; cursor: not-allowed; }
 .interaction-button.ant-btn:disabled > .ant-btn-icon { color: inherit; }
 .interaction-hint { margin: 6px 0 10px; font-size: 12px; line-height: 1.7; color: var(--text-secondary); }
