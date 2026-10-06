@@ -296,6 +296,7 @@ jobs:
           DB_USERNAME: ${{ secrets.DB_USERNAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           TUSHARE_CONF_TOKEN: ${{ secrets.TUSHARE_CONF_TOKEN }}
+          ADMIN_PLAYBOOK_GZIP_BASE64: ${{ secrets.ADMIN_PLAYBOOK_GZIP_BASE64 }}
         run: node .github/scripts/render-runtime-env.cjs apps/back/.env.production apps/back/ops/release/runtime.env
       - name: Upload versioned release scripts
         # Composite action runs as the runner user and can read mode-600 configuration.

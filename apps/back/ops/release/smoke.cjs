@@ -59,6 +59,9 @@ async function check(path, cookie, needsRows = false, expectedStatus = 200) {
       [admin.id, hash, digest(digest('csrf:' + token))],
     );
     await check('/api/auth/me', cookie);
+    const playbook = await check('/api/admin/playbook', cookie);
+    if (playbook?.maps?.length !== 4) throw new Error('Private playbook configuration check failed');
+    await check('/api/admin/playbook', null, false, 401);
     await check('/api/basic/trade-cal/list?year=' + date.slice(0, 4), cookie);
     await check(
       '/api/source/daily/list?pageNum=1&pageSize=1&tradeDate=' + date,

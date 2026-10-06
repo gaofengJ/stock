@@ -13,7 +13,10 @@ function render(template, environment) {
 if (require.main === module) {
   try {
     const [source, destination] = process.argv.slice(2);
-    const content = render(fs.readFileSync(source, 'utf8'), process.env);
+    let content = render(fs.readFileSync(source, 'utf8'), process.env);
+    if (process.env.ADMIN_PLAYBOOK_GZIP_BASE64) {
+      content += '\n' + render('ADMIN_PLAYBOOK_GZIP_BASE64=__ADMIN_PLAYBOOK_GZIP_BASE64__\n', process.env);
+    }
     fs.writeFileSync(destination, content, { mode: 0o600 });
     fs.chmodSync(destination, 0o600);
   } catch (error) {
