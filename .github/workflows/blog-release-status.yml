@@ -41,6 +41,8 @@ jobs:
                     if time.time()-info.st_mtime < 1800:
                         sizes.append(info.st_size)
             print('Recent staging archive bytes:', sorted(sizes))
+            chunks = glob.glob('/opt/stock-release/image-relay/ac730979b89711dafa5c8192e84ee8fda4469817/chunks/part-*')
+            print('Relay chunks count and bytes:', len(chunks), sum(os.stat(name).st_size for name in chunks))
             PY
             echo 'Proxy connection classification:'
             python3 - <<'PY'
