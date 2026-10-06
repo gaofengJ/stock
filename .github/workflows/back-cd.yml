@@ -57,6 +57,7 @@ jobs:
             apps/back
       - run: node .github/scripts/check-env-secrets.cjs apps/back/.env.production
       - run: node --test .github/scripts/test-release-tools.cjs
+      - run: node --test .github/scripts/test-publish-verified-image.cjs
       - run: node --test .github/scripts/test-indexnow.cjs
       - run: python3 -m unittest discover -s .github/scripts -p 'test_*bloomberg*.py'
       - run: python3 -m unittest discover -s .github/scripts -p 'test_sina_relay.py'
@@ -196,28 +197,44 @@ jobs:
       - front
     if: needs.changes.outputs.backend == 'true' && ((github.event_name == 'push' && github.ref == 'refs/heads/master') || inputs.publish_images == true)
     runs-on: ubuntu-latest
+    timeout-minutes: 70
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+      - name: Limit image upload concurrency on the publication runner
+        run: |
+          sudo python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('/etc/docker/daemon.json')
+          config = json.loads(path.read_text()) if path.exists() else {}
+          config['max-concurrent-uploads'] = 1
+          path.parent.mkdir(parents=True, exist_ok=True)
+          path.write_text(json.dumps(config))
+          PY
+          sudo systemctl restart docker
+          docker info > /dev/null
       - uses: actions/download-artifact@v4
         with:
           name: stock-back-image-${{ github.sha }}
           path: ${{ runner.temp }}/stock-back-image
-      - name: Login to Aliyun Registry
-        uses: docker/login-action@v3
-        with:
-          registry: registry.cn-hangzhou.aliyuncs.com
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Publish the exact verified runtime image
         env:
           IMAGE: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-back:${{ github.sha }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: |
           gzip -dc "$RUNNER_TEMP/stock-back-image/stock-back-image.tar.gz" | docker load
           docker tag stock-back-verify "$IMAGE"
-          timeout 600 docker push "$IMAGE"
+          bash .github/scripts/publish-verified-image.sh
       - name: Report compressed runtime image size
         env:
           IMAGE: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-back:${{ github.sha }}
         run: docker buildx imagetools inspect "$IMAGE" --raw | python3 -c 'import json,sys; m=json.load(sys.stdin); print("Compressed runtime image bytes:", sum(layer["size"] for layer in m["layers"]))'
+      - name: Remove registry credentials
+        if: always()
+        run: docker logout registry.cn-hangzhou.aliyuncs.com > /dev/null 2>&1
   publish-front:
     needs:
       - changes
