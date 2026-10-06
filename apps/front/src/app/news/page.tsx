@@ -191,6 +191,9 @@ export default function Page() {
             <Button icon={<SettingOutlined />} onClick={() => setSettings(true)}>{manager ? '来源管理' : '来源状态'}</Button>
           </Space>
         </div>
+        {availableSources.filter((s) => s.warning && (!source || source === s.code)).map((s) => (
+          <Alert key={s.code} className={styles.relayWarning} showIcon type="warning" message={`${s.name}更新延迟 · 最近采集 ${formatTime(s.lastSuccess, true)}`} description={s.warning} />
+        ))}
         <div className={styles.filters}>
           <Segmented value={kind} options={[{ label: '全部资讯', value: '' }, { label: '快讯', value: 'flash' }, { label: '报道', value: 'article' }]} onChange={(v) => { setKind(String(v)); setPage(1); }} />
           <Space size={0}>
