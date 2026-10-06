@@ -1,25 +1,51 @@
-name: Inspect article release
+name: Update private admin playbook content
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: Expected content version
+        type: string
+        required: true
+      sha256:
+        description: Expected private content digest
+        type: string
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: stock-private-playbook-content
+  cancel-in-progress: false
 jobs:
-  inspect:
+  update:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: Read server release progress
-        uses: appleboy/ssh-action@master
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+      - name: Verify configuration replacement and rollback primitive
+        run: |
+          python3 -m unittest discover -s .github/scripts -p test_playbook_content_update.py
+          docker run --rm --mount "type=bind,src=$PWD/.github/scripts,dst=/work,readonly" --workdir /work python:3.5-slim python -m unittest discover -p test_playbook_content_update.py
+      - name: Upload content update tools without private data
+        uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
-          script: |
-            echo 'Running Docker operations (arguments omitted):'
-            ps -eo pid,etime,args | awk '$3 ~ /(^|\/)docker$/ {print $1,$2,$3,$4}'
-            echo 'Article containers:'
-            docker ps --filter name=stock-blog --format '{{.Names}} {{.Status}} {{.Image}}'
-            echo 'Article images:'
-            docker images --format '{{.Repository}}:{{.Tag}} {{.Size}}' | grep 'stock-blog' || true
-            echo 'Media-verified release build directories:'
-            find /opt/stock-blog-style -maxdepth 2 -name Dockerfile -print
-            echo 'Memory and disk:'
-            free -m
-            df -h / /opt
+          source: .github/scripts/playbook-content-update.py,.github/scripts/playbook-content-smoke.cjs
+          target: /opt/stock-release/playbook-tools/${{ github.sha }}
+          strip_components: 2
+      - name: Update protected configuration and verify live admin API
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          ADMIN_PLAYBOOK_GZIP_BASE64: ${{ secrets.ADMIN_PLAYBOOK_GZIP_BASE64 }}
+          PLAYBOOK_SHA256: ${{ inputs.sha256 }}
+          PLAYBOOK_VERSION: ${{ inputs.version }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          envs: ADMIN_PLAYBOOK_GZIP_BASE64,PLAYBOOK_SHA256,PLAYBOOK_VERSION
+          command_timeout: 18m
+          script: python3 /opt/stock-release/playbook-tools/${{ github.sha }}/playbook-content-update.py
