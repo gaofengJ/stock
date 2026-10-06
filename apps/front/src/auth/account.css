@@ -12,13 +12,39 @@
 .sync-job-cell { display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
 .sync-job-cell small { color: var(--text-muted); font-size: 12px; }
 .sync-job-warning > td { background: var(--color-primary-soft); }
-.sync-submit-help { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px 24px; color: var(--text-secondary); font-size: 13px; }
-.sync-submit-help strong { font-weight: 400; }
-.sync-submit .sync-mode, .sync-filters .sync-mode { width: 210px; }
+.sync-maintenance { margin-bottom: 24px; scroll-margin-top: 72px; }
+.sync-maintenance h4.ant-typography { margin: 0 0 12px; font-size: 16px; }
+.sync-maintenance .sync-purpose-field { margin-bottom: 16px; }
+.sync-purpose-field .ant-radio-group { display: block; width: 100%; }
+.sync-purpose-options, .sync-module-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.sync-maintenance .sync-purpose { display: flex; align-items: flex-start; margin: 0; padding: 12px 16px; border: 1px solid var(--color-border); border-radius: 6px; white-space: normal; }
+.sync-purpose.ant-radio-wrapper-checked { background: var(--color-primary-soft); border-color: var(--color-primary); }
+.sync-purpose > .ant-radio { margin-top: 3px; }
+.sync-purpose > span:last-child { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sync-purpose strong { font-size: 14px; font-weight: 500; }
+.sync-purpose span span { color: var(--text-secondary); line-height: 1.6; }
+.sync-advanced { margin-top: 8px; }
+.sync-advanced .ant-collapse-header { padding-inline: 0 !important; color: var(--text-secondary) !important; }
+.sync-advanced .ant-collapse-content-box { padding: 4px 0 12px !important; }
+.sync-date-controls { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
+.sync-maintenance .sync-date-controls .ant-form-item { margin-bottom: 8px; max-width: 100%; }
+.sync-date-controls .ant-picker { width: 300px; max-width: 100%; }
+.sync-date-controls .ant-picker-range { width: 360px; }
+.sync-date-hint.ant-typography { margin: 0 0 12px; font-size: 12px; }
+.sync-operation-summary { display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; background: var(--color-surface-muted); border-radius: 6px; margin-bottom: 12px; }
+.sync-operation-summary strong { font-weight: 500; }
+.sync-operation-summary span { color: var(--text-secondary); line-height: 1.6; }
+.sync-maintenance-footer, .sync-detail-recollect { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.sync-maintenance-footer span, .sync-detail-recollect span { color: var(--text-secondary); font-size: 12px; }
+.sync-detail-recollect { margin-bottom: 20px; }
+.sync-filters .sync-mode { width: 230px; }
 .sync-filters .sync-filter-select { width: 140px; }
 .sync-filters .sync-search { width: 260px; max-width: 100%; }
 .sync-list-summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-bottom: 12px; color: var(--text-secondary); font-size: 13px; }
 @media (max-width: 767px) {
+  .sync-purpose-options, .sync-module-options { grid-template-columns: minmax(0, 1fr); }
+  .sync-date-controls > .ant-form-item:not(.sync-date-scope) { flex: 1 1 100%; min-width: 0; }
+  .sync-date-controls .ant-picker, .sync-date-controls .ant-picker-range { width: 100%; }
   .sync-overview { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .sync-overview .sync-overview-item { padding: 10px; }
   .sync-filters .sync-search, .sync-filters .sync-mode, .sync-filters .sync-filter-select { width: 100%; }

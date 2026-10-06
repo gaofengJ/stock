@@ -8,13 +8,14 @@ import {
 import {
   Alert, Button, DatePicker, Descriptions, Drawer, Dropdown, Form, Input, Modal, Select, Space, Tag, Tooltip, Typography, message,
 } from 'antd';
-import type { Dayjs } from 'dayjs';
+import dayjs, { Dayjs } from 'dayjs';
 import Table from '@/components/DataTable';
 import { useAccount } from '@/auth/Boundary';
 import { api } from '@/auth/client';
 import { SyncOutlined } from '@ant-design/icons';
 import PageHeading from '@/auth/PageHeading';
 import { startJobPolling } from './job-polling';
+import MaintenanceForm, { modes, jobGuidance, SyncSubmission } from './maintenance-form';
 
 const labels: Record<string, string> = {
   queued: '等待排队',
@@ -28,23 +29,8 @@ const labels: Record<string, string> = {
   cancelled: '已取消',
   cancelling: '正在取消',
 };
-const modes = [
-  { value: 'missing', label: '行情缺失补齐', description: '校验日期范围内的行情，只补齐缺失数据。已有完整数据会跳过。' },
-  { value: 'refresh', label: '行情重新采集并计算', description: '重新采集行情并计算相关指标，会更新已有数据，通常比补缺失耗时更长。' },
-  { value: 'breadth', label: '均线广度补齐', description: '校验并补齐均线广度数据，依赖对应交易日的基础行情。' },
-  { value: 'sector', label: '同花顺板块与成分', description: '同步同花顺板块目录、成分及日期范围内的板块日线。' },
-  { value: 'technical', label: '策略复权行情', description: '校验并补齐策略需要的复权行情。' },
-  { value: 'insights', label: '市场与策略观察', description: '校验并补齐市场和策略观察统计，依赖基础行情。' },
-  { value: 'hot', label: '同花顺日终人气', description: '校验并补齐同花顺日终人气数据。' },
-];
 const modeLabel = (mode: string) => modes.find((m) => m.value === mode)?.label || mode || '行情缺失补齐';
 const formatTime = (value?: string) => (value ? new Date(value).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) : '—');
-const rangeError = (dates?: (Dayjs | null)[] | null) => {
-  if (!dates?.[0] || !dates[1]) return '请选择完整的起止日期，同一天表示按日同步';
-  if (dates[0].format('YYYY-MM-DD') > dates[1].format('YYYY-MM-DD')) return '开始日期不能晚于结束日期';
-  if (dates[0].format('YYYY-MM-DD') < dates[1].subtract(2, 'year').format('YYYY-MM-DD')) return '同步日期跨度不能超过两个自然年';
-  return '';
-};
 interface Job {
   id: number; mode: string; actorId: number | null; actorName: string; startDate: string; endDate: string;
   status: string; stage: string; retryCount: number; nextRetryAt?: string; lastProgressAt?: string;
@@ -70,7 +56,6 @@ export default function Page() {
   const canRun = !!user?.permissions.includes('sync:run');
   const { runLatestRequest } = useLatestRequest('admin-sync');
   const [form] = Form.useForm();
-  const selectedMode = Form.useWatch('mode', form) || 'missing';
   const [modal, contextHolder] = Modal.useModal();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -130,11 +115,11 @@ export default function Page() {
     });
   }, [selected, detailVersion]);
   const filter = (values: Partial<Query>) => { setQuery((q) => ({ ...q, ...values })); setPage(1); };
-  const submit = async ({ syncDates, mode }: { syncDates: [Dayjs, Dayjs]; mode: string }) => {
+  const submit = async (values: SyncSubmission) => {
     if (mutation.current) return;
     mutation.current = true; setSubmitting(true);
     try {
-      const job = await api('/admin/sync-jobs', 'POST', { startDate: syncDates[0].format('YYYY-MM-DD'), endDate: syncDates[1].format('YYYY-MM-DD'), mode });
+      const job = await api('/admin/sync-jobs', 'POST', values);
       message.success(`任务 #${job.id}：${labels[job.status] || job.status}，服务器将串行执行`);
       setSelected(job.id); setDetailVersion((v) => v + 1); await load(true);
     } catch (e) { fail(e); } finally { mutation.current = false; setSubmitting(false); }
@@ -155,8 +140,10 @@ export default function Page() {
   return (
     <>
       {contextHolder}
-      <PageHeading title="数据同步" description="校验数据完整性，跟踪同步进度，处理失败与重试任务。" icon={<SyncOutlined />} />
-      <Alert type="info" showIcon message={`任务在服务器串行执行，可以关闭页面。暂停和取消在当前批次结束后生效；累计失败 ${maxFailures} 次后停止自动重试。`} />
+      <PageHeading title="数据同步" description="选择维护目的和日期，提交后查看执行结果。" icon={<SyncOutlined />} />
+      {canRun && <MaintenanceForm form={form} submitting={submitting} disabled={!!busy} onSubmit={submit} />}
+      <Typography.Title level={4} className="sync-records-heading">执行记录</Typography.Title>
+      <Typography.Paragraph type="secondary">任务在服务器排队执行，可以关闭页面。提交后的进度和结果会自动更新。</Typography.Paragraph>
       <div className="sync-overview" aria-label="全部任务状态概览">
         {[['', '全部任务'], ['queued', '等待排队'], ['running', '执行中'], ['pending', '等待重试'], ['failed', '失败'], ['success', '校验完成']].map(([status, title]) => (
           <Button key={status} className={`sync-overview-item${status === 'failed' ? ' sync-overview-danger' : ''}`} aria-pressed={(query.status || '') === status} onClick={() => filter({ status: status || undefined })}>
@@ -166,34 +153,10 @@ export default function Page() {
         ))}
       </div>
       <Typography.Paragraph type="secondary">概览统计全部任务；点击状态会筛选列表，并保留其他筛选条件。</Typography.Paragraph>
-      {canRun && (
-        <Form
-          form={form}
-          className="account-toolbar sync-submit"
-          layout="inline"
-          initialValues={{ mode: 'missing' }}
-          disabled={submitting || !!busy}
-          onFinish={submit}
-          onKeyDown={(event) => {
-            // Enter confirms a typed date; it must not also submit a sync task.
-            if (event.key === 'Enter' && event.target instanceof HTMLElement && event.target.closest('.ant-picker')) event.preventDefault();
-          }}
-        >
-          <Form.Item name="syncDates" label="同步日期" rules={[{ validator: async (_, value) => { const error = rangeError(value); if (error) throw new Error(error); } }]}>
-            <DatePicker.RangePicker allowClear />
-          </Form.Item>
-          <Form.Item name="mode" label="同步方式"><Select className="sync-mode" options={modes} /></Form.Item>
-          <Button type="primary" loading={submitting} disabled={!!busy} htmlType="submit">提交同步任务</Button>
-          <div className="sync-submit-help">
-            <strong>{modes.find((m) => m.value === selectedMode)?.description}</strong>
-            <span>同步跨度最多两个自然年；选择同一天可按日同步。</span>
-          </div>
-        </Form>
-      )}
       <div className="account-toolbar sync-filters" aria-label="任务筛选">
         <Input.Search className="sync-search" placeholder="搜索任务编号或触发人" aria-label="搜索任务编号或触发人" maxLength={100} value={search} allowClear onChange={(e) => { setSearch(e.target.value); if (!e.target.value) filter({ keyword: undefined }); }} onSearch={(v) => filter({ keyword: v.trim() || undefined })} />
         <Select className="sync-filter-select" aria-label="任务状态" placeholder="全部状态" value={query.status} allowClear options={Object.entries(labels).map(([value, label]) => ({ value, label }))} onChange={(status) => filter({ status })} />
-        <Select className="sync-mode" aria-label="任务类型" placeholder="全部任务类型" value={query.mode} allowClear options={modes} onChange={(mode) => filter({ mode })} />
+        <Select className="sync-mode" aria-label="任务类型" placeholder="全部任务类型" value={query.mode} allowClear options={modes} popupMatchSelectWidth={280} onChange={(mode) => filter({ mode })} />
         <DatePicker.RangePicker
           aria-label="任务日期范围"
           value={dates}
@@ -317,7 +280,7 @@ export default function Page() {
               <Space size={4} wrap>
                 <Button type="text" size="small" onClick={() => openDetail(r.id)}>详情</Button>
                 {canRun && ['failed', 'pending', 'interrupted', 'paused'].includes(r.status) && (
-                  <Tooltip title={r.status === 'paused' ? '继续进入执行队列，已保存的数据会保留，失败计数清零。' : '重新进入执行队列，失败计数清零。任务按服务器调度执行。'}>
+                  <Tooltip title="继续原任务的同步方式和已完成进度，保留已保存的数据，清零失败计数。需要重新获取行情时，请在上方提交新任务。">
                     <Button type="primary" size="small" disabled={operationsDisabled} loading={busy?.id === r.id && busy.action === 'retry'} onClick={() => control(r.id, 'retry')}>{r.status === 'paused' ? '继续排队' : '重新排队'}</Button>
                   </Tooltip>
                 )}
@@ -348,7 +311,7 @@ export default function Page() {
         ]}
       />
       <Drawer
-        title={`同步任务 #${selected}`}
+        title={selected ? `同步任务 #${selected}` : '同步任务'}
         width={860}
         open={!!selected}
         onClose={() => {
@@ -360,6 +323,32 @@ export default function Page() {
         {!detail && !detailError && <Typography.Paragraph>加载中…</Typography.Paragraph>}
         {detail && (
           <>
+            <Alert
+              type={({ failed: 'error', interrupted: 'error', success: 'success' } as const)[detail.status as 'failed' | 'interrupted' | 'success'] || 'info'}
+              showIcon
+              message={labels[detail.status] || detail.status}
+              description={jobGuidance(detail.status)}
+            />
+            <Typography.Paragraph>{modes.find((m) => m.value === detail.mode)?.scope}</Typography.Paragraph>
+            {canRun && (
+              <div className="sync-detail-recollect">
+                <Button
+                  disabled={!!busy || submitting}
+                  onClick={() => {
+                    const start = dayjs(detail.startDate);
+                    const end = dayjs(detail.endDate);
+                    form.setFieldsValue({
+                      mode: 'refresh', dateScope: detail.startDate === detail.endDate ? 'day' : 'range', syncDate: start, syncDates: [start, end],
+                    });
+                    setSelected(null); setDetail(null);
+                    document.getElementById('sync-maintenance')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                >
+                  用这些日期重新获取行情
+                </Button>
+                <span>填写上方维护表单，确认日期后提交新任务。</span>
+              </div>
+            )}
             <Descriptions
               column={1}
               items={[
