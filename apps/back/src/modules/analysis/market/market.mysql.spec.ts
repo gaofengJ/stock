@@ -225,7 +225,9 @@ mysqlDescribe('市场分析迁移、发布及持久化续跑', () => {
     }
   });
   beforeEach(async () => {
-    for (const entity of entities) await db.manager.delete(entity, {});
+    // This isolated test database deliberately resets all fixture rows.
+    // Use explicit deleteAll: newer TypeORM rejects accidental empty criteria.
+    for (const entity of entities) await db.manager.deleteAll(entity);
     await db.query('DELETE FROM t_admin_job');
     Object.values(source).forEach((fn) => fn.mockReset());
     remote.queryData.mockReset().mockImplementation(indexReply);
