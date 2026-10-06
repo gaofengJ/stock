@@ -218,9 +218,9 @@ function Profile() {
                   </details>
                   <SourceNote sources={d.sources} stopped={state.pollingStopped} retry={state.retry} />
                 </Card>
-                <Card title="所属行业与相关题材" className="profile-sectors">
+                <Card title="所属行业与所属概念" className="profile-sectors">
                   <SectorGroup key={`${linkedCode}-industry`} label="所属行业" links={stock.industries} date={date} limit={3} />
-                  <SectorGroup key={`${linkedCode}-topics`} label="相关题材" links={stock.topics} date={date} limit={8} />
+                  <SectorGroup key={`${linkedCode}-topics`} label="所属概念" links={stock.topics} date={date} limit={8} />
                   {!!sectorDates.length && (
                   <p className="profile-muted">
                     成分资料日期：

@@ -113,7 +113,7 @@ function BasicStockPage() {
         <p className="basic-muted mb-16">
           公司资料更新：
           {profileAsOf || '待确认'}
-          ；行业题材按所选日期的可用同花顺快照展示。支持曾用名及北交所新旧代码查询。
+          ；行业概念按所选日期的可用同花顺快照展示。支持曾用名及北交所新旧代码查询。
         </p>
         {loadError && <Alert type="error" message={loadError} showIcon action={<Button size="small" onClick={getStocks}>重试</Button>} />}
         <div className="mb-16">

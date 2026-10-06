@@ -5,6 +5,7 @@ import Link, { InteractionButton } from '@/components/Interaction';
 import { Popover, Space } from 'antd';
 import { useAccount } from '@/auth/Boundary';
 import { allowedPath } from '@/auth/client';
+import { sectorKindLabel } from '@/components/sector-terminology';
 
 interface SectorPerformance { code: string; name: string; type: string; asOf: string; day: number | null; five: number | null; twenty: number | null; maxHeight: number | null }
 
@@ -14,6 +15,8 @@ function SectorContext({ sectors, date, ready }: { sectors?: SectorPerformance[]
   if (!sectors?.length) return <span>—</span>;
   const details = sectors.map((s) => (
     <div key={s.code}>
+      {sectorKindLabel(s.type)}
+      ：
       {allowedPath(user, '/analysis/sectors') ? (
         <Link href={`/analysis/sectors/?${new URLSearchParams({
           date, scope: 'all', kind: s.type, code: s.code,
@@ -50,8 +53,8 @@ function SectorContext({ sectors, date, ready }: { sectors?: SectorPerformance[]
     </div>
   ));
   return (
-    <Popover trigger={['hover', 'click']} title="同花顺板块背景" content={<Space direction="vertical" style={{ maxWidth: 'min(700px, 85vw)', maxHeight: 400, overflow: 'auto' }}>{details}</Space>}>
-      <InteractionButton intent="popover" title="查看同花顺板块背景">
+    <Popover trigger={['hover', 'click']} title="所属行业／概念表现" content={<Space direction="vertical" style={{ maxWidth: 'min(700px, 85vw)', maxHeight: 400, overflow: 'auto' }}>{details}</Space>}>
+      <InteractionButton intent="popover" title="查看所属行业／概念表现">
         {sectors[0].name}
         {' '}
         <span className={changeClass(sectors[0].day)}>
@@ -101,13 +104,13 @@ export const strategyColumns: ColumnsType = [
     render: (value) => <span className={changeClass(value)}>{numberText(value, 2, true)}</span>,
   },
   {
-    title: '行业', key: 'industry', width: 160, render: (_, r) => (r.sectorLabelsLoading ? '加载中…' : <SectorLinks stock={r} date={r.tradeDate} />),
+    title: '所属行业', key: 'industry', width: 160, render: (_, r) => (r.sectorLabelsLoading ? '加载中…' : <SectorLinks stock={r} date={r.tradeDate} />),
   },
   {
-    title: '题材', key: 'topics', width: 240, render: (_, r) => (r.sectorLabelsLoading ? '加载中…' : <SectorLinks stock={r} type="N" date={r.tradeDate} />),
+    title: '所属概念', key: 'topics', width: 240, render: (_, r) => (r.sectorLabelsLoading ? '加载中…' : <SectorLinks stock={r} type="N" date={r.tradeDate} />),
   },
   {
-    title: '板块背景', key: 'context', width: 280, render: (_, r) => (r.sectorContextLoading ? <span>加载中…</span> : <SectorContext sectors={r.sectorPerformance} date={r.tradeDate} ready={r.sectorContextReady} />),
+    title: '行业／概念表现', key: 'context', width: 280, render: (_, r) => (r.sectorContextLoading ? <span>加载中…</span> : <SectorContext sectors={r.sectorPerformance} date={r.tradeDate} ready={r.sectorContextReady} />),
   },
   {
     title: '开盘价(元)',

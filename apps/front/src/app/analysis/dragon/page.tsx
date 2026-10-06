@@ -92,10 +92,10 @@ export default function Page() {
                 title: '名称', dataIndex: 'name', fixed: 'left', width: 145, render: (name, r) => <InteractionButton intent="select" selected={selectedKey === rowKey(r)} aria-controls="dragon-detail" onClick={() => open(r)}>{name}</InteractionButton>,
               },
               {
-                title: '行业', key: 'industry', width: 160, render: (_, r) => <SectorLinks stock={r} date={date} />,
+                title: '所属行业', key: 'industry', width: 160, render: (_, r) => <SectorLinks stock={r} date={date} />,
               },
               {
-                title: '题材', key: 'topics', width: 220, render: (_, r) => <SectorLinks stock={r} type="N" date={date} />,
+                title: '所属概念', key: 'topics', width: 220, render: (_, r) => <SectorLinks stock={r} type="N" date={date} />,
               },
               {
                 title: '收盘价(元)', dataIndex: 'close', width: 105, align: 'right', render: (v) => numberText(v),

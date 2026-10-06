@@ -30,7 +30,7 @@ import { linkedLimitType, marketHref } from '../components/market-navigation';
 
 const defaultColumns = ['pctChg', 'limitTimes', 'topics', 'firstTime', 'lastTime', 'openTimes', 'amount'];
 const fieldNames: Record<string, string> = {
-  pctChg: '涨跌幅', limitTimes: '连板数', topics: '所属题材', industry: '行业', close: '收盘价', upStat: '近期涨停记录', firstTime: '首次封板', lastTime: '最后封板', openTimes: '开板次数', turnoverRatio: '换手率', amount: '成交额', fdAmount: '封单额', floatMv: '流通市值',
+  pctChg: '涨跌幅', limitTimes: '连板数', topics: '所属概念', industry: '所属行业', close: '收盘价', upStat: '近期涨停记录', firstTime: '首次封板', lastTime: '最后封板', openTimes: '开板次数', turnoverRatio: '换手率', amount: '成交额', fdAmount: '封单额', floatMv: '流通市值',
 };
 // Minimum widths keep compact values readable; text columns get more of the spare space.
 const columnSizing: Record<string, { width: number; grow: number }> = {
@@ -103,13 +103,13 @@ function LimitsPage() {
       ),
     },
     {
-      title: '行业', key: 'industry', render: (_, r) => <SectorLinks stock={r} date={date} />,
+      title: '所属行业', key: 'industry', render: (_, r) => <SectorLinks stock={r} date={date} />,
     },
     {
       title: (
         <span>
-          所属题材
-          <HelpTooltip label="所属题材" title="展示同花顺概念分类；当日涨停原因需结合相关公告与市场信息核实。" />
+          所属概念
+          <HelpTooltip label="所属概念" title="展示同花顺概念分类；当日涨停原因需结合相关公告与市场信息核实。" />
         </span>
       ),
       key: 'topics',

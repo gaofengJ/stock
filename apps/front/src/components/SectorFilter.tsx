@@ -9,6 +9,7 @@ import { marketRequest } from '@/api/market';
 import { SectorOptions } from '@/api/sectors';
 import { errorMessage } from '@/api/errors';
 import HelpTooltip from './HelpTooltip';
+import { sectorDefinition, sectorKindLabel } from './sector-terminology';
 
 export function useSectorSelection() {
   const params = useSearchParams();
@@ -28,8 +29,8 @@ export default function SectorFilter({ value, onChange }: { value?: string; onCh
   }, [attempt]);
   return (
     <Space size={6} wrap>
-      <Select allowClear showSearch optionFilterProp="label" aria-label="同花顺行业或题材" placeholder="行业／题材" value={value} onChange={onChange} loading={!data && !error} style={{ width: 230 }} popupMatchSelectWidth={300} options={['I', 'N'].map((type) => ({ label: type === 'I' ? '同花顺行业' : '同花顺题材', options: (data?.items || []).filter((s) => s.type === type).map((s) => ({ label: s.name, value: s.code })) }))} />
-      <HelpTooltip label="行业和题材口径" title={`统一使用同花顺成分${data?.asOf ? `，最近快照${String(data.asOf).slice(0, 10)}` : ''}。历史日期按可用快照筛选。`} />
+      <Select allowClear showSearch optionFilterProp="label" aria-label="同花顺行业或概念" placeholder="行业／概念" value={value} onChange={onChange} loading={!data && !error} style={{ width: 230 }} popupMatchSelectWidth={300} options={['I', 'N'].map((type) => ({ label: `同花顺${sectorKindLabel(type)}`, options: (data?.items || []).filter((s) => s.type === type).map((s) => ({ label: s.name, value: s.code })) }))} />
+      <HelpTooltip label="行业和概念口径" title={`${sectorDefinition}统一使用同花顺成分${data?.asOf ? `，最近快照${String(data.asOf).slice(0, 10)}` : ''}。历史日期按可用快照筛选。`} />
       {error && <Alert type="error" message={error} action={<Button size="small" onClick={() => setAttempt((v) => v + 1)}>重试</Button>} />}
     </Space>
   );

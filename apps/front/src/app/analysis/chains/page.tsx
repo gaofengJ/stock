@@ -107,7 +107,7 @@ function ChainsPage() {
             label: '当日梯队',
             children: (
               <>
-                <SectionTitle title="市场晋级概况" description="按顶部统计范围内的数据源非ST样本计算。晋级率跟踪昨日同一批股票，停牌视为未晋级；高位指昨日四板及以上。不受下方行业／题材筛选影响。" />
+                <SectionTitle title="市场晋级概况" description="按顶部统计范围内的数据源非ST样本计算。晋级率跟踪昨日同一批股票，停牌视为未晋级；高位指昨日四板及以上。不受下方行业／概念筛选影响。" />
                 <DataState loading={series.loading} error={series.error} retry={series.retry} empty={!series.data?.snapshot}>
                   <Row gutter={[16, 16]} className="market-metrics">
                     {series.data?.snapshot?.upgrades.map((r) => (
@@ -194,7 +194,7 @@ function ChainsPage() {
             children: (
               <>
                 <div className="market-section-toolbar">
-                  <SectionTitle title="市场历史走势" description="按顶部统计范围计算，不受股票行业／题材筛选影响。" />
+                  <SectionTitle title="市场历史走势" description="按顶部统计范围计算，不受股票行业／概念筛选影响。" />
                   <TrendRange />
                 </div>
                 <div className="chains-history-toolbar mb-16">

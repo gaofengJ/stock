@@ -37,14 +37,14 @@ export const useStockColumns = (date?: string): ColumnsType => {
       render: renderEmptyField,
     },
     {
-      title: '所在行业',
+      title: '所属行业',
       dataIndex: 'industry',
       key: 'industry',
       width: 170,
       render: (_, row) => <SectorLinks stock={row} date={date} />,
     },
     {
-      title: '所属题材', key: 'topics', width: 240, render: (_, row) => <SectorLinks stock={row} type="N" date={date} />,
+      title: '所属概念', key: 'topics', width: 240, render: (_, row) => <SectorLinks stock={row} type="N" date={date} />,
     },
     {
       title: '所在区域',

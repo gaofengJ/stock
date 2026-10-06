@@ -200,7 +200,7 @@ function StrategyPage() {
               pagination={false}
             />
           ))}
-          {view === 'candidates' && context.error && <Alert type="warning" message={context.error} action={<Button onClick={context.retry}>重试板块背景</Button>} />}
+          {view === 'candidates' && context.error && <Alert type="warning" message={context.error} action={<Button onClick={context.retry}>重试行业／概念表现</Button>} />}
         </>
         )}
         {labels.error && needsCandidates && <Alert type="warning" message={labels.error} action={<Button onClick={labels.retry}>重试行业</Button>} />}

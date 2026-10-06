@@ -31,7 +31,7 @@ export const limitsColumns: ColumnsType = [
     render: (_, row) => <SectorLinks stock={row} date={row.tradeDate} />,
   },
   {
-    title: '所属题材', key: 'topics', width: 220, render: (_, row) => <SectorLinks stock={row} type="N" date={row.tradeDate} />,
+    title: '所属概念', key: 'topics', width: 220, render: (_, row) => <SectorLinks stock={row} type="N" date={row.tradeDate} />,
   },
   {
     title: '涨跌幅(%)',

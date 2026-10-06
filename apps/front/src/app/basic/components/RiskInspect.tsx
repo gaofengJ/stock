@@ -52,7 +52,7 @@ export function RiskDetails({ code, date }: { code: string; date: string }) {
           {data?.audit?.end_date || '待补齐'}
           ）
         </p>
-        <p>财务与审计字段用于初步核验；营收扣除口径、内控意见、治理和连续交易指标等需按所属板块的适用规则进一步核验。</p>
+        <p>财务与审计字段用于初步核验；营收扣除口径、内控意见、治理和连续交易指标等需按上市板块的适用规则进一步核验。</p>
       </Card>
       {!!data?.items?.length && (
       <Card size="small" title="已取得的风险／交易状态记录">

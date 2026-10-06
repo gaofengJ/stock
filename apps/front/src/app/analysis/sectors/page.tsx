@@ -20,6 +20,7 @@ import { useSiteTheme } from '@/components/SiteTheme';
 import { quoteColors, withAlpha } from '@/colors';
 import HelpTooltip from '@/components/HelpTooltip';
 import SectorLinks from '@/components/SectorLinks';
+import { sectorDefinition, sectorKindLabel } from '@/components/sector-terminology';
 import MarketShell from '../components/MarketShell';
 import { useMarket } from '../components/MarketContext';
 import useMarketData from '../components/useMarketData';
@@ -33,6 +34,7 @@ import './sectors.sass';
 export default function Page() {
   const { date } = useMarket(); const params = useSearchParams(); const router = useRouter(); const { user } = useAccount();
   const kind = params.get('kind') === 'N' ? 'N' : 'I';
+  const kindLabel = sectorKindLabel(kind);
   const code = /^88[156]\d{3}\.TI$/.test(params.get('code') || '') ? params.get('code') || undefined : undefined;
   const [keyword, setKeyword] = useState(''); const [period, setPeriod] = useState<1 | 5 | 20>(1);
   const [window, setWindow] = useState<ChartWindow>({ period: 'day', count: 60 });
@@ -104,7 +106,7 @@ export default function Page() {
   };
   const tableColumns = [
     {
-      title: '板块', dataIndex: 'name', fixed: 'left' as const, width: 180, render: (v: string, r: SectorRow) => <InteractionButton intent="select" selected={code === r.code} aria-controls="sector-detail" onClick={() => open(r)}>{v}</InteractionButton>,
+      title: kindLabel, dataIndex: 'name', fixed: 'left' as const, width: 180, render: (v: string, r: SectorRow) => <InteractionButton intent="select" selected={code === r.code} aria-controls="sector-detail" onClick={() => open(r)}>{v}</InteractionButton>,
     },
     ...(['day', 'five', 'twenty'] as const).map((field, i) => ({
       title: ['当日涨跌幅', '5日涨跌幅', '20日涨跌幅'][i], dataIndex: field, align: 'right' as const, width: 135, render: metric, sorter: (a:SectorRow, b:SectorRow) => (a[field] ?? -Infinity) - (b[field] ?? -Infinity),
@@ -130,7 +132,7 @@ export default function Page() {
       title: (
         <span>
           成交额占比
-          <HelpTooltip label="成交额占比" title="成分股成交额占全部A股成交额的比例。题材成分存在重叠，各题材占比独立统计。" />
+          <HelpTooltip label="成交额占比" title="成分股成交额占全部A股成交额的比例。概念成分存在重叠，各概念占比独立统计。" />
         </span>
       ),
       dataIndex: 'amountShare',
@@ -203,33 +205,36 @@ export default function Page() {
         数据待补齐，暂未计入。
       </p>
       )}
-      <Tabs activeKey={kind} onChange={(value) => { setKeyword(''); router.replace(marketHref('/analysis/sectors', { date, scope: 'all' }, { kind: value }), { scroll: false }); }} items={[{ key: 'I', label: '行业' }, { key: 'N', label: '题材' }]} />
+      <p className="sector-definition">{sectorDefinition}</p>
+      <Tabs activeKey={kind} onChange={(value) => { setKeyword(''); router.replace(marketHref('/analysis/sectors', { date, scope: 'all' }, { kind: value }), { scroll: false }); }} items={['I', 'N'].map((key) => ({ key, label: sectorKindLabel(key) }))} />
       <div className="sector-toolbar">
         <Space wrap>
-          <Input.Search allowClear aria-label="搜索板块" placeholder="板块名称／代码" value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ width: 240 }} />
+          <Input.Search allowClear aria-label={`搜索${kindLabel}`} placeholder={`${kindLabel}名称／代码`} value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ width: 240 }} />
           <Segmented aria-label="强弱与轮动统计周期" value={period} onChange={(v) => setPeriod(v as 1|5|20)} options={[{ value: 1, label: '当日' }, { value: 5, label: '5日' }, { value: 20, label: '20日' }]} />
           <HelpTooltip label="板块统计" title="涨跌幅采用同花顺指数，上涨占比按有成交成分计算；涨停数沿用非ST口径。" />
         </Space>
         <span>
-          {kind === 'I' ? '同花顺行业' : '同花顺概念'}
+          同花顺
+          {kindLabel}
           {' '}
           -
           {' '}
           {data?.items.length ?? '—'}
-          个板块
+          个
+          {kindLabel}
         </span>
       </div>
       {data?.job && data.job.status !== 'success' && <Alert className="mb-16" type={data.job.status === 'failed' ? 'warning' : 'info'} showIcon message={data.job.status === 'failed' ? '板块数据同步失败，请查看数据同步任务' : `板块数据补齐中：${data.job.stage}`} />}
       <DataState loading={request.loading} error={request.error} retry={request.retry} empty={!data}>
         <SectionTitle title="强弱排行" description="成分统计基于已取得的快照，覆盖范围与日期见成分日期列。" />
-        <p className="interaction-hint">选择板块查看下方走势与成分股。</p>
-        <Table<SectorRow> rowKey="code" size="small" pagination={false} bordered maxBodyHeight={480} minBodyHeight={280} scroll={{ x: 1730 }} dataSource={rows} columns={tableColumns} rowClassName={(r) => (r.code === code ? 'interaction-selected-row' : '')} locale={{ emptyText: keyword ? '没有符合条件的板块' : '板块目录正在补齐' }} />
+        <p className="interaction-hint">{`选择${kindLabel}查看下方走势与成分股。`}</p>
+        <Table<SectorRow> rowKey="code" size="small" pagination={false} bordered maxBodyHeight={480} minBodyHeight={280} scroll={{ x: 1730 }} dataSource={rows} columns={tableColumns} rowClassName={(r) => (r.code === code ? 'interaction-selected-row' : '')} locale={{ emptyText: keyword ? `没有符合条件的${kindLabel}` : `${kindLabel}目录正在补齐` }} />
         <Row gutter={[16, 16]} className="sector-rotation-row">
           <Col xs={24} xl={24}>
             <Card title={(
               <Space>
-                板块轮动
-                <HelpTooltip label="板块轮动" title="展示当前排行前12个板块近20个交易日的排名，颜色越深排名越靠前。" />
+                {`${kindLabel}轮动`}
+                <HelpTooltip label={`${kindLabel}轮动`} title={`展示当前排行前12个${kindLabel}近20个交易日的排名，颜色越深排名越靠前。`} />
               </Space>
 )}
             >
@@ -243,8 +248,8 @@ export default function Page() {
           </Col>
         </Row>
         <div id="sector-detail" ref={detailRef} className="sector-detail">
-          {!code && <div className="sector-detail-hint">选择板块，查看走势与成分股</div>}
-          {code && !detail && !request.loading && <Empty description="所选板块不在当前分类中" />}
+          {!code && <div className="sector-detail-hint">{`选择${kindLabel}，查看走势与成分股`}</div>}
+          {code && !detail && !request.loading && <Empty description={`所选${kindLabel}不在当前分类中`} />}
           {detail && (
           <>
             <div className="sector-detail-heading">
@@ -270,14 +275,15 @@ export default function Page() {
               pagination={false}
               maxBodyHeight={480}
               minBodyHeight={280}
+              bottomSpacing={40}
               scroll={{ x: 1430 }}
               dataSource={detail.members}
               columns={[
                 { title: '代码', dataIndex: 'tsCode', width: 115 }, { title: '名称', dataIndex: 'name', width: 115 },
                 {
-                  title: '行业', key: 'industry', width: 160, render: (_, r) => <SectorLinks stock={r} date={date} />,
+                  title: '所属行业', key: 'industry', width: 160, render: (_, r) => <SectorLinks stock={r} date={date} />,
                 }, {
-                  title: '题材', key: 'topics', width: 240, render: (_, r) => <SectorLinks stock={r} type="N" date={date} />,
+                  title: '所属概念', key: 'topics', width: 240, render: (_, r) => <SectorLinks stock={r} type="N" date={date} />,
                 },
                 {
                   title: '收盘价(元)', dataIndex: 'close', align: 'right', render: (v) => numberText(v),

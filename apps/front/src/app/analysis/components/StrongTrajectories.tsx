@@ -37,7 +37,7 @@ function HistoricalSectors({ date, code }: { date: string; code: string }) {
           <SectorLinks stock={stock} date={date} />
         </div>
         <div className="mb-16">
-          所属题材：
+          所属概念：
           <SectorLinks stock={stock} type="N" date={date} />
         </div>
       </>
@@ -184,7 +184,7 @@ export default function StrongTrajectories({ sector, onSectorChange, active }: {
       <Modal className="chains-detail-modal" width={640} style={{ top: 40, maxWidth: 'calc(100vw - 32px)' }} title={detail ? `${detail.row.name} · ${detail.cell.date} 交易详情` : ''} open={!!detail} onCancel={() => setDetail(null)} footer={<Button onClick={() => setDetail(null)}>关闭</Button>}>
         {detail && (
         <>
-          <p className="chains-detail-caption">查看该股票在所选交易日的连板状态、行情及所属行业／题材。</p>
+          <p className="chains-detail-caption">查看该股票在所选交易日的连板状态、行情及所属行业／概念。</p>
           <dl className="chains-detail-metrics">
             <div>
               <dt>连板状态</dt>
