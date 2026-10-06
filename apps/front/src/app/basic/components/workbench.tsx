@@ -35,32 +35,36 @@ export function BasicShell({ title, path, children }: { title?: string; path: st
     </Layout>
   );
 }
-export function useWorkbench(endpoint: string, params: Record<string, unknown>, enabled = true) {
-  const [result, setResult] = useState<{ key: string; data: any; error: string; loading: boolean; pollingStopped: boolean }>({
-    key: '', data: null, error: '', loading: true, pollingStopped: false,
+export function useWorkbench(endpoint: string, params: Record<string, unknown>, active?: boolean, dataScope?: string) {
+  const enabled = active ?? true;
+  const [result, setResult] = useState<{ key: string; scope: string; data: any; error: string; loading: boolean; pollingStopped: boolean }>({
+    key: '', scope: '', data: null, error: '', loading: true, pollingStopped: false,
   });
   const [attempt, setAttempt] = useState(0);
   const key = JSON.stringify([endpoint, params]);
+  // Pagination changes the request, but must not remove notices that determine the table's position.
+  const scope = dataScope === undefined ? key : JSON.stringify([endpoint, dataScope]);
   useEffect(() => {
     if (!enabled) return undefined;
     setResult((old) => ({
-      key, data: old.key === key ? old.data : null, error: '', loading: true, pollingStopped: false,
+      key, scope, data: old.scope === scope ? old.data : null, error: dataScope !== undefined && old.scope === scope ? old.error : '', loading: true, pollingStopped: false,
     }));
     return startWorkbenchPolling<any>({
       read: async (signal) => (await request.get<any>(`/basic/workbench/${endpoint}`, { params: JSON.parse(key)[1], signal, autoShowError: false })).data,
       onValue: (data) => setResult({
-        key, data, error: '', loading: false, pollingStopped: false,
+        key, scope, data, error: '', loading: false, pollingStopped: false,
       }),
       onError: (error) => setResult((old) => ({
         ...old, error: errorMessage(error, '加载失败，请重试'), loading: false, pollingStopped: true,
       })),
       onStopped: () => setResult((old) => ({ ...old, pollingStopped: true })),
     });
-  }, [endpoint, key, enabled, attempt]);
+  }, [endpoint, key, scope, dataScope, enabled, attempt]);
   const current = enabled && result.key === key;
+  const compatible = enabled && result.scope === scope;
   return {
-    data: current ? result.data : null,
-    error: current ? result.error : '',
+    data: compatible ? result.data : null,
+    error: compatible && (current || dataScope !== undefined) ? result.error : '',
     loading: enabled && (!current || result.loading),
     pollingStopped: current && result.pollingStopped,
     retry: () => setAttempt((v) => v + 1),

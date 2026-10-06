@@ -14,10 +14,11 @@ import useCalendarPagination from './useCalendarPagination';
 export default function EventCalendar({ date, onDate, code }: { date: string; onDate: (date: string) => void; code?: string }) {
   const [days, setDays] = useState('7'); const [keyword, setKeyword] = useState(code || ''); const [sector, setSector] = useState<string>(); const [type, setType] = useState<string>();
   const [detail, setDetail] = useState<any>(null);
-  const { ref, pagination } = useCalendarPagination(JSON.stringify([date, days, keyword, sector, type]));
+  const filtersKey = JSON.stringify([date, days, keyword, sector, type]);
+  const { ref, pagination } = useCalendarPagination(filtersKey);
   const state = useWorkbench('events', {
     date, days, keyword, sector, eventType: type, page: String(pagination.current), pageSize: String(pagination.pageSize),
-  });
+  }, true, filtersKey);
   return (
     <section className="calendar-events">
       <Space className="calendar-filters" wrap>
