@@ -6,6 +6,47 @@ import { NEWS_SOURCES, isNewsSource } from './news.sources';
 
 describe('News service safety', () => {
   const config = new ConfigService({ NEWS_SYNC_ENABLED: 'false' });
+  it('does not turn a repeated relay read into a fresh upstream collection', async () => {
+    const generatedAt = new Date('2026-10-06T01:32:59Z');
+    const service = new NewsService({} as DataSource, config);
+    const collector = service as any;
+    jest
+      .spyOn(collector, 'fetchSource')
+      .mockResolvedValue({ items: [], generatedAt });
+    const query = jest.fn().mockResolvedValue([]);
+    await collector.collect(
+      NEWS_SOURCES.find((s) => s.code === 'bloomberg'),
+      {},
+      { query },
+    );
+    expect(query.mock.calls[1][1]).toEqual([
+      '2026-10-06 01:32:59.000',
+      0,
+      'bloomberg',
+    ]);
+  });
+  it('shows delayed relay sources with their real timestamp and an explicit warning', async () => {
+    const lastSuccess = new Date(Date.now() - 6 * 3600000);
+    const db = {
+      query: jest.fn().mockResolvedValue([
+        { source: 'sina', enabled: 1, status: 'ok', last_success: lastSuccess },
+        {
+          source: 'bloomberg',
+          enabled: 1,
+          status: 'ok',
+          last_success: lastSuccess,
+        },
+      ]),
+    } as unknown as DataSource;
+    const { sources } = await new NewsService(db, config).sources();
+    expect(sources).toHaveLength(2);
+    sources.forEach((source) => {
+      expect(source.status).toBe('delayed');
+      expect(source.warning).toContain('更新延迟');
+      expect(source.lastSuccess).toBe(lastSuccess.toISOString());
+      expect(source.lastError).toBe('');
+    });
+  });
   it('interprets MySQL string flags without marking another reader as read', async () => {
     const query = jest
       .fn()

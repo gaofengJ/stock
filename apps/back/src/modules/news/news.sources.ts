@@ -4,7 +4,7 @@ export interface NewsSource {
   path: string;
   kind: 'flash' | 'article';
   enabled: boolean;
-  provider?: 'rsshub' | 'sina-flash' | 'bloomberg-relay';
+  provider?: 'rsshub' | 'sina-flash' | 'bloomberg-relay' | 'sina-relay';
   intervalSeconds?: number;
   importantPath?: string;
   availabilityNote?: string;
@@ -49,11 +49,14 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
   {
     code: 'sina',
     name: '新浪财经',
-    description: '国内外财经滚动报道。',
+    description: '新浪公开财经滚动报道的标题、摘要和原文链接。',
     path: '/sina/finance/rollnews',
+    provider: 'sina-relay',
     kind: 'article',
-    enabled: false,
-    availabilityNote: '来源暂时限制自动获取滚动新闻，该来源已暂停更新。',
+    enabled: true,
+    intervalSeconds: 300,
+    availabilityNote:
+      '境外采集新浪官方滚动列表；超过 45 分钟显示更新延迟，超过 24 小时暂停展示。',
   },
   {
     code: 'bloomberg',
@@ -65,7 +68,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
     enabled: true,
     intervalSeconds: 300,
     availabilityNote:
-      '境外任务每 5 分钟采集官方公开 RSS，展示标题、摘要和原文链接；调度可能延迟。',
+      '境外任务计划每 5 分钟采集官方公开 RSS；超过 45 分钟显示更新延迟，超过 24 小时暂停展示。',
   },
   {
     code: 'cls',

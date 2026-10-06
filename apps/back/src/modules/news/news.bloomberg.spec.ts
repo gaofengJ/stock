@@ -69,13 +69,19 @@ describe('Bloomberg relay validation', () => {
   });
   it('rejects stale snapshots and substituted article origins', async () => {
     const stale = feed();
-    stale.generated_at = '2026-10-01T05:00:00Z';
+    stale.generated_at = '2026-09-30T05:00:00Z';
     await writeFile(path, JSON.stringify(stale));
     await expect(readBloombergFeed(path, now)).rejects.toThrow('stale');
     const invalid = feed();
     invalid.items[0].url = 'http://127.0.0.1/private';
     await writeFile(path, JSON.stringify(invalid));
     await expect(readBloombergFeed(path, now)).rejects.toThrow('article');
+  });
+  it('keeps a delayed but bounded snapshot readable during scheduler gaps', async () => {
+    const delayed = feed();
+    delayed.generated_at = '2026-10-01T00:00:00Z';
+    await writeFile(path, JSON.stringify(delayed));
+    expect(await readBloombergFeed(path, now)).toEqual(delayed.items);
   });
   it('rejects oversized input before parsing', async () => {
     await writeFile(path, ' '.repeat(1024 * 1024 + 1));

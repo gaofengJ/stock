@@ -21,14 +21,14 @@ import FocusDrawer, { NewsPreferences } from './FocusDrawer';
 
 interface NewsItem { id: number; source: string; sourceName: string; kind: string; title: string; body: string; originalUrl: string | null; important: boolean; publishedAt: string; timeBasis: string; read: boolean; stocks: { tsCode: string; name: string }[]; related: { id: number; source: string; title: string; originalUrl: string | null }[]; translation?: { title: string; body: string; engine: string; model: string } | null }
 interface NewsList { items: NewsItem[]; total: number; updatedAt: string; date: string; latestId: number; newCount: number }
-interface Source { code: string; name: string; enabled: boolean; intervalSeconds: number; status: string; lastSuccess: string | null; nextAttempt: string | null; lastError: string; lastAdded: number; availabilityNote?: string; description?: string }
+interface Source { code: string; name: string; enabled: boolean; intervalSeconds: number; status: string; lastSuccess: string | null; nextAttempt: string | null; lastError: string; lastAdded: number; availabilityNote?: string; description?: string; warning?: string }
 interface SourceState { collecting: boolean; sources: Source[] }
 const chinaDate = () => new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
 const formatTime = (date: string | null, full = false) => (date ? new Intl.DateTimeFormat('zh-CN', {
   timeZone: 'Asia/Shanghai', ...(full ? { month: '2-digit', day: '2-digit' } : {}), hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
 }).format(new Date(date)) : '尚未更新');
 const statusText: Record<string, string> = {
-  ok: '正常', error: '暂不可用', pending: '等待采集', collecting: '采集中',
+  ok: '正常', delayed: '更新延迟', error: '暂不可用', pending: '等待采集', collecting: '采集中',
 };
 
 export default function Page() {
@@ -147,12 +147,12 @@ export default function Page() {
     setSyncBusy(true);
     try { const result = await api<{ message: string }>('/news/sync', 'POST'); message.success(result.message); loadSources(); } catch (e) { message.error(errorMessage(e)); } finally { setSyncBusy(false); }
   };
-  const availableSources = sources.sources.filter((s) => s.enabled && s.lastSuccess && ['ok', 'collecting'].includes(s.status) && !s.lastError);
+  const availableSources = sources.sources.filter((s) => s.enabled && s.lastSuccess && ['ok', 'collecting', 'delayed'].includes(s.status) && !s.lastError);
   useEffect(() => {
-    if (source && !sources.sources.some((s) => s.code === source && s.enabled && s.lastSuccess && ['ok', 'collecting'].includes(s.status) && !s.lastError)) { setSource(''); setPage(1); }
+    if (source && !sources.sources.some((s) => s.code === source && s.enabled && s.lastSuccess && ['ok', 'collecting', 'delayed'].includes(s.status) && !s.lastError)) { setSource(''); setPage(1); }
   }, [source, sources]);
   const selectedSource = availableSources.find((s) => s.code === source);
-  const sourceTip = selectedSource?.description ? `${selectedSource.name}：${selectedSource.description}` : '市场快讯、财经报道与热门讨论。';
+  const sourceTip = selectedSource?.description ? `${selectedSource.name}：${selectedSource.description}${selectedSource.warning ? ` · ${selectedSource.warning}` : ''}` : '市场快讯、财经报道与热门讨论。';
   const rangeText: Record<string, string> = {
     hour: '最近一小时', today: '今天', 'three-days': '最近三天', date,
   };
@@ -170,7 +170,7 @@ export default function Page() {
   if (following && !preferences.keywords.length) emptyText = '请在“我的关注”中添加关键词';
   const sourceColor = (s: Source) => {
     if (!s.enabled) return 'default';
-    return { ok: 'green', error: 'orange' }[s.status] || 'blue';
+    return { ok: 'green', delayed: 'orange', error: 'orange' }[s.status] || 'blue';
   };
   return (
     <CommonLayout headerMenuActive="/news" showAsideMenu={false}>
@@ -191,6 +191,9 @@ export default function Page() {
             <Button icon={<SettingOutlined />} onClick={() => setSettings(true)}>{manager ? '来源管理' : '来源状态'}</Button>
           </Space>
         </div>
+        {availableSources.filter((s) => s.warning && (!source || source === s.code)).map((s) => (
+          <Alert key={s.code} className={styles.relayWarning} showIcon type="warning" message={`${s.name}更新延迟 · 最近采集 ${formatTime(s.lastSuccess, true)}`} description={s.warning} />
+        ))}
         <div className={styles.filters}>
           <Segmented value={kind} options={[{ label: '全部资讯', value: '' }, { label: '快讯', value: 'flash' }, { label: '报道', value: 'article' }]} onChange={(v) => { setKind(String(v)); setPage(1); }} />
           <Space size={0}>
@@ -429,7 +432,7 @@ export default function Page() {
                 </>
               ) : null}
             </p>
-            {s.lastError && <Alert showIcon type="warning" message={s.lastError} />}
+            {(s.lastError || s.warning) && <Alert showIcon type="warning" message={s.lastError || s.warning} />}
             {manager && s.availabilityNote && <p className={styles.note}>{s.availabilityNote}</p>}
             {manager && (
             <div className={styles.interval}>

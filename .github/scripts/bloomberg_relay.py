@@ -105,40 +105,48 @@ def collect(output):
     print('BLOOMBERG_COLLECTED items={} generated_at={}'.format(len(feed['items']), feed['generated_at']))
 
 
-def receive(source, root=SERVER_ROOT):
+def receive_feed(source, validator, filename, root=SERVER_ROOT):
     root = root.resolve()
     source = source.resolve()
     staging = root / 'staging'
-    if source.name != 'bloomberg.json' or source.parent.parent != staging or not source.parent.name.isdigit():
+    if source.name != filename or source.parent.parent != staging or not source.parent.name.isdigit():
         raise ValueError('Unexpected staging path')
     if source.stat().st_size > MAX_BYTES:
         raise ValueError('JSON exceeds size limit')
-    feed = validate_feed(json.loads(source.read_text(encoding='utf-8')))
+    feed = validator(json.loads(source.read_text(encoding='utf-8')))
     destination = root / 'feeds'
     destination.mkdir(mode=0o755, parents=True, exist_ok=True)
     temporary = None
     try:
-        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=str(destination), prefix='.bloomberg-', delete=False) as stream:
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=str(destination), prefix='.news-', delete=False) as stream:
             temporary = Path(stream.name)
             json.dump(feed, stream, ensure_ascii=False)
             stream.flush()
             os.fsync(stream.fileno())
         os.chmod(str(temporary), 0o644)
-        os.replace(str(temporary), str(destination / 'bloomberg.json'))
+        os.replace(str(temporary), str(destination / filename))
     finally:
         if temporary and temporary.exists():
             temporary.unlink()
-    print('BLOOMBERG_DELIVERED items={} generated_at={}'.format(len(feed['items']), feed['generated_at']))
+    print('NEWS_DELIVERED source={} items={} generated_at={}'.format(feed['source'], len(feed['items']), feed['generated_at']))
     # Remove only this run's known staging files; never recursively delete a directory.
     source.unlink()
     script = source.parent / '.github' / 'scripts' / 'bloomberg_relay.py'
-    if script.is_file():
-        script.unlink()
+    # The shared receiver may still be needed for the other source in this run.
+    if not any((source.parent / name).exists() for name in ('bloomberg.json', 'sina.json')):
+        for name in ('bloomberg_relay.py', 'sina_relay.py'):
+            candidate = script.parent / name
+            if candidate.is_file():
+                candidate.unlink()
     for directory in [script.parent, script.parent.parent, source.parent]:
         try:
             directory.rmdir()
         except OSError:
             pass
+
+
+def receive(source, root=SERVER_ROOT):
+    return receive_feed(source, validate_feed, 'bloomberg.json', root)
 
 
 if __name__ == '__main__':

@@ -28,14 +28,26 @@ jobs:
       OMP_NUM_THREADS: '2'
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
       - name: Verify RSS validation and atomic delivery
         run: python3 -m unittest discover -s .github/scripts -p 'test_*bloomberg*.py'
+      - name: Verify Sina rolling list validation
+        run: python3 -m unittest discover -s .github/scripts -p 'test_sina_relay.py'
+      - name: Collect public Sina rolling headlines and summaries
+        id: sina
+        continue-on-error: true
+        run: python3 .github/scripts/sina_relay.py collect --file sina.json
       - name: Collect public market headlines and summaries
+        id: bloomberg
+        continue-on-error: true
         run: python3 .github/scripts/bloomberg_relay.py collect --file bloomberg.json
       - uses: actions/setup-python@v5
+        if: steps.bloomberg.outcome == 'success'
         with:
           python-version: '3.12'
       - name: Restore CPU translation runtime and English-Chinese model
+        if: steps.bloomberg.outcome == 'success'
         id: runtime
         uses: actions/cache/restore@v4
         with:
@@ -44,6 +56,7 @@ jobs:
             .argos
           key: argos-cpu-v1-${{ runner.os }}-${{ hashFiles('.github/scripts/argos-requirements.txt') }}
       - name: Prepare offline translation runtime
+        if: steps.bloomberg.outcome == 'success'
         id: prepare
         continue-on-error: true
         timeout-minutes: 7
@@ -63,6 +76,7 @@ jobs:
             .argos
           key: ${{ steps.runtime.outputs.cache-primary-key }}
       - name: Restore recent translations
+        if: steps.bloomberg.outcome == 'success'
         id: translations
         uses: actions/cache/restore@v4
         with:
@@ -93,16 +107,25 @@ jobs:
           fi
           du -sh .argos-venv .argos .translation-cache 2>/dev/null || true
       - name: Upload to isolated staging directory
-        if: github.event_name != 'workflow_dispatch' || inputs.deliver
+        if: steps.bloomberg.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.deliver)
         uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
-          source: bloomberg.json,.github/scripts/bloomberg_relay.py
+          source: bloomberg.json,.github/scripts/bloomberg_relay.py,.github/scripts/sina_relay.py
+          target: /opt/stock-news/staging/${{ github.run_id }}
+      - name: Upload Sina to the same isolated staging directory
+        if: steps.sina.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.deliver)
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: sina.json,.github/scripts/bloomberg_relay.py,.github/scripts/sina_relay.py
           target: /opt/stock-news/staging/${{ github.run_id }}
       - name: Atomically replace the validated feed
-        if: github.event_name != 'workflow_dispatch' || inputs.deliver
+        if: (steps.bloomberg.outcome == 'success' || steps.sina.outcome == 'success') && (github.event_name != 'workflow_dispatch' || inputs.deliver)
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -111,4 +134,15 @@ jobs:
           command_timeout: 2m
           script: |
             set -eu
-            python3 /opt/stock-news/staging/${{ github.run_id }}/.github/scripts/bloomberg_relay.py receive --file /opt/stock-news/staging/${{ github.run_id }}/bloomberg.json
+            if [ '${{ steps.bloomberg.outcome }}' = success ]; then
+              python3 -B /opt/stock-news/staging/${{ github.run_id }}/.github/scripts/bloomberg_relay.py receive --file /opt/stock-news/staging/${{ github.run_id }}/bloomberg.json
+            fi
+            if [ '${{ steps.sina.outcome }}' = success ]; then
+              python3 -B /opt/stock-news/staging/${{ github.run_id }}/.github/scripts/sina_relay.py receive --file /opt/stock-news/staging/${{ github.run_id }}/sina.json
+            fi
+            docker exec stock-back node -e "require('dotenv').config({path:process.env.APP_ENV_FILE});const ds=require('./dist/migration-data-source').default;(async()=>{await ds.initialize();try{await ds.query(\"UPDATE t_news_source SET next_attempt=NULL,consecutive_failures=0 WHERE enabled=1 AND source IN ('sina','bloomberg')\");}finally{await ds.destroy();}})().catch(()=>{process.exitCode=1;});"
+      - name: Report source collection failures
+        if: steps.bloomberg.outcome != 'success' || steps.sina.outcome != 'success'
+        run: |
+          echo '::error::One or more public feeds could not be collected; the other source was delivered independently.'
+          exit 1

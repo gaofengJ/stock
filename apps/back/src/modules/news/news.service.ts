@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
+import { join as joinPath, dirname } from 'path';
 import axios from 'axios';
 import { DataSource, QueryRunner } from 'typeorm';
 import {
@@ -27,7 +28,7 @@ import { NewsFeatures } from './news.features';
 import { hashText } from './news.rules';
 import { checkNewsSchema } from './news-schema';
 import { sinaFlashItems } from './news.providers';
-import { readBloombergFeed } from './news.bloomberg';
+import { readNewsRelay, RELAY_DELAY_MS } from './news.relay';
 
 const NEWS_CODES = NEWS_SOURCES.filter(isNewsSource).map(
   (source) => source.code,
@@ -46,6 +47,8 @@ export class NewsService implements OnApplicationBootstrap {
   private readonly enabled: boolean;
 
   private readonly bloombergFeedFile: string;
+
+  private readonly sinaFeedFile: string;
 
   readonly features: NewsFeatures;
 
@@ -68,6 +71,10 @@ export class NewsService implements OnApplicationBootstrap {
     this.bloombergFeedFile = String(
       config.get('BLOOMBERG_FEED_FILE') ||
         '/run/stock/news-feeds/bloomberg.json',
+    );
+    this.sinaFeedFile = String(
+      config.get('SINA_FEED_FILE') ||
+        joinPath(dirname(this.bloombergFeedFile), 'sina.json'),
     );
   }
 
@@ -100,6 +107,13 @@ export class NewsService implements OnApplicationBootstrap {
       sources: NEWS_SOURCES.filter(isNewsSource)
         .map((s) => {
           const row = rows.find((r: any) => r.source === s.code);
+          const delayed =
+            ['bloomberg-relay', 'sina-relay'].includes(s.provider || '') &&
+            row?.last_success &&
+            ['ok', 'collecting'].includes(row.status) &&
+            !row.last_error &&
+            Date.now() - new Date(isoDate(row.last_success)!).getTime() >
+              RELAY_DELAY_MS;
           return {
             code: s.code,
             name: s.name,
@@ -108,7 +122,10 @@ export class NewsService implements OnApplicationBootstrap {
             description: s.description || '',
             enabled: Boolean(row?.enabled),
             intervalSeconds: Number(row?.interval_seconds || 120),
-            status: row?.status || 'pending',
+            status: delayed ? 'delayed' : row?.status || 'pending',
+            warning: delayed
+              ? '境外采集更新延迟，当前展示上次成功采集的资讯。'
+              : '',
             lastAttempt: isoDate(row?.last_attempt || null),
             lastSuccess: isoDate(row?.last_success || null),
             nextAttempt: isoDate(row?.next_attempt || null),
@@ -121,7 +138,7 @@ export class NewsService implements OnApplicationBootstrap {
             includeUnavailable ||
             (s.enabled &&
               s.lastSuccess &&
-              ['ok', 'collecting'].includes(s.status) &&
+              ['ok', 'collecting', 'delayed'].includes(s.status) &&
               !s.lastError),
         ),
     };
@@ -343,10 +360,23 @@ export class NewsService implements OnApplicationBootstrap {
     return response.data.items.slice(0, 50);
   }
 
-  private async fetchSource(source: NewsSource): Promise<unknown[]> {
+  private async fetchSource(
+    source: NewsSource,
+  ): Promise<{ items: unknown[]; generatedAt?: Date }> {
     if (source.provider === 'bloomberg-relay')
-      return readBloombergFeed(this.bloombergFeedFile);
-    if (source.provider !== 'sina-flash') return this.fetch(source.path);
+      return readNewsRelay(
+        this.bloombergFeedFile,
+        'bloomberg-markets',
+        'www.bloomberg.com',
+      );
+    if (source.provider === 'sina-relay')
+      return readNewsRelay(
+        this.sinaFeedFile,
+        'sina-finance',
+        'finance.sina.com.cn',
+      );
+    if (source.provider !== 'sina-flash')
+      return { items: await this.fetch(source.path) };
     const response = await axios.get('https://app.cj.sina.com.cn/api/news/pc', {
       params: { page: 1, size: 30, tag: 0 },
       headers: { Referer: 'https://finance.sina.com.cn/7x24/' },
@@ -356,7 +386,7 @@ export class NewsService implements OnApplicationBootstrap {
       maxBodyLength: 4 * 1024 * 1024,
       proxy: false,
     });
-    return sinaFlashItems(response.data);
+    return { items: sinaFlashItems(response.data) };
   }
 
   private async collect(source: NewsSource, row: any, q: QueryRunner) {
@@ -365,7 +395,7 @@ export class NewsService implements OnApplicationBootstrap {
       [source.code],
     );
     try {
-      const items = await this.fetchSource(source);
+      const { items, generatedAt } = await this.fetchSource(source);
       // Match each provider's dedicated important feed by normalized identity.
       const important = new Set<string>();
       if (source.importantPath) {
@@ -449,16 +479,22 @@ export class NewsService implements OnApplicationBootstrap {
         }
       }
       await q.query(
-        `UPDATE t_news_source SET status='ok',last_success=UTC_TIMESTAMP(3),last_error='',last_added=?,consecutive_failures=0,next_attempt=DATE_ADD(UTC_TIMESTAMP(3),INTERVAL interval_seconds SECOND) WHERE source=?`,
-        [added, source.code],
+        `UPDATE t_news_source SET status='ok',last_success=COALESCE(?,UTC_TIMESTAMP(3)),last_error='',last_added=?,consecutive_failures=0,next_attempt=DATE_ADD(UTC_TIMESTAMP(3),INTERVAL interval_seconds SECOND) WHERE source=?`,
+        [generatedAt ? sqlDate(generatedAt) : null, added, source.code],
       );
     } catch (error) {
       const status = axios.isAxiosError(error)
         ? error.response?.status
         : undefined;
-      const message = status
+      const relay = ['bloomberg-relay', 'sina-relay'].includes(
+        source.provider || '',
+      );
+      let message = status
         ? `上游返回 HTTP ${status}，保留已采集资讯`
         : '来源暂不可用，保留已采集资讯并自动重试';
+      if (relay)
+        message =
+          '境外采集快照缺失、无效或已超过 24 小时，保留历史资讯并自动重试';
       const seconds = Math.min(
         3600,
         Math.max(Number(row.interval_seconds), 120) *
@@ -468,7 +504,13 @@ export class NewsService implements OnApplicationBootstrap {
         `UPDATE t_news_source SET status='error',last_error=?,consecutive_failures=consecutive_failures+1,next_attempt=DATE_ADD(UTC_TIMESTAMP(3),INTERVAL ? SECOND) WHERE source=?`,
         [message, seconds, source.code],
       );
-      this.logger.warn(`${source.name}采集失败，已安排重试`);
+      this.logger.warn(
+        `${source.name}采集失败，已安排重试：${
+          status
+            ? `HTTP ${status}`
+            : (error as Error)?.message?.slice(0, 160) || 'Unknown error'
+        }`,
+      );
     }
   }
 
