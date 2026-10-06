@@ -3,7 +3,20 @@
 .review-toolbar, .review-section-heading, .review-plan-actions { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
 .review-toolbar { margin-bottom: 16px; }
 .review-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 16px 0 24px; }
-.review-step { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; background: var(--color-surface-muted); border-radius: 6px; }
+.review-step { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; background: var(--color-surface-muted); border: 1px solid transparent; border-radius: 6px; text-align: left; cursor: pointer; }
+.review-step:hover { border-color: var(--color-border); }
+.review-step:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.review-step-title { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; font-weight: 600; line-height: 1.5; }
+.review-step-title:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 4px; }
+.review-market, .review-candidates, .review-plan { scroll-margin-top: 16px; }
+.review-market > .ant-card { margin: 0; }
+.review-plan-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.review-plan-title > .review-caption { flex-shrink: 0; }
+.review-candidates .review-candidate-notice.ant-alert { margin-bottom: 16px; }
+.review-support { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--color-border); }
+.review-support-title { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
+.review-support > p { margin: 0; }
+.review-selection .ant-tag { margin: 0; }
 .review-step-number { display: grid; place-items: center; flex: 0 0 26px; height: 26px; border-radius: 50%; background: var(--color-primary-soft); color: var(--color-primary-text); font-weight: 600; }
 .review-step strong { display: block; margin-bottom: 4px; }
 .review-caption { color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
