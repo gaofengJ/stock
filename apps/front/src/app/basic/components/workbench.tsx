@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from '@/components/Interaction';
 import {
-  Alert, Button, Space, Tag, Tooltip,
+  Alert, Button, Popover, Space, Tag, Tooltip,
 } from 'antd';
 import request from '@/api/request';
 import { useAccount } from '@/auth/Boundary';
@@ -15,6 +15,7 @@ import { EHeaderMenuKey } from '@/components/Layout/enum';
 import './workbench.css';
 import { startWorkbenchPolling } from './workbench-polling';
 import { currentReduction, riskTypeLabel } from './risk-display';
+import { sourceNames, sourceTimeRows } from './source-display';
 
 export function stockHref(code: string, date?: string) {
   return `/basic/stock/detail/?code=${encodeURIComponent(code)}${date ? `&date=${date}` : ''}`;
@@ -65,28 +66,6 @@ export function useWorkbench(endpoint: string, params: Record<string, unknown>, 
     retry: () => setAttempt((v) => v + 1),
   };
 }
-const sourceNames: Record<string, string> = {
-  stk_holdertrade: '股东减持',
-  eastmoney_ann: '东方财富公告',
-  anns_d: '公司公告',
-  fina_audit: '审计意见',
-  balancesheet: '资产负债表',
-  stock_company: '公司资料',
-  stock_st: 'ST状态',
-  st: 'ST原因',
-  suspend_d: '停复牌',
-  stk_shock: '异常波动',
-  stk_high_shock: '严重异动',
-  stk_alert: '交易所提示',
-  share_float: '解禁',
-  disclosure_date: '财报披露',
-  forecast: '业绩预告',
-  express: '业绩快报',
-  dividend: '除权除息',
-  fina_indicator: '财务指标',
-  cashflow: '现金流',
-  top_inst: '龙虎榜席位',
-};
 export function SourceState({
   data, error, retry, pollingStopped = false,
 }: { data: any; error?: string; retry: () => void; pollingStopped?: boolean }) {
@@ -134,9 +113,26 @@ export function SourceState({
       />
       )}
       {!pending.length && !!data?.sources?.length && (
-      <p className="basic-muted">
-        <Tooltip title={data.sources.map((s: any) => `${sourceNames[s.source] || '其他资料'}：${s.fetchedAt ? new Date(s.fetchedAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : '尚未获取'}`).join('；')}><span>查看资料更新时间</span></Tooltip>
-      </p>
+      <Popover
+        trigger="click"
+        placement="bottomLeft"
+        title="资料获取时间（北京时间）"
+        content={(
+          <div className="source-time-content">
+            <p>以下为系统获取资料的时间，与观察日期、公告日期不同。同类资料的多次获取显示最早至最近时间。</p>
+            <dl className="source-time-list">
+              {sourceTimeRows(data.sources).map((row) => (
+                <div className="source-time-row" key={row.label}>
+                  <dt>{row.label}</dt>
+                  <dd>{row.time}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
+      >
+        <Button type="link" size="small" className="source-time-trigger">查看资料获取时间</Button>
+      </Popover>
       )}
     </div>
   );

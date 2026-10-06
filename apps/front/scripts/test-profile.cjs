@@ -118,3 +118,33 @@ test('risk row identities remain stable through filtering and distinguish record
   assert.notEqual(riskDisplay.riskRowKey(row), riskDisplay.riskRowKey({ ...row, type: '停牌' }));
   assert.notEqual(riskDisplay.riskRowKey(row), riskDisplay.riskRowKey({ ...row, endDate: '2026-10-29' }));
 });
+
+const sourceDisplay = load('app/basic/components/source-display.ts');
+test('source timestamps group batches and show their full range in Beijing time', () => {
+  const rows = sourceDisplay.sourceTimeRows([
+    { source: 'stock_st', fetchedAt: '2026-10-05T16:00:00Z' },
+    ...Array.from({ length: 6 }, (_, i) => ({ source: 'stk_holdertrade', fetchedAt: `2026-10-06T05:36:${30 + i}Z` })),
+    { source: 'anns_d', fetchedAt: '2026-10-06T13:00:00+08:00' },
+    { source: 'eastmoney_ann', fetchedAt: '2026-10-06T05:00:00Z' },
+  ]);
+  assert.equal(rows.length, 3);
+  assert.equal(rows[0].time, '2026-10-06 00:00:00');
+  assert.equal(rows[1].label, '股东减持');
+  assert.equal(rows[1].time, '2026-10-06 13:36:30 至 2026-10-06 13:36:35');
+  assert.equal(rows[2].label, '公司公告');
+  assert.equal(rows[2].time, '2026-10-06 13:00:00');
+});
+test('source timestamps keep missing or invalid batch times explicit and hide internal names', () => {
+  const rows = sourceDisplay.sourceTimeRows([
+    { source: 'stk_holdertrade', fetchedAt: '2026-10-06T05:36:30Z' },
+    { source: 'stk_holdertrade', fetchedAt: null },
+    { source: 'stock_company', fetchedAt: 'invalid' },
+    { source: 'internal_source_a' }, { source: 'internal_source_b' },
+  ]);
+  assert.equal(rows.length, 3);
+  assert.equal(rows[0].time, '2026-10-06 13:36:30（部分获取时间缺失）');
+  assert.equal(rows[1].time, '尚未取得获取时间');
+  assert.equal(rows[2].label, '其他资料');
+  assert(!JSON.stringify(rows).includes('internal_source'));
+  assert.equal(sourceDisplay.sourceTimeRows([]).length, 0);
+});
