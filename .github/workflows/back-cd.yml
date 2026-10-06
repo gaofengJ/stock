@@ -71,7 +71,7 @@ jobs:
               files = (data.files || []).flatMap(f => [f.filename, f.previous_filename].filter(Boolean));
               complete = (data.files || []).length < 300;
             }
-            for (const [key, value] of Object.entries(releaseScope(files, complete))) core.setOutput(key, String(value));
+            for (const [key, value] of Object.entries(releaseScope(files, complete, context.eventName))) core.setOutput(key, String(value));
   verify:
     needs: changes
     if: needs.changes.outputs.backend == 'true'
