@@ -28,6 +28,9 @@ jobs:
           script: |
             echo 'Backend runtime:'
             docker exec stock-back node --version
+            echo 'Host system and Docker version:'
+            sed -n '/^NAME=/p; /^VERSION_ID=/p' /etc/os-release
+            docker version --format '{{.Server.Version}}'
             echo 'Proxy connection classification:'
             python3 - <<'PY'
             import glob, re, ipaddress
