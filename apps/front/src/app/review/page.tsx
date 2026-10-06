@@ -158,12 +158,14 @@ function Report({ date, account }: { date: string; account: number }) {
             <span>{`已知风险排除 ${data ? excludedCount : '—'} 只`}</span>
             <span>{`市值不符或缺失 ${data ? capCount : '—'} 只`}</span>
           </div>
-          <p className="review-caption">
-            查看股票的K线走势与风险资料，再勾选加入名单。
-            {sortCaption}
-            ；排序仅反映市值。
-          </p>
-          <p className="review-caption">已知ST、停牌及进行中的已核实减持计划会被排除。可观察股票仍需逐项查看风险资料，核验记录填写在计划中。</p>
+          <div className="review-candidate-help">
+            <p className="review-caption">
+              查看股票的K线走势与风险资料，再勾选加入名单。
+              {sortCaption}
+              ；排序仅反映市值。
+            </p>
+            <p className="review-caption">已知ST、停牌及进行中的已核实减持计划会被排除。可观察股票仍需逐项查看风险资料，核验记录填写在计划中。</p>
+          </div>
           <div className="review-filters">
             <Select aria-label="候选范围" value={filter} onChange={setFilter} options={[{ value: 'within', label: '可加入观察的股票' }, { value: 'all', label: '全部策略命中' }, { value: 'excluded', label: '已知风险排除' }, { value: 'missing', label: '市值资料缺失' }]} />
             <Input allowClear aria-label="搜索候选股票" placeholder="输入股票名称或代码" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
@@ -290,16 +292,20 @@ function Report({ date, account }: { date: string; account: number }) {
               )}
               {chosen.map(({ name, tsCode, row }) => (
                 <div key={tsCode} className="review-pick">
-                  <div className="review-pick-heading">
-                    <strong>{row?.name || name}</strong>
-                    <Button size="small" aria-label={`将${name}移出观察名单`} onClick={() => remove(tsCode)}>移出</Button>
+                  <div className="review-pick-summary">
+                    <div className="review-pick-heading">
+                      <strong>{row?.name || name}</strong>
+                      <Button size="small" aria-label={`将${name}移出观察名单`} onClick={() => remove(tsCode)}>移出</Button>
+                    </div>
+                    <span className="review-caption">{tsCode}</span>
+                    <div className="review-stock-actions">
+                      {row && <InteractionButton intent="preview" onClick={() => setStock(row)}>看K线</InteractionButton>}
+                      <RiskInspect code={tsCode} name={name} date={date} />
+                    </div>
                   </div>
-                  <span className="review-caption">{tsCode}</span>
-                  <div className="review-stock-actions">
-                    {row && <InteractionButton intent="preview" onClick={() => setStock(row)}>看K线</InteractionButton>}
-                    <RiskInspect code={tsCode} name={name} date={date} />
+                  <div className="review-risk-state">
+                    <Tag color={row && blocked(row) ? 'red' : 'orange'}>{riskLabel(row)}</Tag>
                   </div>
-                  <Tag color={row && blocked(row) ? 'red' : 'orange'}>{riskLabel(row)}</Tag>
                   <label className="review-field" htmlFor={`review-note-${tsCode}`}>
                     <span>观察理由与触发条件</span>
                     <Input.TextArea id={`review-note-${tsCode}`} aria-label={`${name}看图与计划`} disabled={!ready} value={draft.notes[tsCode] || ''} maxLength={2000} rows={3} placeholder="例如：观察回踩支撑后的走势；记录支撑位、观察条件及放弃条件" onChange={(e) => update({ notes: { ...draft.notes, [tsCode]: e.target.value } })} />
