@@ -83,9 +83,16 @@ function Report({ date, account }: { date: string; account: number }) {
     return '';
   };
   const remove = (code: string) => update({ selected: draft.selected.filter((r) => r.tsCode !== code) });
+  const goToStep = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ block: 'start' });
+    document.getElementById(`${id}-title`)?.focus({ preventScroll: true });
+    if (id === 'review-plan') document.querySelector('.review-plan-scroll')?.scrollTo({ top: 0 });
+  };
   const plan = (code?: string) => {
-    const field = document.getElementById(code ? `review-note-${code}` : 'review-focus');
-    field?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    goToStep('review-plan');
+    const target = code || selected[0];
+    const field = document.getElementById(target ? `review-note-${target}` : 'review-focus');
+    field?.scrollIntoView({ block: 'nearest' });
     field?.focus({ preventScroll: true });
   };
   const candidatesTop = () => document.getElementById('review-candidates-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -123,47 +130,56 @@ function Report({ date, account }: { date: string; account: number }) {
           {' '}
           · 按账号和交易日期分别保存
         </span>
-        <Space wrap>
-          <Button loading={loading} onClick={() => setAttempt((v) => v + 1)}>更新候选数据</Button>
-          <Button type="primary" disabled={!ready} onClick={download}>导出复盘与计划</Button>
-        </Space>
+        <Button loading={loading} onClick={() => setAttempt((v) => v + 1)}>更新候选数据</Button>
       </div>
       <div className="review-steps" aria-label="复盘操作流程">
         {[
-          ['看市场背景', '先了解所选交易日的市场涨跌与成交情况'],
-          ['筛选观察股票', '查看走势和风险资料，选择0–3只股票'],
-          ['填写并导出计划', '记录观察条件、核验结论和放弃条件'],
-        ].map(([title, description], i) => (
-          <div className="review-step" key={title}>
+          ['review-market', '看市场背景', '查看涨跌、均线与成交情况'],
+          ['review-candidates', '筛选观察股票', '看K线和风险资料，选择0–3只股票'],
+          ['review-plan', '填写并导出计划', '核验名单，记录下一交易日计划'],
+        ].map(([id, title, description], i) => (
+          <button type="button" className="review-step" key={id} aria-label={`第${i + 1}步：${title}`} aria-controls={id} onClick={() => goToStep(id)}>
             <span className="review-step-number">{i + 1}</span>
             <div>
               <strong>{title}</strong>
               <span className="review-caption">{description}</span>
             </div>
-          </div>
+          </button>
         ))}
       </div>
-      <CandidateEnvironment date={date} />
-      {error && <Alert type="error" showIcon message={error} description={data ? '当前仍展示上次取得的候选；观察名单和草稿已保留。' : '可以继续填写计划并导出草稿。'} action={<Button onClick={() => setAttempt((v) => v + 1)}>重试</Button>} />}
-      {data && !data.complete && <Alert type="warning" showIcon message="部分策略未取得结果，候选范围不完整" description="可继续记录计划，稍后点击“更新候选数据”重试。" />}
+      <section id="review-market" className="review-market" aria-labelledby="review-market-title">
+        <div className="review-section-heading">
+          <h2 id="review-market-title" tabIndex={-1} className="review-step-title">
+            <span className="review-step-number">1</span>
+            看市场背景
+          </h2>
+        </div>
+        <CandidateEnvironment date={date} />
+      </section>
       <div className="review-workspace">
-        <section className="review-candidates" aria-labelledby="review-candidates-title">
+        <section id="review-candidates" className="review-candidates" aria-labelledby="review-candidates-title">
           <div className="review-section-heading">
-            <h2 id="review-candidates-title">筛选观察股票</h2>
-            <Button onClick={() => plan()}>{`已选 ${selected.length}/3 · 填写计划`}</Button>
+            <h2 id="review-candidates-title" tabIndex={-1} className="review-step-title">
+              <span className="review-step-number">2</span>
+              筛选观察股票
+            </h2>
+            <Button onClick={() => plan()}>下一步：填写计划</Button>
           </div>
+          {error && <Alert className="review-candidate-notice" type="error" showIcon message={error} description={data ? '当前仍展示上次取得的候选；观察名单和草稿已保留。' : '可以继续填写计划并导出草稿。'} action={<Button onClick={() => setAttempt((v) => v + 1)}>重试</Button>} />}
+          {data && !data.complete && <Alert className="review-candidate-notice" type="warning" showIcon message="部分策略未取得结果，候选范围不完整" description="可继续记录计划，稍后点击“更新候选数据”重试。" />}
           <div className="review-counts">
             <span>{`策略命中（去重） ${data ? rows.length : '—'} 只`}</span>
             <strong>{`可加入观察 ${data ? eligible.length : '—'} 只`}</strong>
             <span>{`已知风险排除 ${data ? excludedCount : '—'} 只`}</span>
             <span>{`市值不符或缺失 ${data ? capCount : '—'} 只`}</span>
           </div>
-          <p className="review-caption">
-            查看股票的K线走势与风险资料，再勾选加入名单。
-            {sortCaption}
-            ；排序仅反映市值。
-          </p>
-          <p className="review-caption">已知ST、停牌及进行中的已核实减持计划会被排除。可观察股票仍需逐项查看风险资料，核验记录填写在计划中。</p>
+          <div className="review-candidate-help">
+            <p className="review-caption">
+              查看K线和风险资料后，勾选0–3只股票。
+              {sortCaption}
+              。
+            </p>
+          </div>
           <div className="review-filters">
             <Select aria-label="候选范围" value={filter} onChange={setFilter} options={[{ value: 'within', label: '可加入观察的股票' }, { value: 'all', label: '全部策略命中' }, { value: 'excluded', label: '已知风险排除' }, { value: 'missing', label: '市值资料缺失' }]} />
             <Input allowClear aria-label="搜索候选股票" placeholder="输入股票名称或代码" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
@@ -172,7 +188,7 @@ function Report({ date, account }: { date: string; account: number }) {
           </div>
           <div className="review-selection" role="status">
             <span>{`已选 ${selected.length}/3${selected.length === 3 ? ' · 已达上限，请移出后再选择' : ' · 勾选可加入观察的股票'}`}</span>
-            {chosen.map(({ name, tsCode }) => <Button size="small" key={tsCode} onClick={() => plan(tsCode)}>{`填写${name}计划`}</Button>)}
+            {chosen.map(({ name, tsCode }) => <Tag key={tsCode}>{name}</Tag>)}
           </div>
           <div id="review-candidate-table">
             <Table
@@ -238,49 +254,61 @@ function Report({ date, account }: { date: string; account: number }) {
               ]}
             />
           </div>
-          <Collapse
-            className="review-details"
-            items={[
-              {
-                key: 'rules',
-                label: '候选生成规则与数据说明',
-                children: (
-                  <>
-                    <p>使用平台全部策略的默认参数，合并同一只股票的命中结果。观察名单限定总市值小于200亿元，最多3只，也可以不选股票。</p>
-                    <p>“入选线索”表示触发的策略条件。请结合K线判断走势，并在计划中记录观察条件、支撑位和放弃条件。</p>
-                    <p>行情截至所选交易日收盘；公告按该日已披露信息筛选。历史日期采用当前可用资料回看。人工核验记录与系统风险状态分别保留。</p>
-                    <p>短线复核参考：跌破5日线后下一交易日未收回，或持有约3个交易日未走强时，复核原观察逻辑。</p>
-                    <SourceState data={risk.data || data} error={risk.error} loading={risk.loading} pollingStopped={risk.pollingStopped} retry={risk.retry} />
-                  </>
-                ),
-              },
-              {
-                key: 'strategies',
-                label: `各策略命中数量${data ? `（已取得 ${data.strategies.filter((s: any) => s.state === 'ready').length}/${data.strategies.length}）` : ''}`,
-                children: (
-                  <>
-                    <p>一只股票可以同时命中多个策略，各策略数量可能重叠。</p>
-                    <p className="review-caption">点击策略可筛选候选表；数量为该策略原始命中数，仍受上方范围和搜索条件限制。</p>
-                    <Space wrap>{data?.strategies.map((s: any) => <InteractionButton key={s.key} intent="select" selected={strategy === s.key} disabled={s.state !== 'ready'} aria-controls="review-candidate-table" onClick={() => { setStrategy(strategy === s.key ? 'all' : s.key); candidatesTop(); }}>{`${s.label}：${s.count ?? '暂不可用'}`}</InteractionButton>)}</Space>
-                  </>
-                ),
-              },
-            ]}
-          />
-          <Collapse
-            className="review-details"
-            items={[{
-              key: 'holdings',
-              label: '补充持仓分析（可选）',
-              forceRender: true,
-              children: <Holdings date={date} candidates={chosen.map((r) => `${r.name} ${r.tsCode}`)} onResult={setHoldingsResult} />,
-            }]}
-          />
+          <div className="review-support">
+            <h3 className="review-support-title">辅助资料与持仓分析</h3>
+            <p className="review-caption">按需展开；不影响观察名单和计划填写。</p>
+            <Collapse
+              className="review-details"
+              items={[
+                {
+                  key: 'rules',
+                  label: '候选生成规则与数据说明',
+                  children: (
+                    <>
+                      <p>使用平台全部策略的默认参数，合并同一只股票的命中结果。观察名单限定总市值小于200亿元，最多3只，也可以不选股票。</p>
+                      <p>“入选线索”表示触发的策略条件。请结合K线判断走势，并在计划中记录观察条件、支撑位和放弃条件。</p>
+                      <p>已知ST、停牌及进行中的已核实减持计划会被排除。可观察股票仍需逐项查看风险资料，核验记录填写在计划中。</p>
+                      <p>行情截至所选交易日收盘；公告按该日已披露信息筛选。历史日期采用当前可用资料回看。人工核验记录与系统风险状态分别保留。</p>
+                      <p>短线复核参考：跌破5日线后下一交易日未收回，或持有约3个交易日未走强时，复核原观察逻辑。</p>
+                      <SourceState data={risk.data || data} error={risk.error} loading={risk.loading} pollingStopped={risk.pollingStopped} retry={risk.retry} />
+                    </>
+                  ),
+                },
+                {
+                  key: 'strategies',
+                  label: `各策略命中数量${data ? `（已取得 ${data.strategies.filter((s: any) => s.state === 'ready').length}/${data.strategies.length}）` : ''}`,
+                  children: (
+                    <>
+                      <p>一只股票可以同时命中多个策略，各策略数量可能重叠。</p>
+                      <p className="review-caption">点击策略可筛选候选表；数量为该策略原始命中数，仍受上方范围和搜索条件限制。</p>
+                      <Space wrap>{data?.strategies.map((s: any) => <InteractionButton key={s.key} intent="select" selected={strategy === s.key} disabled={s.state !== 'ready'} aria-controls="review-candidate-table" onClick={() => { setStrategy(strategy === s.key ? 'all' : s.key); candidatesTop(); }}>{`${s.label}：${s.count ?? '暂不可用'}`}</InteractionButton>)}</Space>
+                    </>
+                  ),
+                },
+                {
+                  key: 'holdings',
+                  label: '已有持仓分析（可选）',
+                  forceRender: true,
+                  children: <Holdings date={date} candidates={chosen.map((r) => `${r.name} ${r.tsCode}`)} onResult={setHoldingsResult} />,
+                },
+              ]}
+            />
+          </div>
         </section>
-        <aside className="review-plan" id="review-plan" aria-label="观察名单与下一交易日计划">
-          <Card title={`观察名单与计划 · ${selected.length}/3`}>
+        <aside className="review-plan" id="review-plan" aria-labelledby="review-plan-title">
+          <Card
+            title={(
+              <div className="review-plan-title">
+                <h2 id="review-plan-title" tabIndex={-1} className="review-step-title">
+                  <span className="review-step-number">3</span>
+                  填写并导出计划
+                </h2>
+                <span className="review-caption">{`${selected.length}/3只`}</span>
+              </div>
+            )}
+          >
             <div className="review-plan-scroll">
-              <p className="review-caption">用于所选日期之后的下一交易日。先记录为什么观察，再写触发条件和放弃条件。</p>
+              <p className="review-caption">先核验观察名单，再填写下一交易日计划，完成后在本区底部导出。</p>
               {!chosen.length && (
               <div className="review-empty">
                 还没有选观察股票。
@@ -290,16 +318,20 @@ function Report({ date, account }: { date: string; account: number }) {
               )}
               {chosen.map(({ name, tsCode, row }) => (
                 <div key={tsCode} className="review-pick">
-                  <div className="review-pick-heading">
-                    <strong>{row?.name || name}</strong>
-                    <Button size="small" aria-label={`将${name}移出观察名单`} onClick={() => remove(tsCode)}>移出</Button>
+                  <div className="review-pick-summary">
+                    <div className="review-pick-heading">
+                      <strong>{row?.name || name}</strong>
+                      <Button size="small" aria-label={`将${name}移出观察名单`} onClick={() => remove(tsCode)}>移出</Button>
+                    </div>
+                    <span className="review-caption">{tsCode}</span>
+                    <div className="review-stock-actions">
+                      {row && <InteractionButton intent="preview" onClick={() => setStock(row)}>看K线</InteractionButton>}
+                      <RiskInspect code={tsCode} name={name} date={date} />
+                    </div>
                   </div>
-                  <span className="review-caption">{tsCode}</span>
-                  <div className="review-stock-actions">
-                    {row && <InteractionButton intent="preview" onClick={() => setStock(row)}>看K线</InteractionButton>}
-                    <RiskInspect code={tsCode} name={name} date={date} />
+                  <div className="review-risk-state">
+                    <Tag color={row && blocked(row) ? 'red' : 'orange'}>{riskLabel(row)}</Tag>
                   </div>
-                  <Tag color={row && blocked(row) ? 'red' : 'orange'}>{riskLabel(row)}</Tag>
                   <label className="review-field" htmlFor={`review-note-${tsCode}`}>
                     <span>观察理由与触发条件</span>
                     <Input.TextArea id={`review-note-${tsCode}`} aria-label={`${name}看图与计划`} disabled={!ready} value={draft.notes[tsCode] || ''} maxLength={2000} rows={3} placeholder="例如：观察回踩支撑后的走势；记录支撑位、观察条件及放弃条件" onChange={(e) => update({ notes: { ...draft.notes, [tsCode]: e.target.value } })} />

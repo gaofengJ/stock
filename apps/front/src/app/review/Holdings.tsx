@@ -58,7 +58,7 @@ export default function Holdings({ date, candidates, onResult }: { date: string;
             <strong>{`持仓 ${i + 1}`}</strong>
             {rows.length > 1 && <Button size="small" aria-label={`移除持仓${i + 1}`} onClick={() => { clearResult(); setRows(rows.filter((_, n) => n !== i)); }}>移除</Button>}
           </div>
-          <div className="review-holding-fields">
+          <Form layout="vertical" component="div" colon={false} className="review-holding-fields">
             <Form.Item label="股票代码" htmlFor={`holding-${r.id}-code`} validateStatus={validated && errors[i].code ? 'error' : undefined} help={validated && errors[i].code}>
               <Input id={`holding-${r.id}-code`} aria-label={`持仓${i + 1}代码`} aria-invalid={validated && !!errors[i].code} value={r.code} placeholder="000001.SZ / 600000.SH / 920001.BJ" onChange={(e) => change(i, { code: e.target.value.trim().toUpperCase() })} />
             </Form.Item>
@@ -71,10 +71,10 @@ export default function Holdings({ date, candidates, onResult }: { date: string;
             <Form.Item className="review-holding-rationale" label="原买入理由（可选）" htmlFor={`holding-${r.id}-rationale`}>
               <Input.TextArea id={`holding-${r.id}-rationale`} aria-label={`持仓${i + 1}理由`} value={r.rationale} maxLength={300} rows={2} placeholder="记录原买入逻辑，分析后与观察名单对照" onChange={(e) => change(i, { rationale: e.target.value })} />
             </Form.Item>
-          </div>
+          </Form>
         </div>
       ))}
-      <Space wrap className="mb-16">
+      <Space wrap size={[12, 8]}>
         <Button disabled={rows.length >= 3} onClick={() => { clearResult(); const id = nextId.current; nextId.current += 1; setRows([...rows, { id, code: '' }]); focus(id); }}>添加持仓</Button>
         <Button type="primary" loading={loading} onClick={analyze}>分析输入的持仓</Button>
         <Button onClick={() => { clearResult(); setRows([{ id: 0, code: '' }]); setValidated(false); setChanged(false); focus(0); }}>清空持仓与结果</Button>
@@ -83,7 +83,7 @@ export default function Holdings({ date, candidates, onResult }: { date: string;
       <p role="status" className="review-caption">{feedback}</p>
       {error && <Alert type="error" message={error} action={<Button onClick={analyze}>重试分析</Button>} />}
       {result?.items.map((r: any) => (
-        <Card key={r.code} size="small" title={`${r.name} ${r.code}`} className="mb-16" extra={<RiskInspect code={r.code} name={r.name} date={date} />}>
+        <Card key={r.code} size="small" title={`${r.name} ${r.code}`} className="review-holding-result" extra={<RiskInspect code={r.code} name={r.name} date={date} />}>
           <p>{`持有 ${r.heldDays ?? '未知'} 个交易日 · 收盘 ${numberText(r.close)} 元 · 成本价格差 ${numberText(r.profitPct)}%`}</p>
           <p>{`${r.ma5.label}；${r.basis} MA5：${numberText(r.ma5.ma5)}`}</p>
           <p>{r.timeReview}</p>
