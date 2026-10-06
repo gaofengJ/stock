@@ -145,6 +145,23 @@ it('distinguishes unpublished months from empty published schedules and actual f
       .digest('hex');
     expect(result.key).not.toBe(legacy);
     expect(result.key).toBe(saved.snapshotKey);
+    saved.retryAt = new Date(0);
+    get.mockResolvedValue({
+      data: Buffer.from('calendar({"stat":"ok","data":[]});'),
+      headers: { 'content-type': 'charset=utf-8' },
+    });
+    (cache as any).nextRequest = 0;
+    const refreshing = (
+      await cache.readCalendarBatch([
+        ['investment_calendar', { month: '202611' }],
+      ])
+    )[0];
+    expect(refreshing).toMatchObject({ state: 'loading', message: null });
+    await tick();
+    expect(
+      (await cache.read('investment_calendar', { month: '202611' })).state,
+    ).toBe('ready');
+    expect(saved.error).toBeNull();
   } finally {
     get.mockRestore();
   }

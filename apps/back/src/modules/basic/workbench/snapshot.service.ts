@@ -510,7 +510,9 @@ export class BasicSnapshotService implements OnModuleInit {
       fetchedAt: cached?.fetchedAt?.toISOString() || null,
       state:
         cached?.error === unpublishedCalendar
-          ? 'unpublished'
+          ? this.pending.has(snapshotKey)
+            ? 'loading'
+            : 'unpublished'
           : cached?.fetchedAt
           ? due || cached.error
             ? 'stale'
@@ -520,7 +522,9 @@ export class BasicSnapshotService implements OnModuleInit {
           : 'loading',
       message:
         cached?.error === unpublishedCalendar
-          ? '日程尚未发布'
+          ? this.pending.has(snapshotKey)
+            ? null
+            : '日程尚未发布'
           : deferred
           ? '数据同步中，稍后可刷新'
           : this.pending.has(snapshotKey)
