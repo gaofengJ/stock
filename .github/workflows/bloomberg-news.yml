@@ -28,6 +28,8 @@ jobs:
       OMP_NUM_THREADS: '2'
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
       - name: Verify RSS validation and atomic delivery
         run: python3 -m unittest discover -s .github/scripts -p 'test_*bloomberg*.py'
       - name: Verify Sina rolling list validation
