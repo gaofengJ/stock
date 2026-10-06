@@ -28,6 +28,29 @@ jobs:
           script: |
             echo 'Backend runtime:'
             docker exec stock-back node --version
+            echo 'Proxy connection classification:'
+            python3 - <<'PY'
+            import glob, re, ipaddress
+            found = 0
+            for root in ['/etc/nginx', '/usr/local/nginx/conf', '/www/server/nginx/conf']:
+                for name in glob.glob(root+'/**/*.conf', recursive=True):
+                    try:
+                        text = open(name).read()
+                    except (IOError, UnicodeError):
+                        continue
+                    hosts = re.findall(r'(?:proxy_pass\s+https?://|server\s+)([^\s/:;]+):3000', text)
+                    for host in hosts:
+                        found += 1
+                        try:
+                            address = ipaddress.ip_address(host)
+                            kind = 'loopback' if address.is_loopback else 'docker-gateway' if host == '172.17.0.1' else 'other-private-ip' if address.is_private else 'public-ip'
+                        except ValueError:
+                            kind = 'localhost' if host == 'localhost' else 'hostname'
+                        print('Backend proxy destination classification:',kind)
+            print('Backend proxy references inspected:',found)
+            PY
+            echo 'Docker bridge gateway check:'
+            docker network inspect bridge --format '{{json .IPAM.Config}}' | python3 -c 'import json,sys; print("Expected Docker gateway exists:",any(x.get("Gateway")=="172.17.0.1" for x in json.load(sys.stdin)))'
             echo 'Backend port exposure classification:'
             docker inspect stock-back --format '{{json .HostConfig.PortBindings}}' | python3 -c 'import json,sys; p=json.load(sys.stdin).get("3000/tcp") or []; print("Bound to all host interfaces:",any(x.get("HostIp") in ("", "0.0.0.0", "::") for x in p))'
             echo 'Frontend configuration mount classification:'
