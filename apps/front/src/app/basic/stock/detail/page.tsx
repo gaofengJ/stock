@@ -11,6 +11,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import Loading from '@/components/Loading';
+import StockResearch from '@/components/LiveResearch/StockResearch';
 import Table from '@/components/DataTable';
 import { sectorHref } from '@/components/SectorLinks';
 import type { SectorLink } from '@/api/sectors';
@@ -231,6 +232,7 @@ function Profile() {
               </>
             )}
             {(date || !fallback.error) && <FinancialSummary code={code} date={date} />}
+            {validCode && <StockResearch code={linkedCode} date={date} />}
             {stock && (
               <Card title="名称与代码记录">
                 <details className="profile-disclosure">

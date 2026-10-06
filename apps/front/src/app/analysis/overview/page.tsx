@@ -10,6 +10,7 @@ import { MarketSeries } from '@/api/market';
 import { useAccount } from '@/auth/Boundary';
 import { allowedPath } from '@/auth/client';
 import { changeClass, numberText } from '@/utils/format';
+import MarketResearch from '@/components/LiveResearch/MarketResearch';
 import { marketHref } from '../components/market-navigation';
 import MarketShell, { scopes } from '../components/MarketShell';
 import useMarketData from '../components/useMarketData';
@@ -133,6 +134,7 @@ export default function OverviewPage() {
           </>
         )}
       </DataState>
+      <MarketResearch date={date} />
     </MarketShell>
   );
 }
