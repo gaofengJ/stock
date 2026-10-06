@@ -32,8 +32,7 @@ jobs:
             const recovered=(await get('/actions/runs/37505620128/jobs?filter=latest&per_page=100')).jobs;
             if(recovery.conclusion!=='success'||!recovered.some(j=>j.name==='deploy-back'&&j.conclusion==='success'))throw new Error('Backend recovery has not passed');
             const paths=new Set(['package.json','pnpm-lock.yaml','pnpm-workspace.yaml','.npmrc','.dockerignore','.github/scripts/render-runtime-env.cjs','.github/workflows/back-cd.yml']);
-            const backend=tree=>{if(tree.truncated)throw new Error('Incomplete source tree');return tree.tree.filter(entry=>entry.type==='blob'&&(entry.path.startsWith('apps/back/')||paths.has(entry.path))).map(entry=>entry.path+':'+entry.sha).sort().join('
-')};
+            const backend=tree=>{if(tree.truncated)throw new Error('Incomplete source tree');return tree.tree.filter(entry=>entry.type==='blob'&&(entry.path.startsWith('apps/back/')||paths.has(entry.path))).map(entry=>entry.path+':'+entry.sha).sort().join('|')};
             const tested=await get('/git/trees/87eb6bcd2a38d42e5304f82179260cede4f2b124?recursive=1');
             const latest=await get('/git/trees/'+current.object.sha+'?recursive=1');
             if(backend(tested)!==backend(latest))throw new Error('Current backend differs from the deployed verified backend');
