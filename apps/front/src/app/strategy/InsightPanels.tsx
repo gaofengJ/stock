@@ -3,8 +3,9 @@
 import { InteractionButton } from '@/components/Interaction';
 
 import { useRef, useState } from 'react';
+import { QuestionCircleOutlined } from '@ant-design/icons';
 import {
-  Alert, Button, Card, Collapse, Popover, Segmented, Select, Space, Tag, Table as CompactTable,
+  Alert, Button, Collapse, Popover, Segmented, Select, Space, Tag, Table as CompactTable,
 } from 'antd';
 import Table from '@/components/DataTable';
 import HelpTooltip from '@/components/HelpTooltip';
@@ -165,7 +166,6 @@ export function SignalPerformance({
   const filterState = ({ pending: '未到期', inactive: '观察日无成交', missing: '数据不足' } as Record<string, string>)[filter];
   const rows = (data?.items || []).filter((row) => filter === 'all' || (filter === 'valid' ? row.outcomes[horizon].value != null : row.outcomes[horizon].state === filterState));
   const summaryColumns = [
-    { title: '观察周期', dataIndex: 'horizon', render: (v: number) => <InteractionButton intent="select" selected={v === horizon} onClick={() => setHorizon(v)} aria-controls="signal-performance-details">{`后${v}个交易日`}</InteractionButton> },
     {
       title: '平均涨跌(%)', dataIndex: 'average', align: 'right' as const, render: change,
     },
@@ -182,6 +182,24 @@ export function SignalPerformance({
       <div className="strategy-result-toolbar">
         <Space wrap>
           <strong>历史信号表现</strong>
+          <Popover
+            trigger={['hover', 'click']}
+            title="统计口径与数据状态"
+            content={(
+              <div className="strategy-performance-tip">
+                <p>按标准参数统计，不跟随自定义参数或换手率筛选；设有换手率条件的策略默认每天 &gt; 5%。</p>
+                <p>涨跌为信号日复权收盘至后续收盘的变化，不含交易成本；同股不同信号日分别计样本。</p>
+                <p>上涨比例为收盘上涨的有效信号占比；中位数为样本涨跌的中间水平。</p>
+                <p>观察日停牌或无成交的信号不计入有效样本，不顺延观察日期，不按零涨跌计算。</p>
+                <p>{data && !state.loading ? `已就绪 ${data.readyDays}/${data.expectedDays} 个信号日；后${horizon}日未到期 ${current?.pending ?? 0} 条，停牌／无成交 ${current?.inactive ?? 0} 条，数据不足 ${current?.missing ?? 0} 条。` : '数据状态在加载完成后显示。'}</p>
+                {!!sector && <p>行业／概念按各信号日已有成分快照筛选；缺少历史成分的日期不纳入统计。</p>}
+              </div>
+            )}
+          >
+            <button type="button" className="help-tooltip-trigger" aria-label="统计口径与数据状态说明" aria-haspopup="dialog">
+              <QuestionCircleOutlined aria-hidden />
+            </button>
+          </Popover>
           <Tag>标准参数</Tag>
           <span>
             统计截至
@@ -190,53 +208,54 @@ export function SignalPerformance({
         </Space>
         <Segmented aria-label="信号统计范围" value={days} onChange={(v) => setDays(Number(v))} options={[{ label: '近20个交易日', value: 20 }, { label: '近60个交易日', value: 60 }]} />
       </div>
-      <Space wrap className="strategy-horizon-control">
-        <strong>观察周期</strong>
-        <Segmented aria-label="信号观察周期" value={horizon} onChange={(v) => setHorizon(Number(v))} options={[1, 3, 5, 10].map((v) => ({ label: `后${v}日`, value: v }))} />
-      </Space>
       {state.loading ? <Loading height={300} /> : data && (
         <div className="strategy-performance-content">
-          <div className="strategy-performance-metrics">
-            <Card size="small" className="strategy-metric-primary">
-              <span>
-                后
-                {horizon}
-                日上涨比例
-              </span>
-              <strong>
-                {numberText(current?.riseRate)}
-                <small>{current?.riseRate == null ? '' : '%'}</small>
-              </strong>
-              <p>收盘上涨的有效信号占比</p>
-            </Card>
-            <Card size="small" className="strategy-metric-primary">
-              <span>
-                后
-                {horizon}
-                日涨跌中位数
-              </span>
-              <strong>
-                {change(current?.median)}
-                <small>{current?.median == null ? '' : '%'}</small>
-              </strong>
-              <p>样本涨跌的中间水平</p>
-            </Card>
-            <Card size="small">
-              <span>平均涨跌</span>
-              <strong>
-                {change(current?.average)}
-                <small>{current?.average == null ? '' : '%'}</small>
-              </strong>
-              <p>所有有效信号的平均涨跌</p>
-            </Card>
-            <Card size="small">
-              <span>有效信号数</span>
-              <strong>
-                {current?.sample ?? '—'}
-                <small>条</small>
-              </strong>
-              <p>已到期且观察日有成交</p>
-            </Card>
+          <div className="strategy-horizon-heading">
+            <strong>观察周期</strong>
+            <span className="strategy-caption">选择周期查看明细与市场环境比较</span>
+          </div>
+          <div className="strategy-horizon-cards" role="group" aria-label="信号观察周期">
+            {[1, 3, 5, 10].map((period) => {
+              const summary = data.summary.find((row) => row.horizon === period);
+              return (
+                <button
+                  key={period}
+                  type="button"
+                  className={`strategy-horizon-card${horizon === period ? ' is-selected' : ''}`}
+                  aria-label={`后${period}个交易日`}
+                  aria-pressed={horizon === period}
+                  aria-controls="signal-performance-details"
+                  onClick={() => setHorizon(period)}
+                >
+                  <span className="strategy-horizon-title">{`后${period}个交易日`}</span>
+                  <span className="strategy-horizon-key-metrics">
+                    <span>
+                      <span className="strategy-horizon-label">上涨比例</span>
+                      <strong>
+                        {numberText(summary?.riseRate)}
+                        <small>{summary?.riseRate == null ? '' : '%'}</small>
+                      </strong>
+                    </span>
+                    <span>
+                      <span className="strategy-horizon-label">涨跌中位数</span>
+                      <strong>
+                        {change(summary?.median)}
+                        <small>{summary?.median == null ? '' : '%'}</small>
+                      </strong>
+                    </span>
+                  </span>
+                  <span className="strategy-horizon-secondary">
+                    <span>
+                      平均涨跌
+                      {' '}
+                      {change(summary?.average)}
+                      {summary?.average == null ? '' : '%'}
+                    </span>
+                    <span>{`有效信号 ${summary?.sample ?? '—'} 条`}</span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
           <div className="strategy-data-status strategy-status-strip">
             <span>
@@ -309,47 +328,13 @@ export function SignalPerformance({
             className="strategy-performance-analysis"
             items={[
               {
-                key: 'periods',
-                label: '其他观察周期',
-                children: <CompactTable rowKey="horizon" pagination={false} dataSource={data.summary} columns={summaryColumns} scroll={{ x: 620 }} rowClassName={(row) => (row.horizon === horizon ? 'interaction-selected-row' : '')} />,
-              },
-              {
                 key: 'environment',
                 label: `按信号日市场环境比较 · 后${horizon}日`,
                 children: (
                   <>
                     <p className="strategy-caption">按信号当天全市场20日均线上方股票占比分组；样本数随观察周期变化。</p>
-                    <CompactTable rowKey="name" pagination={false} scroll={{ x: 680 }} dataSource={data.groups.map((g) => ({ name: ({ 多数站上MA20: '20日均线上方占比 ≥ 50%', 少数站上MA20: '20日均线上方占比 < 50%' } as Record<string, string>)[g.name] || '环境数据缺失', ...g.summary.find((r) => r.horizon === horizon) })).filter((g) => (g.sample ?? 0) > 0)} columns={[{ title: '信号日市场环境', dataIndex: 'name' }, ...summaryColumns.slice(1)]} />
+                    <CompactTable rowKey="name" pagination={false} scroll={{ x: 680 }} dataSource={data.groups.map((g) => ({ name: ({ 多数站上MA20: '20日均线上方占比 ≥ 50%', 少数站上MA20: '20日均线上方占比 < 50%' } as Record<string, string>)[g.name] || '环境数据缺失', ...g.summary.find((r) => r.horizon === horizon) })).filter((g) => (g.sample ?? 0) > 0)} columns={[{ title: '信号日市场环境', dataIndex: 'name' }, ...summaryColumns]} />
                   </>
-                ),
-              },
-              {
-                key: 'method',
-                label: '统计口径与数据状态',
-                children: (
-                  <div className="strategy-performance-method">
-                    <p>按标准参数统计，不跟随自定义参数或换手率筛选；设有换手率条件的策略默认每天 &gt; 5%。</p>
-                    <p>涨跌为信号日复权收盘至后续收盘的变化，不含交易成本；同股不同信号日分别计样本。</p>
-                    <p>观察日停牌或无成交的信号不计入有效样本，不顺延观察日期，不按零涨跌计算。</p>
-                    <p>
-                      已就绪
-                      {data.readyDays}
-                      /
-                      {data.expectedDays}
-                      {' '}
-                      个信号日；当前周期未到期
-                      {current?.pending ?? 0}
-                      {' '}
-                      条，停牌／无成交
-                      {current?.inactive ?? 0}
-                      {' '}
-                      条，数据不足
-                      {current?.missing ?? 0}
-                      {' '}
-                      条。
-                    </p>
-                    {!!sector && <p>行业／概念按各信号日已有成分快照筛选；缺少历史成分的日期不纳入统计。</p>}
-                  </div>
                 ),
               },
             ]}
