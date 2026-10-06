@@ -2,6 +2,20 @@ name: Inspect article release
 on:
   workflow_dispatch:
 jobs:
+  credential-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compare current deployment credential without revealing it
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          AUDIT_HISTORICAL_DB_HASH: ${{ secrets.AUDIT_HISTORICAL_DB_HASH }}
+        run: |
+          node -e "const c=require('node:crypto'); const value=process.env.DB_PASSWORD, expected=process.env.AUDIT_HISTORICAL_DB_HASH; if(!value || !/^[a-f0-9]{64}$/.test(expected||''))throw new Error('Audit input unavailable'); console.log('Current deployment credential reuses historical literal:',c.createHash('sha256').update(value).digest('hex')===expected);"
+      - name: Check whether the backend port is externally reachable
+        env:
+          AUDIT_HOST: ${{ secrets.SSH_HOST }}
+        run: |
+          node -e "(async()=>{try{const r=await fetch('http://'+process.env.AUDIT_HOST+':3000/api/auth/me',{signal:AbortSignal.timeout(10000)});console.log('Public runner reached backend port 3000: true; anonymous account HTTP:',r.status)}catch(e){console.log('Public runner reached backend port 3000: false (one bounded connection probe)')}})();"
   inspect:
     runs-on: ubuntu-latest
     steps:
@@ -12,6 +26,12 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
           script: |
+            echo 'Backend runtime:'
+            docker exec stock-back node --version
+            echo 'Backend port exposure classification:'
+            docker inspect stock-back --format '{{json .HostConfig.PortBindings}}' | python3 -c 'import json,sys; p=json.load(sys.stdin).get("3000/tcp") or []; print("Bound to all host interfaces:",any(x.get("HostIp") in ("", "0.0.0.0", "::") for x in p))'
+            echo 'Frontend configuration mount classification:'
+            docker inspect stock-front --format '{{json .Mounts}}' | python3 -c 'import json,sys; print("Mounted Nginx configuration:",any(x["Destination"].startswith("/etc/nginx") for x in json.load(sys.stdin)))'
             echo 'Running Docker operations (arguments omitted):'
             ps -eo pid,etime,args | awk '$3 ~ /(^|\/)docker$/ {print $1,$2,$3,$4}'
             echo 'Article containers:'
