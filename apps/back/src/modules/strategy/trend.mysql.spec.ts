@@ -413,6 +413,103 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
     expect(chart.evidence).toEqual(candidates[0].trendEvidence);
     expect(chart.evidence).toMatchObject({ streak: 10, streakCapped: true });
   });
+  test('历史信号K线展示后续已发布行情，判断仍锚定信号日', async () => {
+    const dto = {
+      date: latest,
+      code: '000001.SZ',
+      strategyType: 'volumeBreakout',
+    };
+    const original = await service.chart(dto);
+    const future = ['2026-01-22', '2026-01-23', '2026-01-24'];
+    const template = await db.manager.findOneByOrFail(DailyEntity, {
+      tradeDate: latest,
+      tsCode: dto.code,
+    });
+    await Promise.all([
+      db.manager.insert(
+        TradeCalEntity,
+        future.map((calDate) => ({ calDate, isOpen: 1, preTradeDate: latest })),
+      ),
+      db.manager.insert(
+        DailyEntity,
+        future.map((tradeDate) => ({
+          ...template,
+          id: undefined,
+          createdAt: undefined,
+          updatedAt: undefined,
+          tradeDate,
+          open: '4',
+          close: '4',
+          high: '5',
+          low: '3',
+        })),
+      ),
+      db.manager.insert(
+        TrendFactorEntity,
+        future.map((tradeDate) => ({
+          tradeDate,
+          data: [[dto.code, 4, 4, 5, 3]] as any,
+        })),
+      ),
+      db.manager.insert(
+        SyncRunEntity,
+        future.flatMap((tradeDate) => [
+          { tradeDate, task: 'daily', status: 'success' as const },
+          {
+            tradeDate,
+            task: 'strategy-factor',
+            status:
+              tradeDate === future[2]
+                ? ('pending' as const)
+                : ('success' as const),
+          },
+        ]),
+      ),
+    ]);
+    const around = await service.chart({ ...dto, chartAroundSignal: true });
+    expect(around.date).toBe(latest);
+    expect(around.latestDate).toBe(future[1]);
+    expect(around.series.at(-1)).toMatchObject({ date: future[1], close: 4 });
+    expect(around.evidence).toEqual(original.evidence);
+    expect(around.evidence).toMatchObject({
+      breakoutPrice: 10,
+      volumeMultiple: 1.5,
+    });
+    expect((await service.chart(dto)).series.at(-1)?.date).toBe(latest);
+    await db.manager.insert(SyncDayPolicyEntity, {
+      tradeDate: future[1],
+      reason: 'test',
+    });
+    const newest = await service.chart({ ...dto, chartLatest: true });
+    expect(newest.latestDate).toBe(future[0]);
+    expect(newest.series.at(-1)?.date).toBe(future[0]);
+    expect(newest.evidence).toEqual(original.evidence);
+  });
+  test('K线分页有边界和均线预热数据，未来日期与冲突导航参数被拒绝', async () => {
+    const dto = {
+      date: latest,
+      code: '000001.SZ',
+      strategyType: 'volumeBreakout',
+    };
+    const before = await service.chart({ ...dto, chartBefore: dates[9] }, 5);
+    expect(before.series.map((row) => row.date)).toEqual(dates.slice(5, 10));
+    expect(before).toMatchObject({
+      hasEarlier: true,
+      hasLater: true,
+      latestDate: latest,
+    });
+    const after = await service.chart({ ...dto, chartAfter: dates[9] }, 5);
+    expect(after.series.map((row) => row.date)).toEqual(dates.slice(0, 14));
+    expect(after.evidence).toEqual((await service.chart(dto)).evidence);
+    const end = await service.chart({ ...dto, chartAfter: latest }, 5);
+    expect(end).toMatchObject({ hasEarlier: false, hasLater: false });
+    await expect(
+      service.chart({ ...dto, chartAfter: '2026-01-25' }),
+    ).rejects.toThrow('请选择已同步的交易日');
+    await expect(
+      service.chart({ ...dto, chartLatest: true, chartBefore: dates[9] }),
+    ).rejects.toThrow('不能同时使用');
+  });
   test('K线缓存不缓存价格，同秒价格更正和代码换位后仍返回正确股票', async () => {
     const dto = {
       date: latest,

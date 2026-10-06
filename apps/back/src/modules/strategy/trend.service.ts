@@ -128,11 +128,27 @@ export class TrendService {
   }
 
   async chart(
-    dto: TrendOptions & { date: string; code: string; strategyType: string },
+    dto: TrendOptions & {
+      date: string;
+      code: string;
+      strategyType: string;
+      chartLatest?: boolean;
+      chartBefore?: string;
+      chartAfter?: string;
+      chartAroundSignal?: boolean;
+    },
     window = 260,
     includeEvidence = true,
   ) {
-    const dates = await this.calendar(dto.date, window);
+    if (
+      [
+        dto.chartLatest,
+        dto.chartBefore,
+        dto.chartAfter,
+        dto.chartAroundSignal,
+      ].filter(Boolean).length > 1
+    )
+      throw new BadRequestException('K线日期导航参数不能同时使用');
     const mapping = await this.db.manager.find(BseMappingEntity);
     const code =
       mapping.find((r) => r.oldCode === dto.code)?.newCode || dto.code;
@@ -141,6 +157,79 @@ export class TrendService {
       ...mapping.filter((r) => r.newCode === code).map((r) => r.oldCode),
     ];
     const adjusted = TREND_KEYS.includes(dto.strategyType as TrendKey);
+    const navigated = !!(
+      dto.chartLatest ||
+      dto.chartBefore ||
+      dto.chartAfter ||
+      dto.chartAroundSignal
+    );
+    let latestDate = dto.date;
+    let earliestDate: string | null = null;
+    if (navigated) {
+      const [bounds] = await this.db.query(
+        `SELECT
+         (SELECT DATE_FORMAT(MAX(r.trade_date),'%Y-%m-%d') FROM t_sync_run r
+          ${
+            adjusted
+              ? "JOIN t_sync_run f ON f.trade_date=r.trade_date AND f.task='strategy-factor' AND f.status='success' JOIN t_source_strategy_factor sf ON sf.trade_date=r.trade_date"
+              : ''
+          }
+          LEFT JOIN t_sync_day_policy p ON p.trade_date=r.trade_date
+          WHERE r.task='daily' AND r.status='success' AND r.trade_date<=? AND p.trade_date IS NULL) latestDate,
+         (SELECT DATE_FORMAT(MIN(d.trade_date),'%Y-%m-%d') FROM t_source_daily d
+          JOIN t_sync_run r ON r.trade_date=d.trade_date AND r.task='daily' AND r.status='success'
+          LEFT JOIN t_sync_day_policy p ON p.trade_date=d.trade_date
+          WHERE d.ts_code IN (?) AND d.vol>0 AND p.trade_date IS NULL) earliestDate`,
+        [latestSyncDate(), codes],
+      );
+      if (!bounds?.latestDate)
+        throw new ConflictException('暂无已同步的K线行情');
+      latestDate = bounds.latestDate;
+      earliestDate = bounds.earliestDate;
+    }
+    let displayDates: string[];
+    if (dto.chartAfter) {
+      normalizeDate(dto.chartAfter);
+      displayDates = (
+        await this.db.query<{ date: string }[]>(
+          "SELECT DATE_FORMAT(cal_date,'%Y-%m-%d') date FROM t_source_trade_cal WHERE is_open=1 AND cal_date>=? AND cal_date<=? ORDER BY cal_date LIMIT ?",
+          [dto.chartAfter, latestDate, window],
+        )
+      ).map((row) => row.date);
+      if (displayDates[0] !== dto.chartAfter)
+        throw new BadRequestException('请选择已同步的交易日');
+      // Retain enough preceding candles for MA120 when paging forward.
+      displayDates = [
+        ...new Set([
+          ...(await this.calendar(dto.chartAfter, 120)),
+          ...displayDates,
+        ]),
+      ].sort();
+    } else {
+      let end = dto.chartBefore || (dto.chartLatest ? latestDate : dto.date);
+      if (dto.chartAroundSignal) {
+        normalizeDate(dto.date);
+        const following = await this.db.query<{ date: string }[]>(
+          "SELECT DATE_FORMAT(cal_date,'%Y-%m-%d') date FROM t_source_trade_cal WHERE is_open=1 AND cal_date>? AND cal_date<=? ORDER BY cal_date LIMIT 30",
+          [dto.date, latestDate],
+        );
+        end = following.at(-1)?.date || dto.date;
+      }
+      if (navigated && end > latestDate)
+        throw new BadRequestException('请选择已同步的交易日');
+      displayDates = await this.calendar(end, window);
+    }
+    // The display may continue past the signal or page into a disjoint range.
+    // Always evaluate the signal with exactly its own historical lookback.
+    const evidenceWindow =
+      adjusted && includeEvidence
+        ? requiredTrendDays(dto.strategyType as TrendKey, dto) +
+          (dto.strategyType === 'fiveMaUp' ? 9 : 0)
+        : 0;
+    const signalDates = evidenceWindow
+      ? await this.calendar(dto.date, evidenceWindow)
+      : [];
+    const dates = [...new Set([...displayDates, ...signalDates])].sort();
     const rows: any[] = await this.db.query(
       `SELECT DATE_FORMAT(d.trade_date,'%Y-%m-%d') date,d.ts_code code,d.open,d.close,d.high,d.low,d.vol,d.pre_close preClose,d.pct_chg pctChg,d.amount,d.up_limit upLimit,d.turnover_rate_f turnoverRateF
        FROM t_source_daily d JOIN t_sync_run r ON r.trade_date=d.trade_date AND r.task='daily' AND r.status='success'
@@ -195,8 +284,9 @@ export class TrendService {
         throw new ConflictException('复权价格基准不一致，暂不能展示K线');
       points = normalized;
     } else points = dates.map((date) => raw.get(date));
-    const series = dates.map((date, i) => {
-      const point = points[i];
+    const pointByDate = new Map(dates.map((date, i) => [date, points[i]]));
+    const series = displayDates.map((date) => {
+      const point = pointByDate.get(date);
       const volume = raw.get(date)?.vol;
       const valid =
         point &&
@@ -234,7 +324,13 @@ export class TrendService {
     });
     const evidence =
       adjusted && includeEvidence
-        ? await this.chartEvidence(dto, code, dates, points, raw)
+        ? await this.chartEvidence(
+            dto,
+            code,
+            signalDates,
+            signalDates.map((date) => pointByDate.get(date)),
+            raw,
+          )
         : null;
     return {
       code,
@@ -242,6 +338,13 @@ export class TrendService {
       basis: adjusted ? '后复权' : '不复权',
       series,
       evidence,
+      ...(navigated
+        ? {
+            latestDate,
+            hasEarlier: !!earliestDate && earliestDate < displayDates[0],
+            hasLater: displayDates.at(-1)! < latestDate,
+          }
+        : {}),
     };
   }
 

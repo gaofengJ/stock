@@ -92,11 +92,12 @@ interface IEchartsProps {
   onLegendChange?: (selected: Record<string, boolean>) => void;
   onAxisHover?: (date: string | null) => void;
   onDateClick?: (date: string) => void;
+  onZoomChange?: (start: number, end: number) => void;
   formatHoverLegend?: (name: string, date: string | null) => string;
 }
 
 const EChart = ({
-  genOptions, appearance, height = 360, onLegendChange, onAxisHover, onDateClick, formatHoverLegend,
+  genOptions, appearance, height = 360, onLegendChange, onAxisHover, onDateClick, onZoomChange, formatHoverLegend,
 }: IEchartsProps) => {
   const { mode } = useSiteTheme();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -130,10 +131,11 @@ const EChart = ({
       datazoom: (_event: unknown, instance: echarts.ECharts) => {
         const zoom = instance.getOption().dataZoom as { start: number; end: number }[];
         zoomRef.current = zoom.map(({ start, end }) => ({ start, end }));
+        if (zoom[0]) onZoomChange?.(zoom[0].start, zoom[0].end);
         hover(null, instance);
       },
     };
-  }, [onLegendChange, onAxisHover, onDateClick, formatHoverLegend]);
+  }, [onLegendChange, onAxisHover, onDateClick, onZoomChange, formatHoverLegend]);
 
   useEffect(() => {
     const container = containerRef.current;

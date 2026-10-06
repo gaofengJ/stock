@@ -11,6 +11,7 @@ interface IEchartsProps {
   onLegendChange?: (selected: Record<string, boolean>) => void;
   onAxisHover?: (date: string | null) => void;
   onDateClick?: (date: string) => void;
+  onZoomChange?: (start: number, end: number) => void;
   formatHoverLegend?: (name: string, date: string | null) => string;
 }
 
@@ -20,9 +21,9 @@ const EChart = dynamic(() => import('./EChart'), {
 });
 
 const CChart = ({
-  genOptions, appearance, height, onLegendChange, onAxisHover, onDateClick, formatHoverLegend,
+  genOptions, appearance, height, onLegendChange, onAxisHover, onDateClick, onZoomChange, formatHoverLegend,
 }: IEchartsProps) => (
-  <EChart genOptions={genOptions} appearance={appearance} height={height} onLegendChange={onLegendChange} onAxisHover={onAxisHover} onDateClick={onDateClick} formatHoverLegend={formatHoverLegend} />
+  <EChart genOptions={genOptions} appearance={appearance} height={height} onLegendChange={onLegendChange} onAxisHover={onAxisHover} onDateClick={onDateClick} onZoomChange={onZoomChange} formatHoverLegend={formatHoverLegend} />
 );
 
 export default CChart;

@@ -118,4 +118,24 @@ export class StrategyListQueryDto {
 export class StrategyChartQueryDto extends StrategyListQueryDto {
   @Matches(/^\d{6}\.(SH|SZ|BJ)$/)
   code: string;
+
+  @IsOptional()
+  @Transform(({ obj, key }) => queryBoolean(obj[key]))
+  @IsBoolean()
+  chartLatest?: boolean;
+
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsDateString()
+  chartBefore?: string;
+
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsDateString()
+  chartAfter?: string;
+
+  @IsOptional()
+  @Transform(({ obj, key }) => queryBoolean(obj[key]))
+  @IsBoolean()
+  chartAroundSignal?: boolean;
 }

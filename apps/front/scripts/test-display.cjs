@@ -38,6 +38,21 @@ const avatars = load('auth/avatars.ts');
 const market = load('app/analysis/components/market-display.ts');
 const funds = load('utils/active-funds.ts');
 const navigation = load('app/analysis/components/market-navigation.ts');
+const chartNavigation = load('app/strategy/chart-navigation.ts');
+test('stock chart initially includes post-signal candles and can return to the latest window', () => {
+  const dates = Array.from({ length: 300 }, (_, i) => `day-${i}`);
+  assert.deepEqual(chartNavigation.initialChartRange(dates, 'day-230', 'signal'), { start: 191, end: 250 });
+  assert.deepEqual(chartNavigation.initialChartRange(dates, 'day-230', 'latest'), { start: 240, end: 299 });
+  assert.deepEqual(chartNavigation.initialChartRange(dates, 'day-290', 'signal'), { start: 240, end: 299 });
+  assert.deepEqual(chartNavigation.initialChartRange(dates.slice(0, 5), 'day-2', 'signal'), { start: 0, end: 4 });
+});
+test('stock chart paging retains the zoom width and forward pages skip MA warmup candles', () => {
+  assert.deepEqual(chartNavigation.shiftedChartRange({ start: 191, end: 250 }, 300, 1), { start: 221, end: 280 });
+  assert.deepEqual(chartNavigation.shiftedChartRange({ start: 221, end: 280 }, 300, 1), { start: 240, end: 299 });
+  assert.deepEqual(chartNavigation.shiftedChartRange({ start: 10, end: 29 }, 100, -1), { start: 0, end: 19 });
+  const dates = Array.from({ length: 379 }, (_, i) => `day-${i}`);
+  assert.deepEqual(chartNavigation.initialChartRange(dates, 'day-250', 'after', 'day-119'), { start: 119, end: 178 });
+});
 const promotion = load('app/analysis/components/promotion-display.ts', {'@/utils/format': format});
 
 test('trend averages retain zero and exclude missing or invalid values', () => {
