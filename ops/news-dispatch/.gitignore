@@ -1,0 +1,3 @@
+credential.env
+__pycache__/
+*.pyc

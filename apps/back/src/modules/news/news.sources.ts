@@ -56,7 +56,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
     enabled: true,
     intervalSeconds: 300,
     availabilityNote:
-      '境外采集新浪官方滚动列表；超过 45 分钟显示更新延迟，超过 24 小时暂停展示。',
+      '服务器每 5 分钟触发境外采集新浪官方滚动列表；超过 15 分钟显示更新延迟，超过 24 小时暂停展示。',
   },
   {
     code: 'bloomberg',
@@ -68,7 +68,7 @@ export const NEWS_SOURCES: readonly NewsSource[] = [
     enabled: true,
     intervalSeconds: 300,
     availabilityNote:
-      '境外任务计划每 5 分钟采集官方公开 RSS；超过 45 分钟显示更新延迟，超过 24 小时暂停展示。',
+      '服务器每 5 分钟触发境外采集官方公开 RSS；超过 15 分钟显示更新延迟，超过 24 小时暂停展示。',
   },
   {
     code: 'cls',
