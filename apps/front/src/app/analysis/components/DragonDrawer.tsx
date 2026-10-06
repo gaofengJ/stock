@@ -3,10 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from '@/components/Interaction';
 import {
-  Alert, Button, Drawer, Empty, Tabs, Tag,
+  Alert, Button, Drawer, Empty, Tabs, Tag, Tooltip,
 } from 'antd';
 import Table from '@/components/DataTable';
-import Loading from '@/components/Loading';
 import HelpTooltip from '@/components/HelpTooltip';
 import { errorMessage } from '@/api/errors';
 import { DragonData, marketRequest } from '@/api/market';
@@ -17,11 +16,12 @@ import { allowedPath } from '@/auth/client';
 import { matchingFunds } from '@/utils/active-funds';
 import { changeClass } from '@/utils/format';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
-import { numberText } from './MarketCharts';
+import { numberText, DataState } from './MarketCharts';
+import { fundingPeriod, periodLabels, reasonLabel } from '../dragon/dragon-display';
 import './dragon.sass';
 
 type Seat = DragonData['seats'][number];
-const money = (value: number | null) => numberText(value == null ? null : value / 10000);
+const money = (value: number | null, signed = false) => numberText(value == null ? null : value / 10000, 2, signed);
 
 function SeatName({ org, funds, date }: { org: string; funds: NSGetBasicActiveFundsList.IRes; date: string }) {
   const { user } = useAccount();
@@ -56,6 +56,7 @@ function SeatTable({
         className="dragon-desktop-table"
         size="middle"
         pagination={false}
+        autoHeight
         scroll={{ x: 640 }}
         rowKey={(r) => `${r.side}:${r.exalter}`}
         dataSource={rows}
@@ -78,7 +79,7 @@ function SeatTable({
             render: (value: number | null) => (
               <span className={`dragon-amount ${value == null ? '' : column.className || changeClass(value)}`}>
                 {column.key === field && value != null && maxAmount > 0 && <span className="dragon-amount-bar" style={{ width: `${(Math.max(0, value) / maxAmount) * 100}%` }} />}
-                <span>{money(value)}</span>
+                <span>{money(value, column.key === 'netBuy')}</span>
               </span>
             ),
           })),
@@ -103,7 +104,7 @@ function SeatTable({
               </div>
               <div>
                 <span>净买入</span>
-                <strong className={changeClass(row.netBuy)}>{money(row.netBuy)}</strong>
+                <strong className={changeClass(row.netBuy)}>{money(row.netBuy, true)}</strong>
               </div>
             </div>
           </div>
@@ -114,8 +115,8 @@ function SeatTable({
 }
 
 export function DragonDetails({
-  stock, date, reason: linkedReason, onReady,
-}: { stock: { tsCode: string; name: string } | null; date: string; reason?: string; onReady?: () => void }) {
+  stock, date, reason: linkedReason, onReasonChange, active = true, availableReasons,
+}: { stock: { tsCode: string; name: string } | null; date: string; reason?: string; onReasonChange?: (reason: string) => void; active?: boolean; availableReasons?: string[] }) {
   const [data, setData] = useState<DragonData | null>(null);
   const [funds, setFunds] = useState<NSGetBasicActiveFundsList.IRes>([]);
   const [fundsError, setFundsError] = useState('');
@@ -124,6 +125,10 @@ export function DragonDetails({
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState('');
   const [reason, setReason] = useState<string | undefined>(linkedReason);
+  const stockCode = stock?.tsCode;
+  const requestKey = `${stockCode}:${date}`;
+  const [loadedKey, setLoadedKey] = useState('');
+  const [dataKey, setDataKey] = useState('');
   useEffect(() => setReason(linkedReason), [linkedReason, stock?.tsCode, date]);
   const { user } = useAccount();
   const canReadFunds = allowedPath(user, '/basic/active-funds');
@@ -140,66 +145,63 @@ export function DragonDetails({
     });
   }, [opened, canReadFunds, loadFunds, fundsConfig, fundsAttempt]);
   useEffect(() => {
-    if (!stock) return;
+    if (!stockCode || !active) return;
     runLatestRequest({
-      request: () => marketRequest<DragonData>('dragon', { date, code: stock.tsCode }, requestConfig),
-      onStart: () => { setLoading(true); setError(''); setData(null); },
-      onSuccess: (r) => setData(r.data),
+      request: () => marketRequest<DragonData>('dragon', { date, code: stockCode }, requestConfig),
+      onStart: () => { setLoading(true); setError(''); },
+      onSuccess: (r) => { setData(r.data); setDataKey(requestKey); },
       onError: (e) => setError(errorMessage(e, '龙虎榜查询失败')),
-      onFinally: () => setLoading(false),
+      onFinally: () => { setLoadedKey(requestKey); setLoading(false); },
     });
-  }, [attempt, stock, date, runLatestRequest, requestConfig]);
-  useEffect(() => {
-    if (!data || !onReady) return undefined;
-    const frame = requestAnimationFrame(onReady);
-    return () => cancelAnimationFrame(frame);
-  }, [data, onReady]);
-  const reasons = Array.from(new Set([...(data?.summary.map((r) => r.reason) || []), ...(data?.seats.map((r) => r.reason) || [])]));
+  }, [attempt, stockCode, date, requestKey, active, runLatestRequest, requestConfig]);
+  const pending = active && (loading || loadedKey !== requestKey);
+  const result = dataKey === requestKey ? data : null;
+  const reasons = Array.from(new Set([...(result?.summary.map((r) => r.reason) || []), ...(result?.seats.map((r) => r.reason) || [])])).filter((r) => !availableReasons || availableReasons.includes(r));
   return (
     <div className="dragon-details">
       <div className="dragon-intro">
         <span>按上榜原因查看买卖席位</span>
         <HelpTooltip label="龙虎榜统计口径" title="金额按上榜原因分别统计。关联名称按营业部名录匹配，实际交易主体需另行核实。" />
       </div>
-      {loading && <Loading height={320} />}
-      {error && <Alert message={error} type="error" showIcon action={<Button size="small" onClick={() => setAttempt((v) => v + 1)}>重试</Button>} />}
       {canReadFunds && fundsError && <Alert message={fundsError} type="warning" showIcon action={<Button size="small" onClick={() => setFundsAttempt((v) => v + 1)}>重试</Button>} />}
-      {!loading && !error && data && !reasons.length && <Empty description="当日暂无龙虎榜记录" />}
-      {!!reasons.length && (
-      <Tabs
-        key={`${stock?.tsCode}-${date}`}
-        className="dragon-reasons"
-        activeKey={reason && reasons.includes(reason) ? reason : reasons[0]}
-        onChange={setReason}
-        items={reasons.map((reason, index) => ({
-          key: reason,
-          label: reasons.length === 1 ? '上榜详情' : `上榜原因 ${index + 1}`,
-          children: (
-            <>
-              <div className="dragon-reason">{reason || '未提供上榜原因'}</div>
-              {data?.summary.filter((r) => r.reason === reason).map((r) => (
-                <div className="dragon-totals" key={`${reason}-${r.lBuy}-${r.lSell}-${r.netAmount}`}>
-                  {[{ title: '买入总额', value: r.lBuy, color: 'quote-up' }, { title: '卖出总额', value: r.lSell, color: 'quote-down' }, { title: '净买入', value: r.netAmount, color: changeClass(r.netAmount) }].map((item) => (
-                    <div key={item.title}>
-                      <span>
-                        {item.title}
-                        （万元）
-                      </span>
-                      <strong className={item.color}>{money(item.value)}</strong>
-                    </div>
+      <DataState loading={pending} error={error} retry={() => setAttempt((v) => v + 1)} empty={!result}>
+        {!pending && !error && result && !reasons.length && <Empty description="当日暂无龙虎榜记录" />}
+        {!!reasons.length && (
+        <Tabs
+          key={`${stock?.tsCode}-${date}`}
+          className="dragon-reasons"
+          activeKey={reason && reasons.includes(reason) ? reason : reasons[0]}
+          onChange={(value) => { setReason(value); onReasonChange?.(value); }}
+          items={reasons.map((reason) => ({
+            key: reason,
+            label: <Tooltip title={reason}>{`${periodLabels[fundingPeriod(reason)]} · ${reasonLabel(reason)}`}</Tooltip>,
+            children: (
+              <>
+                <div className="dragon-reason">{reason || '未提供上榜原因'}</div>
+                {result?.summary.filter((r) => r.reason === reason).map((r) => (
+                  <div className="dragon-totals" key={`${reason}-${r.lBuy}-${r.lSell}-${r.netAmount}`}>
+                    {[{ title: '买入总额', value: r.lBuy, color: 'quote-up' }, { title: '卖出总额', value: r.lSell, color: 'quote-down' }, { title: '净买入', value: r.netAmount, color: changeClass(r.netAmount) }].map((item) => (
+                      <div key={item.title}>
+                        <span>
+                          {item.title}
+                          （万元）
+                        </span>
+                        <strong className={item.color}>{money(item.value, item.title === '净买入')}</strong>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+                <div className="dragon-seat-grid">
+                  {['0', '1', ...(result?.seats.some((r) => r.reason === reason && !['0', '1'].includes(String(r.side))) ? ['other'] : [])].map((side) => (
+                    <SeatTable date={date} key={side} side={side} funds={canReadFunds ? funds : []} seats={result?.seats.filter((r) => r.reason === reason && (side === 'other' ? !['0', '1'].includes(String(r.side)) : String(r.side) === side)) || []} />
                   ))}
                 </div>
-              ))}
-              <div className="dragon-seat-grid">
-                {['0', '1', ...(data?.seats.some((r) => r.reason === reason && !['0', '1'].includes(String(r.side))) ? ['other'] : [])].map((side) => (
-                  <SeatTable date={date} key={side} side={side} funds={canReadFunds ? funds : []} seats={data?.seats.filter((r) => r.reason === reason && (side === 'other' ? !['0', '1'].includes(String(r.side)) : String(r.side) === side)) || []} />
-                ))}
-              </div>
-            </>
-          ),
-        }))}
-      />
-      )}
+              </>
+            ),
+          }))}
+        />
+        )}
+      </DataState>
     </div>
   );
 }

@@ -1,5 +1,31 @@
 .dragon-board
   font-variant-numeric: tabular-nums
+  padding-bottom: 24px
+  .dragon-stock-entry
+    max-width: 100%
+    height: auto
+    text-align: left
+    > span
+      min-width: 0
+    strong, small
+      display: block
+    strong
+      font-weight: 500
+    small
+      color: var(--text-secondary)
+      font-size: 12px
+      margin-top: 4px
+  .dragon-period
+    margin: 0
+    color: var(--text-secondary)
+    background: var(--color-surface-muted)
+    border-color: var(--color-border)
+  .dragon-board-updated, .dragon-board-detail-hint
+    color: var(--text-secondary)
+    font-size: 12px
+    margin-top: 12px
+  .dragon-board-list-title
+    scroll-margin-top: 16px
   .dragon-board-toolbar
     display: flex
     align-items: center
@@ -72,6 +98,9 @@
 
 @media (max-width: 600px)
   .dragon-board
+    .dragon-board-list-title
+      align-items: flex-start
+      flex-wrap: wrap
     .dragon-board-count
       width: 100%
       margin-left: 0
