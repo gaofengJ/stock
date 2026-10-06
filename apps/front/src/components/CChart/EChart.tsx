@@ -104,38 +104,43 @@ const EChart = ({
   const chartRef = useRef<ReactEChartsCore>(null);
   const zoomRef = useRef<{ start: number; end: number }[]>([]);
   const hoverDateRef = useRef<string | null>();
+  const callbacks = useRef({
+    onLegendChange, onAxisHover, onDateClick, onZoomChange, formatHoverLegend,
+  });
+  callbacks.current = {
+    onLegendChange, onAxisHover, onDateClick, onZoomChange, formatHoverLegend,
+  };
+  // echarts-for-react rebuilds the chart whenever onEvents changes. Keep the
+  // handlers stable while reading the latest callbacks, including on zoom.
   const events = useMemo(() => {
     const hover = (date: string | null, instance: echarts.ECharts) => {
       if (hoverDateRef.current === date) return;
       hoverDateRef.current = date;
-      onAxisHover?.(date);
-      if (formatHoverLegend) instance.setOption({ legend: { formatter: (name: string) => formatHoverLegend(name, date) } });
+      callbacks.current.onAxisHover?.(date);
+      if (callbacks.current.formatHoverLegend) instance.setOption({ legend: { formatter: (name: string) => callbacks.current.formatHoverLegend?.(name, date) || name } });
     };
     return {
-      ...(onDateClick ? {
-        click: (event: { componentType: string; name?: string; value?: unknown }) => {
-          const date = event.componentType === 'xAxis' ? event.value : event.name;
-          if (['series', 'xAxis'].includes(event.componentType) && typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) onDateClick(date);
-        },
-      } : {}),
-      ...(onLegendChange ? { legendselectchanged: (event: { selected: Record<string, boolean> }) => onLegendChange(event.selected) } : {}),
-      ...(onAxisHover || formatHoverLegend ? {
-        updateAxisPointer: (event: { axesInfo?: { axisDim: string; value: number | string }[] }, instance: echarts.ECharts) => {
-          const axis = event.axesInfo?.find((item) => item.axisDim === 'x');
-          const categories = (instance.getOption().xAxis as { data: string[] }[])[0]?.data;
-          const date = typeof axis?.value === 'number' ? categories?.[axis.value] : axis?.value;
-          hover(date || null, instance);
-        },
-        globalout: (_event: unknown, instance: echarts.ECharts) => hover(null, instance),
-      } : {}),
+      click: (event: { componentType: string; name?: string; value?: unknown }) => {
+        const date = event.componentType === 'xAxis' ? event.value : event.name;
+        if (['series', 'xAxis'].includes(event.componentType) && typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) callbacks.current.onDateClick?.(date);
+      },
+      legendselectchanged: (event: { selected: Record<string, boolean> }) => callbacks.current.onLegendChange?.(event.selected),
+      updateAxisPointer: (event: { axesInfo?: { axisDim: string; value: number | string }[] }, instance: echarts.ECharts) => {
+        if (!callbacks.current.onAxisHover && !callbacks.current.formatHoverLegend) return;
+        const axis = event.axesInfo?.find((item) => item.axisDim === 'x');
+        const categories = (instance.getOption().xAxis as { data: string[] }[] | undefined)?.[0]?.data;
+        const date = typeof axis?.value === 'number' ? categories?.[axis.value] : axis?.value;
+        hover(date || null, instance);
+      },
+      globalout: (_event: unknown, instance: echarts.ECharts) => hover(null, instance),
       datazoom: (_event: unknown, instance: echarts.ECharts) => {
-        const zoom = instance.getOption().dataZoom as { start: number; end: number }[];
+        const zoom = (instance.getOption().dataZoom || []) as { start: number; end: number }[];
         zoomRef.current = zoom.map(({ start, end }) => ({ start, end }));
-        if (zoom[0]) onZoomChange?.(zoom[0].start, zoom[0].end);
+        if (zoom[0]) callbacks.current.onZoomChange?.(zoom[0].start, zoom[0].end);
         hover(null, instance);
       },
     };
-  }, [onLegendChange, onAxisHover, onDateClick, onZoomChange, formatHoverLegend]);
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -160,7 +165,7 @@ const EChart = ({
         onChartReady={(instance: echarts.ECharts) => {
           hoverDateRef.current = undefined;
           onAxisHover?.(null);
-          zoomRef.current.forEach((zoom, dataZoomIndex) => instance.dispatchAction({ type: 'dataZoom', dataZoomIndex, ...zoom }));
+          zoomRef.current.forEach((zoom, dataZoomIndex) => instance.dispatchAction({ type: 'dataZoom', dataZoomIndex, ...zoom }, { silent: true }));
         }}
         option={{ ...options, textStyle: { fontFamily, fontSize: 12, ...options.textStyle }, tooltip: { confine: true, valueFormatter: (v: unknown) => numberText(v), ...tooltip } }}
         lazyUpdate

@@ -19,7 +19,9 @@ import ExpandedChart from '@/app/analysis/components/ExpandedChart';
 import StockQuotePanel, { StockPoint, StockQuoteHandle } from './StockQuotePanel';
 import { hoverAverageLabel } from '../analysis/components/overview-chart';
 import type { TrendOptions } from './TrendParameters';
-import { initialChartRange, shiftedChartRange, ChartRange } from './chart-navigation';
+import {
+  initialChartRange, shiftedChartRange, pagedChartRange, ChartRange,
+} from './chart-navigation';
 import './stock-chart.css';
 
 interface StockChartData {
@@ -41,7 +43,7 @@ export default function StockChart({
   const [attempt, setAttempt] = useState(0);
   const [reset, setReset] = useState(0);
   const [range, setRange] = useState<ChartRange>({ start: 0, end: 0 });
-  const [view, setView] = useState<{ identity: string; mode: string; anchor?: string } | null>(null);
+  const [view, setView] = useState<{ identity: string; mode: string; anchor?: string; page?: { data: StockChartData; range: ChartRange; direction: number } } | null>(null);
   const { mode, colors } = useSiteTheme();
   const instance = useId();
   const { requestConfig, runLatestRequest } = useLatestRequest(`strategy-stock-chart-${instance}`);
@@ -53,6 +55,7 @@ export default function StockChart({
   const identity = `${code}-${date}-${strategy}-${optionKey}`;
   const viewMode = view?.identity === identity ? view.mode : 'signal';
   const anchor = view?.identity === identity ? view.anchor : undefined;
+  const page = view?.identity === identity ? view.page : undefined;
   const position = navigation.findIndex((row) => row.tsCode === code && (!stock?.date || row.date === stock.date));
   useEffect(() => { setView(null); }, [identity]);
   useEffect(() => {
@@ -74,26 +77,39 @@ export default function StockChart({
       }),
       onStart: () => { setLoading(true); setError(''); setData(null); quoteRef.current?.select(null); },
       onSuccess: (response) => {
-        setData(response.data);
-        setRange(initialChartRange(response.data.series.map((row) => row.date), date, viewMode, anchor));
+        if (page) {
+          const merged = pagedChartRange(page.data.series, response.data.series, page.range, page.direction);
+          setData({
+            ...response.data,
+            series: merged.series,
+            hasEarlier: merged.clippedEarlier || (page.direction < 0 ? response.data.hasEarlier : page.data.hasEarlier),
+            hasLater: merged.clippedLater || (page.direction > 0 ? response.data.hasLater : page.data.hasLater),
+          });
+          setRange(merged.range);
+        } else {
+          setData(response.data);
+          setRange(initialChartRange(response.data.series.map((row) => row.date), date, viewMode, anchor));
+        }
         setReset((v) => v + 1);
       },
       onError: (e) => setError(errorMessage(e, 'K线加载失败')),
       onFinally: () => setLoading(false),
     });
-  }, [code, date, strategy, queryOptions, viewMode, anchor, attempt, requestConfig, runLatestRequest]);
+  }, [code, date, strategy, queryOptions, viewMode, anchor, page, attempt, requestConfig, runLatestRequest]);
   const onZoomChange = useCallback((start: number, end: number) => {
     const last = (data?.series.length || 1) - 1;
-    setRange({ start: Math.round((start * last) / 100), end: Math.round((end * last) / 100) });
+    const next = { start: Math.round((start * last) / 100), end: Math.round((end * last) / 100) };
+    setRange((current) => (current.start === next.start && current.end === next.end ? current : next));
   }, [data]);
   const moveTime = (direction: number) => {
     if (!data?.series.length || loading) return;
     const edge = direction < 0 ? range.start <= 120 && data.hasEarlier : range.end === data.series.length - 1;
     if (edge) {
-      setView({ identity, mode: direction < 0 ? 'before' : 'after', anchor: direction < 0 ? data.series[range.start].date : data.series.at(-1)!.date });
+      setView({
+        identity, mode: direction < 0 ? 'before' : 'after', anchor: data.series[direction < 0 ? range.start : range.end].date, page: { data, range, direction },
+      });
     } else {
       setRange(shiftedChartRange(range, data.series.length, direction));
-      setReset((v) => v + 1);
       quoteRef.current?.select(null);
     }
   };
@@ -102,7 +118,6 @@ export default function StockChart({
     const within = modeName === 'signal' ? dates.includes(date) : dates.at(-1) === data?.latestDate;
     if (within) {
       setRange(initialChartRange(dates, date, modeName));
-      setReset((v) => v + 1);
     } else setView({ identity, mode: modeName });
   };
   const candles = (data?.series || []).map((row) => ({
@@ -127,7 +142,7 @@ export default function StockChart({
           <span>{[stock?.name, code, neutral ? '日K' : '信号形态'].filter(Boolean).join(' · ')}</span>
           {onNavigate && navigation.length > 1 && (
             <span className="strategy-chart-stock-navigation">
-              <Button size="small" aria-label="上一只股票" icon={<LeftOutlined />} disabled={position <= 0} onClick={() => onNavigate(navigation[position - 1])}>上一只</Button>
+              <Button size="small" aria-label="上一只股票" title="上一只股票" icon={<LeftOutlined />} disabled={position <= 0} onClick={() => onNavigate(navigation[position - 1])} />
               <span className="strategy-chart-position" aria-live="polite">
                 {position + 1}
                 {' '}
@@ -135,7 +150,7 @@ export default function StockChart({
                 {' '}
                 {navigation.length}
               </span>
-              <Button size="small" aria-label="下一只股票" icon={<RightOutlined />} disabled={position < 0 || position >= navigation.length - 1} onClick={() => onNavigate(navigation[position + 1])}>下一只</Button>
+              <Button size="small" aria-label="下一只股票" title="下一只股票" icon={<RightOutlined />} disabled={position < 0 || position >= navigation.length - 1} onClick={() => onNavigate(navigation[position + 1])} />
             </span>
           )}
         </div>
@@ -166,7 +181,7 @@ export default function StockChart({
         <span className="strategy-chart-visible-range" aria-live="polite">
           {data && !loading ? `${data.series[range.start]?.date || ''} ～ ${data.series[range.end]?.date || ''}` : '正在加载行情'}
         </span>
-        <span>两侧箭头移动日期，拖动下方滑块缩放；悬停查看行情</span>
+        <span>两侧箭头每次移动1个交易日，拖动下方滑块缩放；悬停查看行情</span>
       </div>
       <div className="strategy-chart-stage has-navigation">
         <Button className="strategy-chart-nav strategy-chart-prev" aria-label="查看更早K线" title="查看更早K线" icon={<LeftOutlined />} disabled={loading || !data || (!range.start && !data.hasEarlier)} onClick={() => moveTime(-1)} />

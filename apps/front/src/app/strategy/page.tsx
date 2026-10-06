@@ -6,7 +6,7 @@ import {
   useCallback, useEffect, useMemo, useRef, useState,
 } from 'react';
 import {
-  Alert, Button, Collapse, DatePicker, Grid, Input, Select, Space, Tabs,
+  Alert, Button, Collapse, DatePicker, Grid, Input, Select, Space, Tabs, Tooltip,
 } from 'antd';
 import dayjs from 'dayjs';
 import { useAccount } from '@/auth/Boundary';
@@ -32,6 +32,7 @@ import TurnoverFilter from './TurnoverFilter';
 import CandidateEnvironment from './CandidateEnvironment';
 import StrategyRules from './StrategyRules';
 import StockChart from './StockChart';
+import CandidateProfit, { useCandidateProfit } from './CandidateProfit';
 import { RiskTags, StockLink, useWorkbench } from '../basic/components/workbench';
 import RiskInspect from '../basic/components/RiskInspect';
 import { CandidateComparison, SignalPerformance } from './InsightPanels';
@@ -107,6 +108,7 @@ function StrategyPage() {
   const filtered = (listCurrent ? items : []).filter((row) => (!linkedCode || row.tsCode === linkedCode)
     && (!keyword || `${row.tsCode} ${row.name}`.toLowerCase().includes(keyword.trim().toLowerCase())));
   const riskState = useWorkbench('risk', { date }, !!date && view === 'candidates' && listCurrent && !tableLoading);
+  const financials = useCandidateProfit(date, filtered.map((row) => row.tsCode), view === 'candidates' && listCurrent && !tableLoading);
   const labels = useInsight<any[]>('candidate-labels', { date, codes: items.map((row) => row.tsCode).sort() }, needsCandidates && listCurrent && !tableLoading && items.length > 0);
   const labelsMap = new Map(labels.data?.map((row) => [row.tsCode, row]) || []);
   const context = useInsight<any[]>('candidate-context', { date, codes: items.map((row) => row.tsCode).sort() }, view === 'candidates' && visibleColumns.includes('context') && listCurrent && items.length > 0);
@@ -135,6 +137,9 @@ function StrategyPage() {
       width: column.key === 'tsCode' ? 116 : 145,
       render: (value: string, row: any) => <InteractionButton intent="preview" title={`查看${row.name}K线`} onClick={() => openStock(row)}>{column.key === 'tsCode' ? value.split('.')[0] : value}</InteractionButton>,
     })),
+    {
+      title: <Tooltip title="所选交易日之前已披露的最近三个财报期扣非盈亏及最新业绩预告，悬停查看金额">近期业绩</Tooltip>, key: 'profit', width: 260, render: (_: any, row: any) => <CandidateProfit row={financials.rows.get(row.tsCode)} error={financials.error} stopped={financials.stopped} retry={financials.retry} />,
+    },
     {
       title: '风险提示', key: 'risks', width: 150, render: (_: any, row: any) => <RiskTags data={riskState.data} code={row.tsCode} date={date} />,
     },

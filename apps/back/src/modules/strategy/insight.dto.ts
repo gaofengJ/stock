@@ -28,6 +28,16 @@ export class CandidateDetailsDto extends InsightDateDto {
   @Matches(/^\d{6}\.(SH|SZ|BJ)$/, { each: true })
   codes: string[];
 }
+export class CandidateFinancialDto extends InsightDateDto {
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.split(',') : value,
+  )
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ArrayUnique()
+  @Matches(/^\d{6}\.(SH|SZ|BJ)$/, { each: true })
+  codes: string[];
+}
 export class PopularityDto extends InsightDateDto {
   @IsOptional() @Matches(/^\d{6}\.(SH|SZ|BJ)$/) code?: string;
 }

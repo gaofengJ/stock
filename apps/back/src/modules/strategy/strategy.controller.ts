@@ -4,6 +4,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiResult } from '@/decorators/api-result.decorator';
 import { QueryTimeout } from '@/decorators/query-timeout.decorator';
 
+import { CandidateFinancialService } from './candidate-financial.service';
 import { StrategyService } from './strategy.service';
 import { TabItem } from './strategy.entity';
 import { StrategyListQueryDto, StrategyChartQueryDto } from './strategy.dto';
@@ -11,6 +12,7 @@ import { DailyEntity } from '../source/daily/daily.entity';
 import { InsightService } from './insight.service';
 import {
   CandidateDetailsDto,
+  CandidateFinancialDto,
   InsightDateDto,
   PerformanceDto,
   PopularityDto,
@@ -22,6 +24,7 @@ export class StrategyController {
   constructor(
     private readonly strategyService: StrategyService,
     private insights: InsightService,
+    private financials: CandidateFinancialService,
   ) {}
 
   @Permit('strategy:read')
@@ -40,6 +43,12 @@ export class StrategyController {
   @Get('/candidate-labels')
   candidateLabels(@Query() q: CandidateDetailsDto) {
     return this.strategyService.labels(q.date, q.codes);
+  }
+
+  @Permit('strategy:read')
+  @Get('/candidate-financials')
+  candidateFinancials(@Query() q: CandidateFinancialDto) {
+    return this.financials.list(q.date, q.codes);
   }
 
   @Permit('strategy:read')

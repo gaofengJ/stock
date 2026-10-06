@@ -2,7 +2,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { createHash } from 'crypto';
-import { DataSource, LessThan } from 'typeorm';
+import { DataSource, In, LessThan } from 'typeorm';
 import { TushareService } from '@/shared/tushare/tushare.service';
 import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
 import { BasicSnapshotEntity } from './snapshot.entity';
@@ -88,14 +88,70 @@ export class BasicSnapshotService implements OnModuleInit {
     allMatches = false,
   ): Promise<SourceSnapshot> {
     if (!caps[source]) throw new Error('Unsupported basic source');
-    const snapshotKey = createHash('sha256')
-      .update(JSON.stringify([source, params, fields || '']))
-      .digest('hex');
+    const snapshotKey = this.key(source, params, fields);
     const cached = rowCodes?.length
       ? allMatches
         ? await this.readProjectedRows(snapshotKey, rowCodes)
         : await this.readProjected(snapshotKey, rowCodes)
       : await this.db.manager.findOneBy(BasicSnapshotEntity, { snapshotKey });
+    return this.readCached(
+      source,
+      params,
+      fields,
+      snapshotKey,
+      cached,
+      rowCodes,
+    );
+  }
+
+  private key(
+    source: string,
+    params: Record<string, unknown>,
+    fields?: string,
+  ) {
+    return createHash('sha256')
+      .update(JSON.stringify([source, params, fields || '']))
+      .digest('hex');
+  }
+
+  /** One database read for a bounded batch; source fills still use the shared queue. */
+  async readBatch(
+    source: string,
+    params: Record<string, unknown>[],
+    fields?: string,
+  ) {
+    if (!caps[source] || params.length > 200)
+      throw new Error('Unsupported snapshot batch');
+    if (!params.length) return [];
+    const keys = params.map((p) => this.key(source, p, fields));
+    const records = await this.db.manager.findBy(BasicSnapshotEntity, {
+      snapshotKey: In(keys),
+    });
+    const cached = new Map(records.map((r) => [r.snapshotKey, r]));
+    return Promise.all(
+      params.map((p, i) =>
+        this.readCached(
+          source,
+          p,
+          fields,
+          keys[i],
+          cached.get(keys[i]) || null,
+        ),
+      ),
+    );
+  }
+
+  private async readCached(
+    source: string,
+    params: Record<string, unknown>,
+    fields: string | undefined,
+    snapshotKey: string,
+    cached: Pick<
+      BasicSnapshotEntity,
+      'rows' | 'fetchedAt' | 'retryAt' | 'error'
+    > | null,
+    rowCodes?: string[],
+  ): Promise<SourceSnapshot> {
     this.deferred.forEach((until, key) => {
       if (until <= Date.now()) this.deferred.delete(key);
     });

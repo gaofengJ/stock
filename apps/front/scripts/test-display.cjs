@@ -64,9 +64,9 @@ test('stock chart initially includes post-signal candles and can return to the l
   assert.deepEqual(chartNavigation.initialChartRange(dates.slice(0, 5), 'day-2', 'signal'), { start: 0, end: 4 });
 });
 test('stock chart paging retains the zoom width and forward pages skip MA warmup candles', () => {
-  assert.deepEqual(chartNavigation.shiftedChartRange({ start: 191, end: 250 }, 300, 1), { start: 221, end: 280 });
-  assert.deepEqual(chartNavigation.shiftedChartRange({ start: 221, end: 280 }, 300, 1), { start: 240, end: 299 });
-  assert.deepEqual(chartNavigation.shiftedChartRange({ start: 10, end: 29 }, 100, -1), { start: 0, end: 19 });
+  assert.deepEqual(chartNavigation.shiftedChartRange({ start: 191, end: 250 }, 300, 1), { start: 192, end: 251 });
+  assert.deepEqual(chartNavigation.shiftedChartRange({ start: 221, end: 280 }, 300, 1), { start: 222, end: 281 });
+  assert.deepEqual(chartNavigation.shiftedChartRange({ start: 10, end: 29 }, 100, -1), { start: 9, end: 28 });
   const dates = Array.from({ length: 379 }, (_, i) => `day-${i}`);
   assert.deepEqual(chartNavigation.initialChartRange(dates, 'day-250', 'after', 'day-119'), { start: 119, end: 178 });
 });
@@ -270,4 +270,20 @@ test('default trade date switches at 20:30 Beijing regardless of system timezone
   assert.equal(dates.getCandidateDate(new Date('2026-09-24T12:29:59Z')).format('YYYY-MM-DD'), '2026-09-23');
   assert.equal(dates.getCandidateDate(new Date('2026-09-24T12:30:00Z')).format('YYYY-MM-DD'), '2026-09-24');
   assert.equal(dates.getCandidateDate(new Date('2025-01-01T00:00:00Z')).format('YYYY-MM-DD'), '2024-12-31');
+});
+
+test('stock chart crosses loaded page boundaries by exactly one candle and preserves zoom width', () => {
+  const candles=Array.from({length:1000},(_,i)=>({date:String(i).padStart(4,'0'),close:i}));
+  const previous=candles.slice(260,520);
+  const backward=chartNavigation.pagedChartRange(previous,candles.slice(0,261),{start:0,end:99},-1);
+  assert.equal(backward.series[backward.range.start].date,'0259');
+  assert.equal(backward.series[backward.range.end].date,'0358');
+  const forward=chartNavigation.pagedChartRange(previous,candles.slice(400,780),{start:200,end:259},1);
+  assert.equal(forward.series[forward.range.start].date,'0461');
+  assert.equal(forward.series[forward.range.end].date,'0520');
+  const wide=chartNavigation.pagedChartRange(previous,candles.slice(400,780),{start:0,end:259},1);
+  assert.equal(wide.series[wide.range.start].date,'0261');
+  assert.equal(wide.series[wide.range.end].date,'0520');
+  assert.deepEqual(chartNavigation.shiftedChartRange({start:0,end:9},100,-1),{start:0,end:9});
+  assert.deepEqual(chartNavigation.shiftedChartRange({start:90,end:99},100,1),{start:90,end:99});
 });
