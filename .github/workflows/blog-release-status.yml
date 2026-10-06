@@ -41,6 +41,16 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           script: |
             echo 'Backend runtime:'
+            echo 'Current backend container state:'
+            docker inspect stock-back --format 'State={{.State.Status}} RestartCount={{.RestartCount}} Release={{index .Config.Labels "stock.release.sha"}}'
+            python3 - <<'PY'
+            import glob, os, re
+            files=glob.glob('/opt/stock-release/runs/*-a7a3a25456e0265dcc9585915212bc6de866f05d/timings.log')
+            if files:
+                latest=max(files,key=os.path.getmtime)
+                lines=[line.strip() for line in open(latest) if re.match(r'^TIMING phase=[a-z-]+ seconds=[0-9]+ status=(success|failed)\s*$',line)]
+                print('Recent current release phases:',lines[-6:])
+            PY
             docker exec stock-back node --version
             echo 'Host system and Docker version:'
             sed -n '/^NAME=/p; /^VERSION_ID=/p' /etc/os-release
