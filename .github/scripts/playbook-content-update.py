@@ -13,6 +13,7 @@ import sys
 import time
 
 KEY = 'ADMIN_PLAYBOOK_GZIP_BASE64'
+STAGE = 'initialization'
 
 
 def validate(encoded, expected_hash, expected_version):
@@ -64,13 +65,17 @@ def write_in_place(path, data):
 
 def main():
     import fcntl
+    global STAGE
     os.umask(0o077)
+    STAGE = 'payload-validation'
     encoded = os.environ[KEY]
     expected_hash = os.environ['PLAYBOOK_SHA256']
     expected_version = os.environ['PLAYBOOK_VERSION']
     nodes = validate(encoded, expected_hash, expected_version)
+    STAGE = 'release-lock'
     with open('/var/lock/stock-back-release.lock', 'a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        STAGE = 'container-inspection'
         container = json.loads(subprocess.check_output(['docker', 'inspect', 'stock-back']).decode('utf-8'))[0]
         if not container['State']['Running']:
             raise ValueError('Backend must already be running')
@@ -78,6 +83,7 @@ def main():
         if len(mounts) != 1 or mounts[0]['RW']:
             raise ValueError('Expected a single readonly runtime configuration mount')
         path = mounts[0]['Source']
+        STAGE = 'configuration-permissions'
         resolved = os.path.realpath(path)
         if not resolved.startswith('/opt/stock-release/') or os.path.islink(path) or not stat.S_ISREG(os.stat(path).st_mode):
             raise ValueError('Unexpected runtime configuration path')
@@ -85,6 +91,7 @@ def main():
             raise ValueError('Runtime configuration must be owner-only')
         with open(path, 'rb') as stream:
             original = stream.read()
+        STAGE = 'configuration-replacement-plan'
         updated = replace_config(original, encoded)
         child_env = dict(os.environ)
         child_env.pop(KEY, None)
@@ -96,6 +103,7 @@ def main():
             os.fsync(stream.fileno())
         with open(os.path.join(os.path.dirname(__file__), 'playbook-content-smoke.cjs'), 'rb') as stream:
             smoke = stream.read()
+        STAGE = 'apply-and-verify'
         try:
             write_in_place(path, updated)
             subprocess.check_call(['docker', 'restart', '-t', '30', 'stock-back'], env=child_env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=90)
@@ -110,6 +118,7 @@ def main():
                 raise ValueError('Private guide API checks failed')
             print(json.dumps({'status': 'verified', 'version': expected_version, 'nodes': nodes, 'admin': 200, 'anonymous': 401, 'cache': 'no-store'}))
         except BaseException:
+            STAGE = 'restore-previous-configuration'
             write_in_place(path, original)
             subprocess.check_call(['docker', 'restart', '-t', '30', 'stock-back'], env=child_env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=90)
             raise ValueError('Update failed; previous configuration restored and backend restarted')
@@ -118,6 +127,6 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except BaseException:
-        print('Private content update failed; inspect protected server state.', file=sys.stderr)
+    except BaseException as error:
+        print('Private content update failed at ' + STAGE + ' (' + type(error).__name__ + '); contents withheld.', file=sys.stderr)
         sys.exit(1)
