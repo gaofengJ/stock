@@ -15,7 +15,7 @@ import { permanentSyncError } from '../daily-task/sync.utils';
 import { redact } from '../auth/redact';
 import { DailyTaskService } from '../daily-task/daily-task.service';
 import { AuthService, CurrentUser } from '../auth/auth.service';
-import { PageDto } from '../auth/auth.dto';
+import { SyncJobsQueryDto } from './admin.dto';
 import { DataLockService } from './data-lock.service';
 import { JobControl, MAX_JOB_FAILURES, retryOutcome } from './job-policy';
 
@@ -120,15 +120,61 @@ export class JobsService implements OnApplicationBootstrap {
     });
   }
 
-  async list(q: PageDto) {
-    const [{ total }] = await this.db.query(
-      'SELECT COUNT(*) total FROM t_admin_job',
-    );
-    const items = await this.db.query(
-      'SELECT id,mode,actor_name actorName,DATE_FORMAT(start_date,"%Y-%m-%d") startDate,DATE_FORMAT(end_date,"%Y-%m-%d") endDate,status,stage,retry_count retryCount,next_retry_at nextRetryAt,last_progress_at lastProgressAt,started_at startedAt,finished_at finishedAt,created_at createdAt,error FROM t_admin_job ORDER BY id DESC LIMIT ? OFFSET ?',
-      [q.pageSize, (q.page - 1) * q.pageSize],
-    );
-    return { items, total: Number(total) };
+  async list(q: SyncJobsQueryDto) {
+    const conditions: string[] = [];
+    const parameters: string[] = [];
+    if (q.status) {
+      conditions.push('status=?');
+      parameters.push(q.status);
+    }
+    if (q.mode) {
+      conditions.push('mode=?');
+      parameters.push(q.mode);
+    }
+    if (!!q.startDate !== !!q.endDate)
+      throw new BadRequestException('请选择完整的任务日期范围');
+    if (q.startDate && q.endDate) {
+      // Search task ranges by overlap; history searches have no two-year limit.
+      validRange(q.startDate, q.startDate);
+      validRange(q.endDate, q.endDate);
+      if (q.startDate > q.endDate)
+        throw new BadRequestException('日期范围必须正序');
+      conditions.push('end_date>=? AND start_date<=?');
+      parameters.push(q.startDate, q.endDate);
+    }
+    if (q.keyword?.trim()) {
+      const keyword = `%${q.keyword.trim().replace(/[=%_]/g, '=$&')}%`;
+      conditions.push(
+        "(CAST(id AS CHAR) LIKE ? ESCAPE '=' OR actor_name LIKE ? ESCAPE '=')",
+      );
+      parameters.push(keyword, keyword);
+    }
+    const where = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : '';
+    return this.db.transaction('REPEATABLE READ', async (m) => {
+      const [{ total: count }] = await m.query(
+        `SELECT COUNT(*) total FROM t_admin_job${where}`,
+        parameters,
+      );
+      const total = Number(count);
+      const page = Math.min(q.page, Math.max(1, Math.ceil(total / q.pageSize)));
+      const items = await m.query(
+        `SELECT id,mode,actor_id actorId,actor_name actorName,DATE_FORMAT(start_date,"%Y-%m-%d") startDate,DATE_FORMAT(end_date,"%Y-%m-%d") endDate,status,stage,retry_count retryCount,next_retry_at nextRetryAt,last_progress_at lastProgressAt,started_at startedAt,finished_at finishedAt,created_at createdAt,error FROM t_admin_job${where} ORDER BY id DESC LIMIT ? OFFSET ?`,
+        [...parameters, q.pageSize, (page - 1) * q.pageSize],
+      );
+      const counts = await m.query(
+        'SELECT status,COUNT(*) count FROM t_admin_job GROUP BY status',
+      );
+      const summary: Record<string, number> = {};
+      for (const row of counts) summary[row.status] = Number(row.count);
+      return {
+        items,
+        total,
+        page,
+        pageSize: q.pageSize,
+        summary,
+        maxFailures: MAX_JOB_FAILURES,
+      };
+    });
   }
 
   async detail(id: number) {

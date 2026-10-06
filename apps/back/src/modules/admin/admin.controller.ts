@@ -13,10 +13,14 @@ import {
 } from '@nestjs/common';
 import { Permit } from '../auth/permissions';
 import { AuthRequest } from '../auth/auth.service';
-import { PageDto } from '../auth/auth.dto';
 import { JobsService } from './jobs.service';
 import { LogsService } from './logs.service';
-import { JobControlDto, LogsQueryDto, SyncJobDto } from './admin.dto';
+import {
+  JobControlDto,
+  LogsQueryDto,
+  SyncJobDto,
+  SyncJobsQueryDto,
+} from './admin.dto';
 
 @Controller('admin')
 @UsePipes(
@@ -46,7 +50,7 @@ export class AdminController {
 
   @Permit('sync:read')
   @Get('sync-jobs')
-  list(@Query() q: PageDto) {
+  list(@Query() q: SyncJobsQueryDto) {
     return this.jobs.list(q);
   }
 

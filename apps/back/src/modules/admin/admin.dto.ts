@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsString,
   Length,
+  Matches,
 } from 'class-validator';
 import { PageDto } from '../auth/auth.dto';
 
@@ -51,4 +52,37 @@ export class LogsQueryDto extends PageDto {
 
 export class JobControlDto {
   @IsIn(['pause', 'cancel', 'retry']) action: 'pause' | 'cancel' | 'retry';
+}
+
+export class SyncJobsQueryDto extends PageDto {
+  @IsOptional()
+  @IsIn([
+    'queued',
+    'running',
+    'success',
+    'pending',
+    'failed',
+    'interrupted',
+    'paused',
+    'pausing',
+    'cancelled',
+    'cancelling',
+  ])
+  status?: string;
+
+  @IsOptional()
+  @IsIn([
+    'missing',
+    'refresh',
+    'breadth',
+    'sector',
+    'technical',
+    'insights',
+    'hot',
+  ])
+  mode?: string;
+
+  @IsOptional() @IsString() @Matches(/^\d{4}-\d{2}-\d{2}$/) startDate?: string;
+
+  @IsOptional() @IsString() @Matches(/^\d{4}-\d{2}-\d{2}$/) endDate?: string;
 }

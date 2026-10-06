@@ -105,7 +105,17 @@ async function check(path, cookie, needsRows = false, expectedStatus = 200) {
     )
       throw new Error('Role revision and member metadata verification failed');
     await check('/api/admin/login-activity?pageSize=1&status=unread', cookie);
-    await check('/api/admin/sync-jobs?pageSize=1', cookie);
+    const jobs = await check('/api/admin/sync-jobs?pageSize=1', cookie);
+    if (
+      jobs.page !== 1 ||
+      jobs.maxFailures !== 5 ||
+      !jobs.summary ||
+      !jobs.items.every((job) => job.actorId === null || typeof job.actorId === 'number')
+    )
+      throw new Error('Sync task overview and source metadata verification failed');
+    const pendingJobs = await check('/api/admin/sync-jobs?pageSize=1&status=pending', cookie);
+    if (!pendingJobs.items.every((job) => job.status === 'pending'))
+      throw new Error('Sync task status filter verification failed');
     await check('/api/admin/logs?pageSize=1', cookie);
     await check('/api/analysis/market/intraday-counts?days=10', cookie);
     await check(

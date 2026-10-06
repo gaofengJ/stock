@@ -21,6 +21,7 @@ const { LoginActivityItemRead1792022400000 } = require('../dist/migrations/17920
 const verifyLoginActivity = require('./login-activity.integration.cjs');
 const verifyUsersManagement = require('./users-management.integration.cjs');
 const verifyRolesManagement = require('./roles-management.integration.cjs');
+const verifySyncManagement = require('./sync-management.integration.cjs');
 const { DragonPermission1790812800000 } = require('../dist/migrations/1790812800000-DragonPermission');
 const { RealTimeNews1790812800001 } = require('../dist/migrations/1790812800001-RealTimeNews');
 const { ExpandedNewsSources1790832000000, EXPANDED_NEWS_CODES } = require('../dist/migrations/1790832000000-ExpandedNewsSources');
@@ -164,6 +165,8 @@ async function main() {
     const admin = await login('mufeng', adminPassword);
     await verifyRolesManagement({ db, inject, admin, user });
     if (process.argv.includes('--roles-management-only')) return;
+    await verifySyncManagement({ db, auth: app.get(AuthService), admin, user });
+    if (process.argv.includes('--sync-management-only')) return;
     await verifyUsersManagement({ db, inject, admin, user, login });
     if (process.argv.includes('--users-management-only')) return;
     if (process.argv.includes('--login-activity-only')) {
