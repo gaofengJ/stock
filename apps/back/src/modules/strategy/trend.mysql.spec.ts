@@ -335,6 +335,84 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
     expect(legacy.basis).toBe('不复权');
     expect(legacy.series.every((r) => r.date <= dates[19])).toBe(true);
   });
+  test('五线顺上的K线显示窗口更长，也保留候选列表的持续天数和截断口径', async () => {
+    await Promise.all(
+      [DailyEntity, TradeCalEntity, SyncRunEntity, TrendFactorEntity].map(
+        (entity) => db.manager.clear(entity),
+      ),
+    );
+    const longDates = Array.from({ length: 150 }, (_, i) =>
+      new Date(Date.UTC(2026, 0, i + 1)).toISOString().slice(0, 10),
+    );
+    await db.manager.insert(
+      TradeCalEntity,
+      longDates.map((calDate, i) => ({
+        calDate,
+        isOpen: 1,
+        preTradeDate: longDates[i - 1] || '2025-12-31',
+        exchange: 'SSE',
+      })),
+    );
+    await db.manager.insert(
+      DailyEntity,
+      longDates.map((tradeDate, i) => ({
+        tradeDate,
+        tsCode: '000001.SZ',
+        name: '普通股票',
+        open: (9.95 + i / 10).toFixed(2),
+        close: (10 + i / 10).toFixed(2),
+        high: (10.1 + i / 10).toFixed(2),
+        low: (9.85 + i / 10).toFixed(2),
+        preClose: (9.9 + i / 10).toFixed(2),
+        vol: '100',
+        amount: '60000',
+        upLimit: '50',
+        downLimit: '5',
+        change: '0.10',
+        pctChg: '1',
+        turnoverRateF: '6',
+      })),
+    );
+    await db.manager.insert(
+      TrendFactorEntity,
+      longDates.map((tradeDate, i) => ({
+        tradeDate,
+        data: [
+          [
+            '000001.SZ',
+            9.95 + i / 10,
+            10 + i / 10,
+            10.1 + i / 10,
+            9.85 + i / 10,
+          ],
+        ] as any,
+      })),
+    );
+    await db.manager.insert(
+      SyncRunEntity,
+      longDates.flatMap((tradeDate) =>
+        ['daily', 'strategy-factor'].map((task) => ({
+          tradeDate,
+          task,
+          status: 'success' as const,
+          dailyCount: 1,
+        })),
+      ),
+    );
+    const date = longDates.at(-1)!;
+    const options = { fiveMaMode: 'current' as const };
+    const candidates = await service.list(date, 'fiveMaUp', options);
+    expect(candidates).toHaveLength(1);
+    const chart = await service.chart({
+      date,
+      code: '000001.SZ',
+      strategyType: 'fiveMaUp',
+      ...options,
+    });
+    expect(chart.series).toHaveLength(150);
+    expect(chart.evidence).toEqual(candidates[0].trendEvidence);
+    expect(chart.evidence).toMatchObject({ streak: 10, streakCapped: true });
+  });
   test('K线缓存不缓存价格，同秒价格更正和代码换位后仍返回正确股票', async () => {
     const dto = {
       date: latest,

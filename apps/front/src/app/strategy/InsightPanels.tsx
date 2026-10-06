@@ -219,7 +219,7 @@ export function SignalPerformance({
                 {change(current?.median)}
                 <small>{current?.median == null ? '' : '%'}</small>
               </strong>
-              <p>一半样本的涨跌低于此值</p>
+              <p>样本涨跌的中间水平</p>
             </Card>
             <Card size="small">
               <span>平均涨跌</span>

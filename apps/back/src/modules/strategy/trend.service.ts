@@ -351,9 +351,12 @@ export class TrendService {
         if (name) names.set(day, name);
       });
     }
-    const enriched = points.map((point, i) => {
+    // Keep the same evidence/streak window as a single-date strategy history.
+    // The chart's longer display range must not change a capped streak.
+    const evidenceWindow = required + (key === 'fiveMaUp' ? 9 : 0);
+    const enriched = points.slice(-evidenceWindow).map((point) => {
       if (!point) return undefined;
-      const day = dates[i];
+      const day = point.date;
       const row = raw.get(day);
       const tradingDay = row && {
         ...row,
