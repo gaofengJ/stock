@@ -200,7 +200,7 @@ async function main() {
       const identity = route === '/wallstreetcn/live/global/2' ? '/wallstreetcn/live' : route;
       return [{id:'fixture-'+identity,title:'采集测试',content_html:'<p>安全正文</p>',date_published:route==='/yicai/headline'?null:new Date().toISOString(),url:'https://example.com/news'}];
     };
-    newsService.fetchSource = async source => newsService.fetch(source.path);
+    newsService.fetchSource = async source => ({ items: await newsService.fetch(source.path) });
     await db.query('UPDATE t_news_source SET enabled=1 WHERE source IN (?)', [[...RETIRED_RESEARCH_CODES]]);
     await db.query("INSERT INTO t_news_item(source,dedupe_key,kind,title,body,important,published_at,created_at,updated_at) VALUES('jin10',REPEAT('f',64),'flash','31天旧消息','正文',0,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 31 DAY),UTC_TIMESTAMP(3),UTC_TIMESTAMP(3)),('jin10',REPEAT('1',64),'flash','29天消息','正文',0,DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 29 DAY),UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))");
     await db.query("INSERT INTO t_news_item(source,dedupe_key,kind,title,body,important,published_at,created_at,updated_at) VALUES('jin10',REPEAT('b',64),'flash','旧收藏','正文',0,'2020-01-01',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3)),('jin10',REPEAT('c',64),'flash','旧未收藏','正文',0,'2020-01-01',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))");
@@ -236,12 +236,18 @@ async function main() {
     const chinese = {engine:'argos',model:'en_zh-1.9',source_hash:bloombergSourceHash(english),title:'股票上涨',body:'公开摘要'};
     const otherFetcher = newsService.fetchSource;
     let translatedFeed = {...english,translation:chinese};
-    newsService.fetchSource = async source => source.code==='bloomberg' ? [translatedFeed] : otherFetcher(source);
+    const relayTimestamp = new Date(Date.now() - 6 * 3600000);
+    newsService.fetchSource = async source => source.code==='bloomberg' ? { items: [translatedFeed], generatedAt: relayTimestamp } : otherFetcher(source);
     const collectTranslation = async () => {
       await db.query("UPDATE t_news_source SET last_attempt=NULL,next_attempt=NULL,enabled=1 WHERE source='bloomberg'");
       await newsService.sync(true);
     };
     await collectTranslation();
+    const delayedSources = (await inject('GET', '/news/sources', undefined, user)).json().data.sources;
+    const delayedBloomberg = delayedSources.find(s => s.code === 'bloomberg');
+    assert.equal(delayedBloomberg.status, 'delayed', 'Delayed snapshots stay readable with an explicit delay status');
+    assert.equal(delayedBloomberg.lastSuccess, relayTimestamp.toISOString(), 'Repeated reads preserve the upstream collection time');
+    assert(delayedBloomberg.warning.includes('更新延迟'));
     const translatedList = (await inject('GET','/news?source=bloomberg&date=2026-10-01',undefined,user)).json().data;
     const translatedItem = translatedList.items.find(item=>item.title==='Stocks rise');
     assert(translatedItem, 'Translated English item is visible');
