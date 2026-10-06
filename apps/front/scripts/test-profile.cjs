@@ -77,6 +77,7 @@ test('stale usable values refresh quietly, but failed refreshes are terminal', (
   assert.equal(p.sourcePending({ state: 'stale', message: null }), true);
   assert.equal(p.sourcePending({ state: 'stale', message: 'unavailable' }), false);
   assert.equal(p.sourcePending({ state: 'ready' }), false);
+  assert.equal(p.sourcePending({ state: 'unpublished', message: '日程尚未发布' }), false);
 });
 
 test('original plan indexing polls slowly beyond the ordinary budget and stops when ready', async () => {

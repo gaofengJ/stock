@@ -1,11 +1,33 @@
 import axios from 'axios';
 
+export const unpublishedCalendar = 'calendar_unpublished';
+export class CalendarUnpublishedError extends Error {}
+
+/** The public endpoint declares GB2312; decoding bytes avoids irreversible replacement characters. */
+export function decodeInvestmentCalendar(bytes: Uint8Array, contentType = '') {
+  const charset = contentType.match(/charset\s*=\s*["']?([\w-]+)/i)?.[1];
+  const encoding = /^(gb2312|gbk|gb18030)$/i.test(charset || '')
+    ? 'gb18030'
+    : charset || 'utf-8';
+  let body: string;
+  try {
+    body = new TextDecoder(encoding, { fatal: true }).decode(bytes);
+  } catch (error) {
+    if (charset) throw error;
+    body = new TextDecoder('gb18030', { fatal: true }).decode(bytes);
+  }
+  if (body.includes('\uFFFD')) throw new Error('投资日历编码异常');
+  return body;
+}
+
 /** Parse the public page's JSONP as data, never execute callback code. */
 export function investmentRows(body: unknown) {
   if (typeof body !== 'string') throw new Error('投资日历结构异常');
   const match = body.trim().match(/^calendar\((\{[\s\S]*\})\);?$/);
   if (!match) throw new Error('投资日历结构异常');
   const payload = JSON.parse(match[1]);
+  if (payload.stat === 'err' && payload.msg === '数据不存在或还未生成')
+    throw new CalendarUnpublishedError('日程尚未发布');
   if (payload.stat !== 'ok' || !Array.isArray(payload.data))
     throw new Error('投资日历未就绪');
   const rows = new Map<string, Record<string, any>>();
@@ -22,17 +44,22 @@ export function investmentRows(body: unknown) {
       if (!Array.isArray(event) || typeof event[0] !== 'string')
         throw new Error('投资日历事件异常');
       const title = event[0].trim();
+      if (title.includes('\uFFFD')) throw new Error('投资日历编码异常');
       if (!title) return;
       const sectors = [...(day.concept?.[i] || []), ...(day.field?.[i] || [])]
         .map((r: any) => r.name)
         .filter((v: unknown) => typeof v === 'string');
+      if (sectors.some((v: string) => v.includes('\uFFFD')))
+        throw new Error('投资日历编码异常');
       const key = `${day.date}:${title}`;
       const old = rows.get(key);
       rows.set(key, {
         date: day.date,
         title,
         importance:
-          Number(day.import) > 0 ? Math.min(3, Number(day.import)) : null,
+          Number(day.import) >= 1
+            ? Math.min(3, Math.floor(Number(day.import)))
+            : null,
         sectors: [...new Set([...(old?.sectors || []), ...sectors])],
       });
     });
@@ -50,10 +77,12 @@ export async function publicInvestmentCalendar(
       params: { type: 'data', date: params.month, callback: 'calendar' },
       timeout: 10000,
       maxContentLength: 2 * 1024 * 1024,
-      responseType: 'text',
+      responseType: 'arraybuffer',
     },
   );
-  const rows = investmentRows(response.data);
+  const rows = investmentRows(
+    decodeInvestmentCalendar(response.data, response.headers['content-type']),
+  );
   const fields = ['date', 'title', 'importance', 'sectors'];
   return {
     code: 0,

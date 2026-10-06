@@ -107,6 +107,14 @@ test('seat association matches typography variants but never another branch', ()
   assert.deepEqual(funds.matchingFunds(rows, ''), []);
   assert.equal(new URL(funds.activeFundsHref('席位 & 名称'), 'https://example.test').searchParams.get('org'), '席位 & 名称');
 });
+
+test('directory omits blank and duplicate seats while retaining original links and distinct branches', () => {
+  const seats = [' ', '华泰（中国）上海营业部', '华泰(中国) 上海营业部', '华泰(中国)南京营业部'];
+  const cleaned = funds.uniqueFundOrgs(seats);
+  assert.deepEqual(cleaned, ['华泰（中国）上海营业部', '华泰(中国)南京营业部']);
+  assert.equal(seats.length, 4);
+  assert.equal(new URL(funds.activeFundsHref(cleaned[0]), 'https://example.test').searchParams.get('org'), cleaned[0]);
+});
 test('only explicit market detail links carry validated date and scope', () => {
   const href = navigation.marketHref('/analysis/limits', {date:'2026-09-28',scope:'gem'}, {keyword:'300001.SZ'});
   const params = new URL(href, 'https://example.test').searchParams;

@@ -28,13 +28,13 @@ function Seat() {
         <DatePicker value={date ? dayjs(date) : null} allowClear={false} onChange={(v) => { if (v) setSelected(v.format('YYYY-MM-DD')); }} />
         <Select value={days} onChange={setDays} options={[{ label: '近7个交易日', value: '7' }, { label: '近30个交易日', value: '30' }]} />
       </Space>
-      <SourceState data={state.data} error={state.error} retry={state.retry} />
+      <SourceState data={state.data} error={state.error} retry={state.retry} pollingStopped={state.pollingStopped} />
       <Space wrap className="mb-16">
         <span>关联线索</span>
-        {state.data?.funds?.length ? state.data.funds.map((f: any) => <Tag key={f.name}>{f.name}</Tag>) : <span>暂无公开名录关联</span>}
+        {state.data?.funds?.length ? state.data.funds.map((f: any) => <Tag key={f.name}>{f.name}</Tag>) : <span>{state.data ? '暂无公开名录关联' : '关联资料尚未就绪'}</span>}
         <span>
           区间最近上榜：
-          {state.data?.lastActivity || '尚无已知记录'}
+          {state.data?.lastActivity || (state.data && state.data.sources?.every((s: any) => s.state === 'ready') ? '区间内暂无已取得的上榜记录' : '上榜资料尚未完整获取')}
         </span>
         <span>
           已覆盖
@@ -47,6 +47,7 @@ function Seat() {
       </Space>
       <p className="basic-muted">{state.data?.note}</p>
       <Table
+        locale={{ emptyText: !org ? '请从游资名录选择营业部或席位' : state.data?.sources?.some((s: any) => s.state !== 'ready') ? '资料尚未完整获取，可稍后检查更新' : '区间内暂无已取得的上榜记录' }}
         loading={state.loading}
         pagination={false}
         scroll={{ x: 1000 }}

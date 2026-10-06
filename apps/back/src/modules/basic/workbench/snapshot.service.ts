@@ -9,14 +9,19 @@ import { BasicSnapshotEntity } from './snapshot.entity';
 import { publicAnnouncements } from './public-announcements';
 import { publicReductionPlans } from './public-reduction-plans';
 import { compactUnlockRows } from './unlock-calendar';
-import { publicInvestmentCalendar } from './investment-calendar';
+import {
+  CalendarUnpublishedError,
+  publicInvestmentCalendar,
+  unpublishedCalendar,
+} from './investment-calendar';
 
 export interface SourceSnapshot {
   key: string;
   source: string;
   rows: Record<string, any>[];
   fetchedAt: string | null;
-  state: 'ready' | 'loading' | 'stale' | 'error';
+  state: 'ready' | 'loading' | 'stale' | 'error' | 'unpublished';
+  period?: string;
   message: string | null;
   nextRetryAt?: string | null;
 }
@@ -95,11 +100,7 @@ export class BasicSnapshotService implements OnModuleInit {
 
   /** Read compact calendar projections; prepare missing projections outside the HTTP request. */
   async readCalendarBatch(requests: [string, Record<string, unknown>][]) {
-    const keys = requests.map(([source, params]) =>
-      createHash('sha256')
-        .update(JSON.stringify([source, params, '']))
-        .digest('hex'),
-    );
+    const keys = requests.map(([source, params]) => this.key(source, params));
     const metadata = await this.db.manager.find(BasicSnapshotEntity, {
       select: {
         snapshotKey: true,
@@ -122,6 +123,14 @@ export class BasicSnapshotService implements OnModuleInit {
       { version: string; rows: Record<string, any>[]; fetchedAt: Date | null }
     >();
     metadata.forEach((r) => {
+      if (r.error === unpublishedCalendar) {
+        prepared.set(r.snapshotKey, {
+          version: version(r),
+          rows: [],
+          fetchedAt: r.fetchedAt,
+        });
+        return;
+      }
       const memo = this.calendarRows.get(r.snapshotKey);
       if (memo?.version === version(r))
         prepared.set(r.snapshotKey, { ...memo, fetchedAt: r.fetchedAt });
@@ -315,9 +324,18 @@ export class BasicSnapshotService implements OnModuleInit {
     params: Record<string, unknown>,
     fields?: string,
   ) {
-    return createHash('sha256')
-      .update(JSON.stringify([source, params, fields || '']))
-      .digest('hex');
+    return (
+      createHash('sha256')
+        // A new namespace forces refetch of legacy snapshots whose Chinese text was lost.
+        .update(
+          JSON.stringify([
+            source,
+            params,
+            source === 'investment_calendar' ? 'gb18030-v2' : fields || '',
+          ]),
+        )
+        .digest('hex')
+    );
   }
 
   /** One database read for a bounded batch; source fills still use the shared queue. */
@@ -432,14 +450,24 @@ export class BasicSnapshotService implements OnModuleInit {
             ),
           };
         } catch (e) {
+          const unpublished =
+            source === 'investment_calendar' &&
+            e instanceof CalendarUnpublishedError;
           const permission = /权限|积分|每天|每日/.test(String(e?.message));
           record = {
-            rows: cached?.rows || [],
-            fetchedAt: cached?.fetchedAt || null,
-            error: permission ? '数据源权限或日额度不足' : '数据源暂不可用',
-            retryAt: new Date(Date.now() + (permission ? 86400000 : 300000)),
+            rows: unpublished ? [] : cached?.rows || [],
+            fetchedAt: unpublished ? new Date() : cached?.fetchedAt || null,
+            error: unpublished
+              ? unpublishedCalendar
+              : permission
+              ? '数据源权限或日额度不足'
+              : '数据源暂不可用',
+            retryAt: new Date(
+              Date.now() +
+                (unpublished ? 6 * 3600000 : permission ? 86400000 : 300000),
+            ),
           };
-          this.logger.warn(`${source}: ${record.error}`);
+          if (!unpublished) this.logger.warn(`${source}: ${record.error}`);
         }
         try {
           const save = () =>
@@ -475,20 +503,29 @@ export class BasicSnapshotService implements OnModuleInit {
     return {
       key: snapshotKey,
       source,
+      ...(source === 'investment_calendar'
+        ? { period: String(params.month).replace(/^(\d{4})(\d{2})$/, '$1-$2') }
+        : {}),
       rows: cached?.rows || [],
       fetchedAt: cached?.fetchedAt?.toISOString() || null,
-      state: cached?.fetchedAt
-        ? due || cached.error
-          ? 'stale'
-          : 'ready'
-        : deferred || (cached?.error && !due)
-        ? 'error'
-        : 'loading',
-      message: deferred
-        ? '数据同步中，稍后可刷新'
-        : this.pending.has(snapshotKey)
-        ? null
-        : cached?.error || null,
+      state:
+        cached?.error === unpublishedCalendar
+          ? 'unpublished'
+          : cached?.fetchedAt
+          ? due || cached.error
+            ? 'stale'
+            : 'ready'
+          : deferred || (cached?.error && !due)
+          ? 'error'
+          : 'loading',
+      message:
+        cached?.error === unpublishedCalendar
+          ? '日程尚未发布'
+          : deferred
+          ? '数据同步中，稍后可刷新'
+          : this.pending.has(snapshotKey)
+          ? null
+          : cached?.error || null,
       nextRetryAt: cached?.error && !due ? cached.retryAt.toISOString() : null,
     };
   }

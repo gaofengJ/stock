@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax, no-await-in-loop, no-nested-ternary */
 import { Injectable, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { DataSource, LessThanOrEqual } from 'typeorm';
+import { DataSource, In, LessThanOrEqual } from 'typeorm';
 import * as dayjs from 'dayjs';
 import { createHash } from 'crypto';
 import { DailyEntity } from '@/modules/source/daily/daily.entity';
@@ -12,6 +12,7 @@ import { BseMappingEntity } from '@/modules/analysis/market/market.entity';
 import { SectorService } from '@/modules/analysis/market/sector.service';
 import { AsyncTtlCache } from '@/modules/analysis/async-ttl-cache';
 import { shanghaiDate } from '@/modules/daily-task/sync.utils';
+import { fundOrgs } from '../active-funds/fund-orgs';
 import { BasicSnapshotService, SourceSnapshot } from './snapshot.service';
 import { WorkbenchQuery } from './workbench.dto';
 import { investmentCategory } from './investment-calendar';
@@ -955,21 +956,27 @@ export class WorkbenchService implements OnModuleInit {
         this.cache.read('top_inst', { trade_date: compact(d.calDate) }),
       ),
     );
-    const stockNames = new Map(
-      (await this.db.manager.find(StockEntity)).map((r) => [r.tsCode, r.name]),
-    );
     const items = snapshots.flatMap((s, i) =>
       s.rows
         .filter((r) => normalizeOrg(r.exalter) === normalizeOrg(dto.org))
         .map((r) => ({
           ...r,
           tsCode: r.ts_code,
-          name: stockNames.get(r.ts_code) || r.ts_code,
           date: dates[i].calDate,
         })),
     );
+    const codes = [...new Set(items.map((r) => r.tsCode))];
+    const stockNames = new Map(
+      (codes.length
+        ? await this.db.manager.find(StockEntity, {
+            select: { tsCode: true, name: true },
+            where: { tsCode: In(codes) },
+          })
+        : []
+      ).map((r) => [r.tsCode, r.name]),
+    );
     const funds = (await this.db.manager.find(ActiveFundsEntity)).filter((r) =>
-      (JSON.parse(r.orgs || '[]') as string[]).some(
+      fundOrgs(r.orgs).some(
         (org) => normalizeOrg(org) === normalizeOrg(dto.org),
       ),
     );
@@ -977,7 +984,10 @@ export class WorkbenchService implements OnModuleInit {
       org: dto.org,
       date,
       dates: dates.map((d) => d.calDate),
-      items,
+      items: items.map((r) => ({
+        ...r,
+        name: stockNames.get(r.tsCode) || r.tsCode,
+      })),
       funds,
       lastActivity:
         items

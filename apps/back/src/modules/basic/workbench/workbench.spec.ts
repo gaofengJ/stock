@@ -1,4 +1,6 @@
 import { StockEntity } from '@/modules/source/stock/stock.entity';
+import { TradeCalEntity } from '@/modules/source/trade-cal/trade-cal.entity';
+import { ActiveFundsEntity } from '@/modules/source/active-funds/active-funds.entity';
 import { StockService } from '../stock/stock.service';
 import { BasicSnapshotService } from './snapshot.service';
 import {
@@ -7,6 +9,54 @@ import {
   isoDate,
   groupUnlockEvents,
 } from './workbench.service';
+
+it('seat profiles query names only for matched stocks and tolerate incomplete catalog seats', async () => {
+  let rows = [
+    { ts_code: '000001.SZ', exalter: '证券（中国）上海营业部', buy: 100 },
+    { ts_code: '000002.SZ', exalter: '证券(中国)南京营业部', buy: 200 },
+  ];
+  const find = jest.fn(async (entity: any) => {
+    if (entity === TradeCalEntity) return [{ calDate: '2026-10-06' }];
+    if (entity === StockEntity)
+      return [{ tsCode: '000001.SZ', name: '股票甲' }];
+    if (entity === ActiveFundsEntity)
+      return [
+        { name: '甲', orgs: 'null' },
+        { name: '乙', orgs: '["证券（中国）上海营业部"]' },
+      ];
+    return [];
+  });
+  const service = new WorkbenchService(
+    { manager: { find } } as any,
+    { read: async () => ({ source: 'top_inst', state: 'ready', rows }) } as any,
+    {} as any,
+  );
+  const result = await service.seat({
+    date: '2026-10-06',
+    org: '证券(中国) 上海营业部',
+    days: '7',
+  });
+  expect(result.items).toHaveLength(1);
+  expect(result.items[0]).toMatchObject({
+    tsCode: '000001.SZ',
+    name: '股票甲',
+    buy: 100,
+  });
+  expect(result.funds.map((fund) => fund.name)).toEqual(['乙']);
+  const options = (
+    find.mock.calls.find(([entity]) => entity === StockEntity) as any
+  )[1];
+  expect(options.where.tsCode.value).toEqual(['000001.SZ']);
+  find.mockClear();
+  rows = [];
+  expect(
+    (await service.seat({ date: '2026-10-06', org: '证券(中国)上海营业部' }))
+      .items,
+  ).toEqual([]);
+  expect(find.mock.calls.some(([entity]) => entity === StockEntity)).toBe(
+    false,
+  );
+});
 
 describe('basic workbench temporal and source safety', () => {
   it('selects only disclosed reports and prefers the most recent report period', () => {

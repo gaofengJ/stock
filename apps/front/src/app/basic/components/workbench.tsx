@@ -73,7 +73,8 @@ export function useWorkbench(endpoint: string, params: Record<string, unknown>, 
 export function SourceState({
   data, error, retry, pollingStopped = false,
 }: { data: any; error?: string; retry: () => void; pollingStopped?: boolean }) {
-  const pending = data?.sources?.filter((s: any) => s.state !== 'ready') || [];
+  const pending = data?.sources?.filter((s: any) => s.state !== 'ready' && s.state !== 'unpublished') || [];
+  const unpublished = Array.from(new Set<string>((data?.sources || []).filter((s: any) => s.state === 'unpublished').map((s: any) => s.period || '部分月份')));
   const sources = Array.from(new Set<string>(pending.map((s: any) => s.source)));
   const hasError = pending.some((s: any) => s.message || s.state === 'error');
   let notice = '正在获取资料，完成后自动更新';
@@ -82,6 +83,7 @@ export function SourceState({
   if (!error && !pending.length && !data?.sources?.length) return null;
   return (
     <div className="workbench-source-state">
+      {!!unpublished.length && <p className="basic-muted">{`尚未发布的日程：${unpublished.join('、')}。已发布日程仍可查看，后续将定期检查更新。`}</p>}
       {error && <Alert className="mb-16" type="error" message={error} action={<Button onClick={retry}>重试</Button>} />}
       {!error && !!pending.length && (
       <Alert

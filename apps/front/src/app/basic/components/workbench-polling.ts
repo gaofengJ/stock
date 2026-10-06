@@ -1,6 +1,6 @@
 export interface WorkbenchSource {
   source: string;
-  state: 'ready' | 'loading' | 'stale' | 'error';
+  state: 'ready' | 'loading' | 'stale' | 'error' | 'unpublished';
   message?: string | null;
   fetchedAt?: string | null;
   nextRetryAt?: string | null;

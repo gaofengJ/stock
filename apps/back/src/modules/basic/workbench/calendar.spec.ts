@@ -1,5 +1,12 @@
 import { createHash } from 'crypto';
-import { investmentRows } from './investment-calendar';
+import axios from 'axios';
+import {
+  CalendarUnpublishedError,
+  decodeInvestmentCalendar,
+  investmentRows,
+  publicInvestmentCalendar,
+  unpublishedCalendar,
+} from './investment-calendar';
 import { compactUnlockRows } from './unlock-calendar';
 import { BasicSnapshotService } from './snapshot.service';
 import { WorkbenchService, groupUnlockEvents } from './workbench.service';
@@ -46,6 +53,102 @@ const rows = [
 const requests: [string, Record<string, unknown>][] = [
   ['share_float', { start_date: '20261008', end_date: '20261008' }],
 ];
+
+it('decodes GB2312 bytes and UTF-8 without losing Chinese text, and rejects corrupted text', async () => {
+  const title = Buffer.from('bfc6bcbcd5b9bbe1', 'hex');
+  const bytes = Buffer.concat([
+    Buffer.from(
+      'calendar({"stat":"ok","data":[{"date":"2026-10-08","events":[["',
+    ),
+    title,
+    Buffer.from('"]]}]});'),
+  ]);
+  expect(
+    decodeInvestmentCalendar(title, 'application/json; charset=gb2312'),
+  ).toBe('科技展会');
+  expect(decodeInvestmentCalendar(title)).toBe('科技展会');
+  expect(
+    decodeInvestmentCalendar(
+      Buffer.from('科技展会'),
+      'text/javascript; charset="utf-8"',
+    ),
+  ).toBe('科技展会');
+  expect(() => decodeInvestmentCalendar(title, 'charset=utf-8')).toThrow();
+  expect(() =>
+    decodeInvestmentCalendar(Buffer.from('乱码�'), 'charset=utf-8'),
+  ).toThrow();
+  expect(() =>
+    investmentRows(
+      'calendar({"stat":"ok","data":[{"date":"2026-10-08","events":[["乱码�"]]}]})',
+    ),
+  ).toThrow();
+  const get = jest.spyOn(axios, 'get').mockResolvedValue({
+    data: bytes,
+    headers: { 'content-type': 'application/json; charset=gb2312' },
+  });
+  try {
+    const result = await publicInvestmentCalendar({ month: '202610' });
+    expect(result.data.items[0][1]).toBe('科技展会');
+    expect(get.mock.calls[0][1]?.responseType).toBe('arraybuffer');
+  } finally {
+    get.mockRestore();
+  }
+});
+
+it('distinguishes unpublished months from empty published schedules and actual failures', async () => {
+  const body = 'calendar({"stat":"err","msg":"数据不存在或还未生成"});';
+  expect(() => investmentRows(body)).toThrow(CalendarUnpublishedError);
+  expect(investmentRows('calendar({"stat":"ok","data":[]});')).toEqual([]);
+  expect(() =>
+    investmentRows('calendar({"stat":"err","msg":"服务器异常"});'),
+  ).not.toThrow(CalendarUnpublishedError);
+  let saved: any = null;
+  const get = jest.spyOn(axios, 'get').mockResolvedValue({
+    data: Buffer.from(body),
+    headers: { 'content-type': 'charset=utf-8' },
+  });
+  const cache = new BasicSnapshotService(
+    {
+      manager: {
+        findOneBy: async () => saved,
+        find: async () => (saved ? [saved] : []),
+      },
+    } as any,
+    {} as any,
+    {
+      withLock: (callback: any) =>
+        callback({
+          upsert: async (_: any, record: any) => {
+            saved = record;
+          },
+        }),
+    } as any,
+  );
+  try {
+    await cache.read('investment_calendar', { month: '202611' });
+    await tick();
+    expect(saved.error).toBe(unpublishedCalendar);
+    const result = (
+      await cache.readCalendarBatch([
+        ['investment_calendar', { month: '202611' }],
+      ])
+    )[0];
+    expect(result).toMatchObject({
+      state: 'unpublished',
+      period: '2026-11',
+      message: '日程尚未发布',
+      rows: [],
+    });
+    expect(get).toHaveBeenCalledTimes(1);
+    const legacy = createHash('sha256')
+      .update(JSON.stringify(['investment_calendar', { month: '202611' }, '']))
+      .digest('hex');
+    expect(result.key).not.toBe(legacy);
+    expect(result.key).toBe(saved.snapshotKey);
+  } finally {
+    get.mockRestore();
+  }
+});
 
 it('parses public investment JSONP without execution and merges duplicate events/associated sectors', () => {
   const data = [

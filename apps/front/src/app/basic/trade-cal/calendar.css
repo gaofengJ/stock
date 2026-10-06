@@ -27,6 +27,7 @@
 .calendar-summary { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .calendar-reserved { margin-left: 4px; padding: 0 3px; font-size: 10px; }
 .calendar-note { max-width: 420px; line-height: 1.7; }
+.calendar-attribution { margin: 0 0 12px; line-height: 1.7; }
 .calendar-detail { overflow-wrap: anywhere; line-height: 1.8; }
 .calendar-detail p { margin: 12px 0; }
 .calendar-detail h3 { font-size: 16px; }

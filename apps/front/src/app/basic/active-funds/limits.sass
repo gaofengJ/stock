@@ -1,19 +1,54 @@
+.active-funds-page
+  min-width: 0
+
 .active-funds-table
   min-width: 0
+  .ant-table-tbody > tr > td
+    height: 88px
+    padding: 12px 10px
+
+.active-funds-name
+  padding: 0
+  height: auto
+  white-space: normal
+  text-align: left
+  font-weight: 600
+
+.active-funds-seats
+  display: flex
+  align-items: center
+  flex-wrap: wrap
+  gap: 6px
+  max-height: 62px
+  overflow: hidden
 
 .active-funds-org
   display: inline-block
-  padding: 4px 10px
-  margin: 8px 8px 0 0
-  line-height: 1.6
+  max-width: 100%
+  padding: 3px 8px
+  line-height: 1.5
   border: 1px solid var(--color-border)
   border-radius: 6px
   background: var(--color-surface-muted)
-  overflow-wrap: anywhere
+  overflow: hidden
+  white-space: nowrap
+  text-overflow: ellipsis
   &.is-selected
     color: var(--color-primary-text)
     border-color: var(--color-primary)
     background: var(--color-primary-soft)
+
+.active-funds-summary
+  display: -webkit-box
+  -webkit-line-clamp: 2
+  -webkit-box-orient: vertical
+  overflow: hidden
+  overflow-wrap: anywhere
+  line-height: 1.7
+
+.active-funds-muted
+  color: var(--text-secondary)
+  margin-bottom: 16px
 
 .active-funds-context
   display: flex
@@ -22,3 +57,21 @@
   gap: 8px
   margin-bottom: 16px
   color: var(--text-secondary)
+
+.active-funds-biography
+  white-space: pre-wrap
+  overflow-wrap: anywhere
+  line-height: 1.8
+  margin-bottom: 20px
+
+.active-funds-detail-seats
+  display: flex
+  flex-wrap: wrap
+  gap: 8px
+  .active-funds-org
+    white-space: normal
+    overflow-wrap: anywhere
+
+.active-funds-modal .ant-modal-body
+  max-height: 65dvh
+  overflow: auto

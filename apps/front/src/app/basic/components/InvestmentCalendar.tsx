@@ -35,6 +35,11 @@ export default function InvestmentCalendar({ date, onDate }: { date: string; onD
         </span>
         <Popover trigger="click" content={<p className="calendar-note">仅列出来源已发布的日程，后续可能调整。投资事件分类依据标题关键词；关联板块和重要性采用原始资料，未标注时显示“—”。经济数据保留来源时间，未提供时区时不换算。未公布的两会或展会日期不会推测补齐。</p>}><Button size="small" type="link">日程说明</Button></Popover>
       </div>
+      <p className="basic-muted calendar-attribution">
+        投资事件来源：
+        <a href="https://stock.10jqka.com.cn/fincalendar.shtml" target="_blank" rel="noreferrer">同花顺投资日历</a>
+        。经济数据的发布机构见详情，来源未提供时不推测。
+      </p>
       <div ref={ref}>
         <Table
           loading={state.loading}
@@ -42,7 +47,7 @@ export default function InvestmentCalendar({ date, onDate }: { date: string; onD
           scroll={{ x: undefined }}
           tableLayout="fixed"
           pagination={pagination}
-          locale={{ emptyText: state.data?.sources?.some((r: any) => r.state !== 'ready') ? '资料尚未就绪，可稍后检查更新' : '所选范围暂无已公布的匹配日程' }}
+          locale={{ emptyText: state.data?.sources?.some((r: any) => r.state !== 'ready' && r.state !== 'unpublished') ? '资料尚未就绪，可稍后检查更新' : '所选范围暂无已公布的匹配日程' }}
           dataSource={items}
           rowKey={(r: any) => `${r.date}-${r.time}-${r.country}-${r.title}`}
           columns={[
@@ -113,7 +118,12 @@ export default function InvestmentCalendar({ date, onDate }: { date: string; onD
             {detail.actual ?? '—'}
           </p>
           )}
-          {detail.url && <a href={detail.url} target="_blank" rel="noreferrer">查看原始日程</a>}
+          {detail.source === 'investment_calendar' ? (
+            <p>
+              来源：
+              <a href={detail.url} target="_blank" rel="noreferrer">同花顺投资日历 · 查看原始日程</a>
+            </p>
+          ) : <p>{`发布机构：${detail.issuingOrg || '来源未标注'}`}</p>}
         </div>
         )}
       </Modal>

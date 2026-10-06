@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ActiveFundsService as SourceActiveFundsService } from '@/modules/source/active-funds/active-funds.service';
+import { fundOrgs } from './fund-orgs';
 
 @Injectable()
 export class ActiveFundsService {
@@ -12,8 +13,8 @@ export class ActiveFundsService {
     const ret = await this.activeFundsService.list();
     return ret.map((i) => ({
       name: i.name,
-      orgs: JSON.parse(i.orgs) as string[],
-      desc: i.desc,
+      orgs: fundOrgs(i.orgs),
+      desc: i.desc || '',
     }));
   }
 }
