@@ -12,14 +12,14 @@
 .sync-job-cell { display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
 .sync-job-cell small { color: var(--text-muted); font-size: 12px; }
 .sync-job-warning > td { background: var(--color-primary-soft); }
-.sync-maintenance { margin-bottom: 24px; scroll-margin-top: 72px; }
-.sync-maintenance h4.ant-typography { margin: 0 0 12px; font-size: 16px; }
+.account-page .account-section-heading.ant-typography { margin: 0 0 12px; font-size: 16px; line-height: 24px; font-weight: 600; }
+.account-page .sync-maintenance { margin-bottom: 24px; scroll-margin-top: 72px; }
 .sync-maintenance .sync-purpose-field { margin-bottom: 16px; }
 .sync-purpose-field .ant-radio-group { display: block; width: 100%; }
 .sync-purpose-options, .sync-module-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .sync-maintenance .sync-purpose { display: flex; align-items: flex-start; margin: 0; padding: 12px 16px; border: 1px solid var(--color-border); border-radius: 6px; white-space: normal; }
 .sync-purpose.ant-radio-wrapper-checked { background: var(--color-primary-soft); border-color: var(--color-primary); }
-.sync-purpose > .ant-radio { margin-top: 3px; }
+.account-page .sync-purpose > .ant-radio { align-self: flex-start; margin-top: 3px; }
 .sync-purpose > span:last-child { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .sync-purpose strong { font-size: 14px; font-weight: 500; }
 .sync-purpose span span { color: var(--text-secondary); line-height: 1.6; }

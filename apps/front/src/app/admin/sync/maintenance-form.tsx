@@ -127,7 +127,7 @@ export default function MaintenanceForm({
         if (event.key === 'Enter' && event.target instanceof HTMLElement && event.target.closest('.ant-picker')) event.preventDefault();
       }}
     >
-      <Typography.Title level={4}>1. 选择维护目的</Typography.Title>
+      <Typography.Title level={4} className="account-section-heading">1. 选择维护目的</Typography.Title>
       <Form.Item name="mode" className="sync-purpose-field">
         <Radio.Group name="sync-purpose" aria-label="维护目的">
           <div className="sync-purpose-options">
@@ -159,7 +159,7 @@ export default function MaintenanceForm({
           />
         </Radio.Group>
       </Form.Item>
-      <Typography.Title level={4}>2. 选择需要维护的日期</Typography.Title>
+      <Typography.Title level={4} className="account-section-heading">2. 选择需要维护的日期</Typography.Title>
       <div className="sync-date-controls">
         <Form.Item name="dateScope" className="sync-date-scope">
           <Radio.Group

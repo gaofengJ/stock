@@ -142,7 +142,7 @@ export default function Page() {
       {contextHolder}
       <PageHeading title="数据同步" description="选择维护目的和日期，提交后查看执行结果。" icon={<SyncOutlined />} />
       {canRun && <MaintenanceForm form={form} submitting={submitting} disabled={!!busy} onSubmit={submit} />}
-      <Typography.Title level={4} className="sync-records-heading">执行记录</Typography.Title>
+      <Typography.Title level={4} className="account-section-heading sync-records-heading">执行记录</Typography.Title>
       <Typography.Paragraph type="secondary">任务在服务器排队执行，可以关闭页面。提交后的进度和结果会自动更新。</Typography.Paragraph>
       <div className="sync-overview" aria-label="全部任务状态概览">
         {[['', '全部任务'], ['queued', '等待排队'], ['running', '执行中'], ['pending', '等待重试'], ['failed', '失败'], ['success', '校验完成']].map(([status, title]) => (
