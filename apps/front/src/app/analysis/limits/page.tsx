@@ -206,8 +206,6 @@ function LimitsPage() {
             bordered
             scroll={{ x: columns.reduce((sum, column) => sum + Number(column.width), 0) }}
             pagination={false}
-            maxBodyHeight={Number.POSITIVE_INFINITY}
-            bottomSpacing={32}
             columns={columns}
           />
         </DataState>

@@ -5,11 +5,16 @@ const path = require('node:path');
 const ts = require('typescript');
 
 function client() {
+  const navigation = {};
+  const navigationCode = ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/components/Layout/enum.ts'), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  new Function('exports', navigationCode)(navigation);
   const exports = {};
   const code = ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/auth/client.ts'), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
-  new Function('require', 'exports', code)(() => ({ readApiResponse: async r => r.json(), userError: e => e }), exports);
+  new Function('require', 'exports', code)((name) => name === '@/components/Layout/enum' ? navigation : ({ readApiResponse: async r => r.json(), userError: e => e }), exports);
   return exports;
 }
 
@@ -25,6 +30,17 @@ test('guest routes expose business pages but never profile or administration', (
   assert.equal(auth.allowedPath(user, '/admin'), false);
   assert.equal(auth.homePath(user), '/analysis/overview');
   assert.equal(auth.allowedPath({ ...user, guest: false }, '/profile'), true);
+});
+
+test('basic entry follows menu order while respecting exact page permissions', () => {
+  const auth = client();
+  const catalog = ['/basic/stock/risk', '/basic/daily', '/basic/stock', '/basic/trade-cal', '/basic/active-funds']
+    .map((route) => ({code: route, route}));
+  assert.equal(auth.homePath({ catalog, permissions: catalog.map(p => p.code) }, '/basic'), '/basic/stock');
+  assert.equal(auth.homePath({ catalog, permissions: ['/basic/stock/risk', '/basic/daily'] }, '/basic'), '/basic/daily');
+  assert.equal(auth.homePath({ catalog, permissions: ['/basic/stock/risk'] }, '/basic'), '/basic/stock/risk');
+  assert.equal(auth.homePath({ catalog, permissions: [] }, '/basic'), '/profile');
+  assert.equal(auth.homePath(null, '/basic'), '/profile');
 });
 
 test('login activity belongs to user management and is unavailable to other module administrators', () => {

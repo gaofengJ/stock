@@ -1,4 +1,5 @@
 import { readApiResponse, userError } from '@/api/errors';
+import { basicNavigationOrder } from '@/components/Layout/enum';
 
 export interface Permission {
   code: string;
@@ -101,6 +102,12 @@ export function getAccess(startTrial: boolean): Promise<AccessState> {
   return accessPending;
 }
 export function homePath(user: Account | null, prefix = '') {
+  if (prefix === '/basic') {
+    const first = basicNavigationOrder.find((route) => user?.catalog.some(
+      (p) => p.route === route && user.permissions.includes(p.code),
+    ));
+    if (first) return first;
+  }
   return (
     user?.catalog.find(
       (p) => p.route

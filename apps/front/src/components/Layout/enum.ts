@@ -80,6 +80,7 @@ export enum EBasicAsideMenuKey {
    * 基础数据-每日交易数据
    */
   basicDaily = '/basic/daily',
+  basicRisk = '/basic/stock/risk',
   /**
    * 交易日历
    */
@@ -89,3 +90,11 @@ export enum EBasicAsideMenuKey {
    */
   basicActiveFunds = '/basic/active-funds',
 }
+
+export const basicNavigationOrder = [
+  EBasicAsideMenuKey.basicStock,
+  EBasicAsideMenuKey.basicDaily,
+  EBasicAsideMenuKey.basicRisk,
+  EBasicAsideMenuKey.basicTradeCal,
+  EBasicAsideMenuKey.basicActiveFunds,
+];

@@ -20,7 +20,7 @@ type Props<Row extends object> = Omit<TableProps<Row>, 'loading' | 'scroll'> & {
 
 /** Shared table body sizing and loading; Ant Design handles synchronized fixed headers. */
 export default function DataTable<Row extends object = any>({
-  loading = false, scroll, locale, maxBodyHeight = 720, minBodyHeight = 240, bottomSpacing = 48, autoHeight = false, ...props
+  loading = false, scroll, locale, maxBodyHeight = Number.POSITIVE_INFINITY, minBodyHeight = 240, bottomSpacing = 0, autoHeight = false, ...props
 }: Props<Row>) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(minBodyHeight);
@@ -39,9 +39,19 @@ export default function DataTable<Row extends object = any>({
         const bottom = Math.min(window.innerHeight, bounds?.bottom ?? window.innerHeight);
         // Include the parent's scroll offset so body height does not jump while scrolling.
         const offset = Math.max(0, rect.top - top + (area?.scrollTop ?? window.scrollY));
-        const header = root.querySelector('.ant-table-header')?.getBoundingClientRect().height || 48;
-        const footer = root.querySelector('.ant-pagination')?.getBoundingClientRect().height || 0;
-        setHeight(Math.max(minBodyHeight, Math.min(maxBodyHeight, Math.floor(bottom - top - offset - header - footer - bottomSpacing))));
+        const body = root.querySelector('.ant-table-body, .ant-table-tbody-virtual-holder');
+        if (!body) return;
+        // Measure all table chrome, including wrapped pagination, margins and summaries.
+        const chrome = rect.height - body.getBoundingClientRect().height;
+        let inset = bottomSpacing;
+        for (let parent = root.parentElement; parent; parent = parent.parentElement) {
+          const style = getComputedStyle(parent);
+          inset += parseFloat(style.paddingBottom) || 0;
+          inset += parseFloat(style.borderBottomWidth) || 0;
+          if (parent === area) break;
+          inset += parseFloat(style.marginBottom) || 0;
+        }
+        setHeight(Math.max(minBodyHeight, Math.min(maxBodyHeight, Math.floor(bottom - top - offset - chrome - inset))));
       });
     };
     const observer = new ResizeObserver(measure);
