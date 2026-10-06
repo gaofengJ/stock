@@ -1,25 +1,77 @@
-name: Inspect article release
+name: Relay the verified release image
 on:
   workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  SOURCE_SHA: ac730979b89711dafa5c8192e84ee8fda4469817
 jobs:
-  inspect:
+  relay:
     runs-on: ubuntu-latest
     steps:
-      - name: Read server release progress
-        uses: appleboy/ssh-action@master
+      - uses: actions/download-artifact@v4
+        with:
+          name: stock-back-image-ac730979b89711dafa5c8192e84ee8fda4469817
+          path: image-relay
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: gaofengJ/stock
+          run-id: 37488216220
+      - name: Record the verified archive checksum
+        id: archive
+        run: |
+          gzip -t image-relay/stock-back-image.tar.gz
+          echo "hash=$(sha256sum image-relay/stock-back-image.tar.gz | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+          echo "bytes=$(stat -c %s image-relay/stock-back-image.tar.gz)" >> "$GITHUB_OUTPUT"
+      - name: Check relay space without touching the service
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          ARCHIVE_BYTES: ${{ steps.archive.outputs.bytes }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
+          envs: ARCHIVE_BYTES
           script: |
-            echo 'Running Docker operations (arguments omitted):'
-            ps -eo pid,etime,args | awk '$3 ~ /(^|\/)docker$/ {print $1,$2,$3,$4}'
-            echo 'Article containers:'
-            docker ps --filter name=stock-blog --format '{{.Names}} {{.Status}} {{.Image}}'
-            echo 'Article images:'
-            docker images --format '{{.Repository}}:{{.Tag}} {{.Size}}' | grep 'stock-blog' || true
-            echo 'Media-verified release build directories:'
-            find /opt/stock-blog-style -maxdepth 2 -name Dockerfile -print
-            echo 'Memory and disk:'
-            free -m
-            df -h / /opt
+            set -e
+            [[ "$ARCHIVE_BYTES" =~ ^[0-9]+$ ]]
+            available=$(df -PB1 /opt | awk 'NR==2 {print $4}')
+            [[ "$available" -ge "$((ARCHIVE_BYTES+1073741824))" ]] || { echo 'Insufficient image relay space'; exit 1; }
+      - name: Transfer the verified image over the existing SSH channel
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: image-relay/stock-back-image.tar.gz
+          target: /opt/stock-release/image-relay/ac730979b89711dafa5c8192e84ee8fda4469817
+          strip_components: 1
+          command_timeout: 10m
+      - name: Upload from the server to its existing registry
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          EXPECTED_ARCHIVE_HASH: ${{ steps.archive.outputs.hash }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          envs: SOURCE_SHA,EXPECTED_ARCHIVE_HASH,DOCKER_USERNAME,DOCKER_PASSWORD
+          command_timeout: 15m
+          script: |
+            set -Eeuo pipefail
+            [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+            [[ "$EXPECTED_ARCHIVE_HASH" =~ ^[0-9a-f]{64}$ ]]
+            archive="/opt/stock-release/image-relay/$SOURCE_SHA/stock-back-image.tar.gz"
+            [[ "$(sha256sum "$archive" | cut -d ' ' -f 1)" == "$EXPECTED_ARCHIVE_HASH" ]] || { echo 'Image relay checksum mismatch'; exit 1; }
+            chmod 600 "$archive"
+            available=$(awk '/MemAvailable:/ {print $2}' /proc/meminfo)
+            [[ "$available" -ge 524288 ]] || { echo 'Insufficient image relay memory'; exit 1; }
+            gzip -dc "$archive" | docker load
+            image="registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-back:$SOURCE_SHA"
+            docker tag stock-back-verify "$image"
+            printf '%s' "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin registry.cn-hangzhou.aliyuncs.com
+            timeout 600 docker push "$image"
+            rm -f -- "$archive"
+            echo 'Verified image relayed; application and database were not changed.'
