@@ -27,6 +27,25 @@
 .review-plan-actions { margin: 16px 0 8px; }
 .review-details { margin-top: 20px; }
 .review-details p { line-height: 1.8; margin: 0 0 12px; }
-.review-holdings { margin: 24px 0 16px; }
-@media (max-width: 1199px) { .review-workspace { grid-template-columns: minmax(0, 1fr); } .review-plan { position: static; grid-row: 1; } }
+@media (max-width: 1199px) { .review-workspace { grid-template-columns: minmax(0, 1fr); } .review-plan { position: static; } }
 @media (max-width: 767px) { .review-steps { grid-template-columns: minmax(0, 1fr); gap: 8px; } .review-step { padding: 12px; } .review-toolbar { align-items: flex-start; } .review-filters .ant-select, .review-filters .ant-input-affix-wrapper { width: 100%; } }
+.review-plan > .ant-card { max-height: calc(100dvh - 104px); display: flex; flex-direction: column; overflow: hidden; }
+.review-plan .ant-card-head { flex-shrink: 0; }
+.review-plan .ant-card-body { padding: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.review-plan-scroll { overflow-y: auto; min-height: 0; padding: 16px; overscroll-behavior: contain; }
+.review-plan-footer { padding: 12px 16px; border-top: 1px solid var(--color-border); flex-shrink: 0; background: var(--color-surface); }
+.review-plan-footer .review-plan-actions { margin: 0 0 8px; }
+.review-plan-footer p { margin: 0; }
+.review-selection { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px; margin-bottom: 12px; background: var(--color-surface-muted); border-radius: 6px; }
+.review-holding-row { padding: 16px; margin-bottom: 16px; border: 1px solid var(--color-border); border-radius: 6px; }
+.review-holding-fields { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.review-holding-fields .ant-form-item { margin: 0; min-width: 0; }
+.review-holding-fields .ant-form-item-row { display: block; }
+.review-holding-fields .ant-form-item-label { display: block; text-align: left; white-space: normal; padding-bottom: 6px; }
+.review-holding-fields .ant-picker, .review-holding-fields .ant-input-number { width: 100%; }
+.review-holding-rationale { grid-column: 1 / -1; }
+@media (max-width: 1199px) { .review-plan > .ant-card { max-height: none; } .review-plan-scroll { overflow: visible; } }
+@media (max-width: 767px) { .review-holding-fields { grid-template-columns: minmax(0, 1fr); } .review-holding-row { padding: 12px; } }
+/* Clip the watermark without creating a scroll ancestor that disables sticky panels. */
+.platform-watermark:has(> .review-page) { overflow: clip !important; }
+.review-holding-fields .ant-form-item-label > label { width: 100%; justify-content: flex-start; height: auto; }

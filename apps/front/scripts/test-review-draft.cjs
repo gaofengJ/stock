@@ -74,3 +74,19 @@ test('storage failures retain current edits and display an export reminder', () 
   assert.equal(render().draft.focus, '仍保留的计划');
   assert.match(render().status, /保存失败/);
 });
+
+const interactions = load('review-interactions.ts');
+test('holdings validation marks both duplicate rows and rejects future dates and invalid costs', () => {
+  const errors = interactions.holdingErrors([{id:0,code:'000001.SZ',boughtOn:'2026-10-01',cost:0},{id:1,code:'000001.SZ',cost:NaN}], '2026-09-30');
+  assert.ok(errors.every(e=>e.code)); assert.ok(errors[0].boughtOn); assert.ok(errors.every(e=>e.cost));
+  assert.deepEqual(interactions.holdingErrors([{id:0,code:'920001.BJ',boughtOn:'2026-09-30',cost:1}], '2026-09-30'), [{code:'',boughtOn:'',cost:''}]);
+});
+test('calendar dates reject overflow and cap sorting handles two missing values', () => {
+  assert.equal(interactions.validDate('2026-02-30'),false);
+  assert.equal(interactions.validDate('2026-09-29'),true);
+  assert.equal(interactions.validDate('invalid'),false);
+  assert.equal(interactions.compareCap(null,undefined),0);
+  assert.equal(interactions.compareCap(null,1),1);
+  assert.equal(interactions.compareCap(1,null),-1);
+  assert.equal(interactions.compareCap(10,20),-10);
+});
