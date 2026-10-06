@@ -15,6 +15,23 @@ function load(file, imports = {}) {
 const format = load('utils/format.ts');
 const logs = load('app/admin/logs/log-display.ts');
 
+test('access log labels distinguish authenticated accounts, guests, failures and millisecond durations', () => {
+  assert.equal(logs.accessUser({actorType:'user',userId:2,username:'alice',nickname:'小牛'}), '小牛（alice）');
+  assert.equal(logs.accessUser({actorType:'user',userId:2}), '用户 #2');
+  assert.equal(logs.accessUser({actorType:'guest'}), '游客体验');
+  assert.equal(logs.accessUser({actorType:'anonymous'}), '未认证');
+  assert.equal(logs.accessStatus({result:'client-error',statusCode:403}), '请求未通过（4xx） · 403');
+  assert.equal(logs.durationText(0), '0 毫秒');
+  assert.equal(logs.durationText(20), '20 毫秒');
+  assert.equal(logs.durationText(1200), '1.20 秒');
+  assert.equal(logs.durationText(NaN), '—');
+  assert.equal(logs.requestDate('2026-10-06T18:30:00Z'), '2026-10-07');
+  assert.equal(logs.requestDate('2026-10-07 02:30:00'), '2026-10-07');
+  assert.equal(logs.accessAlertType(500), 'error');
+  assert.equal(logs.accessColor(403), 'orange');
+  assert.match(logs.accessGuidance(499), /操作审计核对结果/);
+});
+
 test('admin log dates and timestamps stay in Beijing across UTC midnight', () => {
   assert.equal(logs.beijingDate(new Date('2026-10-06T18:30:00.000Z')), '2026-10-07');
   assert.equal(logs.beijingTime('2026-10-06T18:30:00.000Z'), '2026-10-07 02:30:00');

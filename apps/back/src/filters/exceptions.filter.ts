@@ -45,6 +45,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       this.getErrorMessage(exception),
       status,
     );
+    if (request.logContext)
+      request.logContext.errorMessage = String(redact(message)).slice(0, 512);
 
     if (
       status === HttpStatus.INTERNAL_SERVER_ERROR &&

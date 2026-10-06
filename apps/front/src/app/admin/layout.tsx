@@ -11,7 +11,7 @@ const items = [
   { key: '/admin/users/activity', label: '登录动态', icon: <BellOutlined /> },
   { key: '/admin/roles', label: '角色管理', icon: <SafetyCertificateOutlined /> },
   { key: '/admin/sync', label: '数据同步', icon: <SyncOutlined /> },
-  { key: '/admin/logs', label: '日志分析', icon: <FileSearchOutlined /> },
+  { key: '/admin/logs', label: '日志中心', icon: <FileSearchOutlined /> },
 ];
 export default function Layout({ children }: { children: React.ReactNode }) {
   const path = usePathname().replace(/\/$/, '');

@@ -5,9 +5,11 @@ export const levelColors: Record<string, string> = { error: 'red', warn: 'orange
 export const actionLabels: Record<string, string> = {
   'auth.register': '注册账号',
   'auth.login': '登录',
+  'auth.member-login': '普通用户登录通知',
   'auth.logout': '退出登录',
   'auth.password': '修改密码',
   'user.create': '创建用户',
+  'user.profile': '修改个人资料',
   'user.update': '修改账号与角色',
   'user.reset-password': '重置密码',
   'role.save': '保存角色与权限',
@@ -34,6 +36,7 @@ export const resultLabels: Record<string, string> = {
   cancelling: '正在取消',
 };
 export const moduleLabels: Record<string, string> = {
+  AccessLogService: '接口访问日志写入',
   BasicSnapshotService: '基础资料缓存',
   DailyController: '个股日线',
   StockController: '股票资料',
@@ -46,6 +49,36 @@ export const moduleLabels: Record<string, string> = {
   JobsService: '同步任务',
   DailySourceTask: '自动同步',
 };
+
+export const accessResults: Record<string, string> = {
+  failed: '全部失败',
+  success: '成功',
+  'client-error': '请求未通过（4xx）',
+  'server-error': '服务异常（5xx）',
+  aborted: '连接中断',
+};
+export const actorLabels: Record<string, string> = { user: '登录用户', guest: '游客体验', anonymous: '未认证' };
+export function accessUser(row: { actorType?: string; username?: string; nickname?: string; userId?: number }) {
+  if (row.actorType !== 'user') return actorLabels[row.actorType || 'anonymous'] || '未认证';
+  return row.nickname && row.nickname !== row.username ? `${row.nickname}（${row.username || `用户 #${row.userId}`}）` : row.username || `用户 #${row.userId}`;
+}
+export function accessStatus(row: { result: string; statusCode: number }) {
+  return `${accessResults[row.result] || row.result} · ${row.statusCode}`;
+}
+export function durationText(ms: number) {
+  if (!Number.isFinite(ms) || ms < 0) return '—';
+  return ms < 1000 ? `${ms} 毫秒` : `${(ms / 1000).toFixed(2)} 秒`;
+}
+export function accessGuidance(status: number) {
+  if (status === 401) return '未登录或登录状态已失效。重新登录后再试。';
+  if (status === 403) return '权限或安全校验未通过。检查账号权限，或刷新页面后再试。';
+  if (status === 404) return '接口地址不存在。确认页面已更新，以及请求地址是否正确。';
+  if (status === 429) return '请求过于频繁，请稍后再试。';
+  if (status === 499) return '客户端连接在响应完成前断开。可能是关闭页面或网络中断；写入操作需通过操作审计核对结果。';
+  if (status >= 500) return '服务处理异常。点击查看同一请求的系统日志，进一步定位原因。';
+  if (status >= 400) return '请求未通过。查看异常说明或关联的系统日志。';
+  return '接口已正常响应。接口访问成功不代表异步同步任务已经完成，任务结果请查看执行记录。';
+}
 export function auditResult(action: string, result: string) {
   if (result === 'success' && action === 'sync.submit') return '已提交';
   if (result === 'success' && action === 'sync.complete') return '校验完成';
@@ -55,6 +88,20 @@ export function beijingDate(value: Date = new Date()) {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(value);
+}
+export function requestDate(timestamp?: string) {
+  if (!timestamp) return beijingDate();
+  if (/^\d{4}-\d{2}-\d{2} /.test(timestamp)) return timestamp.slice(0, 10);
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? beijingDate() : beijingDate(date);
+}
+export function accessColor(status: number) {
+  if (status >= 500) return 'red';
+  return status >= 400 ? 'orange' : 'green';
+}
+export function accessAlertType(status: number) {
+  if (status >= 500) return 'error';
+  return status >= 400 ? 'warning' : 'info';
 }
 export function beijingTime(value?: string) {
   if (!value) return '—';

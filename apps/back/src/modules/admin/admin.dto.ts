@@ -33,6 +33,8 @@ export class SyncJobDto {
     | 'hot' = 'missing';
 }
 export class LogsQueryDto extends PageDto {
+  @IsOptional() @IsString() @Matches(/^[a-f0-9-]{36}$/) requestId?: string;
+
   @IsOptional() @IsIn(['issues', 'all']) view?: string;
 
   @IsOptional() @IsIn(['1']) refresh?: string;
@@ -52,6 +54,30 @@ export class LogsQueryDto extends PageDto {
   @IsOptional() @IsString() @Length(0, 64) action?: string;
 
   @IsOptional() @IsString() @Length(0, 24) result?: string;
+}
+
+export class AccessLogsQueryDto extends PageDto {
+  @IsOptional() @IsString() @Matches(/^\d{4}-\d{2}-\d{2}$/) startDate?: string;
+
+  @IsOptional() @IsString() @Matches(/^\d{4}-\d{2}-\d{2}$/) endDate?: string;
+
+  @IsOptional() @IsString() @Length(0, 64) user?: string;
+
+  @IsOptional() @IsIn(['user', 'guest', 'anonymous']) actorType?: string;
+
+  @IsOptional() @IsString() @Length(0, 512) path?: string;
+
+  @IsOptional()
+  @IsIn(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'])
+  method?: string;
+
+  @IsOptional()
+  @IsIn(['failed', 'success', 'client-error', 'server-error', 'aborted'])
+  result?: string;
+
+  @IsOptional() @IsIn(['1']) slow?: string;
+
+  @IsOptional() @IsString() @Matches(/^[a-f0-9-]{36}$/) requestId?: string;
 }
 
 export class JobControlDto {

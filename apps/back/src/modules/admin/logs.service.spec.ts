@@ -192,4 +192,149 @@ describe('admin logs and retry policy', () => {
       nextRetryAt: null,
     });
   });
+
+  it('queries rotated access files across UTC midnight using Beijing dates and filtered summaries', async () => {
+    const record = (
+      requestId: string,
+      timestamp: string,
+      statusCode = 200,
+      durationMs = 20,
+      userId = 1,
+    ) =>
+      JSON.stringify({
+        kind: 'access',
+        requestId,
+        timestamp,
+        statusCode,
+        durationMs,
+        actorType: userId ? 'user' : 'anonymous',
+        userId,
+        username: userId ? 'alice' : undefined,
+        nickname: userId ? '测试用户' : undefined,
+        method: 'GET',
+        path: '/api/basic/daily/list',
+        route: '/api/basic/daily/list',
+        result: (
+          {
+            200: 'success',
+            403: 'client-error',
+            500: 'server-error',
+          } as Record<number, string>
+        )[statusCode],
+        query: { page: '1' },
+        token: 'sensitive',
+      });
+    fs.writeFileSync(
+      path.join(directory, 'stock-access.2026-10-05.log'),
+      [
+        record('before', '2026-10-05T15:59:59Z'),
+        record('early', '2026-10-05T16:00:00Z'),
+      ].join('\n'),
+    );
+    fs.writeFileSync(
+      path.join(directory, 'stock-access.2026-10-06.log'),
+      record('middle', '2026-10-06T00:00:00Z', 403, 80),
+    );
+    fs.writeFileSync(
+      path.join(directory, 'stock-access.2026-10-06.log.1'),
+      [
+        record('late', '2026-10-06T15:59:59Z', 500, 2000, 0),
+        record('after', '2026-10-06T16:00:00Z'),
+        'invalid',
+      ].join('\n'),
+    );
+    fs.writeFileSync(
+      path.join(directory, 'stock-access.2026-10-06.log.2'),
+      'null',
+    );
+    const service = new LogsService({} as any);
+    const query = {
+      page: 1,
+      pageSize: 2,
+      startDate: '2026-10-06',
+      endDate: '2026-10-06',
+    };
+    const all = await service.access(query);
+    expect(all.items.map((r) => r.requestId)).toEqual(['late', 'middle']);
+    expect(all.summary).toEqual({
+      requests: 3,
+      failed: 2,
+      slow: 1,
+      users: 1,
+      avgDurationMs: 700,
+    });
+    expect(all.availableDates).toEqual(['2026-10-06']);
+    expect(all.malformed).toBe(2);
+    expect(
+      (await service.access({ ...query, page: 2 })).items[0].requestId,
+    ).toBe('early');
+    expect((await service.access({ ...query, user: 'ALICE' })).total).toBe(2);
+    expect((await service.access({ ...query, user: '测试' })).total).toBe(2);
+    expect(
+      (await service.access({ ...query, user: '1', actorType: 'user' })).total,
+    ).toBe(2);
+    expect((await service.access({ ...query, result: 'failed' })).total).toBe(
+      2,
+    );
+    expect(
+      (await service.access({ ...query, result: 'server-error', slow: '1' }))
+        .total,
+    ).toBe(1);
+    expect((await service.access({ ...query, method: 'POST' })).total).toBe(0);
+    expect(
+      (await service.access({ ...query, path: '/api/basic/daily' })).total,
+    ).toBe(3);
+    expect(
+      (await service.access({ ...query, requestId: 'middle' })).total,
+    ).toBe(1);
+    expect(
+      (await service.access({ ...query, keyword: 'sensitive' })).total,
+    ).toBe(0);
+    expect(JSON.stringify(all)).not.toContain('sensitive');
+  });
+
+  it('validates access queries and returns a genuine empty result before logging starts', async () => {
+    const service = new LogsService({} as any);
+    const query = { page: 1, pageSize: 20, startDate: '2026-10-06' };
+    expect((await service.access(query)).summary.requests).toBe(0);
+    await expect(
+      service.access({ ...query, startDate: '2026-02-30' }),
+    ).rejects.toThrow();
+    await expect(
+      service.access({ ...query, endDate: '2026-10-05' }),
+    ).rejects.toThrow();
+    await expect(
+      service.access({ ...query, endDate: '2026-10-13' }),
+    ).rejects.toThrow('单次最多查询7天');
+  });
+
+  it('restricts application and audit correlation to the selected request identifier', async () => {
+    fs.writeFileSync(
+      path.join(directory, 'stock-back.2026-10-06.log'),
+      [
+        { level: 'warn', requestId: 'target', message: 'matched' },
+        { level: 'warn', requestId: 'other', message: 'unrelated' },
+      ]
+        .map((r) => JSON.stringify(r))
+        .join('\n'),
+    );
+    const db = {
+      query: jest
+        .fn()
+        .mockResolvedValueOnce([{ total: 0 }])
+        .mockResolvedValueOnce([]),
+    };
+    const service = new LogsService(db as any);
+    const query = {
+      page: 1,
+      pageSize: 20,
+      startDate: '2026-10-06',
+      requestId: 'target',
+    };
+    expect(
+      (await service.application(query)).items.map((r) => r.message),
+    ).toEqual(['matched']);
+    await service.audit(query);
+    expect(db.query.mock.calls[0][1].at(-1)).toBe('%"requestId":"target"%');
+  });
 });

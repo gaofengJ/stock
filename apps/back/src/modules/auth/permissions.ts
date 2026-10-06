@@ -123,7 +123,7 @@ export const PERMISSIONS = [
   { code: 'sync:run', name: '执行数据同步', group: '管理后台', route: '' },
   {
     code: 'logs:read',
-    name: '日志分析',
+    name: '日志中心',
     group: '管理后台',
     route: '/admin/logs',
   },

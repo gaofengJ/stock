@@ -22,6 +22,8 @@ const verifyLoginActivity = require('./login-activity.integration.cjs');
 const verifyUsersManagement = require('./users-management.integration.cjs');
 const verifyRolesManagement = require('./roles-management.integration.cjs');
 const verifySyncManagement = require('./sync-management.integration.cjs');
+const verifyAccessLogging = require('./access-logging.integration.cjs');
+const { registerAccessLogging } = require('../dist/shared/logger/access-log');
 const { DragonPermission1790812800000 } = require('../dist/migrations/1790812800000-DragonPermission');
 const { RealTimeNews1790812800001 } = require('../dist/migrations/1790812800001-RealTimeNews');
 const { ExpandedNewsSources1790832000000, EXPANDED_NEWS_CODES } = require('../dist/migrations/1790832000000-ExpandedNewsSources');
@@ -138,6 +140,8 @@ async function main() {
     Global()(TestDatabase); Module({ providers: [{ provide: DataSource, useValue: db }], exports: [DataSource] })(TestDatabase);
     const module = await Test.createTestingModule({ imports: [TestDatabase, AuthModule, FeedbackModule, ConfigModule.forRoot({isGlobal:true,ignoreEnvFile:true,load:[()=>({NEWS_SYNC_ENABLED:'false'})]}), NewsModule], providers: [{ provide: APP_GUARD, useClass: AuthGuard }] }).compile();
     const adapter = new FastifyAdapter();
+    const accessEntries = [];
+    registerAccessLogging(adapter.getInstance(), entry => accessEntries.push({ ...entry, kind: 'access' }));
     await adapter.register(require('@fastify/cookie'));
     app = module.createNestApplication(adapter, { logger: false });
     app.useGlobalPipes(new ValidationPipe({ transform:true,whitelist:true,forbidNonWhitelisted:true,transformOptions:{enableImplicitConversion:true} }));
@@ -163,6 +167,8 @@ async function main() {
     assert.equal((await inject('POST', '/auth/register', { username: 'mufeng', password: 'test-password-123' }, anon)).statusCode, 409);
     let user = await login('alice', 'test-password-123');
     const admin = await login('mufeng', adminPassword);
+    await verifyAccessLogging({ db, auth: app.get(AuthService), inject, admin, user, entries: accessEntries });
+    if (process.argv.includes('--access-logging-only')) return;
     await verifyRolesManagement({ db, inject, admin, user });
     if (process.argv.includes('--roles-management-only')) return;
     await verifySyncManagement({ db, auth: app.get(AuthService), admin, user });

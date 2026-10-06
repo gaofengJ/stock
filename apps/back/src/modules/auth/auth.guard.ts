@@ -70,13 +70,23 @@ export class AuthGuard implements CanActivate {
     }
     const session = await this.auth.session(req);
     req.authSession = session;
+    if (req.logContext && session?.user_id) {
+      Object.assign(req.logContext, {
+        actorType: 'user',
+        userId: session.user_id,
+        username: session.username,
+        nickname: session.nickname,
+      });
+    }
     if (!rule.public && !session?.user_id) {
       const guestRead =
         req.method === 'GET' &&
         (rule.guestRead ||
           rule.any?.some((p) => DEFAULT_PERMISSIONS.includes(p)));
-      if (guestRead && ((await this.auth.trial(req))?.remainingMs || 0) > 0)
+      if (guestRead && ((await this.auth.trial(req))?.remainingMs || 0) > 0) {
+        if (req.logContext) req.logContext.actorType = 'guest';
         return true;
+      }
       throw new UnauthorizedException(
         req.cookies?.[TRIAL_COOKIE]
           ? '游客体验已结束，请登录后继续浏览'
@@ -108,6 +118,12 @@ export class AuthGuard implements CanActivate {
     if (rule.public) return true;
     if (!session?.user_id) throw new UnauthorizedException('请先登录');
     req.authUser = await this.auth.current(session.user_id);
+    if (req.logContext)
+      Object.assign(req.logContext, {
+        userId: req.authUser.id,
+        username: req.authUser.username,
+        nickname: req.authUser.nickname,
+      });
     if (req.authUser.mustChangePassword && !rule.allowPasswordChange)
       throw new ForbiddenException('请先修改初始密码');
     if (rule.login) return true;

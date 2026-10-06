@@ -18,6 +18,8 @@ import { IAppConfig } from '@/configs';
 import { initSwagger } from '@/swagger';
 import { isDev } from '@/utils';
 import { validationMessage } from '@/filters/error-message';
+import { registerAccessLogging } from '@/shared/logger/access-log';
+import { AccessLogService } from '@/shared/logger/access-log.service';
 
 /**
  * @description 初始化应用
@@ -38,6 +40,12 @@ const bootstrap = async () => {
   const { port, globalPrefix } = configService.get<IAppConfig>(
     EGlobalConfig.APP_CONFIG,
   ) as IAppConfig;
+  const accessLogger = app.get(AccessLogService);
+  registerAccessLogging(
+    fastifyApp.getInstance(),
+    (entry) => accessLogger.write(entry),
+    `/${globalPrefix.replace(/^\/+|\/+$/g, '')}`,
+  );
 
   const origins = (
     process.env.AUTH_ALLOWED_ORIGINS ||
@@ -50,7 +58,11 @@ const bootstrap = async () => {
     !process.env.AUTH_ALLOWED_ORIGINS
   )
     throw new Error('AUTH_ALLOWED_ORIGINS is required in production');
-  app.enableCors({ origin: origins, credentials: true }); // 启用跨域资源共享 (CORS)，允许所有来源和携带凭证
+  app.enableCors({
+    origin: origins,
+    credentials: true,
+    exposedHeaders: ['X-Request-ID'],
+  });
   app.setGlobalPrefix(globalPrefix); // 设置全局前缀
   app.useStaticAssets({ root: path.join(__dirname, '..', 'public') });
 

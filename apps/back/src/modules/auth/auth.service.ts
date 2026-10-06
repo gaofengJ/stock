@@ -12,6 +12,7 @@ import { createHash, randomBytes } from 'crypto';
 import { DataSource, EntityManager } from 'typeorm';
 import { Cron } from '@nestjs/schedule';
 import { FastifyReply, FastifyRequest } from 'fastify';
+import { requestContext } from '@/shared/logger/request-context';
 import { PERMISSIONS, DEFAULT_PERMISSIONS } from './permissions';
 import { checkPassword, hashPassword } from './password';
 import {
@@ -98,6 +99,15 @@ export class AuthService implements OnModuleInit {
     detail: unknown = undefined,
     manager: EntityManager = this.db.manager,
   ) {
+    const requestId = requestContext.getStore()?.requestId;
+    let auditDetail = detail;
+    if (requestId) {
+      let fields: object = {};
+      if (detail !== undefined) fields = { content: detail };
+      if (detail && typeof detail === 'object' && !Array.isArray(detail))
+        fields = detail;
+      auditDetail = { ...fields, requestId };
+    }
     await manager.query(
       'INSERT INTO t_auth_audit(actor_id,actor_name,action,target,result,detail,created_at,updated_at) VALUES (?,?,?,?,?,?,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))',
       [
@@ -106,7 +116,7 @@ export class AuthService implements OnModuleInit {
         action,
         target === null ? null : String(target),
         result,
-        detail === undefined ? null : JSON.stringify(redact(detail)),
+        auditDetail === undefined ? null : JSON.stringify(redact(auditDetail)),
       ],
     );
   }
@@ -146,7 +156,7 @@ export class AuthService implements OnModuleInit {
     if (!token || !/^[a-f0-9]{64}$/.test(token)) return null;
     const idleHours = Number(process.env.AUTH_IDLE_HOURS || 24);
     const [s] = await this.db.query(
-      'SELECT id,user_id,csrf_hash FROM t_auth_session WHERE token_hash=? AND revoked_at IS NULL AND expires_at>UTC_TIMESTAMP(6) AND last_seen_at>DATE_SUB(UTC_TIMESTAMP(6),INTERVAL ? HOUR)',
+      'SELECT s.id,s.user_id,s.csrf_hash,u.username,u.nickname FROM t_auth_session s LEFT JOIN t_user u ON u.id=s.user_id WHERE s.token_hash=? AND s.revoked_at IS NULL AND s.expires_at>UTC_TIMESTAMP(6) AND s.last_seen_at>DATE_SUB(UTC_TIMESTAMP(6),INTERVAL ? HOUR)',
       [digest(token), idleHours],
     );
     if (s)
@@ -245,6 +255,7 @@ export class AuthService implements OnModuleInit {
             ),
           }
         : null;
+    if (viewer && req.logContext) req.logContext.actorType = 'guest';
     return { user: viewer, trial };
   }
 
@@ -416,6 +427,13 @@ export class AuthService implements OnModuleInit {
             [result.insertId],
           );
           const user = await this.current(result.insertId, m);
+          if (req.logContext)
+            Object.assign(req.logContext, {
+              actorType: 'user',
+              userId: user.id,
+              username: user.username,
+              nickname: user.nickname,
+            });
           await this.audit(
             user,
             'auth.login',
@@ -475,6 +493,13 @@ export class AuthService implements OnModuleInit {
         found.id,
       ]);
       const user = await this.current(found.id, m);
+      if (req.logContext)
+        Object.assign(req.logContext, {
+          actorType: 'user',
+          userId: user.id,
+          username: user.username,
+          nickname: user.nickname,
+        });
       await this.audit(user, 'auth.login', found.id, 'success', undefined, m);
       await this.memberLogin(user, m);
       return { user, csrfToken };

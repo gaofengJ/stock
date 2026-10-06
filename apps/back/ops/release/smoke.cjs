@@ -117,6 +117,12 @@ async function check(path, cookie, needsRows = false, expectedStatus = 200) {
     if (!pendingJobs.items.every((job) => job.status === 'pending'))
       throw new Error('Sync task status filter verification failed');
     await check('/api/admin/logs?pageSize=1', cookie);
+    const access = await check('/api/admin/access-logs?pageSize=10&user=' + admin.id + '&path=' + encodeURIComponent('/api/auth/me'), cookie);
+    if (
+      access.retentionDays !== 30 ||
+      typeof access.summary?.requests !== 'number' ||
+      !access.items.some(entry => entry.userId === admin.id && entry.actorType === 'user' && entry.statusCode === 200 && /^[a-f0-9-]{36}$/.test(entry.requestId) && typeof entry.durationMs === 'number')
+    ) throw new Error('Authenticated API access logging verification failed');
     await check('/api/analysis/market/intraday-counts?days=10', cookie);
     await check(
       '/api/basic/trade-cal/list?year=' + date.slice(0, 4),

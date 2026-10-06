@@ -5,8 +5,12 @@ import { DataSource } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as dayjs from 'dayjs';
+import {
+  accessRetentionDays,
+  accessSlowMs,
+} from '@/shared/logger/access-log.service';
 import { reverseLogLines } from './log-lines';
-import { LogsQueryDto } from './admin.dto';
+import { LogsQueryDto, AccessLogsQueryDto } from './admin.dto';
 import { redact } from '../auth/redact';
 import { validRange } from './jobs.service';
 
@@ -35,6 +39,130 @@ export class LogsService {
   >();
 
   constructor(private db: DataSource) {}
+
+  async access(q: AccessLogsQueryDto) {
+    const { start, end } = logRange(q);
+    const lower = Date.parse(`${start}T00:00:00+08:00`);
+    const upper = Date.parse(`${end}T00:00:00+08:00`) + 86400000;
+    const firstUTC = new Date(lower).toISOString().slice(0, 10);
+    const lastUTC = new Date(upper - 1).toISOString().slice(0, 10);
+    let files: string[];
+    try {
+      files = await fs.promises.readdir(logDirectory());
+    } catch (error) {
+      if (error.code === 'ENOENT') files = [];
+      else throw error;
+    }
+    const candidates = files
+      .flatMap((name) => {
+        const match =
+          /^stock-access\.(\d{4}-\d{2}-\d{2})\.log(?:\.(\d+))?$/.exec(name);
+        return match && match[1] >= firstUTC && match[1] <= lastUTC
+          ? [{ name, date: match[1], part: Number(match[2] || 0) }]
+          : [];
+      })
+      .sort((a, b) => b.date.localeCompare(a.date) || b.part - a.part);
+    const items: any[] = [];
+    const available = new Set<string>();
+    const users = new Set<number>();
+    const summary = {
+      requests: 0,
+      failed: 0,
+      slow: 0,
+      users: 0,
+      avgDurationMs: 0,
+    };
+    let duration = 0;
+    let malformed = 0;
+    const from = (q.page - 1) * q.pageSize;
+    const budget = { bytes: 128 * 1024 * 1024, truncated: false };
+    for (const file of candidates) {
+      const lines = reverseLogLines(
+        path.join(logDirectory(), file.name),
+        budget,
+      );
+      try {
+        for await (const line of lines) {
+          if (!line.trim()) continue;
+          let entry: any;
+          try {
+            entry = redact(JSON.parse(line));
+          } catch {
+            malformed += 1;
+            continue;
+          }
+          const time = Date.parse(entry?.timestamp);
+          if (
+            !entry ||
+            entry.kind !== 'access' ||
+            !Number.isFinite(time) ||
+            !Number.isFinite(entry.durationMs) ||
+            !Number.isInteger(entry.statusCode)
+          ) {
+            malformed += 1;
+            continue;
+          }
+          if (time < lower || time >= upper) continue;
+          const date = new Date(time + 8 * 3600000).toISOString().slice(0, 10);
+          available.add(date);
+          const userMatch = /^\d+$/.test(q.user || '')
+            ? String(entry.userId) === q.user
+            : [entry.username, entry.nickname].some((v) =>
+                String(v ?? '')
+                  .toLowerCase()
+                  .includes((q.user || '').toLowerCase()),
+              );
+          if (
+            (q.user && !userMatch) ||
+            (q.actorType && entry.actorType !== q.actorType) ||
+            (q.method && entry.method !== q.method) ||
+            (q.result &&
+              (q.result === 'failed'
+                ? entry.statusCode < 400
+                : entry.result !== q.result)) ||
+            (q.slow === '1' && entry.durationMs < accessSlowMs()) ||
+            (q.path &&
+              !String(entry.path).includes(q.path) &&
+              !String(entry.route).includes(q.path)) ||
+            (q.requestId && entry.requestId !== q.requestId) ||
+            (q.keyword &&
+              !JSON.stringify(entry)
+                .toLowerCase()
+                .includes(q.keyword.toLowerCase()))
+          )
+            continue;
+          if (summary.requests >= from && items.length < q.pageSize)
+            items.push({ ...entry, id: entry.requestId });
+          summary.requests += 1;
+          if (entry.statusCode >= 400) summary.failed += 1;
+          if (entry.durationMs >= accessSlowMs()) summary.slow += 1;
+          if (entry.actorType === 'user' && entry.userId)
+            users.add(entry.userId);
+          duration += entry.durationMs;
+        }
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      } finally {
+        await lines.return(undefined);
+      }
+      if (budget.truncated) break;
+    }
+    summary.users = users.size;
+    summary.avgDurationMs = summary.requests
+      ? Math.round(duration / summary.requests)
+      : 0;
+    return {
+      items,
+      total: summary.requests,
+      summary,
+      slowMs: accessSlowMs(),
+      availableDates: [...available].sort().reverse(),
+      malformed,
+      truncated: budget.truncated,
+      retentionDays: accessRetentionDays(),
+      range: { startDate: start, endDate: end },
+    };
+  }
 
   async application(q: LogsQueryDto) {
     const { start, end } = logRange(q);
@@ -74,6 +202,7 @@ export class LogsService {
             (q.view === 'issues' && !['error', 'warn'].includes(entry.level)) ||
             (q.level && entry.level !== q.level) ||
             (q.module && !context.includes(q.module)) ||
+            (q.requestId && entry.requestId !== q.requestId) ||
             (q.keyword && !JSON.stringify(entry).includes(q.keyword))
           )
             continue;
@@ -124,6 +253,10 @@ export class LogsService {
       where +=
         ' AND (actor_name LIKE ? OR action LIKE ? OR target LIKE ? OR detail LIKE ?)';
       args.push(...Array(4).fill(`%${q.keyword}%`));
+    }
+    if (q.requestId) {
+      where += ' AND detail LIKE ?';
+      args.push(`%"requestId":"${q.requestId}"%`);
     }
     const [{ total }] = await this.db.query(
       `SELECT COUNT(*) total FROM t_auth_audit${where}`,

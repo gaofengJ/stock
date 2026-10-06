@@ -18,6 +18,7 @@ import { LogsService } from './logs.service';
 import {
   JobControlDto,
   LogsQueryDto,
+  AccessLogsQueryDto,
   SyncJobDto,
   SyncJobsQueryDto,
 } from './admin.dto';
@@ -64,6 +65,12 @@ export class AdminController {
   @Get('logs')
   applications(@Query() q: LogsQueryDto) {
     return this.logs.application(q);
+  }
+
+  @Permit('logs:read')
+  @Get('access-logs')
+  access(@Query() q: AccessLogsQueryDto) {
+    return this.logs.access(q);
   }
 
   @Permit('sync:run')

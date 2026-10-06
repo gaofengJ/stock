@@ -2,7 +2,7 @@ import * as path from 'path';
 import * as dayjs from 'dayjs';
 import * as utc from 'dayjs/plugin/utc';
 import * as timezone from 'dayjs/plugin/timezone';
-import { ConsoleLogger, Injectable } from '@nestjs/common';
+import { ConsoleLogger, Injectable, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Logger as WinstonLogger } from 'winston';
 import { config, createLogger, format, transports } from 'winston';
@@ -12,14 +12,17 @@ import { ILoggerConfig } from '@/configs/logger.configs';
 import { EGlobalConfig, ELogLevel } from '@/types/common.enum';
 import { redact } from '@/modules/auth/redact';
 import { loggerQueryDto } from './logger.dto';
+import { requestLogFields } from './request-context';
 
 // 扩展 dayjs 插件
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
 @Injectable()
-export class LoggerService extends ConsoleLogger {
+export class LoggerService extends ConsoleLogger implements OnModuleDestroy {
   private winstonLogger: WinstonLogger;
+
+  private lastWriteFailure = 0;
 
   /**
    * 构造函数，初始化日志服务
@@ -66,6 +69,7 @@ export class LoggerService extends ConsoleLogger {
     this.winstonLogger = createLogger({
       levels: config.npm.levels, // 指定不同日志级别的优先级
       format: format.combine(
+        format((entry) => ({ ...entry, kind: 'system' }))(),
         format.errors({ stack: true }), // 记录错误信息和堆栈
         format.timestamp({ format: this.timezoned }), // 添加时间戳
         format.json(), // 将日志消息格式化为 JSON 格式
@@ -108,6 +112,24 @@ export class LoggerService extends ConsoleLogger {
         }),
       ],
     });
+    const reportFailure = () => {
+      if (Date.now() - this.lastWriteFailure < 60000) return;
+      this.lastWriteFailure = Date.now();
+      // Do not recursively send a failed system logger back to itself.
+      console.error('系统日志写入失败，请检查日志目录权限和磁盘空间');
+    };
+    this.winstonLogger.on('error', reportFailure);
+    this.winstonLogger.transports.forEach((transport) =>
+      transport.on('error', reportFailure),
+    );
+  }
+
+  async onModuleDestroy() {
+    await new Promise<void>((resolve) => {
+      this.winstonLogger.once('finish', resolve);
+      this.winstonLogger.end();
+    });
+    this.winstonLogger.close();
   }
 
   /**
@@ -122,7 +144,10 @@ export class LoggerService extends ConsoleLogger {
         : message,
     );
     super.verbose.apply(this, [safeMessage, context]);
-    this.winstonLogger.log(ELogLevel.VERBOSE, safeMessage, { context });
+    this.winstonLogger.log(ELogLevel.VERBOSE, safeMessage, {
+      context,
+      ...requestLogFields(),
+    });
   }
 
   /**
@@ -137,7 +162,10 @@ export class LoggerService extends ConsoleLogger {
         : message,
     );
     super.debug.apply(this, [safeMessage, context]);
-    this.winstonLogger.log(ELogLevel.DEBUG, safeMessage, { context });
+    this.winstonLogger.log(ELogLevel.DEBUG, safeMessage, {
+      context,
+      ...requestLogFields(),
+    });
   }
 
   /**
@@ -153,7 +181,10 @@ export class LoggerService extends ConsoleLogger {
     );
     super.log.apply(this, [safeMessage, context]);
 
-    this.winstonLogger.log(ELogLevel.INFO, safeMessage, { context });
+    this.winstonLogger.log(ELogLevel.INFO, safeMessage, {
+      context,
+      ...requestLogFields(),
+    });
   }
 
   /**
@@ -169,7 +200,10 @@ export class LoggerService extends ConsoleLogger {
     );
     super.warn.apply(this, [safeMessage, context]);
 
-    this.winstonLogger.log(ELogLevel.WARN, safeMessage, { context });
+    this.winstonLogger.log(ELogLevel.WARN, safeMessage, {
+      context,
+      ...requestLogFields(),
+    });
   }
 
   /**
@@ -187,6 +221,7 @@ export class LoggerService extends ConsoleLogger {
     super.error.apply(this, [safeMessage, safeStack, context]);
 
     this.winstonLogger.log(ELogLevel.ERROR, {
+      ...requestLogFields(),
       context: context || safeStack,
       message: safeMessage,
       stack: context ? safeStack : undefined,

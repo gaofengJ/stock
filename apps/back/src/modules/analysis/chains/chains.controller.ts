@@ -1,5 +1,5 @@
 import { Permit } from '@/modules/auth/permissions';
-import { Controller, Get, Logger, Query } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { ApiResult } from '@/decorators/api-result.decorator';
@@ -19,8 +19,6 @@ import {
 @ApiTags('数据分析')
 @Controller('chains')
 export class ChainsController {
-  private logger = new Logger(ChainsController.name);
-
   constructor(private readonly chainsService: ChainsService) {}
 
   @Permit('analysis:chains')
@@ -28,10 +26,6 @@ export class ChainsController {
   @ApiOperation({ summary: 'n连板数量统计' })
   @ApiResult({ type: [ChainsCountLimitUpTimesEntity], isPage: false })
   async countLimitUpTimes(@Query() dto: ChainsCountLimitUpTimesQueryDto) {
-    this.logger.log(
-      `Received request countLimitUpTimes with params: ${JSON.stringify(dto)}`,
-    );
-
     const ret = await this.chainsService.countLimitUpTimes(dto);
     return ret;
   }
@@ -41,12 +35,6 @@ export class ChainsController {
   @ApiOperation({ summary: 'n+连板数量统计' })
   @ApiResult({ type: [ChainsCountLimitUpTimesEntity], isPage: false })
   async countLimitUpAboveTimes(@Query() dto: ChainsCountLimitUpTimesQueryDto) {
-    this.logger.log(
-      `Received request countLimitUpAboveTimes with params: ${JSON.stringify(
-        dto,
-      )}`,
-    );
-
     const ret = await this.chainsService.countLimitUpAboveTimes(dto);
     return ret;
   }
@@ -56,10 +44,6 @@ export class ChainsController {
   @ApiOperation({ summary: 'n连板晋级成功率' })
   @ApiResult({ type: [ChainsUpgradeLimitUpRatesEntity], isPage: false })
   async upgradeLimitUps(@Query() dto: ChainsUpgradeDto) {
-    this.logger.log(
-      `Received request upgradeLimitUps with params: ${JSON.stringify(dto)}`,
-    );
-
     // 连板数为 1 特殊处理
     if (dto.upgradeNum === 1) {
       const ret = await this.chainsService.upgradeLimitUps1(dto);
@@ -75,10 +59,6 @@ export class ChainsController {
   @ApiOperation({ summary: '涨停参与金额' })
   @ApiResult({ type: [ChainsLimitUpAmountEntity], isPage: false })
   async limitUpAmount(@Query() dto: ChainsAmountDto) {
-    this.logger.log(
-      `Received request limitUpAmount with params: ${JSON.stringify(dto)}`,
-    );
-
     const ret = await this.chainsService.limitUpAmount(dto);
     return ret;
   }
@@ -88,12 +68,6 @@ export class ChainsController {
   @ApiOperation({ summary: '连板参与金额' })
   @ApiResult({ type: [ChainsLimitUpAmountEntity], isPage: false })
   async upgradeLimitUpAmount(@Query() dto: ChainsAmountDto) {
-    this.logger.log(
-      `Received request upgradeLimitUpAmount with params: ${JSON.stringify(
-        dto,
-      )}`,
-    );
-
     const ret = await this.chainsService.upgradeLimitUpAmount(dto);
     return ret;
   }

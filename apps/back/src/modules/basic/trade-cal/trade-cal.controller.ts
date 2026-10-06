@@ -1,5 +1,5 @@
 import { Permit } from '@/modules/auth/permissions';
-import { Controller, Get, Logger, Query } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiResult } from '@/decorators/api-result.decorator';
 
@@ -11,8 +11,6 @@ import { BasicTradeCalQueryDto } from './trade-cal.dto';
 @ApiTags('基础数据')
 @Controller('trade-cal')
 export class TradeCalController {
-  private logger = new Logger(TradeCalController.name);
-
   constructor(private readonly tradeCalService: TradeCalService) {}
 
   @Permit(
@@ -31,8 +29,6 @@ export class TradeCalController {
   async list(@Query() dto: BasicTradeCalQueryDto) {
     console.info('list', dto);
     const { year } = dto;
-    this.logger.log(`Received request list with params`);
-
     const ret = await this.tradeCalService.list(year);
     return ret;
   }
