@@ -15,6 +15,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { PERMISSIONS, DEFAULT_PERMISSIONS } from './permissions';
 import { checkPassword, hashPassword } from './password';
 import {
+  ActivityQueryDto,
   LoginDto,
   PageDto,
   ProfileDto,
@@ -247,44 +248,103 @@ export class AuthService implements OnModuleInit {
       );
   }
 
-  async loginActivity(actor: CurrentUser) {
-    const [cursor] = await this.db.query(
-      'SELECT last_read_id FROM t_auth_activity_read WHERE user_id=?',
-      [actor.id],
+  async loginActivity(actor: CurrentUser, q = new ActivityQueryDto()) {
+    if (q.startDate && q.endDate && q.startDate > q.endDate)
+      throw new BadRequestException('开始日期不能晚于结束日期');
+    // Use one snapshot so concurrent logins cannot disagree with the unread
+    // count or fall outside the boundary offered by "mark all read".
+    return this.db.transaction('REPEATABLE READ', async (m) => {
+      const from = `FROM t_auth_audit a
+        LEFT JOIN t_auth_activity_read c ON c.user_id=?
+        LEFT JOIN t_auth_activity_item_read r ON r.user_id=? AND r.audit_id=a.id
+        LEFT JOIN t_user u ON u.id=a.actor_id`;
+      const base =
+        "a.action='auth.member-login' AND a.result='success' AND a.created_at>=DATE_SUB(UTC_TIMESTAMP(6),INTERVAL 90 DAY)";
+      const unread = '(a.id>COALESCE(c.last_read_id,0) AND r.audit_id IS NULL)';
+      const registered =
+        "COALESCE(JSON_UNQUOTE(JSON_EXTRACT(a.detail,'$.registered')),'false')='true'";
+      const [summary] = await m.query(
+        `SELECT COALESCE(MAX(a.id),0) latestId,COALESCE(SUM(${unread}),0) unread ${from} WHERE ${base}`,
+        [actor.id, actor.id],
+      );
+      const filters = [base];
+      const args: unknown[] = [actor.id, actor.id];
+      if (q.keyword?.trim()) {
+        filters.push('(LOCATE(?,a.actor_name)>0 OR LOCATE(?,u.nickname)>0)');
+        args.push(q.keyword.trim(), q.keyword.trim());
+      }
+      if (q.status)
+        filters.push(q.status === 'unread' ? unread : `NOT ${unread}`);
+      if (q.event)
+        filters.push(
+          q.event === 'register' ? registered : `NOT (${registered})`,
+        );
+      // Date filters refer to full calendar days in Asia/Shanghai, not UTC.
+      if (q.startDate) {
+        filters.push('a.created_at>=?');
+        args.push(new Date(`${q.startDate}T00:00:00+08:00`));
+      }
+      if (q.endDate) {
+        filters.push('a.created_at<?');
+        args.push(
+          new Date(
+            new Date(`${q.endDate}T00:00:00+08:00`).getTime() + 86400000,
+          ),
+        );
+      }
+      const where = filters.join(' AND ');
+      const [count] = await m.query(
+        `SELECT COUNT(*) total ${from} WHERE ${where}`,
+        args,
+      );
+      const total = Number(count.total);
+      const page = Math.min(q.page, Math.max(1, Math.ceil(total / q.pageSize)));
+      const items = await m.query(
+        `SELECT a.id,a.actor_name username,u.nickname,${registered} registered,${unread} unread,
+          DATE_FORMAT(a.created_at,'%Y-%m-%dT%H:%i:%s.%fZ') createdAt
+          ${from} WHERE ${where} ORDER BY a.id DESC LIMIT ? OFFSET ?`,
+        [...args, q.pageSize, (page - 1) * q.pageSize],
+      );
+      return {
+        unread: Number(summary.unread),
+        latestId: Number(summary.latestId),
+        total,
+        page,
+        pageSize: q.pageSize,
+        items: items.map((item: { registered: number; unread: number }) => ({
+          ...item,
+          registered: !!Number(item.registered),
+          unread: !!Number(item.unread),
+        })),
+      };
+    });
+  }
+
+  async readLoginActivityItem(actor: CurrentUser, id: number) {
+    if (!Number.isInteger(id) || id <= 0 || id > 2147483647)
+      throw new BadRequestException('请选择有效的登录记录');
+    const result = await this.db.query(
+      `INSERT INTO t_auth_activity_item_read(user_id,audit_id)
+       SELECT ?,id FROM t_auth_audit WHERE id=? AND action='auth.member-login' AND result='success'
+         AND created_at>=DATE_SUB(UTC_TIMESTAMP(6),INTERVAL 90 DAY)
+       ON DUPLICATE KEY UPDATE audit_id=VALUES(audit_id)`,
+      [actor.id, id],
     );
-    const lastRead = Number(cursor?.last_read_id || 0);
-    const [summary] = await this.db.query(
-      "SELECT COALESCE(MAX(id),0) latestId,COALESCE(SUM(id>?),0) unread FROM t_auth_audit WHERE action='auth.member-login' AND result='success'",
-      [lastRead],
-    );
-    const items = await this.db.query(
-      "SELECT a.id,a.actor_name username,u.nickname,a.detail,DATE_FORMAT(a.created_at,'%Y-%m-%dT%H:%i:%s.%fZ') createdAt FROM t_auth_audit a LEFT JOIN t_user u ON u.id=a.actor_id WHERE a.action='auth.member-login' AND a.result='success' ORDER BY a.id DESC LIMIT 50",
-    );
-    return {
-      unread: Number(summary.unread),
-      latestId: Number(summary.latestId),
-      items: items.map(
-        (item: {
-          id: number;
-          username: string;
-          nickname: string;
-          createdAt: string;
-          detail: string;
-        }) => ({
-          id: item.id,
-          username: item.username,
-          nickname: item.nickname,
-          createdAt: item.createdAt,
-          registered: JSON.parse(item.detail || '{}').registered === true,
-          unread: item.id > lastRead,
-        }),
-      ),
-    };
+    // Duplicate writes are idempotent; absence is verified separately because
+    // MySQL may report zero affected rows for an unchanged existing marker.
+    if (!result.affectedRows) {
+      const [existing] = await this.db.query(
+        'SELECT audit_id FROM t_auth_activity_item_read WHERE user_id=? AND audit_id=?',
+        [actor.id, id],
+      );
+      if (!existing) throw new NotFoundException('登录记录不存在或已过期');
+    }
+    return { success: true };
   }
 
   async readLoginActivity(actor: CurrentUser, throughId: number) {
     // Clamp to a real event; marking a displayed snapshot does not consume
-    // events that arrived while its drawer was open.
+    // events that arrived while the confirmation was open.
     const [row] = await this.db.query(
       "SELECT COALESCE(MAX(id),0) id FROM t_auth_audit WHERE action='auth.member-login' AND result='success' AND id<=?",
       [throughId],

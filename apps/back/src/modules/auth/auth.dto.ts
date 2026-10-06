@@ -3,6 +3,7 @@ import {
   ArrayUnique,
   IsArray,
   IsBoolean,
+  IsDateString,
   IsIn,
   IsInt,
   IsOptional,
@@ -78,6 +79,21 @@ export class PageDto {
 }
 export class UserQueryDto extends PageDto {
   @IsOptional() @Type(() => Number) @IsIn([0, 1]) active?: number;
+}
+export class ActivityQueryDto extends PageDto {
+  @IsOptional() @IsIn(['read', 'unread']) status?: 'read' | 'unread';
+
+  @IsOptional() @IsIn(['login', 'register']) event?: 'login' | 'register';
+
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsDateString({ strict: true })
+  startDate?: string;
+
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsDateString({ strict: true })
+  endDate?: string;
 }
 export class ReadActivityDto {
   @StrictValue()

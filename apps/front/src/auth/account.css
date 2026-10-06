@@ -103,8 +103,26 @@
 .header-account .ant-avatar { display: flex; align-items: center; justify-content: center; }
 .header-admin-badge.ant-badge { color: inherit; font-size: inherit; line-height: 20px; }
 .header-nav-label { display: inline-block; line-height: 20px; }
-.login-activity > .text-secondary { margin-bottom: 16px; }
-.login-activity .ant-list-item-meta-title .ant-space { flex-wrap: wrap; }
+.login-activity-filters .ant-input-search { width: 240px; }
+.login-activity-filters .ant-picker-range { width: 280px; }
+.login-activity-filters .ant-select { width: 136px; }
+.login-activity-actions, .login-activity-summary, .login-activity-buttons { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.login-activity-actions { justify-content: space-between; margin-bottom: 16px; }
+.login-activity-summary strong { color: var(--color-primary-text); font-weight: 600; }
+.login-activity-note { color: var(--text-secondary); font-size: 12px; }
+.login-activity-user { min-width: 160px; overflow-wrap: anywhere; }
+.login-activity-user strong { display: block; font-weight: 500; }
+.login-activity-user small { display: block; color: var(--text-secondary); margin-top: 4px; }
+.login-activity .login-activity-unread > .ant-table-cell { background: var(--color-primary-subtle); }
+.login-activity-unread-label { color: var(--color-primary-text); font-weight: 600; }
+.login-activity-unread-label::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: currentColor; vertical-align: middle; }
+.login-activity .ant-table-cell .ant-btn-link { padding-inline: 0; }
+.login-activity-updated { margin: 12px 0 0; }
+@media (max-width: 575px) {
+  .login-activity-filters .ant-input-search, .login-activity-filters .ant-picker-range { width: 100%; min-width: 0; }
+  .login-activity-filters .ant-select { flex: 1; min-width: 100px; }
+  .login-activity-buttons { width: 100%; }
+}
 .header-account-chevron { display: block; flex-shrink: 0; color: var(--text-secondary); transition: transform .2s ease; }
 .header-account[aria-expanded="true"] .header-account-chevron { transform: rotate(180deg); }
 @media (hover: hover) { .header-account:hover .header-account-chevron { transform: rotate(180deg); } }

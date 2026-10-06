@@ -10,6 +10,8 @@
 - 管理后台包含用户管理、角色管理、同步任务和日志分析；入口随权限显示。
 - 多角色权限取并集。普通用户角色仅允许配置业务查看权限；自定义角色可组合操作权限。系统管理员角色不可编辑，最后一个有效管理员不能被禁用或降级。
 - 管理员重置或创建账户后，用户下次登录必须修改临时密码。用户主动改密需要原密码；改密、重置及禁用都会撤销该用户全部会话。
+- 登录动态支持用户名/昵称、北京时间日期范围、事件及已读状态筛选，每页 20/50/100 条，可翻阅保留期内的全部记录。最近 90 天以外的记录在查询时排除，不依赖每日清理是否已执行。
+- 登录动态的逐条已读和全部已读均只影响当前管理员。全部已读覆盖筛选外及其他分页中的记录，以打开确认框时的最新记录为边界；之后新增的记录保留未读。发布前执行 `LoginActivityItemRead1792022400000` 迁移，保留原有批量已读游标；逐条标记随审计记录删除自动清理。
 - 微信只预留 `t_user_identity` 和 Provider 接口，没有回调接口或登录按钮。独立博客仍公开，主站博客入口受 `blog:read` 控制。
 
 ## 安全边界
@@ -101,6 +103,7 @@ pnpm build
 pnpm exec jest --runInBand
 pnpm check:argon2
 AUTH_TEST_PORT=33387 AUTH_TEST_DATABASE=stock_auth_test_run1 pnpm test:accounts
+AUTH_TEST_PORT=33387 AUTH_TEST_DATABASE=stock_auth_test_activity1 node test/accounts.integration.cjs --login-activity-only
 AUTH_TEST_PORT=33387 AUTH_TEST_DATABASE=stock_auth_test_legacy1 node test/migration-legacy.cjs
 ```
 

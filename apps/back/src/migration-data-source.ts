@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import * as dotenv from 'dotenv';
 import { DataSource } from 'typeorm';
+import { LoginActivityItemRead1792022400000 } from './migrations/1792022400000-LoginActivityItemRead';
 import { FeedbackRead1791936000000 } from './migrations/1791936000000-FeedbackRead';
 import { PrivateFeedback1791849600000 } from './migrations/1791849600000-PrivateFeedback';
 import { BasicWorkbench1791763200000 } from './migrations/1791763200000-BasicWorkbench';
@@ -63,6 +64,7 @@ export default new DataSource({
     BasicWorkbench1791763200000,
     PrivateFeedback1791849600000,
     FeedbackRead1791936000000,
+    LoginActivityItemRead1792022400000,
   ],
   migrationsTransactionMode: 'none',
   logging: false,

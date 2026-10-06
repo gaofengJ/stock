@@ -17,6 +17,7 @@ import { FastifyReply } from 'fastify';
 import { SkipThrottle } from '@nestjs/throttler';
 import { AuthRequest, AuthService, COOKIE } from './auth.service';
 import {
+  ActivityQueryDto,
   LoginDto,
   PasswordDto,
   ProfileDto,
@@ -135,14 +136,23 @@ export class AccountsController {
 
   @Permit('users:manage')
   @Get('login-activity')
-  activity(@Req() req: AuthRequest) {
-    return this.auth.loginActivity(req.authUser!);
+  activity(@Req() req: AuthRequest, @Query() q: ActivityQueryDto) {
+    return this.auth.loginActivity(req.authUser!, q);
   }
 
   @Permit('users:manage')
   @Post('login-activity/read')
   readActivity(@Req() req: AuthRequest, @Body() dto: ReadActivityDto) {
     return this.auth.readLoginActivity(req.authUser!, dto.throughId);
+  }
+
+  @Permit('users:manage')
+  @Post('login-activity/:id/read')
+  readActivityItem(
+    @Req() req: AuthRequest,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.auth.readLoginActivityItem(req.authUser!, id);
   }
 
   @Permit('users:manage')

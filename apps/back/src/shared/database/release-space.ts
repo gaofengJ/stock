@@ -7,6 +7,7 @@ const migrationTables: Record<string, readonly string[]> = {
   // Two new empty tables; existing account and market tables are not rebuilt.
   PrivateFeedback1791849600000: ['t_feedback', 't_feedback_reply'],
   FeedbackRead1791936000000: ['t_feedback_read'],
+  LoginActivityItemRead1792022400000: ['t_auth_activity_item_read'],
   AdminJobControls1791676800000: ['t_admin_job'],
   BasicWorkbench1791763200000: ['t_source_basic_snapshot', 't_source_stock'],
   MarketInsights1791590400000: [
@@ -73,6 +74,7 @@ const migrationOperations: Record<
 > = {
   PrivateFeedback1791849600000: 'create',
   FeedbackRead1791936000000: 'create',
+  LoginActivityItemRead1792022400000: 'create',
   AdminJobControls1791676800000: 'schema',
   BasicWorkbench1791763200000: 'schema',
   MarketInsights1791590400000: 'create',

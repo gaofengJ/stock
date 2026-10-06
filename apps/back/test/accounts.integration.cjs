@@ -17,6 +17,8 @@ const { Accounts1790467200000 } = require('../dist/migrations/1790467200000-Acco
 const { AccountAvatars1790467200001 } = require('../dist/migrations/1790467200001-AccountAvatars');
 const { MarketAnalysis1790553600000 } = require('../dist/migrations/1790553600000-MarketAnalysis');
 const { LoginActivity1790640000000 } = require('../dist/migrations/1790640000000-LoginActivity');
+const { LoginActivityItemRead1792022400000 } = require('../dist/migrations/1792022400000-LoginActivityItemRead');
+const verifyLoginActivity = require('./login-activity.integration.cjs');
 const { DragonPermission1790812800000 } = require('../dist/migrations/1790812800000-DragonPermission');
 const { RealTimeNews1790812800001 } = require('../dist/migrations/1790812800001-RealTimeNews');
 const { ExpandedNewsSources1790832000000, EXPANDED_NEWS_CODES } = require('../dist/migrations/1790832000000-ExpandedNewsSources');
@@ -66,6 +68,8 @@ async function main() {
     await new AdminJobControls1791676800000().up(q);
     await new AdminJobControls1791676800000().up(q);
     await new LoginActivity1790640000000().up(q);
+    await new LoginActivityItemRead1792022400000().up(q);
+    await new LoginActivityItemRead1792022400000().up(q);
     const dragonPermission = new DragonPermission1790812800000();
     const tableCount = (await db.query('SHOW TABLES')).length;
     await dragonPermission.up(q);
@@ -156,6 +160,10 @@ async function main() {
     assert.equal((await inject('POST', '/auth/register', { username: 'mufeng', password: 'test-password-123' }, anon)).statusCode, 409);
     let user = await login('alice', 'test-password-123');
     const admin = await login('mufeng', adminPassword);
+    if (process.argv.includes('--login-activity-only')) {
+      await verifyLoginActivity({ db, auth: app.get(AuthService), inject, admin, user });
+      return;
+    }
     await verifyFeedback({ inject, user, admin, db });
     await db.query("INSERT INTO t_news_item(source,dedupe_key,kind,title,body,important,published_at,created_at,updated_at) VALUES('jin10',REPEAT('a',64),'flash','新闻测试','测试正文',1,'2026-10-01 00:00:00',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))");
     await db.query("UPDATE t_news_source SET status='ok',last_success=UTC_TIMESTAMP(3),last_error='' WHERE source='jin10'");
@@ -292,6 +300,7 @@ async function main() {
     assert.equal((await inject('POST', '/admin/login-activity/read', { throughId: activity.latestId }, admin)).statusCode, 201);
     assert.equal((await inject('GET', '/admin/login-activity', undefined, admin)).json().data.unread, 1, 'A login arriving after the snapshot stays unread');
     assert.equal((await inject('GET', '/admin/login-activity', undefined, user)).statusCode, 403);
+    await verifyLoginActivity({ db, auth: app.get(AuthService), inject, admin, user });
     assert.match(user.user.avatar, /^auto-bull-(red|pink|gold|green|blue|purple|coffee)-(star|heart|flower|bow)$/);
     assert.equal((await login('alice', 'test-password-123')).user.avatar, user.user.avatar, 'Avatar persists across sessions');
     const created = await inject('POST', '/admin/users', { username: 'portrait_fixture', password: 'test-password-123' }, admin);
