@@ -89,9 +89,10 @@ function Report({ date, account }: { date: string; account: number }) {
     if (id === 'review-plan') document.querySelector('.review-plan-scroll')?.scrollTo({ top: 0 });
   };
   const plan = (code?: string) => {
+    goToStep('review-plan');
     const target = code || selected[0];
     const field = document.getElementById(target ? `review-note-${target}` : 'review-focus');
-    field?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    field?.scrollIntoView({ block: 'nearest' });
     field?.focus({ preventScroll: true });
   };
   const candidatesTop = () => document.getElementById('review-candidates-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
