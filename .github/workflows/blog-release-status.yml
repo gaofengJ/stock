@@ -5,18 +5,18 @@ permissions:
   contents: read
   actions: read
 env:
-  SOURCE_SHA: ac730979b89711dafa5c8192e84ee8fda4469817
+  SOURCE_SHA: 87eb6bcd2a38d42e5304f82179260cede4f2b124
 jobs:
   relay:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: stock-back-image-ac730979b89711dafa5c8192e84ee8fda4469817
+          name: stock-back-image-87eb6bcd2a38d42e5304f82179260cede4f2b124
           path: image-relay
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: gaofengJ/stock
-          run-id: 37488216220
+          run-id: 37502480529
       - name: Record the verified archive checksum
         id: archive
         run: |
