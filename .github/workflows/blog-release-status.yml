@@ -1,25 +1,77 @@
-name: Inspect article release
+name: Deploy verified daily review layout
 on:
   workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: stock-verified-recovery-release
+  cancel-in-progress: false
+env:
+  RELEASE_SHA: cbe299dffedd7203054db6597351440cdeab60bb
 jobs:
-  inspect:
+  gate:
     runs-on: ubuntu-latest
     steps:
-      - name: Read server release progress
-        uses: appleboy/ssh-action@master
+      - name: Require current frontend checks and successful matching backend recovery
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node - <<'JS'
+          const base='https://api.github.com/repos/gaofengJ/stock';
+          async function get(path){const r=await fetch(base+path,{headers:{Authorization:'Bearer '+process.env.GH_TOKEN,Accept:'application/vnd.github+json'},signal:AbortSignal.timeout(20000)});if(!r.ok)throw new Error('Release gate API failed: '+r.status);return r.json()}
+          (async()=>{
+            const current=await get('/git/ref/heads/master');
+            if(current.object.sha!==process.env.RELEASE_SHA)throw new Error('Current master changed; frontend stopped');
+            const run=await get('/actions/runs/37509709802');
+            if(run.head_sha!==process.env.RELEASE_SHA||run.status!=='completed')throw new Error('Source pipeline must be finished');
+            const jobs=(await get('/actions/runs/37509709802/jobs?filter=latest&per_page=100')).jobs;
+            for(const name of ['verify','image','front / build','publish-front'])if(!jobs.some(j=>j.name===name&&j.conclusion==='success'))throw new Error('Required source check failed: '+name);
+            if(jobs.some(j=>['deploy-back','deploy-front'].includes(j.name)&&(j.conclusion==='success'||j.steps.some(step=>step.name==='Deploy to Server'&&step.started_at&&step.conclusion!=='skipped'&&step.status!=='queued'))))throw new Error('Normal source deployment has already started; recovery stopped');
+            const recovery=await get('/actions/runs/37505620128');
+            const recovered=(await get('/actions/runs/37505620128/jobs?filter=latest&per_page=100')).jobs;
+            if(recovery.conclusion!=='success'||!recovered.some(j=>j.name==='deploy-back'&&j.conclusion==='success'))throw new Error('Backend recovery has not passed');
+            const paths=new Set(['package.json','pnpm-lock.yaml','pnpm-workspace.yaml','.npmrc','.dockerignore','.github/scripts/render-runtime-env.cjs','.github/workflows/back-cd.yml']);
+            const backend=tree=>{if(tree.truncated)throw new Error('Incomplete source tree');return tree.tree.filter(entry=>entry.type==='blob'&&(entry.path.startsWith('apps/back/')||paths.has(entry.path))).map(entry=>entry.path+':'+entry.sha).sort().join('|')};
+            const tested=await get('/git/trees/87eb6bcd2a38d42e5304f82179260cede4f2b124?recursive=1');
+            const latest=await get('/git/trees/'+current.object.sha+'?recursive=1');
+            if(backend(tested)!==backend(latest))throw new Error('Current backend differs from the deployed verified backend');
+            console.log('Current frontend tests and publication passed; deployed backend is identical to current backend source.');
+          })().catch(error=>{console.error(error.message);process.exitCode=1});
+          JS
+  deploy-front:
+    needs: gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cbe299dffedd7203054db6597351440cdeab60bb
+          sparse-checkout: |
+            apps/back/ops/release
+            .github
+      - name: Upload versioned frontend release scripts
+        uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
-          script: |
-            echo 'Running Docker operations (arguments omitted):'
-            ps -eo pid,etime,args | awk '$3 ~ /(^|\/)docker$/ {print $1,$2,$3,$4}'
-            echo 'Article containers:'
-            docker ps --filter name=stock-blog --format '{{.Names}} {{.Status}} {{.Image}}'
-            echo 'Article images:'
-            docker images --format '{{.Repository}}:{{.Tag}} {{.Size}}' | grep 'stock-blog' || true
-            echo 'Media-verified release build directories:'
-            find /opt/stock-blog-style -maxdepth 2 -name Dockerfile -print
-            echo 'Memory and disk:'
-            free -m
-            df -h / /opt
+          source: apps/back/ops/release
+          target: /opt/stock-release/packages/${{ env.RELEASE_SHA }}
+          strip_components: 3
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          RELEASE_SHA: ${{ env.RELEASE_SHA }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          envs: DOCKER_USERNAME,DOCKER_PASSWORD,RELEASE_SHA
+          script: bash /opt/stock-release/packages/${{ env.RELEASE_SHA }}/release/deploy-front.sh
+      - name: Notify participating search engines of public pages
+        continue-on-error: true
+        env:
+          SITE_INDEXNOW_KEY: ${{ secrets.SITE_INDEXNOW_KEY }}
+        run: node .github/scripts/submit-indexnow.cjs
