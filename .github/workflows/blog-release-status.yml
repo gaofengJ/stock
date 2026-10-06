@@ -1,4 +1,4 @@
-name: Deploy the exact verified release after registry relay
+name: Deploy the current verified frontend after backend recovery
 on:
   workflow_dispatch:
 permissions:
@@ -8,12 +8,12 @@ concurrency:
   group: stock-verified-recovery-release
   cancel-in-progress: false
 env:
-  RELEASE_SHA: 87eb6bcd2a38d42e5304f82179260cede4f2b124
+  RELEASE_SHA: 160f6ba2d5318a60a7eadc1c8f74fc060bd113f9
 jobs:
   gate:
     runs-on: ubuntu-latest
     steps:
-      - name: Require successful checks for the exact current application source
+      - name: Require current frontend checks and successful matching backend recovery
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -21,73 +21,42 @@ jobs:
           const base='https://api.github.com/repos/gaofengJ/stock';
           async function get(path){const r=await fetch(base+path,{headers:{Authorization:'Bearer '+process.env.GH_TOKEN,Accept:'application/vnd.github+json'},signal:AbortSignal.timeout(20000)});if(!r.ok)throw new Error('Release gate API failed: '+r.status);return r.json()}
           (async()=>{
-            const run=await get('/actions/runs/37502480529');
-            if(run.head_sha!==process.env.RELEASE_SHA||run.status!=='completed')throw new Error('Source run must be finished and match the release');
-            const master=await get('/git/ref/heads/master');
-            if(master.object.sha!==process.env.RELEASE_SHA){
-              const paths=new Set(['package.json','pnpm-lock.yaml','pnpm-workspace.yaml','.npmrc','.dockerignore','.github/scripts/render-runtime-env.cjs','.github/workflows/back-cd.yml']);
-              const backend=tree=>{if(tree.truncated)throw new Error('Incomplete source tree; release stopped');return tree.tree.filter(entry=>entry.type==='blob'&&(entry.path.startsWith('apps/back/')||paths.has(entry.path))).map(entry=>entry.path+':'+entry.sha).sort().join('\n')};
-              const tested=await get('/git/trees/'+process.env.RELEASE_SHA+'?recursive=1');
-              const current=await get('/git/trees/'+master.object.sha+'?recursive=1');
-              if(backend(tested)!==backend(current))throw new Error('Current backend or deployment configuration changed; release stopped');
-              console.log('Current backend and deployment configuration are identical to the fully tested backend source.');
-            }
-            const jobs=(await get('/actions/runs/37502480529/jobs?filter=latest&per_page=100')).jobs;
+            const current=await get('/git/ref/heads/master');
+            if(current.object.sha!==process.env.RELEASE_SHA)throw new Error('Current master changed; frontend stopped');
+            const run=await get('/actions/runs/37505008409');
+            if(run.head_sha!==process.env.RELEASE_SHA||run.status!=='completed')throw new Error('Source pipeline must be finished');
+            const jobs=(await get('/actions/runs/37505008409/jobs?filter=latest&per_page=100')).jobs;
             for(const name of ['verify','image','front / build','publish-front'])if(!jobs.some(j=>j.name===name&&j.conclusion==='success'))throw new Error('Required source check failed: '+name);
-            if(jobs.some(j=>['deploy-back','deploy-front'].includes(j.name)&&(j.conclusion==='success'||j.steps.some(step=>step.name==='Deploy to Server'&&step.started_at&&step.conclusion!=='skipped'&&step.status!=='queued'))))throw new Error('A normal application deployment has already started; recovery stopped');
-            console.log('Exact master source, backend tests, database integration, runtime image checks and frontend publication verified.');
-          })().catch(e=>{console.error(e.message);process.exitCode=1});
+            if(jobs.some(j=>['deploy-back','deploy-front'].includes(j.name)&&(j.conclusion==='success'||j.steps.some(step=>step.name==='Deploy to Server'&&step.started_at&&step.conclusion!=='skipped'&&step.status!=='queued'))))throw new Error('Normal source deployment has already started; recovery stopped');
+            const recovery=await get('/actions/runs/37505620128');
+            const recovered=(await get('/actions/runs/37505620128/jobs?filter=latest&per_page=100')).jobs;
+            if(recovery.conclusion!=='success'||!recovered.some(j=>j.name==='deploy-back'&&j.conclusion==='success'))throw new Error('Backend recovery has not passed');
+            const paths=new Set(['package.json','pnpm-lock.yaml','pnpm-workspace.yaml','.npmrc','.dockerignore','.github/scripts/render-runtime-env.cjs','.github/workflows/back-cd.yml']);
+            const backend=tree=>{if(tree.truncated)throw new Error('Incomplete source tree');return tree.tree.filter(entry=>entry.type==='blob'&&(entry.path.startsWith('apps/back/')||paths.has(entry.path))).map(entry=>entry.path+':'+entry.sha).sort().join('
+')};
+            const tested=await get('/git/trees/87eb6bcd2a38d42e5304f82179260cede4f2b124?recursive=1');
+            const latest=await get('/git/trees/'+current.object.sha+'?recursive=1');
+            if(backend(tested)!==backend(latest))throw new Error('Current backend differs from the deployed verified backend');
+            console.log('Current frontend tests and publication passed; deployed backend is identical to current backend source.');
+          })().catch(error=>{console.error(error.message);process.exitCode=1});
           JS
-      - uses: actions/download-artifact@v4
-        with:
-          name: stock-back-image-87eb6bcd2a38d42e5304f82179260cede4f2b124
-          path: verified-image
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: gaofengJ/stock
-          run-id: 37502480529
-      - uses: docker/login-action@v3
-        with:
-          registry: registry.cn-hangzhou.aliyuncs.com
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Verify published backend configuration equals the tested runtime image
-        env:
-          IMAGE: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-back:87eb6bcd2a38d42e5304f82179260cede4f2b124
-        run: |
-          gzip -dc verified-image/stock-back-image.tar.gz | docker load
-          expected=$(docker image inspect stock-back-verify --format '{{.Id}}')
-          timeout 60 docker buildx imagetools inspect "$IMAGE" --raw > manifest.json
-          actual=$(jq -er '.config.digest' manifest.json)
-          [[ "$expected" == "$actual" ]] || { echo 'Registry image differs from the tested artifact'; exit 1; }
-          echo 'Registry runtime image matches the verified artifact.'
-  deploy-back:
+  deploy-front:
     needs: gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 87eb6bcd2a38d42e5304f82179260cede4f2b124
-          sparse-checkout: |-
-            apps/back
+          ref: 160f6ba2d5318a60a7eadc1c8f74fc060bd113f9
+          sparse-checkout: |
+            apps/back/ops/release
             .github
-      - name: Prepare production environment without logging credentials
-        env:
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_DATABASE: ${{ secrets.DB_DATABASE }}
-          DB_USERNAME: ${{ secrets.DB_USERNAME }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          TUSHARE_CONF_TOKEN: ${{ secrets.TUSHARE_CONF_TOKEN }}
-          ADMIN_PLAYBOOK_GZIP_BASE64: ${{ secrets.ADMIN_PLAYBOOK_GZIP_BASE64 }}
-        run: node .github/scripts/render-runtime-env.cjs apps/back/.env.production apps/back/ops/release/runtime.env
-      - name: Upload versioned release scripts
-        # Composite action runs as the runner user and can read mode-600 configuration.
+      - name: Upload versioned frontend release scripts
         uses: appleboy/scp-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
-          source: apps/back/ops/release,apps/back/ops/test-db
+          source: apps/back/ops/release
           target: /opt/stock-release/packages/${{ env.RELEASE_SHA }}
           strip_components: 3
       - name: Deploy to Server
@@ -101,5 +70,9 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
           envs: DOCKER_USERNAME,DOCKER_PASSWORD,RELEASE_SHA
-          command_timeout: 120m
-          script: bash /opt/stock-release/packages/${{ env.RELEASE_SHA }}/release/deploy.sh
+          script: bash /opt/stock-release/packages/${{ env.RELEASE_SHA }}/release/deploy-front.sh
+      - name: Notify participating search engines of public pages
+        continue-on-error: true
+        env:
+          SITE_INDEXNOW_KEY: ${{ secrets.SITE_INDEXNOW_KEY }}
+        run: node .github/scripts/submit-indexnow.cjs
