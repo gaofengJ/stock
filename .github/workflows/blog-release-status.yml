@@ -8,7 +8,7 @@ concurrency:
   group: stock-verified-recovery-release
   cancel-in-progress: false
 env:
-  RELEASE_SHA: a7a3a25456e0265dcc9585915212bc6de866f05d
+  RELEASE_SHA: 87eb6bcd2a38d42e5304f82179260cede4f2b124
 jobs:
   gate:
     runs-on: ubuntu-latest
@@ -21,11 +21,11 @@ jobs:
           const base='https://api.github.com/repos/gaofengJ/stock';
           async function get(path){const r=await fetch(base+path,{headers:{Authorization:'Bearer '+process.env.GH_TOKEN,Accept:'application/vnd.github+json'},signal:AbortSignal.timeout(20000)});if(!r.ok)throw new Error('Release gate API failed: '+r.status);return r.json()}
           (async()=>{
-            const run=await get('/actions/runs/37500142572');
+            const run=await get('/actions/runs/37502480529');
             if(run.head_sha!==process.env.RELEASE_SHA||run.status!=='completed')throw new Error('Source run must be finished and match the release');
             const master=await get('/git/ref/heads/master');
             if(master.object.sha!==process.env.RELEASE_SHA)throw new Error('Current master changed; release stopped');
-            const jobs=(await get('/actions/runs/37500142572/jobs?filter=latest&per_page=100')).jobs;
+            const jobs=(await get('/actions/runs/37502480529/jobs?filter=latest&per_page=100')).jobs;
             for(const name of ['verify','image','front / build','publish-front'])if(!jobs.some(j=>j.name===name&&j.conclusion==='success'))throw new Error('Required source check failed: '+name);
             if(jobs.some(j=>['deploy-back','deploy-front'].includes(j.name)&&(j.conclusion==='success'||j.steps.some(step=>step.name==='Deploy to Server'&&step.started_at&&step.conclusion!=='skipped'&&step.status!=='queued'))))throw new Error('A normal application deployment has already started; recovery stopped');
             console.log('Exact master source, backend tests, database integration, runtime image checks and frontend publication verified.');
@@ -33,11 +33,11 @@ jobs:
           JS
       - uses: actions/download-artifact@v4
         with:
-          name: stock-back-image-a7a3a25456e0265dcc9585915212bc6de866f05d
+          name: stock-back-image-87eb6bcd2a38d42e5304f82179260cede4f2b124
           path: verified-image
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: gaofengJ/stock
-          run-id: 37500142572
+          run-id: 37502480529
       - uses: docker/login-action@v3
         with:
           registry: registry.cn-hangzhou.aliyuncs.com
@@ -45,7 +45,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Verify published backend configuration equals the tested runtime image
         env:
-          IMAGE: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-back:a7a3a25456e0265dcc9585915212bc6de866f05d
+          IMAGE: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-back:87eb6bcd2a38d42e5304f82179260cede4f2b124
         run: |
           gzip -dc verified-image/stock-back-image.tar.gz | docker load
           expected=$(docker image inspect stock-back-verify --format '{{.Id}}')
@@ -59,7 +59,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: a7a3a25456e0265dcc9585915212bc6de866f05d
+          ref: 87eb6bcd2a38d42e5304f82179260cede4f2b124
           sparse-checkout: |-
             apps/back
             .github
@@ -71,6 +71,7 @@ jobs:
           DB_USERNAME: ${{ secrets.DB_USERNAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           TUSHARE_CONF_TOKEN: ${{ secrets.TUSHARE_CONF_TOKEN }}
+          ADMIN_PLAYBOOK_GZIP_BASE64: ${{ secrets.ADMIN_PLAYBOOK_GZIP_BASE64 }}
         run: node .github/scripts/render-runtime-env.cjs apps/back/.env.production apps/back/ops/release/runtime.env
       - name: Upload versioned release scripts
         # Composite action runs as the runner user and can read mode-600 configuration.
@@ -101,7 +102,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: a7a3a25456e0265dcc9585915212bc6de866f05d
+          ref: 87eb6bcd2a38d42e5304f82179260cede4f2b124
           sparse-checkout: |
             apps/back/ops/release
             .github
