@@ -16,6 +16,20 @@ jobs:
           AUDIT_HOST: ${{ secrets.SSH_HOST }}
         run: |
           node -e "(async()=>{try{const r=await fetch('http://'+process.env.AUDIT_HOST+':3000/api/auth/me',{signal:AbortSignal.timeout(10000)});console.log('Public runner reached backend port 3000: true; anonymous account HTTP:',r.status)}catch(e){console.log('Public runner reached backend port 3000: false (one bounded connection probe)')}})();"
+      - name: Check common database listener exposure without authentication
+        env:
+          AUDIT_HOST: ${{ secrets.SSH_HOST }}
+        run: |
+          node - <<'JS'
+          const net=require('node:net');
+          Promise.all([3306,5432,6379,9200].map(port=>new Promise(resolve=>{
+            const socket=net.createConnection({host:process.env.AUDIT_HOST,port});
+            let finished=false;
+            const finish=reachable=>{if(finished)return;finished=true;socket.destroy();console.log('External TCP listener',port,'reachable:',reachable);resolve();};
+            socket.setTimeout(5000,()=>finish(false));
+            socket.on('connect',()=>finish(true));socket.on('error',()=>finish(false));
+          })));
+          JS
   inspect:
     runs-on: ubuntu-latest
     steps:
