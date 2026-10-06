@@ -30,3 +30,7 @@ export class MarketResearchQuery {
 
   @IsOptional() @IsIn(['funds', 'margin', 'ranking']) section?: string;
 }
+
+export class BrokerResearchQuery {
+  @Matches(/^\d{4}-(0[1-9]|1[0-2])$/) month: string;
+}

@@ -85,6 +85,7 @@ export const analysisSiderMenuItems: MenuProps['items'] = [
  */
 const basicMenuDetails = {
   [EBasicAsideMenuKey.basicStock]: { label: '个股基本信息', icon: <ProfileOutlined /> },
+  [EBasicAsideMenuKey.basicBrokerPicks]: { label: '券商月度金股', icon: <TeamOutlined /> },
   [EBasicAsideMenuKey.basicDaily]: { label: '每日交易数据', icon: <TableOutlined /> },
   [EBasicAsideMenuKey.basicRisk]: { label: '风险与交易状态', icon: <ProfileOutlined /> },
   [EBasicAsideMenuKey.basicTradeCal]: { label: '交易日历', icon: <CalendarOutlined /> },

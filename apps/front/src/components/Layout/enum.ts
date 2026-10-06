@@ -76,6 +76,7 @@ export enum EBasicAsideMenuKey {
    * 基础数据-个股基础信息
    */
   basicStock = '/basic/stock',
+  basicBrokerPicks = '/basic/stock/broker-picks',
   /**
    * 基础数据-每日交易数据
    */
@@ -93,6 +94,7 @@ export enum EBasicAsideMenuKey {
 
 export const basicNavigationOrder = [
   EBasicAsideMenuKey.basicStock,
+  EBasicAsideMenuKey.basicBrokerPicks,
   EBasicAsideMenuKey.basicDaily,
   EBasicAsideMenuKey.basicRisk,
   EBasicAsideMenuKey.basicTradeCal,

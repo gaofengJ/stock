@@ -135,13 +135,14 @@ describe('live research disclosure and completeness', () => {
     });
   });
 
-  it('does not mutate a coalesced monthly response when two stock queries overlap', async () => {
+  it('returns all brokers and stocks for exactly the requested month without mutating source rows', async () => {
     const shared = {
       source: 'broker_recommend',
       state: 'ready',
       rows: [
         { ts_code: '000001.SZ', month: '202609', broker: 'A' },
         { ts_code: '600000.SH', month: '202609', broker: 'B' },
+        { ts_code: '000001.SZ', month: '202608', broker: 'A' },
       ],
     };
     const reader = {
@@ -152,15 +153,47 @@ describe('live research disclosure and completeness', () => {
       ),
     };
     const service = new ResearchService(reader as any);
-    const results = await Promise.all(
-      ['000001.SZ', '600000.SH'].map((code) =>
-        service.stock({ code, date: '2026-09-30', section: 'institutions' }),
-      ),
+    const [september, august] = await Promise.all([
+      service.brokerPicks({ month: '2026-09' }),
+      service.brokerPicks({ month: '2026-08' }),
+    ]);
+    expect(september.month).toBe('2026-09');
+    expect(september.sources[0].rows.map((r) => r.broker)).toEqual(['A', 'B']);
+    expect(august.sources[0].rows).toEqual([shared.rows[2]]);
+    expect(shared.rows).toHaveLength(3);
+    expect(reader.read).toHaveBeenCalledWith(
+      'broker_recommend',
+      { month: '202609' },
+      'month,broker,ts_code,name',
+      1000,
     );
-    expect(results[0].sources[1].rows[0].broker).toBe('A');
-    expect(results[1].sources[1].rows[0].broker).toBe('B');
-    expect(shared.rows).toHaveLength(2);
-    expect(results[0].sources[0].state).toBe('error');
+  });
+
+  it('keeps source failures distinct from an empty monthly list and only reads surveys on the stock page', async () => {
+    const source = {
+      source: 'broker_recommend',
+      state: 'error',
+      rows: [],
+      message: '权限不足',
+    };
+    const read = jest.fn(async () => source);
+    const service = new ResearchService({ read } as any);
+    expect(
+      (await service.brokerPicks({ month: '2026-09' })).sources[0],
+    ).toEqual(source);
+    read.mockClear();
+    await service.stock({
+      code: '000001.SZ',
+      date: '2026-09-30',
+      section: 'institutions',
+    });
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(read).toHaveBeenCalledWith(
+      'stk_surv',
+      expect.any(Object),
+      expect.any(String),
+      100,
+    );
   });
 
   it('filters event disclosures without dropping future scheduled deadlines or exposing future releases', async () => {
@@ -201,6 +234,9 @@ describe('live research disclosure and completeness', () => {
       Reflect.getMetadata(ACCESS, ResearchController.prototype.stock),
     ).toEqual({ any: ['basic:stock'] });
     expect(
+      Reflect.getMetadata(ACCESS, ResearchController.prototype.brokerPicks),
+    ).toEqual({ any: ['basic:stock'] });
+    expect(
       Reflect.getMetadata(ACCESS, ResearchController.prototype.sectors),
     ).toEqual({ any: ['analysis:sectors'] });
     expect(
@@ -226,6 +262,12 @@ describe('live research disclosure and completeness', () => {
         month: '2026-10',
       }),
     ).rejects.toThrow('月份');
+    expect(read).not.toHaveBeenCalled();
+    await Promise.all(
+      ['2026-00', '2026-13', '2026-9', 'invalid', '2099-01'].map((month) =>
+        expect(service.brokerPicks({ month })).rejects.toThrow('月份'),
+      ),
+    );
     expect(read).not.toHaveBeenCalled();
   });
 });

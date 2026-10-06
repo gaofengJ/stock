@@ -2,10 +2,9 @@
 
 import { useState } from 'react';
 import {
-  Button, Card, DatePicker, Descriptions, Drawer, Segmented, Select, Tabs,
+  Button, Card, Descriptions, Drawer, Segmented, Select, Tabs,
 } from 'antd';
-import dayjs from 'dayjs';
-import { InteractionButton } from '@/components/Interaction';
+import Link, { InteractionButton } from '@/components/Interaction';
 import { beijingTime, numberText } from '@/utils/format';
 import {
   businessRows, dateText, newest, Row, sourceLabels,
@@ -16,16 +15,15 @@ import {
 
 const sections = [
   ['funds', '资金流向'], ['margin', '融资融券'], ['holders', '股东变化'], ['business', '主营构成'],
-  ['capital', '质押与回购'], ['financial', '财务趋势'], ['institutions', '机构关注'],
+  ['capital', '质押与回购'], ['financial', '财务趋势'], ['institutions', '机构调研'],
 ];
 
 function StockPanel({ code, date, section }: { code: string; date: string; section: string }) {
   const [businessType, setBusinessType] = useState('P');
-  const [month, setMonth] = useState(date.slice(0, 7));
   const [inspect, setInspect] = useState<Row | null>(null);
   const [reportPeriod, setReportPeriod] = useState('all');
   const state = useResearch('stock', {
-    code, date, section, ...(section === 'business' ? { businessType } : {}), ...(section === 'institutions' ? { month } : {}),
+    code, date, section, ...(section === 'business' ? { businessType } : {}),
   });
   const { data } = state;
   const source = (name: string) => data?.sources.find((s) => s.source === name);
@@ -130,7 +128,6 @@ function StockPanel({ code, date, section }: { code: string; date: string; secti
             title: '调研资料', key: 'detail', width: 130, render: (_, r) => <InteractionButton intent="preview" onClick={() => setInspect(r)}>查看内容</InteractionButton>,
           }]}
         />, '展示观察日前120天的调研活动。调研日期是活动发生时间，接口未提供公开披露时间，不能用于还原历史当时可知信息。')}
-        {block('broker_recommend', `${month} 券商月度金股`, <ResearchTable rows={rows('broker_recommend')} columns={[textColumn('broker', '推荐券商', 260), textColumn('name', '股票名称', 180), textColumn('ts_code', '股票代码', 140)]} />, '仅展示当月推荐名单，接口未提供发布时间；月内查询不是截至观察日的历史快照，也不代表荐股收益。')}
         <Drawer title={`${dateText(inspect?.surv_date)} · 机构调研资料`} open={!!inspect} onClose={() => setInspect(null)} width="min(760px, 100vw)" destroyOnClose>
           {inspect && (
           <>
@@ -148,10 +145,7 @@ function StockPanel({ code, date, section }: { code: string; date: string; secti
         {section === 'financial' && <Select style={{ width: 180 }} aria-label="报告期类型" value={reportPeriod} onChange={(v) => setReportPeriod(String(v))} options={[{ label: '全部报告期', value: 'all' }, { label: '年报', value: '1231' }, { label: '半年报', value: '0630' }, { label: '一季报', value: '0331' }, { label: '三季报', value: '0930' }]} />}
         {section === 'business' && <Segmented aria-label="主营分类" options={[{ label: '按产品', value: 'P' }, { label: '按地区', value: 'D' }, { label: '按行业', value: 'I' }]} value={businessType} onChange={(v) => setBusinessType(String(v))} />}
         {section === 'institutions' && (
-        <>
-          <span>金股月份</span>
-          <DatePicker aria-label="金股月份" picker="month" allowClear={false} value={dayjs(`${month}-01`)} disabledDate={(v) => v.format('YYYY-MM') > date.slice(0, 7)} onChange={(v) => { if (v) setMonth(v.format('YYYY-MM')); }} />
-        </>
+          <Link href={`/basic/stock/broker-picks/?${new URLSearchParams({ month: date.slice(0, 7), q: code })}`}>查看该股券商月度金股</Link>
         )}
         <Button onClick={state.retry} loading={state.loading}>刷新资料</Button>
       </div>
@@ -176,7 +170,7 @@ export default function StockResearch({ code, date }: { code: string; date: stri
           <Tabs activeKey={active} onChange={setActive} items={sections.map(([key, label]) => ({ key, label }))} />
           <StockPanel key={`${code}-${date}-${active}`} code={code} date={date} section={active} />
         </>
-      ) : <p className="live-research-note live-research-empty">资金、两融、股东、主营、质押回购、财务趋势及机构关注。展开后按所选分区获取资料。</p>}
+      ) : <p className="live-research-note live-research-empty">资金、两融、股东、主营、质押回购、财务趋势及机构调研。展开后按所选分区获取资料。</p>}
     </Card>
   );
 }
