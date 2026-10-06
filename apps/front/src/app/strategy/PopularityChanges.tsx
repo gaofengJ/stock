@@ -13,6 +13,7 @@ import { LoadingOverlay } from '@/components/Loading';
 import { changeClass } from '@/utils/format';
 import { chartColors } from '@/colors';
 import useInsight from './useInsight';
+import './popularity.css';
 
 export interface HotRow { code: string; name: string; rank: number; previousRank: number | null; change: number | null; state: string; streak: number; streakCapped: boolean; history: { date: string; rank: number | null; ready: boolean }[] }
 export interface Popularity { date: string; ready: boolean; complete: boolean; count: number; previousReady: boolean; previousDate: string | null; rankTime: string | null; items: HotRow[]; exited: { code: string; name: string; rank: number }[]; stage: { status: string; error: string | null } | null }
@@ -39,28 +40,38 @@ export function PopularityTrend({
 }: { date: string; code?: string; name?: string; endpoint?: string; onClose: () => void }) {
   const state = useInsight<Popularity>(endpoint, { date, code }, !!code);
   const current = state.data?.items.find((row) => row.code === code);
+  const spansYears = current?.history.some((point) => point.date.slice(0, 4) !== current.history[0]?.date.slice(0, 4));
   return (
-    <Modal title={`${current?.name || name || code || ''} - 近20个交易日人气排名`} open={!!code} onCancel={onClose} footer={null} width={900}>
-      {current ? (
-        <CChart genOptions={() => ({
-          tooltip: { trigger: 'axis', renderMode: 'richText', formatter: (p: any) => { const point = current.history[(Array.isArray(p) ? p[0] : p)?.dataIndex]; const label = point?.ready ? '未入榜' : '榜单数据不足'; return `${point?.date || ''}\n${point?.rank != null ? `第 ${point.rank} 名` : label}`; } },
-          grid: {
-            left: 40, right: 20, top: 35, bottom: 30, containLabel: true,
-          },
-          xAxis: {
-            type: 'category', data: current.history.map((r) => r.date), boundaryGap: false, axisTick: { alignWithLabel: true }, axisLabel: { hideOverlap: true },
-          },
-          yAxis: {
-            type: 'value', name: '名次', inverse: true, min: 1, max: 100,
-          },
-          series: [{
-            name: '人气排名', type: 'line', data: current.history.map((r) => r.rank), connectNulls: false, showSymbol: true, itemStyle: { color: chartColors.blue }, lineStyle: { width: 1.5 },
-          }],
-        })}
-        />
-      ) : <PanelState loading={state.loading} error={state.error} retry={state.retry} />}
-      {!current && !state.loading && !state.error && <Empty description="该日期没有可展示的人气记录" />}
-      <div className="market-environment-caption">排名越靠上人气越高；未入榜或数据缺失均保留断点。</div>
+    <Modal className="popularity-trend-modal" title={`${current?.name || name || code || ''} - 近20个交易日人气排名`} open={!!code} onCancel={onClose} footer={null} width={900} style={{ top: 24, maxWidth: 'calc(100vw - 32px)' }}>
+      <div className="popularity-trend-chart">
+        {current ? (
+          <CChart genOptions={() => ({
+            tooltip: { trigger: 'axis', renderMode: 'richText', formatter: (p: any) => { const point = current.history[(Array.isArray(p) ? p[0] : p)?.dataIndex]; const label = point?.ready ? '未入榜' : '榜单数据不足'; return `${point?.date || ''}\n${point?.rank != null ? `第 ${point.rank} 名` : label}`; } },
+            grid: {
+              left: 12, right: spansYears ? 40 : 20, top: 32, bottom: 12, containLabel: true,
+            },
+            xAxis: {
+              type: 'category',
+              data: current.history.map((r) => r.date),
+              boundaryGap: false,
+              axisTick: { alignWithLabel: true },
+              axisLabel: {
+                hideOverlap: true,
+                formatter: (value: string) => (spansYears ? value : value.slice(5)),
+              },
+            },
+            yAxis: {
+              type: 'value', name: '名次', nameLocation: 'start', nameGap: 16, inverse: true, min: 1, max: 100, minInterval: 1,
+            },
+            series: [{
+              name: '人气排名', type: 'line', data: current.history.map((r) => r.rank), connectNulls: false, showSymbol: true, itemStyle: { color: chartColors.blue }, lineStyle: { width: 1.5 },
+            }],
+          })}
+          />
+        ) : <PanelState loading={state.loading} error={state.error} retry={state.retry} />}
+        {!current && !state.loading && !state.error && <Empty description="该日期没有可展示的人气记录" />}
+      </div>
+      <p className="popularity-trend-caption">排名越靠上人气越高；未入榜或数据缺失均保留断点。</p>
     </Modal>
   );
 }

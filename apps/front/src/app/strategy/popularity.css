@@ -1,0 +1,7 @@
+.popularity-trend-chart { position: relative; min-height: 360px; }
+.popularity-trend-chart .ant-empty { padding-top: 112px; margin: 0; }
+.popularity-trend-caption { margin: 12px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 20px; }
+.popularity-trend-modal .ant-modal-header { padding-inline-end: 24px; }
+@media (max-width: 575px) {
+  .popularity-trend-modal .ant-modal-content { padding: 16px; }
+}
