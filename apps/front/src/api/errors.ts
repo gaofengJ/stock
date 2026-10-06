@@ -27,7 +27,7 @@ export function errorMessage(error: unknown, fallback = '操作失败，请稍�
   if (/failed to fetch|fetch failed|network\s?error|network request failed|load failed|ECONN|ENOTFOUND/i.test(text) || e?.code === 'ERR_NETWORK') return '网络连接失败，请检查网络后重试';
   if (/unexpected token|unexpected end|JSON|SyntaxError/i.test(text)) return '服务返回的数据格式异常，请稍后重试';
   // 保留中文业务提示；堆栈、页面源码和数据库错误不可混入提示。
-  if (/[\u3400-\u9fff]/.test(text) && !/<[^>]+>|\b(?:Error|Exception|SELECT|INSERT|UPDATE|DELETE|ER_\w+|SQLSTATE)\b|\bat\s+\S+\s*\(/i.test(text)) return text;
+  if (/[\u3400-\u9fff]/.test(text) && !/<[^>]+>|https?:\/\/|tushare|waditu|(?:password|token|secret|authorization|cookie)\s*[:=]|\b(?:Error|Exception|SELECT|INSERT|UPDATE|DELETE|ER_\w+|SQLSTATE)\b|\bat\s+\S+\s*\(/i.test(text)) return text;
   return statusMessages[status || 0] || fallback;
 }
 

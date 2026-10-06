@@ -2,6 +2,12 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { releaseScope } = require('./release-scope.cjs');
 const { render } = require('./render-runtime-env.cjs');
+const { templateIssues } = require('./check-env-secrets.cjs');
+
+test('production templates reject literal credentials without returning values', () => {
+  assert.deepEqual(templateIssues('DB_PASSWORD = __DB_PASSWORD__\nTUSHARE_CONF_TOKEN=__TUSHARE_CONF_TOKEN__\nLOGGER_LEVEL=info'), []);
+  assert.deepEqual(templateIssues('DB_PASSWORD = "fixture-private"\nTUSHARE_CONF_TOKEN=fixture-token'), ['DB_PASSWORD', 'TUSHARE_CONF_TOKEN']);
+});
 
 test('frontend-only changes do not deploy the backend', () => {
   assert.deepEqual(releaseScope(['apps/front/src/app/page.tsx']), { backend: false, frontend: true });

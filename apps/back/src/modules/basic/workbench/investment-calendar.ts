@@ -81,7 +81,12 @@ export async function publicInvestmentCalendar(
     },
   );
   const rows = investmentRows(
-    decodeInvestmentCalendar(response.data, response.headers['content-type']),
+    decodeInvestmentCalendar(
+      response.data,
+      typeof response.headers['content-type'] === 'string'
+        ? response.headers['content-type']
+        : undefined,
+    ),
   );
   const fields = ['date', 'title', 'importance', 'sectors'];
   return {

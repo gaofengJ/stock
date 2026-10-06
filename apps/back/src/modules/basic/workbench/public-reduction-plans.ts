@@ -67,7 +67,7 @@ const fields = [
 
 /** Index original plan announcements, never actual share-change intervals. The cache refreshes in the background. */
 export async function publicReductionPlans(
-  get = axios.get,
+  get: typeof axios.get = axios.get,
   date = shanghaiDate(),
 ) {
   const start = new Date(`${date}T00:00:00Z`);

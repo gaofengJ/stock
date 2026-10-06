@@ -1,5 +1,6 @@
 /* eslint-disable no-param-reassign -- Fastify hooks attach request-scoped metadata. */
 import { randomUUID } from 'crypto';
+import { EventEmitter } from 'events';
 import { FastifyInstance } from 'fastify';
 import { redact } from '@/modules/auth/redact';
 import { requestContext, RequestLogContext } from './request-context';
@@ -105,7 +106,8 @@ export function registerAccessLogging(
     reply.raw.once('close', () => {
       if (!reply.raw.writableFinished) record(true);
     });
-    req.raw.once('aborted', () => record(true));
+    // Multipart augments stream event typings; the raw Node stream still emits aborted.
+    (req.raw as EventEmitter).once('aborted', () => record(true));
     // Use a request-local function; no map grows with client connections.
     (req as typeof req & { finishAccessLog?: () => void }).finishAccessLog =
       () => record();

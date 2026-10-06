@@ -47,6 +47,13 @@ for (const [name, response, expected] of [
 test('成功响应正常返回', async () => {
   assert.deepEqual(await readApiResponse(json({ code: 0, data: { ok: true } })), { code: 0, data: { ok: true } });
 });
+
+test('technical providers, credential assignments and upstream URLs never appear in user errors', () => {
+  for (const message of ['Tushare 请求失败：权限不足', '上游 https://api.example.test 请求失败', '请求失败 token=fixture-private']) {
+    assert.equal(errorMessage(message), '操作失败，请稍后重试');
+  }
+  assert.equal(errorMessage('当前数据源权限不足，请联系管理员核实'), '当前数据源权限不足，请联系管理员核实');
+});
 test('网络、超时、未知异常和中文提示分类', () => {
   assert.equal(errorMessage(new TypeError('Failed to fetch')), '网络连接失败，请检查网络后重试');
   assert.equal(errorMessage({ code: 'ECONNABORTED', message: 'timeout of 30000ms exceeded' }), '请求超时，请稍后重试');

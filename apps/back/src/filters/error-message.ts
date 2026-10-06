@@ -44,7 +44,7 @@ const fieldNames: Record<string, string> = {
 function isBusinessMessage(text: string): boolean {
   return (
     /[\u3400-\u9fff]/.test(text) &&
-    !/<[^>]+>|\b(?:Error|Exception|SELECT|INSERT|UPDATE|DELETE|ER_\w+|SQLSTATE)\b|\bat\s+\S+\s*\(/i.test(
+    !/<[^>]+>|https?:\/\/|tushare|waditu|(?:password|token|secret|authorization|cookie)\s*[:=]|\b(?:Error|Exception|SELECT|INSERT|UPDATE|DELETE|ER_\w+|SQLSTATE)\b|\bat\s+\S+\s*\(/i.test(
       text,
     )
   );

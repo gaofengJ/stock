@@ -7,7 +7,7 @@ const dashed = (value: unknown) =>
 /** Public Eastmoney announcement catalogue. Refuse truncated or repeated pages. */
 export async function publicAnnouncements(
   params: Record<string, unknown>,
-  get = axios.get,
+  get: typeof axios.get = axios.get,
 ) {
   const code = String(params.ts_code || '');
   const start = dashed(params.start_date);
