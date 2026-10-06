@@ -1,9 +1,11 @@
+import { currentReduction } from './reduction-state';
+
 export const RISK_CHECKLIST = [
   {
     key: 'reduction',
-    label: '减持计划与进展',
+    label: '当前减持期间与计划核实',
     scope:
-      '计划、预披露、实施、完成或终止；近180日记录之外的未结束计划仍需核对',
+      '当前标签只计所选日仍在披露起止期间内的记录。完成、终止、过期及尚未开始不计入；公告标题和起止日期不足以证明完整的未结束计划清单。',
   },
   {
     key: 'adverse',
@@ -70,9 +72,13 @@ export function observedRisk(
   items: Record<string, any>[],
   code: string,
   name = '',
+  date = '',
 ) {
   const evidence = items.filter(
-    (row) => row.tsCode === code && row.type !== '复牌',
+    (row) =>
+      row.tsCode === code &&
+      row.type !== '复牌' &&
+      (row.type !== '减持' || currentReduction(row, date)),
   );
   const blocked =
     /ST|退/.test(name) ||

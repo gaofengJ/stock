@@ -8,7 +8,9 @@ import {
 import Table from '@/components/DataTable';
 import { scaledNumber } from '@/utils/format';
 import { SourceState, useWorkbench } from './workbench';
-import { riskCheckLabel, riskDate, riskMissing } from './risk-display';
+import {
+  currentReduction, reductionStateLabel, riskCheckLabel, riskDate, riskMissing, riskRowKey,
+} from './risk-display';
 
 function Evidence({ records = [] }: { records?: any[] }) {
   return records.length ? (
@@ -30,9 +32,9 @@ function RiskRecords({ items = [] }: { items?: any[] }) {
   return (
     <div className="risk-records">
       {items.map((record: any) => (
-        <div className="risk-record" key={`${record.tsCode}-${record.type}-${record.eventDate}-${record.detail}`}>
+        <div className="risk-record" key={riskRowKey(record)}>
           <Space wrap size={6}>
-            <Tag color="orange">{record.type}</Tag>
+            <Tag color={record.type !== '减持' || record.reductionState === 'active' ? 'orange' : undefined}>{record.type === '减持' ? reductionStateLabel(record.reductionState) : record.type}</Tag>
             {record.statusDate && (
             <span>
               状态日期：
@@ -109,6 +111,9 @@ export function RiskDetails({ code, date }: { code: string; date: string }) {
   }
   if (!data) return <SourceState data={null} error={state.error} retry={state.retry} />;
   const sources = data.sources || [];
+  const currentReductions = (data.items || []).filter((r: any) => currentReduction(r, date));
+  const otherEvents = (data.items || []).filter((r: any) => r.type !== '减持');
+  const otherReductions = (data.reductionHistory || []).filter((r: any) => !currentReduction(r, date));
   const values = [
     {
       label: '扣非净利润', source: 'fina_indicator', record: data.financial, value: data.financial?.profit_dedt,
@@ -139,6 +144,13 @@ export function RiskDetails({ code, date }: { code: string; date: string }) {
           label: '资料概览',
           children: (
             <>
+              <Card size="small" title={`当前减持期间（${currentReductions.length}条）`}>
+                {currentReductions.length ? <RiskRecords items={currentReductions} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="未取得所选日仍在披露减持期间内的明确记录" />}
+                <p className="basic-muted">仅按所选日及已披露的完整起止日期判断。日期不明、尚未开始、已结束的记录不计入；未取得记录不代表没有未结束的减持计划。</p>
+                {!!otherReductions.length && (
+                <Collapse size="small" items={[{ key: 'history', label: `历史及期间待核实记录（${otherReductions.length}条）`, children: <RiskRecords items={otherReductions} /> }]} />
+                )}
+              </Card>
               <div className="risk-financial-grid">
                 {values.map((field) => {
                   const hasValue = field.value != null && field.value !== '';
@@ -161,8 +173,8 @@ export function RiskDetails({ code, date }: { code: string; date: string }) {
                 })}
               </div>
               {!!data.findings?.length && <Card size="small" title="已披露的财务异常事实"><Evidence records={data.findings.map((finding: any) => ({ kind: 'financial', date: finding.date, title: finding.detail }))} /></Card>}
-              <Card size="small" title={`已取得的状态与事件（${data.items?.length || 0}条）`}>
-                {data.items?.length ? <RiskRecords items={data.items} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={sources.some((s: any) => s.state !== 'ready') ? '状态资料尚未完整取得' : '已取得资料中暂无状态或事件记录'} />}
+              <Card size="small" title={`其他状态与事件（${otherEvents.length}条）`}>
+                {otherEvents.length ? <RiskRecords items={otherEvents} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={sources.some((s: any) => s.state !== 'ready') ? '状态资料尚未完整取得' : '已取得资料中暂无其他状态或事件记录'} />}
               </Card>
               <p className="basic-muted">ST为所选日状态，最近一次变更不代表全部触发原因。财务异常及减持记录的具体影响需结合适用规则和公告正文核对。</p>
             </>
@@ -186,6 +198,7 @@ export function RiskDetails({ code, date }: { code: string; date: string }) {
                   <>
                     <p className="basic-muted">{check.scope}</p>
                     <Evidence records={check.evidence} />
+                    {!!check.historicalEvidence?.length && <Collapse size="small" items={[{ key: 'closed', label: `完成、终止及届满公告（${check.historicalEvidence.length}条，不计为当前减持）`, children: <Evidence records={check.historicalEvidence.map((r: any) => ({ ...r, kind: 'announcement' }))} /> }]} />}
                   </>
                 ),
               }))}

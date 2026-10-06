@@ -97,3 +97,24 @@ test('risk title matches are review leads and missing evidence never claims no r
   assert.equal(riskDisplay.riskCheckLabel({ state: 'incomplete', leads: 0 }), '资料不完整');
   assert.equal(riskDisplay.riskCheckLabel({ state: 'no_matches', leads: 0 }), '未检索到相关线索');
 });
+
+test('platform reduction tags require the selected date to lie inside an explicitly active interval', () => {
+  const row = { type: '减持', reductionState: 'active', announcementDate: '2026-09-01', effectiveDate: '2026-09-02', endDate: '2026-09-30' };
+  assert.equal(riskDisplay.currentReduction(row, '2026-09-30'), true);
+  assert.equal(riskDisplay.currentReduction(row, '2026-10-01'), false);
+  assert.equal(riskDisplay.currentReduction({ ...row, endDate: null }, '2026-09-30'), false);
+  assert.equal(riskDisplay.currentReduction({ ...row, reductionState: 'ended' }, '2026-09-30'), false);
+  assert.equal(riskDisplay.currentReduction({ ...row, announcementDate: '2026-10-01' }, '2026-09-30'), false);
+  assert.equal(riskDisplay.riskTypeLabel('减持'), '减持期间内');
+  assert.equal(riskDisplay.riskCheckLabel({ key: 'reduction', state: 'leads', activeCount: 1, leads: 9 }), '1条减持期间内记录');
+  assert.equal(riskDisplay.riskCheckLabel({ key: 'reduction', state: 'leads', activeCount: 0, leads: 2 }), '2条计划公告待核实');
+  assert.equal(riskDisplay.reductionStateLabel('superseded'), '已有后续披露');
+});
+
+test('risk row identities remain stable through filtering and distinguish record types and intervals', () => {
+  const rows = [{ recordId: 'st-record', type: 'ST' }, { recordId: 'reduction-record', type: '减持' }];
+  assert.equal(riskDisplay.riskRowKey(rows.filter(r => r.type === '减持')[0]), 'reduction-record');
+  const row = { tsCode: '000001.SZ', type: '减持', effectiveDate: '2026-08-01', endDate: '2026-09-29' };
+  assert.notEqual(riskDisplay.riskRowKey(row), riskDisplay.riskRowKey({ ...row, type: '停牌' }));
+  assert.notEqual(riskDisplay.riskRowKey(row), riskDisplay.riskRowKey({ ...row, endDate: '2026-10-29' }));
+});

@@ -3,6 +3,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { DataSource, LessThanOrEqual } from 'typeorm';
 import * as dayjs from 'dayjs';
+import { createHash } from 'crypto';
 import { DailyEntity } from '@/modules/source/daily/daily.entity';
 import { StockEntity } from '@/modules/source/stock/stock.entity';
 import { TradeCalEntity } from '@/modules/source/trade-cal/trade-cal.entity';
@@ -14,6 +15,11 @@ import { shanghaiDate } from '@/modules/daily-task/sync.utils';
 import { BasicSnapshotService, SourceSnapshot } from './snapshot.service';
 import { WorkbenchQuery } from './workbench.dto';
 import { readProfileHistory } from './profile-reader';
+import {
+  latestReductionRecords,
+  reductionState,
+  terminalReduction,
+} from './reduction-state';
 import {
   RISK_CHECKLIST,
   announcementCategories,
@@ -363,19 +369,23 @@ export class WorkbenchService {
         );
       }),
     );
+    const reductionRecords: Record<string, any>[] = [];
     reductions.forEach((snapshot) =>
       snapshot.rows.forEach((r) => {
         const announced = isoDate(r.ann_date);
         if (
           r.in_de !== 'DE' ||
+          !/^\d{6}\.(SH|SZ|BJ)$/.test(r.ts_code) ||
           !announced ||
           announced < reductionStart ||
           announced > date
         )
           return;
-        items.push({
+        reductionRecords.push({
           tsCode: r.ts_code,
+          holderName: r.holder_name || null,
           type: '减持',
+          reductionState: reductionState(r, date),
           date,
           eventDate: announced,
           announcementDate: announced,
@@ -387,16 +397,47 @@ export class WorkbenchService {
             r.change_vol ?? '待核实'
           } 股；占流通股 ${r.change_ratio ?? '待核实'}%；实施起止 ${
             isoDate(r.begin_date) || '未知'
-          } 至 ${
-            isoDate(r.close_date) || '未知'
-          }。记录范围为近180日，计划进展以公告披露为准。`,
+          } 至 ${isoDate(r.close_date) || '未知'}。`,
         });
       }),
     );
-    items = items.map((r) => ({
+    const latestReductions = latestReductionRecords(
+      reductionRecords.map((r) => ({
+        ...r,
+        tsCode: canonical.get(r.tsCode) || r.tsCode,
+      })),
+    );
+    items.push(
+      ...latestReductions.filter((r) => r.reductionState === 'active'),
+    );
+    const identify = (
+      r: Record<string, any>,
+    ): Record<string, any> & { recordId: string } => ({
       ...r,
       tsCode: canonical.get(r.tsCode) || r.tsCode,
-    }));
+      recordId: createHash('sha256')
+        .update(
+          JSON.stringify([
+            canonical.get(r.tsCode) || r.tsCode,
+            r.type,
+            r.source,
+            r.statusDate,
+            r.announcementDate,
+            r.effectiveDate,
+            r.endDate,
+            r.detail,
+          ]),
+        )
+        .digest('hex'),
+    });
+    items = [
+      ...new Map(items.map(identify).map((r) => [r.recordId, r])).values(),
+    ];
+    const reductionHistory = [
+      ...new Map(
+        latestReductions.map(identify).map((r) => [r.recordId, r]),
+      ).values(),
+    ];
     const stockMap = code
       ? new Map<string, string>()
       : await this.profileIdentityCache.getOrCreate(
@@ -468,8 +509,17 @@ export class WorkbenchService {
       ),
       sources: sourceStatus([...snapshots, ...reductions]),
       reductionStart,
+      // Keep historical and unknown records out of every platform risk tag/filter.
+      reductionHistory: code
+        ? reductionHistory.filter((r) => r.tsCode === code)
+        : undefined,
+      reductionCoverage: {
+        active: items.filter((r) => r.type === '减持').length,
+        unknown: reductionHistory.filter((r) => r.reductionState === 'unknown')
+          .length,
+      },
       checklist: RISK_CHECKLIST,
-      note: 'ST为所选日状态；公告日与实施日分别展示，最近状态变更不代表全部触发原因。减持记录覆盖近180日已披露公告，包含已完成事项。',
+      note: 'ST为所选日状态，公告日与实施日分别展示。减持标签仅包含所选日仍在已披露起止期间内的记录；已结束、尚未开始和日期不明确的记录不计入当前标签。历史记录及计划公告在风险资料中查看，现有记录不代表完整的未结束计划清单。',
     };
   }
 
@@ -581,7 +631,11 @@ export class WorkbenchService {
       checks: RISK_CHECKLIST.map((check) => {
         const evidence = [
           ...notices
-            .filter((r) => r.categories.includes(check.key))
+            .filter(
+              (r) =>
+                r.categories.includes(check.key) &&
+                (check.key !== 'reduction' || !terminalReduction(r.title)),
+            )
             .map((r) => ({
               kind: 'announcement',
               date: r.date,
@@ -609,6 +663,14 @@ export class WorkbenchService {
             ));
         return {
           ...check,
+          ...(check.key === 'reduction' && {
+            activeCount: base.items.filter((r) => r.type === '减持').length,
+            historicalEvidence: notices.filter(
+              (r) =>
+                r.categories.includes('reduction') &&
+                terminalReduction(r.title),
+            ),
+          }),
           evidence,
           leads: evidence.length,
           state: evidence.length

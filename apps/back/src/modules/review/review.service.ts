@@ -70,7 +70,7 @@ export class ReviewService {
       .map((row) => ({
         ...row,
         capState: capStatus(row.totalMv),
-        risk: observedRisk(risk.items, row.tsCode, row.name),
+        risk: observedRisk(risk.items, row.tsCode, row.name, date),
       }))
       .sort(
         (a, b) =>

@@ -19,6 +19,7 @@ import { trendDefaults } from '../strategy/strategy-options';
 import CandidateEnvironment from '../strategy/CandidateEnvironment';
 import RiskInspect from '../basic/components/RiskInspect';
 import { RiskTags, SourceState, useWorkbench } from '../basic/components/workbench';
+import { currentReduction } from '../basic/components/risk-display';
 import Holdings from './Holdings';
 import '../strategy/strategy.sass';
 
@@ -41,7 +42,7 @@ function Report({ date }: { date: string }) {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; abort.abort(); };
   }, [date, attempt]);
-  const blocked = (row: any) => row.risk.state === 'excluded' || risk.data?.items?.some((r: any) => r.tsCode === row.tsCode && ['ST', '停牌', '减持'].includes(r.type));
+  const blocked = (row: any) => row.risk.state === 'excluded' || risk.data?.items?.some((r: any) => r.tsCode === row.tsCode && (['ST', '停牌'].includes(r.type) || currentReduction(r, date)));
   const rows: any[] = data?.items || [];
   const chosen = rows.filter((r) => selected.includes(r.tsCode));
   const filtered = rows.filter((r) => (!keyword || `${r.tsCode} ${r.name}`.includes(keyword.trim()))
@@ -109,7 +110,7 @@ function Report({ date }: { date: string }) {
           ))}
         </Space>
         <SourceState data={risk.data || data} error={risk.error} retry={risk.retry} />
-        <Alert type="info" className="mb-16" message="候选池仍需风险核验和看图确认" description="默认隐藏已知ST、停牌和近180日减持记录。其余减持计划、公告利空及潜在ST风险按股票逐项核验，资料不足的事项保留待核验状态。可手动选择最多3只股票加入观察名单。" />
+        <Alert type="info" className="mb-16" message="候选池仍需风险核验和看图确认" description="默认隐藏已知ST、停牌及所选日仍在已披露减持期间内的股票。已结束、尚未开始及日期不明确的减持记录不按进行中事项排除；未确认的计划和其他风险需核对公告。可手动选择最多3只股票加入观察名单。" />
       </>
       )}
       <Space className="mb-16" wrap>

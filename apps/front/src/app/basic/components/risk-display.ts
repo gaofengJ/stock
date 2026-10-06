@@ -12,7 +12,25 @@ export function riskMissing(sources: WorkbenchSource[], source: string, stopped 
   return status?.state === 'ready' ? '暂无截至所选日已披露的资料' : '资料尚未取得';
 }
 
-export function riskCheckLabel(check: { state: string; leads?: number }) {
+export function riskCheckLabel(check: { key?: string; state: string; leads?: number; activeCount?: number }) {
+  if (check.key === 'reduction') {
+    if (check.activeCount) return `${check.activeCount}条减持期间内记录`;
+    if (check.leads) return `${check.leads}条计划公告待核实`;
+    return check.state === 'incomplete' ? '当前减持资料不完整' : '未取得明确的期间内记录';
+  }
   if (check.leads) return `${check.leads}条待核实线索`;
   return check.state === 'incomplete' ? '资料不完整' : '未检索到相关线索';
 }
+
+export function currentReduction(record: any, date: string) {
+  const start = riskDate(record.effectiveDate);
+  const end = riskDate(record.endDate);
+  const announcement = riskDate(record.announcementDate);
+  return record.type === '减持' && record.reductionState === 'active' && start !== '—' && end !== '—' && announcement !== '—' && announcement <= date && start <= date && date <= end;
+}
+
+export const riskTypeLabel = (type: string) => (type === '减持' ? '减持期间内' : type);
+export const reductionStateLabel = (state: string) => ({
+  active: '减持期间内', ended: '已结束', upcoming: '尚未开始', unknown: '期间待核实', superseded: '已有后续披露',
+}[state] || '期间待核实');
+export const riskRowKey = (record: any) => record.recordId || JSON.stringify([record.tsCode, record.type, record.source, record.announcementDate, record.effectiveDate, record.endDate, record.statusDate, record.detail]);

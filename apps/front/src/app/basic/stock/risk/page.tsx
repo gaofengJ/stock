@@ -14,7 +14,9 @@ import RiskInspect from '../../components/RiskInspect';
 import {
   BasicShell, StockLink, SourceState, useWorkbench,
 } from '../../components/workbench';
-import { riskDate } from '../../components/risk-display';
+import {
+  currentReduction, riskDate, riskRowKey, riskTypeLabel,
+} from '../../components/risk-display';
 
 function Risk() {
   const params = useSearchParams();
@@ -33,15 +35,17 @@ function Risk() {
         <DatePicker aria-label="交易日期" value={date ? dayjs(date) : null} allowClear={false} onChange={(value) => { if (value) { setSelected(value.format('YYYY-MM-DD')); setPage(1); } }} />
         <Input.Search placeholder="股票代码／名称" defaultValue={keyword} allowClear onSearch={(value) => { setKeyword(value); setPage(1); }} />
         <SectorFilter value={sector} onChange={(value) => { setSector(value); setPage(1); }} />
-        <Select allowClear placeholder="风险类型" value={type} onChange={(value) => { setType(value); setPage(1); }} style={{ width: 150 }} options={['ST', '减持', '停牌', '复牌', '异常波动', '严重异常波动', '交易所提示'].map((value) => ({ label: value, value }))} />
+        <Select allowClear placeholder="风险类型" value={type} onChange={(value) => { setType(value); setPage(1); }} style={{ width: 150 }} options={['ST', '减持', '停牌', '复牌', '异常波动', '严重异常波动', '交易所提示'].map((value) => ({ label: riskTypeLabel(value), value }))} />
       </Space>
-      <SourceState data={state.data} error={state.error} retry={state.retry} pollingStopped={state.pollingStopped} />
+      <div className="risk-list-context">
+        <SourceState data={state.data} error={state.error} retry={state.retry} pollingStopped={state.pollingStopped} />
+        <p className="basic-muted">{state.data?.note || '状态日期、公告日与发生／实施日分别展示。减持标签仅计所选日仍在已披露起止期间内的记录。'}</p>
+      </div>
       {/^[0-9]{6}\.(SH|SZ|BJ)$/.test(keyword) && <RiskInspect code={keyword} date={date} />}
-      <p className="basic-muted">{state.data?.note || '状态日期、公告日与发生／实施日分别展示。缺失日期显示“—”。'}</p>
       <Table
         loading={state.loading}
-        rowKey={(record: any) => `${record.tsCode}-${record.type}-${record.eventDate}-${record.detail}`}
-        dataSource={(state.data?.items || []).filter((record: any) => !type || record.type === type)}
+        rowKey={riskRowKey}
+        dataSource={(state.data?.items || []).filter((record: any) => (!type || record.type === type) && (record.type !== '减持' || currentReduction(record, date)))}
         pagination={{
           current: page, pageSize: size, showSizeChanger: true, pageSizeOptions: [20, 50, 100], onChange: (next, pageSize) => { setPage(pageSize !== size ? 1 : next); setSize(pageSize); }, showTotal: (total) => `共 ${total} 条记录`,
         }}
@@ -58,7 +62,9 @@ function Risk() {
               </div>
             ),
           },
-          { title: '类型', dataIndex: 'type', width: 90 },
+          {
+            title: '类型', dataIndex: 'type', width: 110, render: riskTypeLabel,
+          },
           {
             title: '公告日', dataIndex: 'announcementDate', width: 115, render: riskDate, sorter: (a: any, b: any) => String(a.announcementDate || '').localeCompare(String(b.announcementDate || '')),
           },

@@ -70,7 +70,7 @@ describe('personal review', () => {
     expect(observedRisk([], '000001.SZ', '*ST样本').state).toBe('excluded');
     expect(
       observedRisk([{ tsCode: '000001.SZ', type: '减持' }], '000001.SZ').state,
-    ).toBe('excluded');
+    ).toBe('pending');
     expect(
       observedRisk([{ tsCode: '000001.SZ', type: '复牌' }], '000001.SZ').state,
     ).toBe('pending');

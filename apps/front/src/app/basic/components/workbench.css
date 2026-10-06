@@ -1,6 +1,13 @@
 .basic-workbench { min-height: calc(100vh - 100px); }
 .basic-workbench .ant-card { margin-bottom: 16px; }
 .basic-muted { color: var(--text-secondary); font-size: 12px; }
+.workbench-source-state { margin:0 0 16px; }
+.workbench-source-state > .basic-muted { margin:0; line-height:1.75; }
+.workbench-source-state > .ant-alert { margin-bottom:0; }
+.risk-list-context { display:grid; gap:8px; margin:4px 0 16px; line-height:1.75; }
+.risk-list-context > .workbench-source-state, .risk-list-context > p { margin:0; }
+.risk-list-context > p { max-width:110ch; }
+.basic-risk-details p.basic-muted { line-height:1.75; }
 .basic-stats { display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 16px; margin: 16px 0; }
 .basic-stat { padding: 16px; border: 1px solid var(--color-border, #454952); border-radius: 8px; }
 .basic-stat strong { display: block; font-size: 22px; margin-top: 8px; font-variant-numeric: tabular-nums; }

@@ -14,6 +14,7 @@ import { basicSiderMenuItems } from '@/components/Layout/config';
 import { EHeaderMenuKey } from '@/components/Layout/enum';
 import './workbench.css';
 import { startWorkbenchPolling } from './workbench-polling';
+import { currentReduction, riskTypeLabel } from './risk-display';
 
 export function stockHref(code: string, date?: string) {
   return `/basic/stock/detail/?code=${encodeURIComponent(code)}${date ? `&date=${date}` : ''}`;
@@ -95,8 +96,9 @@ export function SourceState({
   let notice = '正在获取资料，完成后自动更新';
   if (pollingStopped) notice = '部分资料尚未就绪，可稍后检查更新';
   if (hasError) notice = '部分资料暂时无法获取';
+  if (!error && !pending.length && !data?.sources?.length) return null;
   return (
-    <>
+    <div className="workbench-source-state">
       {error && <Alert className="mb-16" type="error" message={error} action={<Button onClick={retry}>重试</Button>} />}
       {!error && !!pending.length && (
       <Alert
@@ -136,7 +138,7 @@ export function SourceState({
         <Tooltip title={data.sources.map((s: any) => `${sourceNames[s.source] || '其他资料'}：${s.fetchedAt ? new Date(s.fetchedAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : '尚未获取'}`).join('；')}><span>查看资料更新时间</span></Tooltip>
       </p>
       )}
-    </>
+    </div>
   );
 }
 export function RiskTags({
@@ -144,12 +146,12 @@ export function RiskTags({
 }: { data: any; code: string; date?: string; showSourceState?: boolean }) {
   const { user } = useAccount();
   const canLink = allowedPath(user, '/basic/stock/risk');
-  const items = data?.items?.filter((r: any) => r.tsCode === code) || [];
+  const items = data?.items?.filter((r: any) => r.tsCode === code && (r.type !== '减持' || currentReduction(r, date || data?.date))) || [];
   const labels = Array.from(new Set<string>(items.map((r: any) => r.type)));
   if (!showSourceState && !labels.length) return null;
   return (
     <Space size={2} wrap>
-      {labels.map((label) => (canLink ? <Link key={label} href={`/basic/stock/risk/?code=${code}&date=${date || ''}`}><Tag color={label === '复牌' ? 'blue' : 'orange'}>{label}</Tag></Link> : <Tag color="orange" key={label}>{label}</Tag>))}
+      {labels.map((label) => (canLink ? <Link key={label} href={`/basic/stock/risk/?code=${code}&date=${date || ''}`}><Tag color={label === '复牌' ? 'blue' : 'orange'}>{riskTypeLabel(label)}</Tag></Link> : <Tag color="orange" key={label}>{riskTypeLabel(label)}</Tag>))}
       {showSourceState && <Tooltip title="标签仅覆盖已取得的风险记录，具体影响需结合公告正文核实。"><span className="basic-muted">{!data || data.sources?.some((s: any) => s.state !== 'ready') ? '资料尚不完整' : '标签仅含已取得记录'}</span></Tooltip>}
     </Space>
   );
