@@ -44,7 +44,7 @@ export const moduleLabels: Record<string, string> = {
   NestApplication: '服务运行',
   Catch: '服务异常',
   JobsService: '同步任务',
-  DailySourceTasks: '自动同步',
+  DailySourceTask: '自动同步',
 };
 export function auditResult(action: string, result: string) {
   if (result === 'success' && action === 'sync.submit') return '已提交';
