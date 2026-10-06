@@ -31,6 +31,17 @@ jobs:
             echo 'Host system and Docker version:'
             sed -n '/^NAME=/p; /^VERSION_ID=/p' /etc/os-release
             docker version --format '{{.Server.Version}}'
+            echo 'Recent image relay archive sizes (no file contents):'
+            python3 - <<'PY'
+            import glob, os, time
+            sizes = []
+            for root in ['/tmp', '/root', '/opt/stock-release/image-relay/ac730979b89711dafa5c8192e84ee8fda4469817']:
+                for name in glob.glob(root+'/*.tar.gz'):
+                    info = os.stat(name)
+                    if time.time()-info.st_mtime < 1800:
+                        sizes.append(info.st_size)
+            print('Recent staging archive bytes:', sorted(sizes))
+            PY
             echo 'Proxy connection classification:'
             python3 - <<'PY'
             import glob, re, ipaddress
