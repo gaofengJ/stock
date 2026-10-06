@@ -28,11 +28,15 @@ export function reductionState(
   date: string,
 ): ReductionState {
   const announcement = dateValue(record.ann_date || record.announcementDate);
-  const start = dateValue(record.begin_date || record.effectiveDate);
-  const end = dateValue(record.close_date || record.endDate);
+  const start = dateValue(
+    record.plan_start || record.begin_date || record.effectiveDate,
+  );
+  const end = dateValue(record.plan_end || record.close_date || record.endDate);
   const terminal = terminalReduction(record.plan_status || record.planStatus);
   if (!announcement || announcement > date) return 'unknown';
-  if (terminal || (end && end < date)) return 'ended';
+  if (terminal || record.plan_status === 'ended' || (end && end < date))
+    return 'ended';
+  if (record.plan_status === 'unknown') return 'unknown';
   if (!start || !end || start > end) return 'unknown';
   return start > date ? 'upcoming' : 'active';
 }
@@ -40,6 +44,7 @@ export function reductionState(
 export function currentReduction(record: Record<string, any>, date: string) {
   return (
     record.type === '减持' &&
+    record.recordKind === 'plan' &&
     record.reductionState === 'active' &&
     reductionState(record, date) === 'active'
   );

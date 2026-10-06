@@ -148,7 +148,7 @@ export function RiskTags({
   return (
     <Space size={2} wrap>
       {labels.map((label) => (canLink ? <Link key={label} href={`/basic/stock/risk/?code=${code}&date=${date || ''}`}><Tag color={label === '复牌' ? 'blue' : 'orange'}>{riskTypeLabel(label)}</Tag></Link> : <Tag color="orange" key={label}>{riskTypeLabel(label)}</Tag>))}
-      {showSourceState && <Tooltip title="标签仅覆盖已取得的风险记录，具体影响需结合公告正文核实。"><span className="basic-muted">{!data || data.sources?.some((s: any) => s.state !== 'ready') ? '资料尚不完整' : '标签仅含已取得记录'}</span></Tooltip>}
+      {showSourceState && <Tooltip title="标签仅覆盖已取得的风险记录，具体影响需结合公告正文核实。"><span className="basic-muted">{!data || data.reductionCoverage?.unknown || data.sources?.some((s: any) => s.state !== 'ready') ? '资料尚不完整' : '标签仅含已取得记录'}</span></Tooltip>}
     </Space>
   );
 }

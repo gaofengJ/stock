@@ -78,6 +78,18 @@ test('stale usable values refresh quietly, but failed refreshes are terminal', (
   assert.equal(p.sourcePending({ state: 'stale', message: 'unavailable' }), false);
   assert.equal(p.sourcePending({ state: 'ready' }), false);
 });
+
+test('original plan indexing polls slowly beyond the ordinary budget and stops when ready', async () => {
+  const p = polling();
+  let calls = 0;
+  let stopped = 0;
+  p.startWorkbenchPolling({ read: async () => ({ sources: [{ source: 'reduction_plans', state: ++calls <= 65 ? 'loading' : 'ready' }] }), onValue: () => {}, onError: () => assert.fail(), onStopped: () => { stopped++; } });
+  await flush();
+  for (let i = 0; i < 65; i++) await p.next();
+  assert.equal(stopped, 0);
+  assert.equal(calls, 66);
+  assert.equal(p.scheduled(), false);
+});
 const riskDisplay = load('app/basic/components/risk-display.ts', { require: name => name === './workbench-polling' ? polling() : require(name) });
 test('risk dates distinguish missing dates from status and normalize report periods', () => {
   assert.equal(riskDisplay.riskDate('20260630'), '2026-06-30');
@@ -98,15 +110,20 @@ test('risk title matches are review leads and missing evidence never claims no r
   assert.equal(riskDisplay.riskCheckLabel({ state: 'no_matches', leads: 0 }), '未检索到相关线索');
 });
 
-test('platform reduction tags require the selected date to lie inside an explicitly active interval', () => {
-  const row = { type: '减持', reductionState: 'active', announcementDate: '2026-09-01', effectiveDate: '2026-09-02', endDate: '2026-09-30' };
+test('platform reduction tags require an original plan active today, independently of the historical date', () => {
+  const row = { type: '减持', recordKind: 'plan', reductionState: 'active', announcementDate: '2026-09-01', effectiveDate: '2026-09-02', endDate: '2026-09-30' };
   assert.equal(riskDisplay.currentReduction(row, '2026-09-30'), true);
   assert.equal(riskDisplay.currentReduction(row, '2026-10-01'), false);
   assert.equal(riskDisplay.currentReduction({ ...row, endDate: null }, '2026-09-30'), false);
   assert.equal(riskDisplay.currentReduction({ ...row, reductionState: 'ended' }, '2026-09-30'), false);
   assert.equal(riskDisplay.currentReduction({ ...row, announcementDate: '2026-10-01' }, '2026-09-30'), false);
-  assert.equal(riskDisplay.riskTypeLabel('减持'), '减持期间内');
-  assert.equal(riskDisplay.riskCheckLabel({ key: 'reduction', state: 'leads', activeCount: 1, leads: 9 }), '1条减持期间内记录');
+  assert.equal(riskDisplay.currentReduction({ ...row, reductionDate: '2026-10-06' }, '2026-09-30'), false);
+  const plan = { ...row, announcementDate: '2026-08-28', effectiveDate: '2026-09-21', endDate: '2026-12-20', reductionDate: '2026-10-06' };
+  assert.equal(riskDisplay.currentReduction(plan, '2026-09-30'), true);
+  assert.equal(riskDisplay.currentReduction({ ...plan, recordKind: undefined }, '2026-09-30'), false);
+  assert.equal(riskDisplay.currentReduction({ ...plan, effectiveDate: '2026-10-07' }, '2026-09-30'), false);
+  assert.equal(riskDisplay.riskTypeLabel('减持'), '减持计划进行中');
+  assert.equal(riskDisplay.riskCheckLabel({ key: 'reduction', state: 'leads', activeCount: 1, leads: 9 }), '1项当前减持计划');
   assert.equal(riskDisplay.riskCheckLabel({ key: 'reduction', state: 'leads', activeCount: 0, leads: 2 }), '2条计划公告待核实');
   assert.equal(riskDisplay.reductionStateLabel('superseded'), '已有后续披露');
 });

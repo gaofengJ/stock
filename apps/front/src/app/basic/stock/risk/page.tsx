@@ -39,7 +39,8 @@ function Risk() {
       </Space>
       <div className="risk-list-context">
         <SourceState data={state.data} error={state.error} retry={state.retry} pollingStopped={state.pollingStopped} />
-        <p className="basic-muted">{state.data?.note || '状态日期、公告日与发生／实施日分别展示。减持标签仅计所选日仍在已披露起止期间内的记录。'}</p>
+        <p className="basic-muted">{state.data?.note || 'ST及停复牌按所选日期展示；当前减持计划按今天核验，计划起止日期与实际交易发生区间分别核实。'}</p>
+        {!!state.data?.reductionCoverage?.unknown && <p className="basic-muted">部分计划的期间或后续状态尚待核实，未计入进行中列表。</p>}
       </div>
       {/^[0-9]{6}\.(SH|SZ|BJ)$/.test(keyword) && <RiskInspect code={keyword} date={date} />}
       <Table
@@ -63,19 +64,19 @@ function Risk() {
             ),
           },
           {
-            title: '类型', dataIndex: 'type', width: 110, render: riskTypeLabel,
+            title: '类型', dataIndex: 'type', width: 140, render: riskTypeLabel,
           },
           {
             title: '公告日', dataIndex: 'announcementDate', width: 115, render: riskDate, sorter: (a: any, b: any) => String(a.announcementDate || '').localeCompare(String(b.announcementDate || '')),
           },
           {
-            title: '发生／实施日', dataIndex: 'effectiveDate', width: 120, render: riskDate,
+            title: type === '减持' ? '计划开始日' : '发生／实施日', dataIndex: 'effectiveDate', width: 120, render: riskDate,
           },
           {
             title: '状态日期', dataIndex: 'statusDate', width: 115, render: riskDate,
           },
           {
-            title: '截止日', dataIndex: 'endDate', width: 115, render: riskDate,
+            title: type === '减持' ? '计划结束日' : '截止日', dataIndex: 'endDate', width: 115, render: riskDate,
           },
           {
             title: '说明',

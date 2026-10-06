@@ -2,6 +2,7 @@ import type { WorkbenchSource } from './workbench-polling';
 
 export const sourceNames: Record<string, string> = {
   stk_holdertrade: '股东减持',
+  reduction_plans: '减持计划',
   eastmoney_ann: '公司公告',
   anns_d: '公司公告',
   fina_audit: '审计意见',

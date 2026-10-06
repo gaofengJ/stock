@@ -1,5 +1,5 @@
 /* eslint-disable no-nested-ternary */
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { createHash } from 'crypto';
 import { DataSource, LessThan } from 'typeorm';
@@ -7,6 +7,7 @@ import { TushareService } from '@/shared/tushare/tushare.service';
 import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
 import { BasicSnapshotEntity } from './snapshot.entity';
 import { publicAnnouncements } from './public-announcements';
+import { publicReductionPlans } from './public-reduction-plans';
 
 export interface SourceSnapshot {
   key: string;
@@ -38,10 +39,11 @@ const caps: Record<string, number> = {
   fina_audit: 1000,
   balancesheet: 1000,
   eastmoney_ann: 100,
+  reduction_plans: 3000,
 };
 
 @Injectable()
-export class BasicSnapshotService {
+export class BasicSnapshotService implements OnModuleInit {
   private readonly logger = new Logger(BasicSnapshotService.name);
 
   private pending = new Set<string>();
@@ -61,6 +63,22 @@ export class BasicSnapshotService {
     private source: TushareService,
     private writes: SyncWriteService,
   ) {}
+
+  onModuleInit() {
+    return this.warmReductionPlans();
+  }
+
+  @Cron('0 */15 * * * *', { timeZone: 'Asia/Shanghai' })
+  async warmReductionPlans() {
+    if (
+      process.env.NODE_ENV !== 'production' ||
+      process.env.SCHEDULE_ENABLED === 'false'
+    )
+      return;
+    await this.read('reduction_plans', {}).catch(() =>
+      this.logger.warn('当前减持计划缓存预热延后'),
+    );
+  }
 
   async read(
     source: string,
@@ -99,7 +117,9 @@ export class BasicSnapshotService {
             setTimeout(resolve, start - Date.now());
           });
           const response =
-            source === 'eastmoney_ann'
+            source === 'reduction_plans'
+              ? await publicReductionPlans()
+              : source === 'eastmoney_ann'
               ? await publicAnnouncements(params)
               : await this.source.queryData(
                   source,
@@ -124,7 +144,10 @@ export class BasicSnapshotService {
             rows,
             fetchedAt: new Date(),
             error: null,
-            retryAt: new Date(Date.now() + 6 * 3600000),
+            retryAt: new Date(
+              Date.now() +
+                (source === 'reduction_plans' ? 15 * 60000 : 6 * 3600000),
+            ),
           };
         } catch (e) {
           const permission = /权限|积分|每天|每日/.test(String(e?.message));

@@ -110,7 +110,7 @@ function Report({ date }: { date: string }) {
           ))}
         </Space>
         <SourceState data={risk.data || data} error={risk.error} retry={risk.retry} />
-        <Alert type="info" className="mb-16" message="候选池仍需风险核验和看图确认" description="默认隐藏已知ST、停牌及所选日仍在已披露减持期间内的股票。已结束、尚未开始及日期不明确的减持记录不按进行中事项排除；未确认的计划和其他风险需核对公告。可手动选择最多3只股票加入观察名单。" />
+        <Alert type="info" className="mb-16" message="候选池仍需风险核验和看图确认" description="默认隐藏已知ST、停牌及今天仍在已核实减持计划期间内的股票。已结束、尚未开始及日期不明确的计划不按进行中事项排除；计划与实际交易发生区间分别核实。可手动选择最多3只股票加入观察名单。" />
       </>
       )}
       <Space className="mb-16" wrap>

@@ -3,9 +3,9 @@ import { currentReduction } from './reduction-state';
 export const RISK_CHECKLIST = [
   {
     key: 'reduction',
-    label: '当前减持期间与计划核实',
+    label: '当前减持计划',
     scope:
-      '当前标签只计所选日仍在披露起止期间内的记录。完成、终止、过期及尚未开始不计入；公告标题和起止日期不足以证明完整的未结束计划清单。',
+      '按今天核验原始计划公告的起止日期及后续完成、终止公告，与交易观察日期无关。实际减持交易的发生区间不作为计划期间；已结束、尚未开始及无法明确核实的计划不计入当前标签。',
   },
   {
     key: 'adverse',

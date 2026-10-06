@@ -237,7 +237,7 @@ export class WorkbenchService {
     if (date > shanghaiDate())
       throw new BadRequestException('不能核验未来日期的风险');
     return this.riskCache.getOrCreate(
-      JSON.stringify([date, dto.code, dto.keyword, dto.sector]),
+      JSON.stringify([date, shanghaiDate(), dto.code, dto.keyword, dto.sector]),
       () => this.readRisk({ ...dto, date }),
     );
   }
@@ -349,55 +349,42 @@ export class WorkbenchService {
               };
             }),
     );
-    // Bound each market-wide source snapshot and share it across strategy/report users.
-    const reductionStart = dayjs(date)
-      .subtract(179, 'day')
-      .format('YYYY-MM-DD');
-    const reductions = await Promise.all(
-      Array.from({ length: 6 }, (_, i) => {
-        const start = dayjs(reductionStart).add(i * 30, 'day');
-        return this.cache.read(
-          'stk_holdertrade',
-          {
-            start_date: start.format('YYYYMMDD'),
-            end_date: start.add(29, 'day').format('YYYYMMDD'),
-            trade_type: 'DE',
-          },
-          'ts_code,ann_date,holder_name,in_de,change_vol,change_ratio,begin_date,close_date',
-          aliases,
-          true,
-        );
-      }),
-    );
+    // Current plans are independent of the historical trading/status date selected on this page.
+    const reductionDate = shanghaiDate();
+    const reductions = [
+      await this.cache.read('reduction_plans', {}, undefined, aliases, true),
+    ];
     const reductionRecords: Record<string, any>[] = [];
     reductions.forEach((snapshot) =>
       snapshot.rows.forEach((r) => {
         const announced = isoDate(r.ann_date);
         if (
-          r.in_de !== 'DE' ||
           !/^\d{6}\.(SH|SZ|BJ)$/.test(r.ts_code) ||
           !announced ||
-          announced < reductionStart ||
-          announced > date
+          announced > reductionDate
         )
           return;
         reductionRecords.push({
           tsCode: r.ts_code,
-          holderName: r.holder_name || null,
+          holderName: (r.holder_names || []).join('、') || null,
           type: '减持',
-          reductionState: reductionState(r, date),
-          date,
+          recordKind: 'plan',
+          planId: r.plan_id,
+          url: safeAnnouncementUrl(r.url),
+          reductionState: reductionState(r, reductionDate),
+          reductionDate,
+          date: reductionDate,
           eventDate: announced,
           announcementDate: announced,
-          effectiveDate: isoDate(r.begin_date) || null,
+          effectiveDate: isoDate(r.plan_start) || null,
           statusDate: null,
-          endDate: isoDate(r.close_date),
+          endDate: isoDate(r.plan_end),
           source: snapshot.source,
-          detail: `${r.holder_name || '股东'}；变动数量 ${
-            r.change_vol ?? '待核实'
-          } 股；占流通股 ${r.change_ratio ?? '待核实'}%；实施起止 ${
-            isoDate(r.begin_date) || '未知'
-          } 至 ${isoDate(r.close_date) || '未知'}。`,
+          detail: `${r.title}；${
+            (r.holder_names || []).join('、') || '股东'
+          }；计划期间 ${isoDate(r.plan_start) || '待核实'} 至 ${
+            isoDate(r.plan_end) || '待核实'
+          }。`,
         });
       }),
     );
@@ -421,6 +408,7 @@ export class WorkbenchService {
             canonical.get(r.tsCode) || r.tsCode,
             r.type,
             r.source,
+            r.planId,
             r.statusDate,
             r.announcementDate,
             r.effectiveDate,
@@ -432,11 +420,6 @@ export class WorkbenchService {
     });
     items = [
       ...new Map(items.map(identify).map((r) => [r.recordId, r])).values(),
-    ];
-    const reductionHistory = [
-      ...new Map(
-        latestReductions.map(identify).map((r) => [r.recordId, r]),
-      ).values(),
     ];
     const stockMap = code
       ? new Map<string, string>()
@@ -508,18 +491,14 @@ export class WorkbenchService {
           a.type.localeCompare(b.type),
       ),
       sources: sourceStatus([...snapshots, ...reductions]),
-      reductionStart,
-      // Keep historical and unknown records out of every platform risk tag/filter.
-      reductionHistory: code
-        ? reductionHistory.filter((r) => r.tsCode === code)
-        : undefined,
+      reductionDate,
       reductionCoverage: {
         active: items.filter((r) => r.type === '减持').length,
-        unknown: reductionHistory.filter((r) => r.reductionState === 'unknown')
+        unknown: latestReductions.filter((r) => r.reductionState === 'unknown')
           .length,
       },
       checklist: RISK_CHECKLIST,
-      note: 'ST为所选日状态，公告日与实施日分别展示。减持标签仅包含所选日仍在已披露起止期间内的记录；已结束、尚未开始和日期不明确的记录不计入当前标签。历史记录及计划公告在风险资料中查看，现有记录不代表完整的未结束计划清单。',
+      note: `ST及停复牌按所选日期展示；当前减持计划按今天（${reductionDate}）核验，与左侧日期无关。只展示计划起止日期明确且仍在期间内的计划，已完成、终止、到期及尚未开始的计划不计入。实际股份变动的起止日期不能当作计划期间，资料未核实不表示没有计划。`,
     };
   }
 
@@ -630,7 +609,17 @@ export class WorkbenchService {
       ],
       checks: RISK_CHECKLIST.map((check) => {
         const evidence = [
-          ...notices
+          ...(check.key === 'reduction'
+            ? base.items
+                .filter((r) => r.type === '减持')
+                .map((r) => ({
+                  categories: ['reduction'],
+                  date: r.announcementDate,
+                  title: r.detail,
+                  url: r.url,
+                }))
+            : notices
+          )
             .filter(
               (r) =>
                 r.categories.includes(check.key) &&
@@ -652,24 +641,20 @@ export class WorkbenchService {
             })),
         ];
         const relevant = [
-          ...announcements,
+          ...(check.key === 'reduction' ? [] : announcements),
           ...(check.key === 'financial' ? [financial, audit, balance] : []),
         ];
         const incomplete =
           relevant.some((s) => s.state !== 'ready') ||
           (check.key === 'reduction' &&
-            base.sources.some(
-              (s) => s.source === 'stk_holdertrade' && s.state !== 'ready',
-            ));
+            ((base.reductionCoverage?.unknown || 0) > 0 ||
+              base.sources.some(
+                (s) => s.source === 'reduction_plans' && s.state !== 'ready',
+              )));
         return {
           ...check,
           ...(check.key === 'reduction' && {
             activeCount: base.items.filter((r) => r.type === '减持').length,
-            historicalEvidence: notices.filter(
-              (r) =>
-                r.categories.includes('reduction') &&
-                terminalReduction(r.title),
-            ),
           }),
           evidence,
           leads: evidence.length,

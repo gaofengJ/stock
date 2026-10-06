@@ -111,9 +111,20 @@ describe('risk evidence sources', () => {
       cache as any,
       {} as any,
     );
-    jest
-      .spyOn(service, 'risk')
-      .mockResolvedValue({ items: [], sources: [], date: '2026-09-30' } as any);
+    jest.spyOn(service, 'risk').mockResolvedValue({
+      items: [
+        {
+          type: '减持',
+          recordKind: 'plan',
+          announcementDate: '2026-10-01',
+          detail: '当前股东减持计划；计划期间2026-10-02至2026-12-20',
+          url: 'https://example.com/current-plan',
+        },
+      ],
+      sources: [{ source: 'reduction_plans', state: 'ready' }],
+      date: '2026-09-30',
+      reductionDate: '2026-10-06',
+    } as any);
     const result = await service.riskDetail({
       date: '2026-09-30',
       code: '000001.SZ',
@@ -136,9 +147,9 @@ describe('risk evidence sources', () => {
     ).toEqual([
       {
         kind: 'announcement',
-        date: '2026-09-30',
-        title: '减持计划',
-        url: 'https://example.com/ann',
+        date: '2026-10-01',
+        title: '当前股东减持计划；计划期间2026-10-02至2026-12-20',
+        url: 'https://example.com/current-plan',
       },
     ]);
   });

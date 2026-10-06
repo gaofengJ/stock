@@ -21,9 +21,11 @@ export function startWorkbenchPolling<T extends { sources?: WorkbenchSource[] }>
       if (controller.signal.aborted) return;
       onValue(value);
       if (value.sources?.some(sourcePending)) {
-        if (polls >= 60) { onStopped(); return; }
+        const plansPending = value.sources.some((s) => s.source === 'reduction_plans' && sourcePending(s));
+        if (polls >= (plansPending ? 100 : 60)) { onStopped(); return; }
         polls += 1;
-        timer = setTimeout(load, polls <= 3 ? 1000 : 3000);
+        const interval = plansPending ? 5000 : 3000;
+        timer = setTimeout(load, polls <= 3 ? 1000 : interval);
       }
     } catch (error) { if (!controller.signal.aborted) onError(error); }
   };

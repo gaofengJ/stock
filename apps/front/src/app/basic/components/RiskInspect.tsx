@@ -49,13 +49,13 @@ function RiskRecords({ items = [] }: { items?: any[] }) {
             )}
             {record.effectiveDate && (
             <span>
-              发生／实施日：
+              {record.type === '减持' ? '计划开始日：' : '发生／实施日：'}
               {riskDate(record.effectiveDate)}
             </span>
             )}
             {record.endDate && (
             <span>
-              截止日：
+              {record.type === '减持' ? '计划结束日：' : '截止日：'}
               {riskDate(record.endDate)}
             </span>
             )}
@@ -112,8 +112,10 @@ export function RiskDetails({ code, date }: { code: string; date: string }) {
   if (!data) return <SourceState data={null} error={state.error} retry={state.retry} />;
   const sources = data.sources || [];
   const currentReductions = (data.items || []).filter((r: any) => currentReduction(r, date));
+  let reductionEmpty = riskMissing(sources, 'reduction_plans', state.pollingStopped);
+  if (sources.find((s: any) => s.source === 'reduction_plans')?.state === 'ready') reductionEmpty = '暂无已核实的当前减持计划';
+  if (data.reductionCoverage?.unknown) reductionEmpty = '计划资料尚有待核实项';
   const otherEvents = (data.items || []).filter((r: any) => r.type !== '减持');
-  const otherReductions = (data.reductionHistory || []).filter((r: any) => !currentReduction(r, date));
   const values = [
     {
       label: '扣非净利润', source: 'fina_indicator', record: data.financial, value: data.financial?.profit_dedt,
@@ -144,12 +146,13 @@ export function RiskDetails({ code, date }: { code: string; date: string }) {
           label: '资料概览',
           children: (
             <>
-              <Card size="small" title={`当前减持期间（${currentReductions.length}条）`}>
-                {currentReductions.length ? <RiskRecords items={currentReductions} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="未取得所选日仍在披露减持期间内的明确记录" />}
-                <p className="basic-muted">仅按所选日及已披露的完整起止日期判断。日期不明、尚未开始、已结束的记录不计入；未取得记录不代表没有未结束的减持计划。</p>
-                {!!otherReductions.length && (
-                <Collapse size="small" items={[{ key: 'history', label: `历史及期间待核实记录（${otherReductions.length}条）`, children: <RiskRecords items={otherReductions} /> }]} />
-                )}
+              <Card size="small" title={`当前减持计划（${currentReductions.length}项）`}>
+                {currentReductions.length ? <RiskRecords items={currentReductions} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={reductionEmpty} />}
+                <p className="basic-muted">
+                  核验日期：
+                  {riskDate(data.reductionDate)}
+                  （今天）。展示公告中的计划起止日期，与交易观察日期无关；已完成、终止及到期的计划不展示。未核实资料不表示没有计划。
+                </p>
               </Card>
               <div className="risk-financial-grid">
                 {values.map((field) => {
@@ -198,7 +201,6 @@ export function RiskDetails({ code, date }: { code: string; date: string }) {
                   <>
                     <p className="basic-muted">{check.scope}</p>
                     <Evidence records={check.evidence} />
-                    {!!check.historicalEvidence?.length && <Collapse size="small" items={[{ key: 'closed', label: `完成、终止及届满公告（${check.historicalEvidence.length}条，不计为当前减持）`, children: <Evidence records={check.historicalEvidence.map((r: any) => ({ ...r, kind: 'announcement' }))} /> }]} />}
                   </>
                 ),
               }))}

@@ -78,7 +78,10 @@ describe('risk record dates and targeted reads', () => {
       ),
     ).toBe(true);
     await service.risk(dto);
-    expect(read).toHaveBeenCalledTimes(12);
+    expect(read).toHaveBeenCalledTimes(7);
+    expect(
+      read.mock.calls.filter(([source]) => source === 'reduction_plans'),
+    ).toHaveLength(1);
   });
 
   it('does not invent announcement dates and canonicalizes old-code filters', async () => {

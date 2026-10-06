@@ -15,6 +15,10 @@ const period = {
 };
 
 describe('current reduction periods across platform risk consumers', () => {
+  beforeEach(() =>
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-06T04:00:00Z')),
+  );
+  afterEach(() => jest.useRealTimers());
   it('requires disclosed valid dates and separates active, ended, upcoming and unknown', () => {
     expect(reductionState(period, date)).toBe('active');
     expect(
@@ -54,24 +58,37 @@ describe('current reduction periods across platform risk consumers', () => {
     expect(terminalReduction('减持计划尚未完成')).toBe(false);
   });
 
-  it('removes expired, superseded and undated rows from tags and review exclusion, retaining history', async () => {
+  it('uses current original plans rather than selected-day actual trades and expires cached plans after midnight', async () => {
     const row = (holder: string, patch: Record<string, any> = {}) => ({
-      ...period,
       ts_code: '000001.SZ',
-      holder_name: holder,
-      in_de: 'DE',
+      holder_names: [holder],
+      ann_date: '20260901',
+      plan_start: '20260921',
+      plan_end: '20261006',
+      plan_status: 'active',
+      title: '股东减持计划预披露',
+      plan_id: holder,
       ...patch,
     });
-    const active = row('股东乙');
+    const active = row('股东乙', { ann_date: '20261001' });
     const data = [
       row('股东甲'),
-      row('股东甲', { ann_date: '20260930', close_date: '20260929' }),
+      row('股东甲', {
+        ann_date: '20260930',
+        plan_end: '20260930',
+        plan_status: 'ended',
+      }),
       active,
       { ...active },
-      row('股东丙', { begin_date: '20261001' }),
-      row('股东丁', { close_date: null }),
-      row('股东戊', { ann_date: '20261001' }),
+      row('股东丙', { plan_start: '20261007', plan_end: '20261220' }),
+      row('股东丁', { plan_end: null, plan_status: 'unknown' }),
+      row('股东戊', { ann_date: '20261001', plan_status: '已提前终止' }),
     ];
+    const read = jest.fn(async (source: string) => ({
+      source,
+      state: 'ready',
+      rows: source === 'reduction_plans' ? data : [],
+    }));
     const service = new WorkbenchService(
       {
         manager: {
@@ -81,11 +98,7 @@ describe('current reduction periods across platform risk consumers', () => {
         },
       } as any,
       {
-        read: async (source: string) => ({
-          source,
-          state: 'ready',
-          rows: source === 'stk_holdertrade' ? data : [],
-        }),
+        read,
       } as any,
       {} as any,
     );
@@ -95,32 +108,37 @@ describe('current reduction periods across platform risk consumers', () => {
     expect(new Set(result.items.map((r) => r.recordId)).size).toBe(
       result.items.length,
     );
-    expect(result.reductionHistory).toHaveLength(5);
+    expect(result).not.toHaveProperty('reductionHistory');
+    expect(result.reductionDate).toBe('2026-10-06');
     expect(
-      result.reductionHistory
-        ?.filter((r) => r.holderName === '股东甲')
-        .map((r) => r.reductionState)
-        .sort(),
-    ).toEqual(['ended', 'superseded']);
-    expect(
-      result.reductionHistory?.some((r) => r.holderName === '股东戊'),
+      read.mock.calls.some(([source]) => source === 'stk_holdertrade'),
     ).toBe(false);
     expect(result.reductionCoverage).toEqual({ active: 1, unknown: 1 });
-    expect(currentReduction(result.items[0], date)).toBe(true);
-    expect(observedRisk(result.items, '000001.SZ', '', date).state).toBe(
-      'excluded',
-    );
+    expect(currentReduction(result.items[0], result.reductionDate)).toBe(true);
+    expect(
+      currentReduction(
+        { ...result.items[0], recordKind: 'actual' },
+        result.reductionDate,
+      ),
+    ).toBe(false);
+    expect(
+      observedRisk(result.items, '000001.SZ', '', result.reductionDate).state,
+    ).toBe('excluded');
     expect(
       observedRisk(
-        result.reductionHistory!.filter((r) => r.reductionState !== 'active'),
+        [{ ...result.items[0], reductionState: 'ended' }],
         '000001.SZ',
         '',
-        date,
+        result.reductionDate,
       ).state,
     ).toBe('pending');
     expect(
-      observedRisk(result.items, '000001.SZ', '', '2026-10-03').state,
+      observedRisk(result.items, '000001.SZ', '', '2026-10-07').state,
     ).toBe('pending');
+    jest.setSystemTime(new Date('2026-10-06T16:01:00Z'));
+    const tomorrow = await service.risk({ date, code: '000001.SZ' });
+    expect(tomorrow.reductionDate).toBe('2026-10-07');
+    expect(tomorrow.items.map((r) => r.holderName)).toEqual(['股东丙']);
   });
 
   it('keeps completed announcements separate from possible plan leads and preserves future boundaries', async () => {
@@ -160,12 +178,8 @@ describe('current reduction periods across platform risk consumers', () => {
     const result = await service.riskDetail({ date, code: '000001.SZ' });
     const check = result.checks.find((r) => r.key === 'reduction')!;
     expect(check.activeCount).toBe(0);
-    expect(check.evidence.map((r) => r.title)).toEqual([
-      '股东乙减持计划预披露',
-    ]);
-    expect(check.historicalEvidence?.map((r) => r.title)).toEqual([
-      '股东减持计划实施完毕',
-    ]);
+    expect(check.evidence).toEqual([]);
+    expect(check).not.toHaveProperty('historicalEvidence');
     expect(result.announcements).toHaveLength(2);
   });
 });
