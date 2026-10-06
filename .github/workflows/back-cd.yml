@@ -176,6 +176,14 @@ jobs:
           curl --noproxy '*' --fail --silent --max-time 5 "http://127.0.0.1:33009/"
           docker run --rm -e AUDIT_PRIVATE_GATEWAY="$gateway" stock-back-verify node -e '(async()=>{const r=await fetch("http://"+process.env.AUDIT_PRIVATE_GATEWAY+":33009/",{signal:AbortSignal.timeout(5000)});if(r.status!==204)process.exit(1)})().catch(()=>process.exit(1))'
           if curl --noproxy '*' --fail --silent --max-time 3 "http://$external:33009/"; then echo 'Backend binding unexpectedly accepts public interface traffic'; exit 1; fi
+      - name: Save the verified runtime image for publication
+        run: docker save stock-back-verify | gzip -1 > "$RUNNER_TEMP/stock-back-image.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stock-back-image-${{ github.sha }}
+          path: ${{ runner.temp }}/stock-back-image.tar.gz
+          if-no-files-found: error
+          retention-days: 1
   front:
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
@@ -189,31 +197,23 @@ jobs:
     if: needs.changes.outputs.backend == 'true' && ((github.event_name == 'push' && github.ref == 'refs/heads/master') || inputs.publish_images == true)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         with:
-          sparse-checkout: apps/back
-      - name: Set up BuildKit
-        uses: docker/setup-buildx-action@v4
-        with:
-          driver: docker-container
+          name: stock-back-image-${{ github.sha }}
+          path: ${{ runner.temp }}/stock-back-image
       - name: Login to Aliyun Registry
         uses: docker/login-action@v3
         with:
           registry: registry.cn-hangzhou.aliyuncs.com
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Build and Push Docker Image
-        uses: docker/build-push-action@v7
+      - name: Publish the exact verified runtime image
         env:
-          DOCKER_BUILD_RECORD_UPLOAD: false
-        with:
-          context: .
-          file: apps/back/dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-back:${{ github.sha }}
-          cache-from: type=gha,version=2,scope=stock-back-runtime-v2
-          provenance: false
+          IMAGE: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-back:${{ github.sha }}
+        run: |
+          gzip -dc "$RUNNER_TEMP/stock-back-image/stock-back-image.tar.gz" | docker load
+          docker tag stock-back-verify "$IMAGE"
+          timeout 600 docker push "$IMAGE"
       - name: Report compressed runtime image size
         env:
           IMAGE: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-back:${{ github.sha }}
