@@ -6,6 +6,12 @@ const { render } = require('./render-runtime-env.cjs');
 test('frontend-only changes do not deploy the backend', () => {
   assert.deepEqual(releaseScope(['apps/front/src/app/page.tsx']), { backend: false, frontend: true });
 });
+
+test('production push releases both components when an earlier queued backend push was coalesced away', () => {
+  assert.deepEqual(releaseScope(['apps/front/src/app/page.tsx'], true, 'push'), { backend: true, frontend: true });
+  assert.deepEqual(releaseScope([], true, 'push'), { backend: true, frontend: true });
+  assert.deepEqual(releaseScope(['apps/front/src/app/page.tsx'], true, 'pull_request'), { backend: false, frontend: true });
+});
 test('backend and shared changes retain coupled deployment', () => {
   for (const file of ['apps/back/src/main.ts', 'pnpm-lock.yaml', '.dockerignore', '.github/workflows/front-cd.yml']) {
     assert.deepEqual(releaseScope([file]), { backend: true, frontend: true });
