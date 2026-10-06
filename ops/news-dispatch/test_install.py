@@ -28,14 +28,14 @@ class InstallTests(unittest.TestCase):
         for name in ['dispatch.py', 'stock-news-dispatch.service', 'stock-news-dispatch.timer']:
             shutil.copyfile(str(source / name), str(self.package / name))
         script = (source / 'install.sh').read_text().replace('/opt/stock-news', str(self.server))
-        script = script.replace('/etc/systemd/system', str(self.config)).replace('/etc/stock-news-dispatch.env', str(self.config / 'credential.env'))
+        script = script.replace('/etc/systemd/system', str(self.config)).replace('/etc/stock-news-dispatch.env', str(self.config / 'stock-news-dispatch.env'))
         script = script.replace('[[ "$EUID" == 0 ]]', 'true')
         (self.package / 'install.sh').write_text(script)
         (self.package / 'credential.env').write_text('NEWS_DISPATCH_TOKEN=github_pat_test_' + 'x' * 80 + '\n')
         self.write_command('id', 'exit 0')
         self.write_command('python3', 'if [ "${3:-}" = --check-token ]; then exit 0; fi\nexec ' + shlex.quote(sys.executable) + ' "$@"')
         self.write_command('install', 'args=(); while [ "$#" -gt 0 ]; do case "$1" in -o|-g) shift 2 ;; *) args+=("$1"); shift ;; esac; done\nexec /usr/bin/install "${args[@]}"')
-        self.write_command('systemctl', 'echo "$*" >> "$SYSTEMCTL_LOG"\nif [ "$*" = "start stock-news-dispatch.service" ] && [ "${FAIL_SERVICE:-0}" = 1 ]; then exit 1; fi\nexit 0')
+        self.write_command('systemctl', 'if [ "$1" = is-enabled ] || [ "$1" = is-active ]; then if [ "${PREVIOUS_TIMER:-0}" = 1 ] || grep -q "enable --now" "$SYSTEMCTL_LOG" 2>/dev/null; then exit 0; fi; exit 1; fi\necho "$*" >> "$SYSTEMCTL_LOG"\nif [ "$*" = "start stock-news-dispatch.service" ] && [ "${FAIL_SERVICE:-0}" = 1 ]; then exit 1; fi\nexit 0')
         self.env = dict(os.environ, PATH=str(self.bin) + ':' + os.environ['PATH'], SYSTEMCTL_LOG=str(self.root / 'calls'))
 
     def write_command(self, name, content):
@@ -58,15 +58,16 @@ class InstallTests(unittest.TestCase):
     def test_success_installs_private_credential_and_starts_timer(self):
         code, output = self.run_installer()
         self.assertEqual(code, 0, output)
-        self.assertEqual((self.config / 'credential.env').stat().st_mode & 0o777, 0o600)
+        self.assertEqual((self.config / 'stock-news-dispatch.env').stat().st_mode & 0o777, 0o600)
         self.assertIn('enable --now stock-news-dispatch.timer', (self.root / 'calls').read_text())
         self.assertTrue((self.scheduler / 'dispatch.py').exists())
 
     def test_failed_first_trigger_restores_previous_installation(self):
-        files = [self.scheduler / 'dispatch.py', self.config / 'credential.env', self.config / 'stock-news-dispatch.service', self.config / 'stock-news-dispatch.timer']
+        files = [self.scheduler / 'dispatch.py', self.config / 'stock-news-dispatch.env', self.config / 'stock-news-dispatch.service', self.config / 'stock-news-dispatch.timer']
         for path in files:
             path.write_text('previous configuration')
             os.chmod(str(path), 0o600)
+        self.env['PREVIOUS_TIMER'] = '1'
         code, output = self.run_installer(fail=True)
         self.assertNotEqual(code, 0, output)
         for path in files:
@@ -77,7 +78,7 @@ class InstallTests(unittest.TestCase):
     def test_failed_new_install_leaves_no_timer_or_credential(self):
         code, output = self.run_installer(fail=True)
         self.assertNotEqual(code, 0, output)
-        self.assertFalse((self.config / 'credential.env').exists())
+        self.assertFalse((self.config / 'stock-news-dispatch.env').exists())
         self.assertFalse((self.config / 'stock-news-dispatch.timer').exists())
 
 

@@ -72,7 +72,7 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
           envs: OPERATION
-          command_timeout: 4m
+          command_timeout: 6m
           script: |
             set -eu
             case "$OPERATION" in
