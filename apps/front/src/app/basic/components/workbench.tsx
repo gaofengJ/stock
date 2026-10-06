@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from '@/components/Interaction';
 import {
   Alert, Button, Popover, Space, Tag, Tooltip,
 } from 'antd';
+import Link from '@/components/Interaction';
 import request from '@/api/request';
 import { useAccount } from '@/auth/Boundary';
 import { allowedPath } from '@/auth/client';
@@ -71,8 +71,8 @@ export function useWorkbench(endpoint: string, params: Record<string, unknown>, 
   };
 }
 export function SourceState({
-  data, error, retry, pollingStopped = false,
-}: { data: any; error?: string; retry: () => void; pollingStopped?: boolean }) {
+  data, error, retry, pollingStopped = false, loading = false,
+}: { data: any; error?: string; retry: () => void; pollingStopped?: boolean; loading?: boolean }) {
   const pending = data?.sources?.filter((s: any) => s.state !== 'ready' && s.state !== 'unpublished') || [];
   const unpublished = Array.from(new Set<string>((data?.sources || []).filter((s: any) => s.state === 'unpublished').map((s: any) => s.period || '部分月份')));
   const sources = Array.from(new Set<string>(pending.map((s: any) => s.source)));
@@ -84,7 +84,7 @@ export function SourceState({
   return (
     <div className="workbench-source-state">
       {!!unpublished.length && <p className="basic-muted">{`尚未发布的日程：${unpublished.join('、')}。已发布日程仍可查看，后续将定期检查更新。`}</p>}
-      {error && <Alert className="mb-16" type="error" message={error} action={<Button onClick={retry}>重试</Button>} />}
+      {error && <Alert className="mb-16" type="error" message={error} action={<Button loading={loading} onClick={retry}>重试</Button>} />}
       {!error && !!pending.length && (
       <Alert
         className="mb-16"
@@ -115,7 +115,7 @@ export function SourceState({
             {hasError && <p className="basic-muted">已取得的资料仍可查看。检查更新会重新读取现有资料；暂时无法获取的项目将在可重试时间后重新获取。</p>}
           </div>
       )}
-        action={<Button size="small" onClick={retry}>检查更新</Button>}
+        action={<Button size="small" loading={loading} onClick={retry}>检查更新</Button>}
       />
       )}
       {!pending.length && !!data?.sources?.length && (
