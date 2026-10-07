@@ -8,6 +8,7 @@ import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
 import { BasicSnapshotEntity } from './snapshot.entity';
 import { publicAnnouncements } from './public-announcements';
 import { publicReductionPlans } from './public-reduction-plans';
+import { ReductionSourceError } from './reduction-request';
 import { compactUnlockRows } from './unlock-calendar';
 import {
   CalendarUnpublishedError,
@@ -462,6 +463,9 @@ export class BasicSnapshotService implements OnModuleInit {
             fetchedAt: unpublished ? new Date() : cached?.fetchedAt || null,
             error: unpublished
               ? unpublishedCalendar
+              : source === 'reduction_plans' &&
+                e instanceof ReductionSourceError
+              ? e.message
               : permission
               ? '数据源权限或日额度不足'
               : '数据源暂不可用',

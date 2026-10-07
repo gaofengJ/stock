@@ -31,5 +31,20 @@
 .limits-risk-status
   margin: 0 0 16px
 
+.limits-risk-source
+  display: flex
+  flex-wrap: wrap
+  column-gap: 16px
+  row-gap: 4px
+  margin-bottom: 8px
+
 .limits-risk-note
   margin: 0 0 12px
+
+@media (max-width: 600px)
+  .limits-risk-status
+    flex-wrap: wrap
+    .ant-alert-action
+      flex-basis: 100%
+      margin-inline-start: 28px
+      margin-top: 8px

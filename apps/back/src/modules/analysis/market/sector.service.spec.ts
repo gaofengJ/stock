@@ -1,5 +1,6 @@
 /* eslint-disable no-await-in-loop, no-restricted-syntax -- 顺序验证异常快照不会覆盖已有数据。 */
 import { DailyEntity } from '@/modules/source/daily/daily.entity';
+import { DataSource } from 'typeorm';
 import { LimitEntity } from '@/modules/source/limit/limit.entity';
 import { TradeCalEntity } from '@/modules/source/trade-cal/trade-cal.entity';
 import { StrategyService } from '@/modules/strategy/strategy.service';
@@ -14,6 +15,56 @@ import { BseMappingEntity } from './market.entity';
 import { competitionRanks, primarySector, sectorReturn } from './sector.utils';
 
 describe('同花顺板块数据与口径', () => {
+  test('目录刷新通过真实 TypeORM 更新条件校验，随后保存完整新目录', async () => {
+    const db = new DataSource({ type: 'mysql' });
+    const builder: any = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 2 }),
+    };
+    jest.spyOn(db.manager, 'createQueryBuilder').mockReturnValue(builder);
+    await expect(
+      db.manager.update(SectorEntity, {}, { active: false }),
+    ).rejects.toThrow('Empty criteria');
+    const tx = {
+      update: db.manager.update.bind(db.manager),
+      upsert: jest.fn(),
+    };
+    const manager: any = {
+      findBy: jest.fn().mockResolvedValue([]),
+      findOneBy: jest.fn().mockResolvedValue(null),
+      transaction: (fn: any) => fn(tx),
+    };
+    const source = {
+      queryData: jest.fn().mockResolvedValue({
+        code: 0,
+        data: {
+          fields: ['ts_code', 'name', 'count', 'type'],
+          items: [
+            ['881101.TI', '行业', 20, 'I'],
+            ['885001.TI', '概念', 30, 'N'],
+          ],
+        },
+      }),
+    };
+    const service = new SectorService(
+      {} as any,
+      source as any,
+      {} as any,
+      { stage: (_m: any, _t: any, _d: any, run: any) => run() } as any,
+    );
+    await (service as any).catalog(manager, '2026-10-07');
+    expect(builder.where).toHaveBeenCalledWith({ active: true });
+    expect(tx.upsert).toHaveBeenCalledWith(
+      SectorEntity,
+      expect.arrayContaining([
+        expect.objectContaining({ tsCode: '881101.TI', active: true }),
+        expect.objectContaining({ tsCode: '885001.TI', active: true }),
+      ]),
+      ['tsCode'],
+    );
+  });
   test('排行保留原始小数精度，历史缺少精确基准日时不缩短计算周期', async () => {
     const dates = Array.from(
       { length: 21 },

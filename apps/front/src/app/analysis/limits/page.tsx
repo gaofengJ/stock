@@ -191,7 +191,7 @@ function LimitsPage() {
       </Space>
       {themeView ? <ThemeReview key={`${date}:${scope}`} keyword={keyword} height={height} sector={sector} /> : (
         <>
-          <RiskStatus data={riskData} loading={risks.loading} error={risks.error} retry={risks.retry} />
+          <RiskStatus data={riskData} loading={risks.loading} error={risks.error} retry={risks.retry} pollingStopped={risks.pollingStopped} />
           <div className="limits-table-toolbar">
             <SectionTitle title="股票列表" description="非ST样本；涨停与炸板按收盘状态区分。缺失封板信息显示“—”；可通过展示列查看其他指标。" />
             <Space wrap>

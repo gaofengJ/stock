@@ -2,6 +2,7 @@
 import axios from 'axios';
 import { shanghaiDate } from '@/modules/daily-task/sync.utils';
 import { reductionState, terminalReduction } from './reduction-state';
+import { reductionRequest, ReductionSourceError } from './reduction-request';
 
 type Notice = { id: string; code: string; date: string; title: string };
 const textCache = new Map<string, { text: string; until: number }>();
@@ -77,7 +78,8 @@ export async function publicReductionPlans(
   const seen = new Set<string>();
   let total: number | undefined;
   for (let page = 1; page <= 100; page += 1) {
-    const response = await get(
+    const response = await reductionRequest(
+      get,
       'https://np-anotice-stock.eastmoney.com/api/security/ann',
       {
         params: {
@@ -94,6 +96,7 @@ export async function publicReductionPlans(
         maxContentLength: 4 * 1024 * 1024,
         maxRedirects: 0,
       },
+      '目录',
     );
     const data = response.data?.data;
     if (
@@ -103,11 +106,12 @@ export async function publicReductionPlans(
       !Number.isInteger(Number(data.total_hits)) ||
       Number(data.total_hits) < 0
     )
-      throw new Error('减持计划公告目录不完整');
+      throw new ReductionSourceError('减持计划公告目录不完整');
     if (total !== undefined && total !== Number(data.total_hits))
-      throw new Error('计划公告目录在读取期间变化');
+      throw new ReductionSourceError('计划公告目录在读取期间变化');
     total = Number(data.total_hits);
-    if (total > 10000) throw new Error('计划公告目录超过核验上限');
+    if (total > 10000)
+      throw new ReductionSourceError('计划公告目录超过核验上限');
     data.list.forEach((row: any) => {
       if (
         !/^AN\d+$/.test(row.art_code) ||
@@ -115,7 +119,7 @@ export async function publicReductionPlans(
         typeof row.title !== 'string' ||
         !Array.isArray(row.codes)
       )
-        throw new Error('计划公告分页重复或条目无效');
+        throw new ReductionSourceError('计划公告分页重复或条目无效');
       seen.add(row.art_code);
       const announced = String(row.notice_date || '').slice(0, 10);
       if (
@@ -123,7 +127,7 @@ export async function publicReductionPlans(
         announced > date ||
         !/^\d{4}-\d{2}-\d{2}$/.test(announced)
       )
-        throw new Error('计划公告日期超出范围');
+        throw new ReductionSourceError('计划公告日期超出范围');
       if (!/减持/.test(row.title)) return;
       row.codes.forEach((security: any) => {
         const code = String(security.stock_code || '');
@@ -141,16 +145,22 @@ export async function publicReductionPlans(
     });
     if (seen.size === total) break;
     if (!data.list.length || seen.size > total || page === 100)
-      throw new Error('减持计划公告分页缺失');
+      throw new ReductionSourceError('减持计划公告分页缺失');
   }
   let nextRequest = 0;
   let succeeded = 0;
   let failed = 0;
+  let lastFailure: string | undefined;
   const unavailable = () => failed >= 5 && failed > succeeded / 4;
   const content = async (notice: Notice) => {
-    if (unavailable()) throw new Error('计划公告来源暂不可用');
+    if (unavailable())
+      throw new ReductionSourceError(lastFailure || '计划公告来源暂不可用');
     const cached = textCache.get(notice.id);
-    if (cached && cached.until > Date.now()) return cached.text;
+    if (cached && cached.until > Date.now()) {
+      textCache.delete(notice.id);
+      textCache.set(notice.id, cached);
+      return cached.text;
+    }
     let text = '';
     let pages = 1;
     for (let page = 1; page <= pages; page += 1) {
@@ -160,7 +170,8 @@ export async function publicReductionPlans(
         await new Promise((resolve) => {
           setTimeout(resolve, delay);
         });
-      const response = await get(
+      const response = await reductionRequest(
+        get,
         'https://np-cnotice-stock.eastmoney.com/api/content/ann',
         {
           params: {
@@ -172,6 +183,7 @@ export async function publicReductionPlans(
           maxContentLength: 2 * 1024 * 1024,
           maxRedirects: 0,
         },
+        '正文',
       );
       const data = response.data?.data;
       if (
@@ -180,18 +192,19 @@ export async function publicReductionPlans(
         String(data.notice_date).slice(0, 10) !== notice.date ||
         typeof data.notice_content !== 'string'
       )
-        throw new Error('计划公告正文无法核实');
+        throw new ReductionSourceError('计划公告正文无法核实');
       pages = Number(data.page_size || 1);
       if (!Number.isInteger(pages) || pages < 1 || pages > 10)
-        throw new Error('计划正文分页超出上限');
+        throw new ReductionSourceError('计划正文分页超出上限');
       text += `${data.notice_content}\n`;
-      if (text.length > 200000) throw new Error('计划正文超出上限');
+      if (text.length > 200000)
+        throw new ReductionSourceError('计划正文超出上限');
     }
     const bytes = Buffer.byteLength(text);
     if (cached) textBytes -= Buffer.byteLength(cached.text);
     textCache.set(notice.id, { text, until: Date.now() + 24 * 3600000 });
     textBytes += bytes;
-    while (textBytes > 8 * 1024 * 1024 || textCache.size > 2000) {
+    while (textBytes > 32 * 1024 * 1024 || textCache.size > 5000) {
       const key = textCache.keys().next().value;
       textBytes -= Buffer.byteLength(textCache.get(key)!.text);
       textCache.delete(key);
@@ -233,14 +246,17 @@ export async function publicReductionPlans(
           periods,
           textKnown: true,
         };
-      } catch {
+      } catch (error) {
+        if (error instanceof ReductionSourceError) lastFailure = error.message;
         failed += 1;
         return { ...notice, holders: [], periods: [], textKnown: false };
       }
     },
   );
   if (unavailable() || (failed && !succeeded))
-    throw new Error('计划公告正文暂不可用，保留已有快照');
+    throw new ReductionSourceError(
+      `${lastFailure || '计划公告正文暂不可用'}，保留已有快照`,
+    );
   const candidates = plans.filter((p) =>
     p.periods.some(
       (period) =>
@@ -261,13 +277,17 @@ export async function publicReductionPlans(
         const text = normalized(await content(notice));
         succeeded += 1;
         return { ...notice, text };
-      } catch {
+      } catch (error) {
+        if (error instanceof ReductionSourceError) lastFailure = error.message;
         failed += 1;
         return { ...notice, text: null };
       }
     },
   );
-  if (unavailable()) throw new Error('后续计划状态暂不可用，保留已有快照');
+  if (unavailable())
+    throw new ReductionSourceError(
+      `${lastFailure || '后续计划状态暂不可用'}，保留已有快照`,
+    );
   const items: any[][] = [];
   plans.forEach((plan) => {
     const periods = plan.periods.length

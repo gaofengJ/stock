@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import * as dotenv from 'dotenv';
 import { DataSource } from 'typeorm';
+import { RecoverSectorCatalog1792108800000 } from './migrations/1792108800000-RecoverSectorCatalog';
 import { LoginActivityItemRead1792022400000 } from './migrations/1792022400000-LoginActivityItemRead';
 import { FeedbackRead1791936000000 } from './migrations/1791936000000-FeedbackRead';
 import { PrivateFeedback1791849600000 } from './migrations/1791849600000-PrivateFeedback';
@@ -41,6 +42,7 @@ export default new DataSource({
   timezone: 'Z',
   synchronize: false,
   migrations: [
+    RecoverSectorCatalog1792108800000,
     ReliableSync1790380800000,
     SyncSafety1790380800001,
     Accounts1790467200000,

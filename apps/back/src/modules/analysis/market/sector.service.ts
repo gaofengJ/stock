@@ -86,7 +86,7 @@ export class SectorService {
       )
         throw new Error('同花顺分类目录不完整或重复');
       await manager.transaction(async (tx) => {
-        await tx.update(SectorEntity, {}, { active: false });
+        await tx.update(SectorEntity, { active: true }, { active: false });
         await tx.upsert(
           SectorEntity,
           selected.map((r) => ({

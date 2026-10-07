@@ -53,6 +53,20 @@ const rows = (result: any) =>
   );
 
 describe('original current reduction plans', () => {
+  it('reuses verified announcement bodies on the next refresh while rechecking the catalog', async () => {
+    const get = fixture([notice('AN992000', '股东减持计划预披露')], {
+      AN992000: original,
+    });
+    const first = await publicReductionPlans(get as any, date);
+    const second = await publicReductionPlans(get as any, date);
+    expect(second).toEqual(first);
+    expect(
+      get.mock.calls.filter(([url]) => url.includes('/content/ann')),
+    ).toHaveLength(1);
+    expect(
+      get.mock.calls.filter(([url]) => url.includes('/security/ann')),
+    ).toHaveLength(2);
+  });
   it('reads explicit plan periods and holders, never actual trade intervals or relative dates', () => {
     expect(planPeriods(original)).toEqual([
       { start: '2026-09-21', end: '2026-12-20' },
@@ -149,5 +163,31 @@ describe('original current reduction plans', () => {
     expect(
       get.mock.calls.filter(([url]) => url.includes('/content/ann')).length,
     ).toBeLessThanOrEqual(8);
+  });
+
+  it('preserves the HTTP failure after the outage circuit stops further reads', async () => {
+    jest.useFakeTimers();
+    try {
+      const announcements = Array.from({ length: 25 }, (_, i) =>
+        notice(`AN9930${i}`, '股东减持计划预披露'),
+      );
+      const catalog = fixture(announcements, {});
+      const get = jest.fn(async (url: string, options: any) => {
+        if (url.includes('/security/ann')) return catalog(url, options);
+        throw Object.assign(new Error('upstream unavailable'), {
+          response: { status: 502 },
+        });
+      });
+      const pending = expect(
+        publicReductionPlans(get as any, date),
+      ).rejects.toThrow('HTTP 502，尝试 3 次');
+      await jest.runAllTimersAsync();
+      await pending;
+      expect(
+        get.mock.calls.filter(([url]) => url.includes('/content/ann')).length,
+      ).toBeLessThanOrEqual(24);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

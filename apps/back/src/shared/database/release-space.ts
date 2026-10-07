@@ -4,6 +4,7 @@ interface TableSize {
 }
 
 const migrationTables: Record<string, readonly string[]> = {
+  RecoverSectorCatalog1792108800000: ['t_admin_job'],
   // Two new empty tables; existing account and market tables are not rebuilt.
   PrivateFeedback1791849600000: ['t_feedback', 't_feedback_reply'],
   FeedbackRead1791936000000: ['t_feedback_read'],
@@ -72,6 +73,7 @@ const migrationOperations: Record<
   string,
   'create' | 'data' | 'schema' | 'full-database'
 > = {
+  RecoverSectorCatalog1792108800000: 'data',
   PrivateFeedback1791849600000: 'create',
   FeedbackRead1791936000000: 'create',
   LoginActivityItemRead1792022400000: 'create',
