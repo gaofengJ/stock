@@ -11,7 +11,7 @@ import { Interval } from '@nestjs/schedule';
 import { DataSource } from 'typeorm';
 import { createHash } from 'crypto';
 import * as dayjs from 'dayjs';
-import { permanentSyncError } from '../daily-task/sync.utils';
+import { permanentSyncError, SyncBatchResult } from '../daily-task/sync.utils';
 import { redact } from '../auth/redact';
 import { DailyTaskService } from '../daily-task/daily-task.service';
 import { AuthService, CurrentUser } from '../auth/auth.service';
@@ -274,6 +274,7 @@ export class JobsService implements OnApplicationBootstrap {
     completed: string[],
     error: string | null,
     stage: string,
+    sourceRetryAt?: Date,
   ) {
     return this.db.transaction(async (m) => {
       const [current] = await m.query(
@@ -288,6 +289,8 @@ export class JobsService implements OnApplicationBootstrap {
       const outcome = retryOutcome(
         requestedStatus,
         Number(current.retry_count || 0),
+        Date.now(),
+        sourceRetryAt,
       );
       const finalStatus = outcome.status;
       const terminal = ['success', 'failed', 'cancelled'].includes(finalStatus);
@@ -462,7 +465,7 @@ export class JobsService implements OnApplicationBootstrap {
       );
       if (!claim.affectedRows) return;
       try {
-        let result;
+        let result: SyncBatchResult | undefined;
         if (job.mode === 'sector')
           result = await this.daily.sectorBatch(job.startDate, job.endDate);
         else if (job.mode === 'technical')
@@ -495,11 +498,12 @@ export class JobsService implements OnApplicationBootstrap {
         const blocked =
           result.protectedDates.length > 0 && result.remaining === 0;
         let status = result.remaining ? 'queued' : 'success';
-        if (result.failures.length) status = 'pending';
+        if (result.failures.length || result.retryAt) status = 'pending';
         if (permanent || blocked) status = 'failed';
         const error =
           [
             ...result.failures,
+            ...(result.waitingReason ? [result.waitingReason] : []),
             ...(blocked
               ? [`主动删除保护：${result.protectedDates.join('、')}`]
               : []),
@@ -512,6 +516,7 @@ export class JobsService implements OnApplicationBootstrap {
           'stage' in result
             ? String(result.stage)
             : `已处理 ${done.length} 日，待补 ${result.remaining} 日`,
+          result.failures.length ? undefined : result.retryAt,
         );
       } catch (e) {
         const permanent = permanentSyncError(e);

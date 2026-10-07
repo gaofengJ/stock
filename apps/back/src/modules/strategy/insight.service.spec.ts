@@ -382,7 +382,11 @@ describe('historical hot-rank source gaps', () => {
     expect(sync).not.toHaveBeenCalled();
     expect(result?.completed).toEqual([]);
     expect(result?.remaining).toBe(1);
-    expect(result?.failures[0]).toContain('24小时后重试');
+    expect(result?.failures).toEqual([]);
+    expect(result?.waitingReason).toContain('源端冷却');
+    expect(result?.retryAt?.getTime()).toBeGreaterThan(
+      Date.now() + 23 * 60 * 60 * 1000,
+    );
   });
   it.each([
     ['数据源返回空快照', 24 * 60 * 60 * 1000],
@@ -400,4 +404,41 @@ describe('historical hot-rank source gaps', () => {
       });
     },
   );
+
+  it('other completed dates leave a source gap waiting until its original expiry', async () => {
+    const { service, sync } = setup('数据源返回空快照', 12 * 60 * 60 * 1000);
+    const result = await service.batch(dates[2], dates[0], true);
+    expect(result).toMatchObject({
+      completed: dates.slice(1),
+      remaining: 1,
+      failures: [],
+    });
+    expect(result?.retryAt?.getTime()).toBeGreaterThan(
+      Date.now() + 11 * 60 * 60 * 1000,
+    );
+    expect(result?.retryAt?.getTime()).toBeLessThanOrEqual(
+      Date.now() + 12 * 60 * 60 * 1000,
+    );
+    expect(sync).toHaveBeenCalledTimes(2);
+  });
+
+  it('a real failure beside a deferred gap still consumes a normal retry', async () => {
+    const { service, sync } = setup();
+    sync.mockRejectedValue(new Error('network timeout'));
+    const result = await service.batch(dates[2], dates[0], true);
+    expect(result?.failures).toHaveLength(2);
+    expect(result?.retryAt).toBeUndefined();
+  });
+
+  it('remaining actionable dates continue in batches before entering source cooldown', async () => {
+    const other = ['2020-09-25', '2020-09-24'];
+    const { service } = setup('数据源返回空快照', 0, [...dates, ...other]);
+    const result = await service.batch(other[1], dates[0], true);
+    expect(result).toMatchObject({
+      completed: [...dates.slice(1), other[0]],
+      remaining: 2,
+      failures: [],
+    });
+    expect(result?.retryAt).toBeUndefined();
+  });
 });

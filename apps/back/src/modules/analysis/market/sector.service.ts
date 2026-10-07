@@ -7,6 +7,7 @@ import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
 import { readSnapshot } from '@/modules/daily-task/sync-source.service';
 import {
   normalizeDate,
+  automaticSyncRetryBlocked,
   permanentSyncError,
   shanghaiDate,
 } from '@/modules/daily-task/sync.utils';
@@ -43,14 +44,9 @@ export class SectorService {
     if (!this.db.hasMetadata(SectorEntity)) return;
     const start = dayjs(end).subtract(2, 'year').format('YYYY-MM-DD');
     const [failed] = await manager.query(
-      "SELECT error,updated_at updatedAt FROM t_admin_job WHERE mode='sector' AND actor_id IS NULL AND status='failed' ORDER BY id DESC LIMIT 1",
+      "SELECT error,updated_at updatedAt,DATE_FORMAT(end_date,'%Y-%m-%d') endDate FROM t_admin_job WHERE mode='sector' AND actor_id IS NULL AND status='failed' ORDER BY id DESC LIMIT 1",
     );
-    if (
-      failed &&
-      permanentSyncError(failed.error || '') &&
-      shanghaiDate(failed.updatedAt) === shanghaiDate()
-    )
-      return;
+    if (automaticSyncRetryBlocked(failed, end)) return;
     await manager.query(
       "INSERT INTO t_admin_job(actor_id,actor_name,start_date,end_date,status,active_key,mode,stage) VALUES(NULL,'同花顺板块同步',?,?,'queued','ths-sectors-two-years','sector','等待更新同花顺板块') ON DUPLICATE KEY UPDATE end_date=GREATEST(end_date,VALUES(end_date))",
       [start, end],

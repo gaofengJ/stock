@@ -26,6 +26,28 @@ const positive = (value: unknown) =>
   Number.isFinite(Number(value)) &&
   Number(value) > 0;
 
+/** 已知北交所代码映射可以改变后复权基点，均线比例和上下位置必须一致。 */
+export function equivalentBreadthFactors(a: BreadthFactor, b: BreadthFactor) {
+  if (
+    (['closeHfq', 'maHfq20', 'maHfq60'] as const).every(
+      (key) => a[key] === b[key],
+    )
+  )
+    return true;
+  if (!positive(a.closeHfq) || !positive(b.closeHfq)) return false;
+  const ac = Number(a.closeHfq);
+  const bc = Number(b.closeHfq);
+  return (['maHfq20', 'maHfq60'] as const).every((key) => {
+    if (a[key] == null || b[key] == null) return a[key] === b[key];
+    if (!positive(a[key]) || !positive(b[key])) return false;
+    const am = Number(a[key]);
+    const bm = Number(b[key]);
+    // 来源按五位小数取整；允许取整误差，不允许跨越均线或混用复权口径。
+    const rounding = 0.00001 * (ac + bc + am + bm);
+    return ac > am === bc > bm && Math.abs(ac * bm - bc * am) <= rounding;
+  });
+}
+
 /** A股交易样本含ST；停牌/无成交不进入分母。价格与SMA使用同一后复权口径。 */
 export function marketBreadth(
   daily: { tsCode: string; amount: unknown }[],

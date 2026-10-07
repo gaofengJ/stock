@@ -138,6 +138,77 @@ describe('均线广度独立同步', () => {
     expect(test.manager.transaction).not.toHaveBeenCalled();
   });
 
+  it.each([false, true])(
+    '不同复权基点但比例一致的新旧代码只计一次，返回顺序不影响结果 (%s)',
+    async (reverse) => {
+      const pair = [
+        ['830001.BJ', '20260930', 5.72865, 5.53317, 5.12253],
+        ['920001.BJ', '20260930', 4.78042, 4.61729, 4.27462],
+      ];
+      const test = make([
+        ...(reverse ? pair.reverse() : pair),
+        ['600000.SH', '20260930', 10, 9, 11],
+      ]);
+      await test.service.syncDay(test.manager as any, date);
+      const rows = test.tx.insert.mock.calls[0][1];
+      expect(rows.find((r: any) => r.scope === 'bj').data).toMatchObject({
+        total: 1,
+        ma20: { eligible: 1, above: 1, ratio: 100 },
+        ma60: { eligible: 1, above: 1, ratio: 100 },
+      });
+    },
+  );
+
+  it('取整误差不能掩盖均线上下位置改变', async () => {
+    const test = make([
+      ['830001.BJ', '20260930', 10.00001, 10, 11],
+      ['920001.BJ', '20260930', 20, 20.00001, 22],
+      ['600000.SH', '20260930', 10, 9, 11],
+    ]);
+    await expect(
+      test.service.syncDay(test.manager as any, date),
+    ).rejects.toThrow('数值冲突');
+    expect(test.manager.transaction).not.toHaveBeenCalled();
+  });
+
+  it('三个历史冲突日不能阻断其他日期补齐，新日期仍优先', async () => {
+    const rows = [
+      { date: '2025-04-30', failed: 1 },
+      { date: '2025-04-29', failed: 1 },
+      { date: '2025-04-28', failed: 1 },
+      { date: '2025-04-25', failed: 0 },
+      { date: '2025-04-24', failed: 0 },
+      { date: '2026-09-30', failed: 0 },
+    ];
+    const manager = { query: jest.fn().mockResolvedValue(rows) };
+    const service = new MarketBreadthService(
+      {} as any,
+      {} as any,
+      { withLock: (fn: any) => fn(manager) } as any,
+      {} as any,
+    );
+    const sync = jest.spyOn(service, 'syncDay').mockResolvedValue(undefined);
+    expect(await service.batch('2024-09-30', date)).toMatchObject({
+      completed: ['2026-09-30', '2025-04-25', '2025-04-24'],
+      remaining: 3,
+      failures: [],
+    });
+    expect(sync.mock.calls.map((call) => call[1])).toEqual([
+      '2026-09-30',
+      '2025-04-25',
+      '2025-04-24',
+    ]);
+    manager.query.mockResolvedValue(rows.slice(0, 3));
+    sync.mockRejectedValue(new Error('北交所新旧代码均线数值冲突'));
+    expect(await service.batch('2024-09-30', date)).toMatchObject({
+      completed: [],
+      remaining: 3,
+      failures: rows
+        .slice(0, 3)
+        .map((r) => `${r.date}: 北交所新旧代码均线数值冲突`),
+    });
+  });
+
   it('主动删除保护或核心行情未完整时不请求数据源', async () => {
     const test = make([]);
     test.writes.excluded.mockResolvedValue(true);

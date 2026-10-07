@@ -265,6 +265,59 @@ describe('同花顺板块数据与口径', () => {
       ['asOf', 'tsCode'],
     );
   });
+
+  test('目录验证完整后只撤下活跃目录，并在同一事务更新新目录', async () => {
+    const selected = [
+      { tsCode: '881101.TI', name: '行业', type: 'I', count: 2, active: true },
+      { tsCode: '885540.TI', name: '概念', type: 'N', count: 3, active: true },
+    ];
+    const test = setup(
+      ['ts_code', 'name', 'type', 'count'],
+      [
+        ['881101.TI', '行业', 'I', 2],
+        ['885540.TI', '概念', 'N', 3],
+      ],
+    );
+    const tx = {
+      update: jest.fn().mockImplementation((_entity, criteria) => {
+        if (!Object.keys(criteria).length) throw new Error('Empty criteria(s)');
+      }),
+      upsert: jest.fn(),
+    };
+    const manager = {
+      ...test.manager,
+      findBy: jest.fn().mockResolvedValueOnce([]).mockResolvedValue(selected),
+      findOneBy: jest.fn().mockResolvedValue(null),
+      transaction: jest.fn().mockImplementation((fn) => fn(tx)),
+    };
+    expect(await (test.service as any).catalog(manager, '2026-10-07')).toEqual(
+      selected,
+    );
+    expect(tx.update).toHaveBeenCalledWith(
+      SectorEntity,
+      { active: true },
+      { active: false },
+    );
+    expect(tx.upsert).toHaveBeenCalledWith(SectorEntity, selected, ['tsCode']);
+  });
+
+  test('目录快照不完整时不撤下旧目录', async () => {
+    const test = setup(
+      ['ts_code', 'name', 'type', 'count'],
+      [['881101.TI', '行业', 'I', 2]],
+    );
+    const manager = {
+      ...test.manager,
+      findBy: jest
+        .fn()
+        .mockResolvedValue([{ tsCode: '885540.TI', active: true }]),
+      findOneBy: jest.fn().mockResolvedValue(null),
+    };
+    await expect(
+      (test.service as any).catalog(manager, '2026-10-07'),
+    ).rejects.toThrow('目录不完整');
+    expect(manager.transaction).not.toHaveBeenCalled();
+  });
   test('成分覆盖异常不得覆盖旧快照', async () => {
     const { service, manager } = setup(
       ['ts_code', 'con_code', 'con_name'],

@@ -12,6 +12,7 @@ import { SyncRunEntity } from '../daily-task/sync-run.entity';
 import {
   latestSyncDate,
   normalizeDate,
+  automaticSyncRetryBlocked,
   permanentSyncError,
   shanghaiDate,
 } from '../daily-task/sync.utils';
@@ -357,15 +358,10 @@ export class InsightService {
     const start = dates.at(-1)!;
     for (const mode of ['insights', 'hot']) {
       const [failure] = await manager.query(
-        "SELECT error,updated_at updatedAt FROM t_admin_job WHERE mode=? AND actor_id IS NULL AND status='failed' ORDER BY id DESC LIMIT 1",
+        "SELECT error,updated_at updatedAt,DATE_FORMAT(end_date,'%Y-%m-%d') endDate FROM t_admin_job WHERE mode=? AND actor_id IS NULL AND status='failed' ORDER BY id DESC LIMIT 1",
         [mode],
       );
-      if (
-        failure &&
-        permanentSyncError(failure.error || '') &&
-        shanghaiDate(failure.updatedAt) === shanghaiDate()
-      )
-        continue;
+      if (automaticSyncRetryBlocked(failure, dates[0])) continue;
       await manager.query(
         "INSERT INTO t_admin_job(actor_id,actor_name,start_date,end_date,status,active_key,mode,stage) VALUES(NULL,?,?,?,'queued',?,?,'等待增量计算') ON DUPLICATE KEY UPDATE start_date=LEAST(start_date,VALUES(start_date)),end_date=GREATEST(end_date,VALUES(end_date))",
         [
@@ -442,7 +438,7 @@ export class InsightService {
                 },
               })
             : [];
-        const deferred = new Set(
+        const deferred = new Map(
           recentGaps
             .filter(
               (r) =>
@@ -451,18 +447,14 @@ export class InsightService {
                 Date.now() - new Date(r.updatedAt).getTime() <
                   24 * 60 * 60 * 1000,
             )
-            .map((r) => r.tradeDate),
+            .map((r) => [
+              r.tradeDate,
+              new Date(new Date(r.updatedAt).getTime() + 24 * 60 * 60 * 1000),
+            ]),
         );
         const actionable = pending.filter((d) => !deferred.has(d));
         const completed: string[] = [];
-        const failures: string[] =
-          !actionable.length && deferred.size
-            ? [
-                `日终人气数据待源端补齐，24小时后重试：${[...deferred].join(
-                  '、',
-                )}`,
-              ]
-            : [];
+        const failures: string[] = [];
         for (const date of actionable.slice(0, 3)) {
           try {
             if (hot) await this.syncHot(manager, date);
@@ -473,9 +465,23 @@ export class InsightService {
             if (permanentSyncError(e)) break;
           }
         }
+        const waiting =
+          deferred.size > 0 &&
+          pending.length - completed.length === deferred.size &&
+          !failures.length;
         return {
           completed,
           failures,
+          retryAt: waiting
+            ? new Date(
+                Math.min(...[...deferred.values()].map((d) => d.getTime())),
+              )
+            : undefined,
+          waitingReason: waiting
+            ? `日终人气数据待源端补齐，按源端冷却时间重试：${[
+                ...deferred.keys(),
+              ].join('、')}`
+            : undefined,
           remaining: pending.length - completed.length,
           protectedDates,
           calendarReady: true,

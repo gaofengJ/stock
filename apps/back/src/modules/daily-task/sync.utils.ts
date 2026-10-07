@@ -2,6 +2,16 @@ import * as dayjs from 'dayjs';
 import { DailyEntity } from '../source/daily/daily.entity';
 import { LimitEntity } from '../source/limit/limit.entity';
 
+export interface SyncBatchResult {
+  completed: string[];
+  failures: string[];
+  remaining: number;
+  protectedDates: string[];
+  stage?: string;
+  retryAt?: Date;
+  waitingReason?: string;
+}
+
 // 不依赖服务器操作系统时区。
 export function shanghaiDate(now = new Date()): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -49,6 +59,22 @@ export function errorMessage(error: unknown): string {
 export function permanentSyncError(error: unknown): boolean {
   return /权限|积分|每天|每日|配额|token.*(无效|错误)|permanent:/i.test(
     errorMessage(error),
+  );
+}
+
+/** 失败的同一历史范围每日最多自动开启一轮；新交易日和人工重试不受此限制。 */
+export function automaticSyncRetryBlocked(
+  failure: { error?: string; updatedAt: Date; endDate?: string } | undefined,
+  end: string,
+  now = new Date(),
+): boolean {
+  if (!failure) return false;
+  if (permanentSyncError(failure.error || ''))
+    return shanghaiDate(failure.updatedAt) === shanghaiDate(now);
+  return (
+    !!failure.endDate &&
+    end <= failure.endDate &&
+    now.getTime() - new Date(failure.updatedAt).getTime() < 24 * 60 * 60 * 1000
   );
 }
 

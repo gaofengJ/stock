@@ -9,8 +9,8 @@ import { readSnapshot } from '@/modules/daily-task/sync-source.service';
 import {
   latestSyncDate,
   normalizeDate,
+  automaticSyncRetryBlocked,
   permanentSyncError,
-  shanghaiDate,
 } from '@/modules/daily-task/sync.utils';
 import { DailyEntity } from '@/modules/source/daily/daily.entity';
 import { StockEntity } from '@/modules/source/stock/stock.entity';
@@ -19,7 +19,11 @@ import { BseMappingEntity, MarketBreadthEntity } from './market.entity';
 import { MARKET_SCOPES } from './market.constants';
 import { MarketSyncService } from './market-sync.service';
 import { MarketQueryDto } from './market.dto';
-import { BreadthFactor, marketBreadth } from './market-environment.utils';
+import {
+  BreadthFactor,
+  equivalentBreadthFactors,
+  marketBreadth,
+} from './market-environment.utils';
 
 @Injectable()
 export class MarketBreadthService {
@@ -86,15 +90,11 @@ export class MarketBreadthService {
           throw new Error('均线数据日期不匹配');
         const factor = { ...r, tsCode: canonical(r.tsCode) } as BreadthFactor;
         const previous = factorsByCode.get(factor.tsCode);
-        // 北交所历史接口同时返回新旧代码；仅合并指标完全相同的已知映射。
-        if (
-          previous &&
-          (['closeHfq', 'maHfq20', 'maHfq60'] as const).some(
-            (key) => previous[key] !== factor[key],
-          )
-        )
+        // 只合并已知映射且统计含义一致的样本，真实冲突仍保留旧汇总。
+        if (previous && !equivalentBreadthFactors(previous, factor))
           throw new Error('北交所新旧代码均线数值冲突');
-        factorsByCode.set(factor.tsCode, factor);
+        if (!previous || r.tsCode === factor.tsCode)
+          factorsByCode.set(factor.tsCode, factor);
       });
       const factors = [...factorsByCode.values()];
       if (
@@ -172,15 +172,9 @@ export class MarketBreadthService {
     );
     if (!hole) return;
     const [failed] = await manager.query(
-      "SELECT error,updated_at updatedAt FROM t_admin_job WHERE mode='breadth' AND actor_id IS NULL AND status='failed' ORDER BY id DESC LIMIT 1",
+      "SELECT error,updated_at updatedAt,DATE_FORMAT(end_date,'%Y-%m-%d') endDate FROM t_admin_job WHERE mode='breadth' AND actor_id IS NULL AND status='failed' ORDER BY id DESC LIMIT 1",
     );
-    // 权限/日配额错误留在任务记录中，下一次日常入口再重试，避免无限新建任务。
-    if (
-      failed &&
-      permanentSyncError(failed.error || '') &&
-      shanghaiDate(failed.updatedAt) === shanghaiDate()
-    )
-      return;
+    if (automaticSyncRetryBlocked(failed, end)) return;
     await manager.query(
       "INSERT INTO t_admin_job(actor_id,actor_name,start_date,end_date,status,active_key,mode,stage) VALUES(NULL,'均线广度补齐',?,?,'queued','market-breadth-two-years','breadth','等待补齐均线广度') ON DUPLICATE KEY UPDATE end_date=GREATEST(end_date,VALUES(end_date))",
       [start, end],
@@ -193,16 +187,25 @@ export class MarketBreadthService {
     if (start > end) throw new Error('起止日期顺序错误');
     return this.writes.withLock(
       async (manager) => {
-        const rows: { date: string }[] = await manager.query(
-          `SELECT DATE_FORMAT(r.trade_date,'%Y-%m-%d') date FROM t_sync_run r
+        const rows: { date: string; failed?: number }[] = await manager.query(
+          `SELECT DATE_FORMAT(r.trade_date,'%Y-%m-%d') date,IF(s.status='failed',1,0) failed FROM t_sync_run r
         LEFT JOIN t_sync_day_policy p ON p.trade_date=r.trade_date
+        LEFT JOIN t_sync_run s ON s.task='market-breadth' AND s.trade_date=r.trade_date
         WHERE r.task='market' AND r.status='success' AND r.trade_date BETWEEN ? AND ? AND p.trade_date IS NULL
         AND (SELECT COUNT(*) FROM t_processed_market_breadth b WHERE b.trade_date=r.trade_date)<6 ORDER BY r.trade_date DESC`,
           [start, end < latestSyncDate() ? end : latestSyncDate()],
         );
         const completed: string[] = [];
         const failures: string[] = [];
-        for (const row of rows.slice(0, 3)) {
+        // 历史异常不占满每个批次；新交易日和未尝试日期仍优先，最后再复核失败日。
+        const selected = [...rows]
+          .sort(
+            (a, b) =>
+              Number(a.failed || 0) - Number(b.failed || 0) ||
+              b.date.localeCompare(a.date),
+          )
+          .slice(0, 3);
+        for (const row of selected) {
           try {
             await this.syncDay(manager, row.date);
             completed.push(row.date);

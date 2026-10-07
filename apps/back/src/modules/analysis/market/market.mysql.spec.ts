@@ -28,6 +28,8 @@ import {
   SectorMembersEntity,
 } from './sector.entity';
 import { MarketSyncService } from './market-sync.service';
+import { SectorService } from './sector.service';
+import { MarketBreadthService } from './market-breadth.service';
 import { MarketService } from './market.service';
 import {
   BseMappingEntity,
@@ -255,6 +257,133 @@ mysqlDescribe('市场分析迁移、发布及持久化续跑', () => {
     expect(Number(count.n)).toBe(2);
     expect(() => validRange('2024-02-29', '2026-02-28')).not.toThrow();
     expect(() => validRange('2024-02-28', '2026-03-01')).toThrow();
+  });
+
+  it('目录更新在真实 ORM 事务中撤下旧目录，并保留完整的新目录', async () => {
+    await db.manager.insert(SectorEntity, [
+      {
+        tsCode: '885001.TI',
+        name: '旧目录',
+        type: 'N',
+        count: 1,
+        active: true,
+      },
+      {
+        tsCode: '885002.TI',
+        name: '已停用目录',
+        type: 'N',
+        count: 1,
+        active: false,
+      },
+    ]);
+    remote.queryData.mockResolvedValue({
+      code: 0,
+      data: {
+        fields: ['ts_code', 'name', 'type', 'count'],
+        items: [
+          ['881101.TI', '行业', 'I', 2],
+          ['885540.TI', '概念', 'N', 3],
+        ],
+      },
+    });
+    const sectors = new SectorService(db, remote as any, writes, market);
+    expect(
+      await (sectors as any).catalog(db.manager, '2026-10-07'),
+    ).toHaveLength(2);
+    expect(
+      await db.manager.findOneBy(SectorEntity, { tsCode: '885001.TI' }),
+    ).toMatchObject({ active: false });
+    expect(
+      await db.manager.findOneBy(SectorEntity, { tsCode: '885002.TI' }),
+    ).toMatchObject({ active: false });
+    expect(
+      await db.manager.findOneBy(SyncRunEntity, {
+        task: 'ths-catalog',
+        tradeDate: '2026-10-07',
+      }),
+    ).toMatchObject({ status: 'success' });
+    await (sectors as any).catalog(db.manager, '2026-10-07');
+    expect(remote.queryData).toHaveBeenCalledTimes(1);
+    remote.queryData.mockResolvedValue({
+      code: 0,
+      data: {
+        fields: ['ts_code', 'name', 'type', 'count'],
+        items: [['881101.TI', '行业', 'I', 2]],
+      },
+    });
+    await expect(
+      (sectors as any).catalog(db.manager, '2026-10-08'),
+    ).rejects.toThrow('目录不完整');
+    expect(await db.manager.countBy(SectorEntity, { active: true })).toBe(2);
+  });
+
+  it('源端冷却时间持久化，重启后不会抢跑，管理员仍可重试完成', async () => {
+    const retryAt = new Date(Date.now() + 60 * 60 * 1000);
+    const worker = {
+      marketEnabled: true,
+      insightBatch: jest.fn().mockResolvedValue({
+        completed: [],
+        remaining: 1,
+        failures: [],
+        protectedDates: [],
+        retryAt,
+        waitingReason: '等待源端补齐',
+      }),
+    };
+    const auth = { audit: jest.fn() } as unknown as AuthService;
+    const locks = new DataLockService(db);
+    await db.query(
+      "INSERT INTO t_admin_job(actor_name,start_date,end_date,status,retry_count,active_key,mode) VALUES('系统自动',?,?,'queued',4,'stock-hot-history','hot')",
+      [dates[1], dates[5]],
+    );
+    const jobs = new JobsService(db, worker as any, auth, locks);
+    await jobs.tick();
+    let [job] = await db.query('SELECT * FROM t_admin_job');
+    expect(job.status).toBe('pending');
+    expect(job.retry_count).toBe(4);
+    expect(new Date(job.next_retry_at).getTime()).toBe(retryAt.getTime());
+    expect(job.active_key).toBe('stock-hot-history');
+    const restarted = new JobsService(db, worker as any, auth, locks);
+    await restarted.onApplicationBootstrap();
+    await restarted.tick();
+    expect(worker.insightBatch).toHaveBeenCalledTimes(1);
+    await restarted.control(
+      { id: 1, username: 'test-admin' } as any,
+      job.id,
+      'retry',
+    );
+    worker.insightBatch.mockResolvedValue({
+      completed: [dates[1]],
+      remaining: 0,
+      failures: [],
+      protectedDates: [],
+    });
+    await restarted.tick();
+    [job] = await db.query('SELECT * FROM t_admin_job');
+    expect(job.status).toBe('success');
+    expect(job.retry_count).toBe(0);
+    expect(job.active_key).toBeNull();
+    expect(job.next_retry_at).toBeNull();
+  });
+
+  it('自动入口不反复创建同一失败范围，新交易日仍合并到唯一活跃任务', async () => {
+    await db.manager.insert(SyncRunEntity, {
+      task: 'market',
+      tradeDate: dates[5],
+      status: 'success',
+    });
+    await db.query(
+      "INSERT INTO t_admin_job(actor_name,start_date,end_date,status,retry_count,mode,error,updated_at) VALUES('均线广度补齐',?,?,'failed',5,'breadth','北交所新旧代码均线数值冲突',UTC_TIMESTAMP(6))",
+      [dates[0], dates[5]],
+    );
+    const breadth = new MarketBreadthService(db, remote as any, writes, market);
+    await breadth.enqueue(db.manager, dates[5]);
+    expect((await db.query('SELECT id FROM t_admin_job')).length).toBe(1);
+    await breadth.enqueue(db.manager, '2024-03-06');
+    await breadth.enqueue(db.manager, '2024-03-06');
+    const tasks = await db.query('SELECT status FROM t_admin_job');
+    expect(tasks.filter((r: any) => r.status === 'queued')).toHaveLength(1);
+    expect(tasks).toHaveLength(2);
   });
   it('最新日优先，每批最多3日，复用完整原始数据且六范围金额可以对账', async () => {
     const first = await daily.marketBatch(dates[1], dates[5]);
