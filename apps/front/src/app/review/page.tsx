@@ -23,12 +23,13 @@ import RiskInspect from '../basic/components/RiskInspect';
 import { RiskTags, SourceState, useWorkbench } from '../basic/components/workbench';
 import { currentReduction } from '../basic/components/risk-display';
 import Holdings from './Holdings';
+import Notebook from './Notebook';
 import useReviewDraft from './useReviewDraft';
 import { compareCap, validDate } from './review-interactions';
 import '../strategy/strategy.sass';
 import './review.css';
 
-function Report({ date, account }: { date: string; account: number }) {
+function Report({ date, account, capture }: { date: string; account: number; capture?: (text: string) => void }) {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -98,7 +99,7 @@ function Report({ date, account }: { date: string; account: number }) {
   let sortCaption = '当前使用候选原始顺序';
   if (sortOrder === 'ascend') sortCaption = '当前按流通市值从小到大排列';
   if (sortOrder === 'descend') sortCaption = '当前按流通市值从大到小排列';
-  const download = () => {
+  const download = (captureOnly = false) => {
     const text = [
       `# ${date} 每日复盘与下一交易日计划`,
       `候选生成时间：${data?.generatedAt ? beijingTime(data.generatedAt) : '尚未取得'}；导出时间：${beijingTime(new Date().toISOString())}。`,
@@ -110,6 +111,7 @@ function Report({ date, account }: { date: string; account: number }) {
       '## 数据与核验说明\n人工记录仅为本次复盘笔记；风险资料状态单独列示。请结合公告原文记录减持、重大利空及财务审计等事项的核验结论与时间。',
       `数据说明：${data?.riskNote || '候选资料尚未取得。'} 历史日期按当前可用资料回看。`,
     ].join('\n\n');
+    if (captureOnly && capture) { capture(text); return; }
     const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown;charset=utf-8' }));
     const a = document.createElement('a'); a.href = url; a.download = `每日复盘-${date}.md`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -330,7 +332,8 @@ function Report({ date, account }: { date: string; account: number }) {
             </div>
             <div className="review-plan-footer">
               <div className="review-plan-actions">
-                <Button type="primary" disabled={!ready} onClick={download}>导出复盘与计划</Button>
+                {capture && <Button type="primary" disabled={!ready} onClick={() => download(true)}>带入今日私人复盘</Button>}
+                <Button disabled={!ready} onClick={() => download()}>导出复盘与计划</Button>
                 <span className="review-caption">Markdown 文件</span>
               </div>
               <p role="status" className="review-caption">
@@ -360,11 +363,14 @@ export default function Page() {
   const fallback = useDefaultTradeDate();
   const { user } = useAccount();
   const [chosenDate, setChosenDate] = useState('');
+  const [notebookDirty, setNotebookDirty] = useState(false);
   useEffect(() => {
     const value = new URLSearchParams(window.location.search).get('date') || '';
     if (validDate(value)) setChosenDate(value);
   }, []);
   const changeDate = (value: string) => {
+    if (notebookDirty && !window.confirm('尚有未保存复盘，请先保存或导出。确定切换日期并放弃修改？')) return;
+    setNotebookDirty(false);
     setChosenDate(value);
     const url = new URL(window.location.href); url.searchParams.set('date', value);
     window.history.replaceState(null, '', url);
@@ -374,14 +380,16 @@ export default function Page() {
     <Layout showAsideMenu={false} headerMenuActive={EHeaderMenuKey.review}>
       <main className="review-page rounded-[6px] bg-bg-white">
         <h1 className="page-heading">每日复盘</h1>
-        <p className="review-intro">查看当天市场背景，从策略候选中选出0–3只观察股票，整理下一交易日的观察名单与计划。</p>
+        <p className="review-intro">验证昨日判断，研究市场与方向，复核执行，形成下一交易日计划与复盘笔记。</p>
         <Space className="mb-16" wrap>
           <span>复盘交易日期</span>
           <DatePicker aria-label="复盘交易日期" value={date ? dayjs(date) : null} allowClear={false} onChange={(v) => { if (v) changeDate(v.format('YYYY-MM-DD')); }} />
           <span className="review-caption">切换日期会恢复该日草稿</span>
         </Space>
         {fallback.error && <Alert type="error" message={fallback.error} action={<Button onClick={fallback.retry}>重试</Button>} />}
-        {date && user && <Report key={`${user.id}:${date}`} date={date} account={user.id} />}
+        {date && user && (user.roles.some((r) => r.code === 'admin') && !user.guest
+          ? <Notebook key={`${user.id}:${date}`} date={date} onDirty={setNotebookDirty} renderTools={(capture) => <Report date={date} account={user.id} capture={capture} />} />
+          : <Report key={`${user.id}:${date}`} date={date} account={user.id} />)}
       </main>
     </Layout>
   );

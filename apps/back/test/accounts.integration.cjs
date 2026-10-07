@@ -10,6 +10,9 @@ const { FeedbackModule } = require('../dist/modules/feedback/feedback.module');
 const { PrivateFeedback1791849600000 } = require('../dist/migrations/1791849600000-PrivateFeedback');
 const { FeedbackRead1791936000000 } = require('../dist/migrations/1791936000000-FeedbackRead');
 const verifyFeedback = require('./feedback.integration.cjs');
+const verifyNotebook = require('./review-notebook.integration.cjs');
+const { NotebookController } = require('../dist/modules/review/notebook.controller');
+const { NotebookService } = require('../dist/modules/review/notebook.service');
 const { AuthModule } = require('../dist/modules/auth/auth.module');
 const { AuthService, COOKIE, digest } = require('../dist/modules/auth/auth.service');
 const { AuthGuard } = require('../dist/modules/auth/auth.guard');
@@ -146,7 +149,7 @@ async function main() {
     await q.release();
     class TestDatabase {}
     Global()(TestDatabase); Module({ providers: [{ provide: DataSource, useValue: db }], exports: [DataSource] })(TestDatabase);
-    const module = await Test.createTestingModule({ imports: [TestDatabase, AuthModule, FeedbackModule, ConfigModule.forRoot({isGlobal:true,ignoreEnvFile:true,load:[()=>({NEWS_SYNC_ENABLED:'false'})]}), NewsModule], providers: [{ provide: APP_GUARD, useClass: AuthGuard }] }).compile();
+    const module = await Test.createTestingModule({ imports: [TestDatabase, AuthModule, FeedbackModule, ConfigModule.forRoot({isGlobal:true,ignoreEnvFile:true,load:[()=>({NEWS_SYNC_ENABLED:'false'})]}), NewsModule], controllers: [NotebookController], providers: [NotebookService, { provide: APP_GUARD, useClass: AuthGuard }] }).compile();
     const adapter = new FastifyAdapter();
     const accessEntries = [];
     registerAccessLogging(adapter.getInstance(), entry => accessEntries.push({ ...entry, kind: 'access' }));
@@ -336,6 +339,7 @@ async function main() {
     assert.equal(created.statusCode, 201);
     assert.match((await db.query('SELECT avatar FROM t_user WHERE id=?', [created.json().data.id]))[0].avatar, /^auto-bull-(red|pink|gold|green|blue|purple|coffee)-(star|heart|flower|bow)$/);
     assert.equal(user.user.permissions.includes('users:manage'), false);
+    await verifyNotebook({ db, inject, admin, user });
     assert.ok(user.user.permissions.includes('strategy:read'));
     assert.ok(user.user.permissions.includes('analysis:dragon'));
     assert.equal((await inject('GET', '/admin/users', undefined, user)).statusCode, 403);
