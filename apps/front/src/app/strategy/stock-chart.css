@@ -14,7 +14,24 @@
   overflow: hidden;
 }
 .strategy-stock-modal .strategy-chart-summary { flex-shrink: 0; }
-.strategy-chart-stock-navigation { display: inline-flex; align-items: center; gap: 8px; }
+.strategy-chart-title {
+  display: grid;
+  grid-template-columns: minmax(0, 320px) max-content;
+  align-items: center;
+  gap: 12px;
+  padding-right: 28px;
+}
+.strategy-chart-stock-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.strategy-chart-stock-navigation { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.strategy-chart-position {
+  width: 8ch;
+  flex: none;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
 .strategy-chart-visible-range { font-variant-numeric: tabular-nums; }
 .strategy-chart-stage { position: relative; flex: 1; min-height: 0; min-width: 0; }
 .strategy-chart-stage.has-navigation { padding-inline: 48px; }

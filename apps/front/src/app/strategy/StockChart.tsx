@@ -58,6 +58,7 @@ export default function StockChart({
   const anchor = view?.identity === identity ? view.anchor : undefined;
   const page = view?.identity === identity ? view.page : undefined;
   const position = navigation.findIndex((row) => row.tsCode === code && (!stock?.date || row.date === stock.date));
+  const chartTitle = [stock?.name, code, neutral ? '日K' : '信号形态'].filter(Boolean).join(' ');
   useEffect(() => { setView(null); }, [identity]);
   useEffect(() => {
     if (!code) { request.cancelRace(requestConfig.raceKey!); return; }
@@ -140,7 +141,7 @@ export default function StockChart({
       open={!!stock}
       title={(
         <div className="strategy-chart-title">
-          <span>{[stock?.name, code, neutral ? '日K' : '信号形态'].filter(Boolean).join(' · ')}</span>
+          <span className="strategy-chart-stock-title" title={chartTitle}>{chartTitle}</span>
           {onNavigate && navigation.length > 1 && (
             <span className="strategy-chart-stock-navigation">
               <Button size="small" aria-label="上一只股票" title="上一只股票" icon={<LeftOutlined />} disabled={position <= 0} onClick={() => onNavigate(navigation[position - 1])} />
