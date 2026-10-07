@@ -39,7 +39,8 @@ class DeployTests(unittest.TestCase):
             env = dict(os.environ, PATH=d + os.pathsep + os.environ['PATH'],
                        TEST_MODE=mode, TEST_LOG=str(log),
                        BLOG_DEPLOY_LOCK=str(root / 'lock'), DOCKER_USERNAME='', DOCKER_PASSWORD='')
-            result = subprocess.run(['sh', str(SCRIPT)], env=env, capture_output=True, text=True)
+            result = subprocess.run(['sh', str(SCRIPT)], env=env, stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE, universal_newlines=True)
             calls = [json.loads(line) for line in log.read_text().splitlines()]
             return result.returncode, calls
 
