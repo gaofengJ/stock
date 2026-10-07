@@ -4,6 +4,11 @@ interface TableSize {
 }
 
 const migrationTables: Record<string, readonly string[]> = {
+  ReviewNotebook1792195200000: [
+    't_review_notebook',
+    't_review_notebook_version',
+    't_review_publication',
+  ],
   RecoverSectorCatalog1792108800000: ['t_admin_job'],
   // Two new empty tables; existing account and market tables are not rebuilt.
   PrivateFeedback1791849600000: ['t_feedback', 't_feedback_reply'],
@@ -73,6 +78,7 @@ const migrationOperations: Record<
   string,
   'create' | 'data' | 'schema' | 'full-database'
 > = {
+  ReviewNotebook1792195200000: 'create',
   RecoverSectorCatalog1792108800000: 'data',
   PrivateFeedback1791849600000: 'create',
   FeedbackRead1791936000000: 'create',

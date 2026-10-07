@@ -23,13 +23,14 @@ import RiskInspect from '../basic/components/RiskInspect';
 import { RiskTags, SourceState, useWorkbench } from '../basic/components/workbench';
 import { currentReduction } from '../basic/components/risk-display';
 import Holdings from './Holdings';
+import Notebook from './Notebook';
 import useReviewDraft from './useReviewDraft';
 import { compareCap, validDate } from './review-interactions';
 import { ReviewDocument, reviewMarkdown } from './review-document';
 import '../strategy/strategy.sass';
 import './review.css';
 
-function Report({ date, account }: { date: string; account: number }) {
+function Report({ date, account, capture }: { date: string; account: number; capture?: (text: string) => void }) {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -401,6 +402,7 @@ function Report({ date, account }: { date: string; account: number }) {
             <Space>
               <Button onClick={() => setPreview(null)}>返回编辑</Button>
               <Button type="primary" onClick={download}>导出 Markdown</Button>
+              {capture && preview && <Button onClick={() => { capture(reviewMarkdown(preview)); setPreview(null); }}>带入今日私人复盘</Button>}
             </Space>
           </div>
         )}
@@ -462,11 +464,14 @@ export default function Page() {
   const fallback = useDefaultTradeDate();
   const { user } = useAccount();
   const [chosenDate, setChosenDate] = useState('');
+  const [notebookDirty, setNotebookDirty] = useState(false);
   useEffect(() => {
     const value = new URLSearchParams(window.location.search).get('date') || '';
     if (validDate(value)) setChosenDate(value);
   }, []);
   const changeDate = (value: string) => {
+    if (notebookDirty && !window.confirm('尚有未保存复盘，请先保存或导出。确定切换日期并放弃修改？')) return;
+    setNotebookDirty(false);
     setChosenDate(value);
     const url = new URL(window.location.href); url.searchParams.set('date', value);
     window.history.replaceState(null, '', url);
@@ -476,14 +481,16 @@ export default function Page() {
     <Layout showAsideMenu={false} headerMenuActive={EHeaderMenuKey.review}>
       <main className="review-page rounded-[6px] bg-bg-white">
         <h1 className="page-heading">每日复盘</h1>
-        <p className="review-intro">查看当天市场背景，从策略候选中选出0–3只观察股票，整理下一交易日的观察名单与计划。</p>
+        <p className="review-intro">验证昨日判断，研究市场与方向，复核执行，形成下一交易日计划与复盘笔记。</p>
         <Space className="mb-16" wrap>
           <span>复盘交易日期</span>
           <DatePicker aria-label="复盘交易日期" value={date ? dayjs(date) : null} allowClear={false} onChange={(v) => { if (v) changeDate(v.format('YYYY-MM-DD')); }} />
           <span className="review-caption">切换日期会恢复该日草稿</span>
         </Space>
         {fallback.error && <Alert type="error" message={fallback.error} action={<Button onClick={fallback.retry}>重试</Button>} />}
-        {date && user && <Report key={`${user.id}:${date}`} date={date} account={user.id} />}
+        {date && user && (user.roles.some((r) => r.code === 'admin') && !user.guest
+          ? <Notebook key={`${user.id}:${date}`} date={date} onDirty={setNotebookDirty} renderTools={(capture) => <Report date={date} account={user.id} capture={capture} />} />
+          : <Report key={`${user.id}:${date}`} date={date} account={user.id} />)}
       </main>
     </Layout>
   );
