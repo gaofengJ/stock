@@ -17,6 +17,7 @@ import { DragonList, LimitRow } from '@/api/market';
 import SectorFilter, { useSectorSelection } from '@/components/SectorFilter';
 import SectorLinks from '@/components/SectorLinks';
 import RiskStatus from './RiskStatus';
+import ThemeReview from './ThemeReview';
 import './limits.sass';
 import { RiskTags, StockLink, useWorkbench } from '../../basic/components/workbench';
 import LegacyPage from './LegacyPage';
@@ -57,6 +58,7 @@ function LimitsPage() {
   const linkedKeyword = params.get('keyword') || '';
   const linkedType = linkedLimitType(params.get('type'));
   const [type, setType] = useState(linkedType); const [keyword, setKeyword] = useState(linkedKeyword);
+  const [themeView, setThemeView] = useState(false);
   const [search, setSearch] = useState(linkedKeyword);
   const [height, setHeight] = useState<number | undefined>();
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
@@ -69,22 +71,23 @@ function LimitsPage() {
     const observer = new ResizeObserver(([entry]) => setTableWidth(entry.contentRect.width));
     observer.observe(element);
     return () => observer.disconnect();
-  }, [date]);
+  }, [date, themeView]);
   const [stock, setStock] = useState<LimitRow | null>(null);
-  const risks = useWorkbench('risk', { date }, !!date);
+  const risks = useWorkbench('risk', { date }, !!date && !themeView);
   const { user } = useAccount();
   const canReadDragon = allowedPath(user, '/analysis/dragon');
   const dragonHref = (code?: string) => marketHref('/analysis/dragon', { date, scope }, { ...(sector ? { sector } : {}), ...(code ? { code } : {}) });
-  const dragon = useMarketData<DragonList>('dragon-list', { days: 20 });
+  const dragon = useMarketData<DragonList>('dragon-list', { days: 20 }, !themeView);
   const dragonCodes = new Set(dragon.data?.codes || []);
   useEffect(() => {
     setKeyword(linkedKeyword); setSearch(linkedKeyword); setType(linkedType); setHeight(undefined);
+    setThemeView(false);
   }, [linkedKeyword, linkedType]);
   const {
     data, loading, error, retry,
   } = useMarketData<{ ready: boolean; items: LimitRow[] }>('limits', {
     type, keyword, height: type === 'U' ? height : undefined, sector,
-  });
+  }, !themeView);
   const raw = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : String(v));
   const amount = (v: string | null) => scaledNumber(v, 100000000);
   const riskData = risks.data?.date === date ? risks.data : null;
@@ -180,37 +183,41 @@ function LimitsPage() {
   }));
   return (
     <MarketShell title="涨停复盘" path="/analysis/limits">
-      <Tabs activeKey={type} onChange={(value) => { setType(value); setHeight(undefined); }} items={[{ key: 'U', label: '涨停' }, { key: 'Z', label: '炸板' }, { key: 'D', label: '跌停' }]} />
+      <Tabs activeKey={themeView ? 'themes' : type} onChange={(value) => { setThemeView(value === 'themes'); setType(value === 'themes' ? 'U' : value); setHeight(undefined); }} items={[{ key: 'U', label: '涨停' }, { key: 'themes', label: '题材复盘' }, { key: 'Z', label: '炸板' }, { key: 'D', label: '跌停' }]} />
       <Space className="mb-16" wrap>
         <SectorFilter value={sector} onChange={setSector} />
         <Input.Search allowClear placeholder="股票名称／代码" value={search} onChange={(e) => { setSearch(e.target.value); if (!e.target.value) setKeyword(''); }} onSearch={setKeyword} style={{ width: 260 }} />
         {type === 'U' && <Select aria-label="连板数筛选" allowClear placeholder="连板数" value={height} onChange={setHeight} style={{ width: 140 }} options={[{ value: 1, label: '首板' }, { value: 2, label: '二板' }, { value: 3, label: '三板' }, { value: 4, label: '四板及以上' }]} />}
       </Space>
-      <RiskStatus data={riskData} loading={risks.loading} error={risks.error} retry={risks.retry} />
-      <div className="limits-table-toolbar">
-        <SectionTitle title="股票列表" description="非ST样本；涨停与炸板按收盘状态区分。缺失封板信息显示“—”；可通过展示列查看其他指标。" />
-        <Space wrap>
-          <Select aria-label="展示列" mode="multiple" maxTagCount={0} maxTagPlaceholder={() => '展示列'} style={{ width: 150 }} value={visibleColumns.filter((key) => optionalFields.some(([field]) => field === key))} onChange={(keys) => setVisibleColumns([...keys, ...visibleColumns.filter((key) => !optionalFields.some(([field]) => field === key))])} options={optionalFields.map(([value, label]) => ({ value, label }))} />
-          <Button size="small" onClick={() => setVisibleColumns(defaultColumns)}>恢复默认列</Button>
-        </Space>
-      </div>
-      <div className="limits-results" ref={resultsRef}>
-        <DataState loading={loading} error={error} retry={retry} empty={!data?.ready}>
-          <Table<LimitRow>
-            key={`${date}-${type}-${height}-${keyword}-${sector}`}
-            locale={{ emptyText: keyword || height || sector ? '没有符合筛选条件的股票' : '该范围当日无此类事件' }}
-            rowKey="tsCode"
-            dataSource={data?.items}
-            size="small"
-            tableLayout="fixed"
-            bordered
-            scroll={{ x: columns.reduce((sum, column) => sum + Number(column.width), 0) }}
-            pagination={false}
-            columns={columns}
-          />
-        </DataState>
-      </div>
-      <DragonDrawer stock={stock} date={date} close={() => setStock(null)} />
+      {themeView ? <ThemeReview key={`${date}:${scope}`} keyword={keyword} height={height} sector={sector} /> : (
+        <>
+          <RiskStatus data={riskData} loading={risks.loading} error={risks.error} retry={risks.retry} />
+          <div className="limits-table-toolbar">
+            <SectionTitle title="股票列表" description="非ST样本；涨停与炸板按收盘状态区分。缺失封板信息显示“—”；可通过展示列查看其他指标。" />
+            <Space wrap>
+              <Select aria-label="展示列" mode="multiple" maxTagCount={0} maxTagPlaceholder={() => '展示列'} style={{ width: 150 }} value={visibleColumns.filter((key) => optionalFields.some(([field]) => field === key))} onChange={(keys) => setVisibleColumns([...keys, ...visibleColumns.filter((key) => !optionalFields.some(([field]) => field === key))])} options={optionalFields.map(([value, label]) => ({ value, label }))} />
+              <Button size="small" onClick={() => setVisibleColumns(defaultColumns)}>恢复默认列</Button>
+            </Space>
+          </div>
+          <div className="limits-results" ref={resultsRef}>
+            <DataState loading={loading} error={error} retry={retry} empty={!data?.ready}>
+              <Table<LimitRow>
+                key={`${date}-${type}-${height}-${keyword}-${sector}`}
+                locale={{ emptyText: keyword || height || sector ? '没有符合筛选条件的股票' : '该范围当日无此类事件' }}
+                rowKey="tsCode"
+                dataSource={data?.items}
+                size="small"
+                tableLayout="fixed"
+                bordered
+                scroll={{ x: columns.reduce((sum, column) => sum + Number(column.width), 0) }}
+                pagination={false}
+                columns={columns}
+              />
+            </DataState>
+          </div>
+          <DragonDrawer stock={stock} date={date} close={() => setStock(null)} />
+        </>
+      )}
     </MarketShell>
   );
 }

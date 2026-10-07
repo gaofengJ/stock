@@ -26,6 +26,7 @@ export interface SourceSnapshot {
   nextRetryAt?: string | null;
 }
 const caps: Record<string, number> = {
+  kpl_list: 8000,
   stock_company: 4500,
   stock_st: 1000,
   st: 1000,
@@ -418,7 +419,9 @@ export class BasicSnapshotService implements OnModuleInit {
                 );
           const { data } = response;
           const required =
-            source === 'investment_calendar'
+            source === 'kpl_list'
+              ? ['ts_code', 'trade_date', 'theme', 'lu_desc']
+              : source === 'investment_calendar'
               ? ['date', 'title']
               : source === 'eco_cal'
               ? ['date', 'event']

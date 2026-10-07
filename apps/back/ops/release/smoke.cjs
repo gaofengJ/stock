@@ -127,6 +127,19 @@ async function check(path, cookie, needsRows = false, expectedStatus = 200) {
       !access.items.some(entry => entry.userId === admin.id && entry.actorType === 'user' && entry.statusCode === 200 && /^[a-f0-9-]{36}$/.test(entry.requestId) && typeof entry.durationMs === 'number')
     ) throw new Error('Authenticated API access logging verification failed');
     await check('/api/analysis/market/intraday-counts?days=10', cookie);
+    const themes = await check('/api/analysis/market/theme-review?date=' + date, cookie);
+    if (!Array.isArray(themes.groups) || !Array.isArray(themes.sources) ||
+        themes.total !== themes.groups.reduce((sum, group) => sum + group.items.length, 0))
+      throw new Error('Theme review grouping verification failed');
+    const themeStock = themes.groups.flatMap(group => group.items)[0];
+    if (themeStock) {
+      const detail = await check('/api/analysis/market/theme-review-detail?date=' + date + '&code=' + themeStock.tsCode, cookie);
+      if (detail.stock.tsCode !== themeStock.tsCode || !Array.isArray(detail.announcements) ||
+          detail.announcements.some(notice => notice.date > date) ||
+          (detail.financial && detail.financial.announcedAt > date))
+        throw new Error('Theme review historical detail verification failed');
+    }
+    await check('/api/analysis/market/theme-review?date=' + date, null, false, 401);
     await check(
       '/api/basic/trade-cal/list?year=' + date.slice(0, 4),
       null,
