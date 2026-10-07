@@ -8,7 +8,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import Layout from '@/components/Layout';
-import { InteractionButton } from '@/components/Interaction';
+import { StockLink } from '@/components/StockActions';
 import { EHeaderMenuKey } from '@/components/Layout/enum';
 import Table from '@/components/DataTable';
 import request from '@/api/request';
@@ -128,7 +128,7 @@ function Report({ date, account }: { date: string; account: number }) {
         <span role="status" className="review-caption">
           {status}
           {' '}
-          · 按账号和交易日期分别保存
+          ，按账号和交易日期分别保存
         </span>
         <Space wrap>
           <Button onClick={() => setHelpOpen(true)}>页面说明</Button>
@@ -189,7 +189,7 @@ function Report({ date, account }: { date: string; account: number }) {
             <Button disabled={filter === 'within' && strategy === 'all' && !keyword} onClick={() => { setFilter('within'); setStrategy('all'); setKeyword(''); }}>重置筛选</Button>
           </div>
           <div className="review-selection" role="status">
-            <span>{`已选 ${selected.length}/3${selected.length === 3 ? ' · 已达上限，请移出后再选择' : ' · 勾选可加入观察的股票'}`}</span>
+            <span>{`已选 ${selected.length}/3${selected.length === 3 ? '，已达上限，请移出后再选择' : '，勾选可加入观察的股票'}`}</span>
             {chosen.map(({ name, tsCode }) => <Tag key={tsCode}>{name}</Tag>)}
           </div>
           <div id="review-candidate-table">
@@ -221,10 +221,9 @@ function Report({ date, account }: { date: string; account: number }) {
                   width: 175,
                   render: (_, r: any) => (
                     <div>
-                      <span className="review-stock-name">{r.name}</span>
+                      <StockLink code={r.tsCode} name={r.name} date={date} onChart={() => setStock(r)} />
                       <span className="review-caption">{r.tsCode}</span>
                       <div className="review-stock-actions">
-                        <InteractionButton intent="preview" onClick={() => setStock(r)}>看K线</InteractionButton>
                         <RiskInspect code={r.tsCode} name={r.name} date={date} />
                       </div>
                     </div>
@@ -257,7 +256,7 @@ function Report({ date, account }: { date: string; account: number }) {
             />
           </div>
           <div className="review-candidate-next">
-            <span className="review-caption">{`已选 ${selected.length}/3 只${selected.length ? '' : ' · 也可只记录市场计划'}`}</span>
+            <span className="review-caption">{`已选 ${selected.length}/3 只${selected.length ? '' : '，也可只记录市场计划'}`}</span>
             <Button type="primary" onClick={() => plan()}>下一步：填写计划</Button>
           </div>
         </section>
@@ -287,12 +286,11 @@ function Report({ date, account }: { date: string; account: number }) {
                   <div key={tsCode} className="review-pick">
                     <div className="review-pick-summary">
                       <div className="review-pick-heading">
-                        <strong>{row?.name || name}</strong>
+                        <StockLink code={tsCode} name={row?.name || name} date={date} onChart={row ? () => setStock(row) : undefined} />
                         <Button size="small" aria-label={`将${name}移出观察名单`} onClick={() => remove(tsCode)}>移出</Button>
                       </div>
                       <span className="review-caption">{tsCode}</span>
                       <div className="review-stock-actions">
-                        {row && <InteractionButton intent="preview" onClick={() => setStock(row)}>看K线</InteractionButton>}
                         <RiskInspect code={tsCode} name={name} date={date} />
                       </div>
                     </div>

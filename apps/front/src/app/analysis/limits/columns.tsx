@@ -1,6 +1,7 @@
 import { numberText, scaledNumber, changeClass } from '@/utils/format';
 import type { ColumnsType } from 'antd/es/table/interface';
 import SectorLinks from '@/components/SectorLinks';
+import { StockLink } from '@/components/StockActions';
 
 /**
  * 设置默认值
@@ -15,13 +16,14 @@ export const limitsColumns: ColumnsType = [
     dataIndex: 'tsCode',
     key: 'tsCode',
     width: 80,
-    render: (val) => val.split('.')[0],
+    render: (val, row) => <StockLink code={val} name={row.name} label={val.split('.')[0]} date={row.tradeDate} />,
   },
   {
     title: '股票名称',
     dataIndex: 'name',
     key: 'name',
     width: 80,
+    render: (val, row) => <StockLink code={row.tsCode} name={val} date={row.tradeDate} />,
   },
   {
     title: '所属行业',

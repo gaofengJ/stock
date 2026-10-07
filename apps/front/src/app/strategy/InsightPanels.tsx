@@ -1,6 +1,7 @@
 'use client';
 
 import { InteractionButton } from '@/components/Interaction';
+import { StockLink } from '@/components/StockActions';
 
 import { useRef, useState } from 'react';
 import { QuestionCircleOutlined } from '@ant-design/icons';
@@ -80,7 +81,7 @@ export function CandidateComparison({
         bottomSpacing={8}
         columns={[
           {
-            title: '股票', key: 'stock', fixed: 'left', width: 180, render: (_, r) => <InteractionButton intent="preview" onClick={() => onStock(r, orderedRows(sortedRows.current, rows))}>{`${r.name} ${r.tsCode.split('.')[0]}`}</InteractionButton>,
+            title: '股票', key: 'stock', fixed: 'left', width: 180, render: (_, r) => <StockLink code={r.tsCode} name={r.name} label={`${r.name} ${r.tsCode.split('.')[0]}`} date={date} onChart={() => onStock(r, orderedRows(sortedRows.current, rows))} />,
           },
           { title: '所属行业', dataIndex: 'industry', width: 110 },
           {
@@ -294,7 +295,7 @@ function LiveSignalPerformance({
           {data && (data.readyDays < data.expectedDays || (current?.missing || 0) > 0) && <Alert className="mb-16" type="warning" showIcon message="部分数据不足，当前统计仅覆盖已有有效样本。" />}
           <div id="signal-performance-details" className="strategy-result-toolbar">
             <strong>
-              个股信号明细 · 后
+              个股信号明细，后
               {horizon}
               日
             </strong>
@@ -314,7 +315,7 @@ function LiveSignalPerformance({
             columns={[
               { title: '信号日期', dataIndex: 'date', width: 130 },
               {
-                title: '股票', key: 'stock', width: 210, render: (_, r) => <InteractionButton intent="preview" onClick={() => onStock(r, orderedRows(sortedRows.current, rows))}>{`${r.name} ${r.code.split('.')[0]}`}</InteractionButton>,
+                title: '股票', key: 'stock', width: 210, render: (_, r) => <StockLink code={r.code} name={r.name} label={`${r.name} ${r.code.split('.')[0]}`} date={r.date} onChart={() => onStock(r, orderedRows(sortedRows.current, rows))} />,
               },
               {
                 title: '观察截至', key: 'end', width: 150, render: (_, r) => r.outcomes[horizon].date || '未到期',
@@ -329,7 +330,7 @@ function LiveSignalPerformance({
             items={[
               {
                 key: 'environment',
-                label: `按信号日市场环境比较 · 后${horizon}日`,
+                label: `按信号日市场环境比较，后${horizon}日`,
                 children: (
                   <>
                     <p className="strategy-caption">按信号当天全市场20日均线上方股票占比分组；样本数随观察周期变化。</p>

@@ -79,9 +79,10 @@ export default function EventCalendar({ date, onDate, code }: { date: string; on
           ]}
         />
       </div>
-      <Modal className="calendar-modal" centered title={detail ? `${detail.name} · ${detail.type}` : '公司事件'} open={!!detail} onCancel={() => setDetail(null)} footer={null}>
+      <Modal className="calendar-modal" centered title={detail ? `${detail.name}：${detail.type}` : '公司事件'} open={!!detail} onCancel={() => setDetail(null)} footer={null}>
         {detail && (
         <div className="calendar-detail">
+          <StockLink code={detail.tsCode} name={detail.name} date={date} />
           <p>
             事件日期：
             {detail.eventDate}
@@ -91,7 +92,7 @@ export default function EventCalendar({ date, onDate, code }: { date: string; on
             报告期：
             {detail.reportDate || '—'}
             {' '}
-            · 公告日期：
+            公告日期：
             {detail.announcedAt || '—'}
           </p>
           <p>{detail.detail}</p>

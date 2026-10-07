@@ -1,6 +1,7 @@
 'use client';
 
 import { InteractionButton } from '@/components/Interaction';
+import StockActions, { StockLink } from '@/components/StockActions';
 
 import { useEffect, useState } from 'react';
 import {
@@ -43,6 +44,7 @@ export function PopularityTrend({
   const spansYears = current?.history.some((point) => point.date.slice(0, 4) !== current.history[0]?.date.slice(0, 4));
   return (
     <Modal className="popularity-trend-modal" title={`${current?.name || name || code || ''} - 近20个交易日人气排名`} open={!!code} onCancel={onClose} footer={null} width={900} style={{ top: 24, maxWidth: 'calc(100vw - 32px)' }}>
+      {code && <StockActions code={code} name={current?.name || name} date={date} />}
       <div className="popularity-trend-chart">
         {current ? (
           <CChart genOptions={() => ({
@@ -103,7 +105,7 @@ export function PopularityChanges({ date, code, endpoint = '/analysis/market/pop
       <div className="popularity-filters">
         <Segmented aria-label="人气变化筛选" value={filter} onChange={(v) => setFilter(String(v))} options={[{ label: '全部', value: 'all' }, { label: '排名上升', value: 'up' }, { label: '排名下降', value: 'down' }, { label: '新上榜', value: 'new' }, { label: '离榜', value: 'exit' }]} />
       </div>
-      {filter === 'exit' ? <Table rowKey="code" pagination={false} maxBodyHeight={Number.POSITIVE_INFINITY} bottomSpacing={24} dataSource={data?.exited.filter((r) => !focusCode || r.code === focusCode) || []} locale={{ emptyText: !data?.complete ? '当日榜单不完整，暂不判断离榜' : '没有离榜股票' }} columns={[{ title: '股票', dataIndex: 'name' }, { title: '代码', dataIndex: 'code' }, { title: '上一交易日排名', dataIndex: 'rank' }]} />
+      {filter === 'exit' ? <Table rowKey="code" pagination={false} maxBodyHeight={Number.POSITIVE_INFINITY} bottomSpacing={24} dataSource={data?.exited.filter((r) => !focusCode || r.code === focusCode) || []} locale={{ emptyText: !data?.complete ? '当日榜单不完整，暂不判断离榜' : '没有离榜股票' }} columns={[{ title: '股票', dataIndex: 'name', render: (_, r) => <StockLink code={r.code} name={r.name} date={date} /> }, { title: '代码', dataIndex: 'code', render: (_, r) => <StockLink code={r.code} name={r.name} label={r.code} date={date} /> }, { title: '上一交易日排名', dataIndex: 'rank' }]} />
         : (
           <Table
             rowKey="code"
@@ -113,7 +115,7 @@ export function PopularityChanges({ date, code, endpoint = '/analysis/market/pop
             maxBodyHeight={Number.POSITIVE_INFINITY}
             bottomSpacing={24}
             columns={[
-              { title: '排名', dataIndex: 'rank', width: 85 }, { title: '股票', key: 'stock', render: (_, r) => <InteractionButton intent="preview" onClick={() => setSelected(r)}>{`${r.name} ${r.code.split('.')[0]}`}</InteractionButton> },
+              { title: '排名', dataIndex: 'rank', width: 85 }, { title: '股票', key: 'stock', render: (_, r) => <StockLink code={r.code} name={r.name} label={`${r.name} ${r.code.split('.')[0]}`} date={date} /> },
               {
                 title: '上一交易日', dataIndex: 'previousRank', align: 'right', render: (v) => v ?? '—',
               }, {

@@ -1,6 +1,7 @@
 'use client';
 
 import { InteractionButton } from '@/components/Interaction';
+import { StockLink } from '@/components/StockActions';
 
 import { useEffect, useState } from 'react';
 import {
@@ -37,7 +38,7 @@ function ExtremeDetails({
           rowKey="code"
           pagination={false}
           dataSource={current.items.filter((row) => row[kind])}
-          columns={[{ title: '代码', dataIndex: 'code' }, { title: '名称', dataIndex: 'name' }, {
+          columns={[{ title: '代码', dataIndex: 'code', render: (_, r) => <StockLink code={r.code} name={r.name} label={r.code} date={date} /> }, { title: '名称', dataIndex: 'name', render: (_, r) => <StockLink code={r.code} name={r.name} date={date} /> }, {
             title: `${period}日涨跌幅(%)`, dataIndex: 'change', align: 'right', sorter: (a, b) => a.change - b.change, render: (v) => <span className={v > 0 ? 'quote-up' : 'quote-down'}>{numberText(v, 2, true)}</span>,
           }]}
           maxBodyHeight={900}

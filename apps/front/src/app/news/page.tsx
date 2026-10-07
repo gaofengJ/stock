@@ -1,6 +1,7 @@
 'use client';
 
 import { ExternalLink, InteractionButton } from '@/components/Interaction';
+import { StockLink } from '@/components/StockActions';
 
 import {
   useCallback, useEffect, useRef, useState,
@@ -14,7 +15,7 @@ import {
 import dayjs from 'dayjs';
 import CommonLayout from '@/components/Layout';
 import { useAccount } from '@/auth/Boundary';
-import { api, allowedPath } from '@/auth/client';
+import { api } from '@/auth/client';
 import { errorMessage } from '@/api/errors';
 import styles from './news.module.scss';
 import FocusDrawer, { NewsPreferences } from './FocusDrawer';
@@ -154,7 +155,7 @@ export default function Page() {
     if (source && !sources.sources.some((s) => s.code === source && s.enabled && s.lastSuccess && ['ok', 'collecting', 'delayed'].includes(s.status) && !s.lastError)) { setSource(''); setPage(1); }
   }, [source, sources]);
   const selectedSource = availableSources.find((s) => s.code === source);
-  const sourceTip = selectedSource?.description ? `${selectedSource.name}：${selectedSource.description}${selectedSource.warning ? ` · ${selectedSource.warning}` : ''}` : '市场快讯、财经报道与热门讨论。';
+  const sourceTip = selectedSource?.description ? `${selectedSource.name}：${selectedSource.description}${selectedSource.warning ? `，${selectedSource.warning}` : ''}` : '市场快讯、财经报道与热门讨论。';
   const rangeText: Record<string, string> = {
     hour: '最近一小时', today: '今天', 'three-days': '最近三天', date,
   };
@@ -162,8 +163,8 @@ export default function Page() {
   const relatedSources = (item: NewsItem) => Array.from(new Set((item.related || []).map((related) => sources.sources.find((s) => s.code === related.source)?.name || related.source)));
   const stockTags = (item: NewsItem) => (item.stocks || []).map((symbol) => (
     <Tag key={symbol.tsCode} color={preferences.stocks.includes(symbol.tsCode) ? 'blue' : 'default'}>
-      <InteractionButton intent="select" selected={stock === symbol.tsCode} aria-label={`筛选${symbol.name}资讯`} title="筛选该股票资讯" onClick={() => { setStock(symbol.tsCode); setPage(1); }}>{symbol.name}</InteractionButton>
-      {allowedPath(user, '/basic/stock') && <ExternalLink className={styles.stockLink} href={`/basic/stock/?tsCode=${encodeURIComponent(symbol.tsCode)}`} aria-label={`在新窗口查看${symbol.name}个股信息`}>个股信息</ExternalLink>}
+      <StockLink code={symbol.tsCode} name={symbol.name} />
+      <InteractionButton intent="select" selected={stock === symbol.tsCode} aria-label={`筛选${symbol.name}资讯`} title="筛选该股票资讯" onClick={() => { setStock(symbol.tsCode); setPage(1); }}>筛选资讯</InteractionButton>
     </Tag>
   ));
   let emptyText = '当天暂无资讯，采集后将在这里显示，也可选择其他日期';
@@ -181,7 +182,7 @@ export default function Page() {
           <div className={styles.heading}>
             <div>
               <h1>实时资讯</h1>
-              <p>市场快讯与财经报道 · 持续采集，按发布时间排序</p>
+              <p>市场快讯与财经报道，持续采集，按发布时间排序</p>
             </div>
             <Space wrap>
               <span className={styles.auto}>
@@ -195,7 +196,7 @@ export default function Page() {
             </Space>
           </div>
           {availableSources.filter((s) => s.warning && (!source || source === s.code)).map((s) => (
-            <Alert key={s.code} className={styles.relayWarning} showIcon type="warning" message={`${s.name}更新延迟 · 最近采集 ${formatTime(s.lastSuccess, true)}`} description={s.warning} />
+            <Alert key={s.code} className={styles.relayWarning} showIcon type="warning" message={`${s.name}更新延迟，最近采集 ${formatTime(s.lastSuccess, true)}`} description={s.warning} />
           ))}
           <div className={styles.filters}>
             <Segmented value={kind} options={[{ label: '全部资讯', value: '' }, { label: '快讯', value: 'flash' }, { label: '报道', value: 'article' }]} onChange={(v) => { setKind(String(v)); setPage(1); }} />
@@ -229,21 +230,21 @@ export default function Page() {
           )}
           <div className={styles.summary}>
             <span>
-              {`${rangeText[range]} · 北京时间`}
+              {`${rangeText[range]}，北京时间`}
               {' '}
-              · 共
+              ，共
               {' '}
               {data?.total ?? '—'}
               {' '}
               条
-              {keyword ? ` · 关键词：${keyword}` : ''}
+              {keyword ? `，关键词：${keyword}` : ''}
             </span>
             <span>
               {availableSources.length}
               {' '}
               个可用来源
-              {data ? ` · 页面更新 ${formatTime(data.updatedAt)}` : ''}
-              {auto && page === 1 ? ' · 每 30 秒刷新' : ' · 自动更新列表已暂停'}
+              {data ? `，页面更新 ${formatTime(data.updatedAt)}` : ''}
+              {auto && page === 1 ? '，每 30 秒刷新' : '，自动更新列表已暂停'}
             </span>
           </div>
           {error && <Alert className={styles.alert} type="error" showIcon message={error} description={data ? '当前显示上次成功加载的资讯。' : undefined} action={<Button size="small" onClick={() => load()}>重试</Button>} />}
@@ -349,7 +350,7 @@ export default function Page() {
             <Tag>{detail.sourceName}</Tag>
             <span>
               {formatTime(detail.publishedAt, true)}
-              {detail.timeBasis === 'collected' ? ' · 采集时间' : ''}
+              {detail.timeBasis === 'collected' ? '，采集时间' : ''}
               {' '}
               北京时间
             </span>

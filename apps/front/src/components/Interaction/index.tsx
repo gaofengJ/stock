@@ -15,7 +15,7 @@ const NavigationLink = forwardRef<HTMLAnchorElement, ComponentProps<typeof Link>
 }, ref) => {
   const newWindow = target === '_blank';
   return (
-    <Link ref={ref} {...props} target={target} className={`interaction-link ${className}`} title={`${title ? `${title} · ` : ''}${newWindow ? '在新窗口打开' : '前往详情页面'}`}>
+    <Link ref={ref} {...props} target={target} className={`interaction-link ${className}`} title={`${title ? `${title}，` : ''}${newWindow ? '在新窗口打开' : '前往详情页面'}`}>
       {children}
       {newWindow && <span className="interaction-link-mark" aria-hidden="true"><ExportOutlined /></span>}
       {newWindow && <span className="interaction-sr-only">（在新窗口打开）</span>}
@@ -29,7 +29,7 @@ export function ExternalLink({
   children, className = '', title, ...props
 }: ComponentProps<'a'>) {
   return (
-    <a {...props} target="_blank" rel="noopener noreferrer" className={`interaction-link ${className}`} title={`${title ? `${title} · ` : ''}在新窗口打开`}>
+    <a {...props} target="_blank" rel="noopener noreferrer" className={`interaction-link ${className}`} title={`${title ? `${title}，` : ''}在新窗口打开`}>
       {children}
       <span className="interaction-link-mark" aria-hidden="true"><ExportOutlined /></span>
       <span className="interaction-sr-only">（在新窗口打开）</span>
@@ -63,7 +63,7 @@ export const InteractionButton = forwardRef<ComponentRef<typeof Button>, Interac
       {...props}
       type="text"
       className={`interaction-button interaction-${intent} ${className}`}
-      title={`${title ? `${title} · ` : ''}${hints[intent]}`}
+      title={`${title ? `${title}，` : ''}${hints[intent]}`}
       aria-pressed={intent === 'select' ? selected : undefined}
       aria-expanded={intent === 'expand' ? expanded : props['aria-expanded']}
       aria-haspopup={intent === 'preview' ? 'dialog' : props['aria-haspopup']}

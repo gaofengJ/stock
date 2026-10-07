@@ -5,6 +5,7 @@ import {
   Button, Card, Input, Tabs,
 } from 'antd';
 import Link, { InteractionButton } from '@/components/Interaction';
+import { StockLink } from '@/components/StockActions';
 import { useAccount } from '@/auth/Boundary';
 import { allowedPath } from '@/auth/client';
 import { finiteNumber } from '@/utils/format';
@@ -14,7 +15,6 @@ import {
 } from './common';
 
 function MarginRanking({ date }: { date: string }) {
-  const { user } = useAccount();
   const state = useResearch('market', { date, section: 'ranking' });
   const [keyword, setKeyword] = useState('');
   const source = state.data?.sources.find((s) => s.source === 'margin_detail');
@@ -25,7 +25,8 @@ function MarginRanking({ date }: { date: string }) {
     const buy = finiteNumber(r.rzmre); const repay = finiteNumber(r.rzche);
     return { ...r, name: names.get(r.ts_code) || '', net_buy: buy != null && repay != null ? buy - repay : null };
   })).sort((a, b) => (finiteNumber(b.net_buy) ?? -Infinity) - (finiteNumber(a.net_buy) ?? -Infinity));
-  const stockColumn = { ...textColumn('ts_code', '标的代码', 160), render: (v: string) => (/^\d{6}\.(SH|SZ|BJ)$/.test(v) && /^[034689]/.test(v) && allowedPath(user, '/basic/stock') ? <Link href={`/basic/stock/detail/?${new URLSearchParams({ code: v, date })}`}>{v}</Link> : v) };
+  const stockEntry = (value: string, row: Record<string, any>) => (/^\d{6}\.(SH|SZ|BJ)$/.test(row.ts_code) && /^[034689]/.test(row.ts_code) ? <StockLink code={row.ts_code} name={row.name} label={value || row.ts_code} date={date} /> : value || '—');
+  const stockColumn = { ...textColumn('ts_code', '标的代码', 160), render: stockEntry };
   return (
     <>
       <div className="live-research-filters">
@@ -33,11 +34,11 @@ function MarginRanking({ date }: { date: string }) {
         <Button onClick={state.retry} loading={state.loading}>刷新榜单</Button>
       </div>
       <RequestState state={state}>
-        <SourceBlock source={source} title={`${date} · 融资净买入榜`} retry={state.retry} empty={!rows.length} note="只展示所选交易日，包含接口返回的股票及ETF标的。净买入为买入额减偿还额，余额变化与净买入并非同一指标；交易所数据存在披露滞后。">
-          <ResearchTable rows={rows} columns={[stockColumn, textColumn('name', '标的名称', 180), numberColumn('net_buy', '融资净买入（亿元）', 1e8, true), numberColumn('rzye', '融资余额（亿元）', 1e8), numberColumn('rqye', '融券余额（亿元）', 1e8)]} />
+        <SourceBlock source={source} title={`${date}，融资净买入榜`} retry={state.retry} empty={!rows.length} note="只展示所选交易日，包含接口返回的股票及ETF标的。净买入为买入额减偿还额，余额变化与净买入并非同一指标；交易所数据存在披露滞后。">
+          <ResearchTable rows={rows} columns={[stockColumn, { ...textColumn('name', '标的名称', 180), render: stockEntry }, numberColumn('net_buy', '融资净买入（亿元）', 1e8, true), numberColumn('rzye', '融资余额（亿元）', 1e8), numberColumn('rqye', '融券余额（亿元）', 1e8)]} />
         </SourceBlock>
         <SourceBlock source={eligible} title="盘前融资融券标的" retry={state.retry} empty={!filtered(eligible?.rows || []).length} note="标的名单独立于当日交易明细，数据缺失不代表不具备两融资格。">
-          <ResearchTable rows={filtered(eligible?.rows || [])} columns={[stockColumn, textColumn('name', '标的名称', 220), textColumn('exchange', '交易所', 120), dateColumn('trade_date', '名单日期')]} />
+          <ResearchTable rows={filtered(eligible?.rows || [])} columns={[stockColumn, { ...textColumn('name', '标的名称', 220), render: stockEntry }, textColumn('exchange', '交易所', 120), dateColumn('trade_date', '名单日期')]} />
         </SourceBlock>
       </RequestState>
     </>
@@ -59,7 +60,7 @@ function MarketPanel({ date }: { date: string }) {
           {' '}
           {date}
           {' '}
-          {tab === 'ranking' ? ' · 当日榜单；数据范围独立于本页行情筛选' : ' · 近90天；数据范围独立于本页行情筛选'}
+          {tab === 'ranking' ? '，当日榜单；数据范围独立于本页行情筛选' : '，近90天；数据范围独立于本页行情筛选'}
         </span>
       </div>
       <Tabs activeKey={tab} onChange={setTab} items={[{ key: 'funds', label: '全市场资金' }, { key: 'margin', label: '市场两融' }, { key: 'ranking', label: '融资净买入榜与标的' }]} />
@@ -107,7 +108,7 @@ function SectorPanel({ date, kind }: { date: string; kind: string }) {
         <Button onClick={state.retry} loading={state.loading}>刷新资料</Button>
       </div>
       <RequestState state={state}>
-        <SourceBlock source={source} title={`${date} · ${kind === 'N' ? '概念' : '行业'}资金排名`} retry={state.retry} note="同花顺当日资金口径，金额为亿元。只展示所选日期，未返回当日数据时不回退到其他日期；板块成分可能重叠，不将各板块净流入累加。" empty={!rows.length}>
+        <SourceBlock source={source} title={`${date}，${kind === 'N' ? '概念' : '行业'}资金排名`} retry={state.retry} note="同花顺当日资金口径，金额为亿元。只展示所选日期，未返回当日数据时不回退到其他日期；板块成分可能重叠，不将各板块净流入累加。" empty={!rows.length}>
           <ResearchTable
             rows={rows}
             columns={[{

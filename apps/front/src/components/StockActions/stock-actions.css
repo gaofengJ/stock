@@ -1,0 +1,9 @@
+.stock-action-trigger.ant-btn { max-width: 100%; justify-content: flex-start; color: var(--text-primary); text-align: left; }
+.stock-action-trigger.ant-btn > span:not(.ant-btn-icon) { overflow: hidden; text-overflow: ellipsis; }
+.stock-action-trigger.ant-btn > .ant-btn-icon { flex-shrink: 0; font-size: 10px; }
+.stock-actions-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.stock-actions-title > span { color: var(--text-secondary); font-size: 12px; font-weight: 400; }
+.stock-actions-menu { display: flex; flex-direction: column; align-items: stretch; gap: 4px; width: 230px; max-width: calc(100vw - 48px); }
+.stock-actions-menu > .interaction-link { display: block; padding: 4px 6px; font-size: 12px; }
+.stock-actions-menu .ant-btn { height: 28px; text-align: left; justify-content: flex-start; }
+.stock-actions-menu p { margin: 8px 6px 0; color: var(--text-secondary); font-size: 12px; line-height: 1.7; }

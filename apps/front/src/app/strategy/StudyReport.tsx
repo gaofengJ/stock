@@ -8,6 +8,7 @@ import {
 } from 'antd';
 import { QuestionCircleOutlined } from '@ant-design/icons';
 import { InteractionButton } from '@/components/Interaction';
+import { StockLink } from '@/components/StockActions';
 import Table from '@/components/DataTable';
 import Loading from '@/components/Loading';
 import { changeClass, numberText } from '@/utils/format';
@@ -155,7 +156,7 @@ export default function StudyReport({ strategy, active, onStock }: { strategy: s
       <div className="strategy-result-toolbar">
         <Space wrap>
           <Tag>固定报告</Tag>
-          <span>{`${report.start}～${report.end} · ${report.days}个交易日 · 全市场`}</span>
+          <span>{`${report.start}～${report.end}，${report.days}个交易日，全市场`}</span>
           <Popover
             trigger={['hover', 'click']}
             title="250日统计口径"
@@ -180,7 +181,7 @@ export default function StudyReport({ strategy, active, onStock }: { strategy: s
           <strong>报告策略</strong>
           <Select aria-label="报告策略" value={selected.key} onChange={setFocus} options={report.strategies.map((row) => ({ value: row.key, label: row.label }))} />
         </Space>
-        <span className="strategy-caption">{`${selected.signals.toLocaleString()}次信号 · ${selected.stocks.toLocaleString()}只股票 · 基准：上证指数`}</span>
+        <span className="strategy-caption">{`${selected.signals.toLocaleString()}次信号，${selected.stocks.toLocaleString()}只股票，基准：上证指数`}</span>
       </div>
       {(selected.coverage.readyDays < 250 || selected.screeningMissing.count > 0) && <Alert type="warning" showIcon message={`筛选覆盖 ${selected.coverage.readyDays}/250 个交易日；${selected.screeningMissing.count}个候选因历史数据不足无法判定，详见“数据核查”。`} />}
       <div className="strategy-horizon-cards" role="group" aria-label="250日观察周期">
@@ -229,8 +230,8 @@ export default function StudyReport({ strategy, active, onStock }: { strategy: s
         </span>
       </div>
       <div className="strategy-status-strip strategy-caption">
-        <span>{`有效 ${current.sample.toLocaleString()} · 未到期 ${current.pending} · 停牌／无成交 ${current.inactive} · 缺失 ${current.missing}`}</span>
-        <span>{`上证配对 ${current.paired.toLocaleString()} · 基准缺失 ${current.benchmarkMissing}`}</span>
+        <span>{`有效 ${current.sample.toLocaleString()}，未到期 ${current.pending}，停牌／无成交 ${current.inactive}，缺失 ${current.missing}`}</span>
+        <span>{`上证配对 ${current.paired.toLocaleString()}，基准缺失 ${current.benchmarkMissing}`}</span>
       </div>
       <div className="strategy-study-extremes">
         {[['best', '单次最佳'], ['worst', '单次最差']].map(([key, label]) => {
@@ -238,7 +239,7 @@ export default function StudyReport({ strategy, active, onStock }: { strategy: s
           return (
             <span key={key}>
               <span>{label}</span>
-              <strong>{row ? `${row.name} ${row.code.split('.')[0]}` : '—'}</strong>
+              <strong>{row ? <StockLink code={row.code} name={row.name} label={`${row.name} ${row.code.split('.')[0]}`} date={row.date || report.end} /> : '—'}</strong>
               <span>
                 {changed(row?.value ?? null)}
                 {row?.value == null ? '' : '%'}
@@ -266,7 +267,7 @@ export default function StudyReport({ strategy, active, onStock }: { strategy: s
         rowClassName={(row) => (row.key === selected.key ? 'interaction-selected-row' : '')}
         columns={[
           {
-            title: `策略 · 后${horizon}日`, key: 'strategy', width: 280, fixed: screens.md ? 'left' : undefined, render: (_, row) => <InteractionButton intent="select" selected={row.key === selected.key} onClick={() => setFocus(row.key)}>{row.label}</InteractionButton>,
+            title: `策略，后${horizon}日`, key: 'strategy', width: 280, fixed: screens.md ? 'left' : undefined, render: (_, row) => <InteractionButton intent="select" selected={row.key === selected.key} onClick={() => setFocus(row.key)}>{row.label}</InteractionButton>,
           }, ...metricColumns,
           {
             title: '上涨比例95%区间', dataIndex: 'confidence', width: 180, align: 'right', render: interval,
@@ -285,7 +286,7 @@ export default function StudyReport({ strategy, active, onStock }: { strategy: s
           scroll={{ x: 1310 }}
           columns={[
             {
-              title: `信号月份 · 后${horizon}日`, dataIndex: 'month', width: 150, fixed: screens.md ? 'left' : undefined, render: (value) => <InteractionButton intent="select" onClick={() => { setMonth(value); setView('signals'); }}>{value}</InteractionButton>,
+              title: `信号月份，后${horizon}日`, dataIndex: 'month', width: 150, fixed: screens.md ? 'left' : undefined, render: (value) => <InteractionButton intent="select" onClick={() => { setMonth(value); setView('signals'); }}>{value}</InteractionButton>,
             }, ...metricColumns,
             {
               title: '上涨比例95%区间', dataIndex: 'confidence', width: 180, align: 'right', render: interval,
@@ -314,7 +315,7 @@ export default function StudyReport({ strategy, active, onStock }: { strategy: s
           dataSource={peaks}
           scroll={{ x: 780 }}
           columns={[
-            { title: '排名', dataIndex: 'kind', width: 70 }, { title: '股票', width: 180, render: (_, row) => `${row.name} ${row.code.split('.')[0]}` },
+            { title: '排名', dataIndex: 'kind', width: 70 }, { title: '股票', width: 180, render: (_, row) => <StockLink code={row.code} name={row.name} label={`${row.name} ${row.code.split('.')[0]}`} date={row.date || report.end} /> },
             { title: ranking === 'signal' ? '信号日期' : '最近信号日', dataIndex: 'date', width: 130 },
             {
               title: ranking === 'signal' ? '涨跌(%)' : '平均涨跌(%)', dataIndex: 'value', align: 'right', width: 120, render: changed,
@@ -350,7 +351,7 @@ export default function StudyReport({ strategy, active, onStock }: { strategy: s
           }}
           scroll={{ x: 1000 }}
           columns={[
-            { title: '信号日期', dataIndex: 'date', width: 130 }, { title: '股票', width: 200, render: (_, row) => <InteractionButton intent="preview" onClick={() => preview(row)}>{`${row.name} ${row.code.split('.')[0]}`}</InteractionButton> },
+            { title: '信号日期', dataIndex: 'date', width: 130 }, { title: '股票', width: 200, render: (_, row) => <StockLink code={row.code} name={row.name} label={`${row.name} ${row.code.split('.')[0]}`} date={row.date} onChart={() => preview(row)} /> },
             { title: '观察日期', width: 130, render: (_, row) => row.outcomes[horizon].date || '未到期' },
             {
               title: `后${horizon}日涨跌(%)`, width: 140, align: 'right', sorter: (a, b) => (a.outcomes[horizon].value ?? -Infinity) - (b.outcomes[horizon].value ?? -Infinity), render: (_, row) => changed(row.outcomes[horizon].value),
@@ -368,7 +369,7 @@ export default function StudyReport({ strategy, active, onStock }: { strategy: s
       )}
       {view === 'quality' && (
       <div className="strategy-study-quality">
-        <p>{`${report.strategies.length}个策略 · ${report.signals.toLocaleString()}次独立信号 · ${report.universe.toLocaleString()}只涉及股票。`}</p>
+        <p>{`${report.strategies.length}个策略，${report.signals.toLocaleString()}次独立信号，${report.universe.toLocaleString()}只涉及股票。`}</p>
         <p>{`信号范围 ${report.start}～${report.end}，使用额外122个交易日作形态和均线预热；历史身份快照 ${report.quality.identityAsOf}。`}</p>
         <Table
           autoHeight
@@ -389,7 +390,7 @@ export default function StudyReport({ strategy, active, onStock }: { strategy: s
           <a href={`${BASE}/validation.json`} download>下载核查结果</a>
           <a href={`${BASE}/${selected.key}.json`} download>下载信号与候选缺失记录</a>
         </Space>
-        <p className="strategy-caption">{`报告版本 ${report.version} · 生成时间 ${report.generatedAt.slice(0, 10)} · 数据指纹 ${report.sourceHash.slice(0, 12)} · 规则指纹 ${report.ruleHash.slice(0, 12)}`}</p>
+        <p className="strategy-caption">{`报告版本 ${report.version}，生成时间 ${report.generatedAt.slice(0, 10)}，数据指纹 ${report.sourceHash.slice(0, 12)}，规则指纹 ${report.ruleHash.slice(0, 12)}`}</p>
       </div>
       )}
     </div>

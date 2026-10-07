@@ -7,11 +7,10 @@ import Table from '@/components/DataTable';
 import { changeClass } from '@/utils/format';
 import { Ladder, LimitRow, MarketSeries } from '@/api/market';
 import Link, { InteractionButton } from '@/components/Interaction';
+import { StockLink } from '@/components/StockActions';
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import dayjs from 'dayjs';
-import { useAccount } from '@/auth/Boundary';
-import { allowedPath } from '@/auth/client';
 import SectorFilter from '@/components/SectorFilter';
 import StrongTrajectories from '../components/StrongTrajectories';
 import { useMarket } from '../components/MarketContext';
@@ -28,8 +27,7 @@ import { chainView } from './chains-display';
 import './chains.css';
 
 function LadderGroups({ items }: { items: LimitRow[] }) {
-  const { date, scope } = useMarket();
-  const { user } = useAccount();
+  const { date } = useMarket();
   const [expanded, setExpanded] = useState<number[]>([]);
   const heights = Array.from(new Set(items.map((r) => r.limitTimes))).sort((a, b) => b - a);
   return (
@@ -50,17 +48,12 @@ function LadderGroups({ items }: { items: LimitRow[] }) {
             </div>
             <div className="chains-ladder-content">
               <div className="market-ladder-stocks" id={`ladder-height-${height}`}>
-                {visible.map((r) => (allowedPath(user, '/analysis/limits') ? (
-                  <Link key={r.tsCode} className="market-ladder-stock" href={marketHref('/analysis/limits', { date, scope }, { keyword: r.tsCode, type: 'U' })} title={`查看${r.name}涨停明细`}>
-                    {r.name}
-                    <span>{r.tsCode}</span>
-                  </Link>
-                ) : (
+                {visible.map((r) => (
                   <span key={r.tsCode} className="market-ladder-stock">
-                    {r.name}
+                    <StockLink code={r.tsCode} name={r.name} date={date} />
                     <span>{r.tsCode}</span>
                   </span>
-                )))}
+                ))}
               </div>
               {(height === 1 || stocks.length > 8) && (
                 <InteractionButton intent="expand" expanded={open} aria-controls={`ladder-height-${height}`} onClick={() => setExpanded((old) => (open ? old.filter((n) => n !== height) : [...old, height]))}>
@@ -153,10 +146,11 @@ function ChainsPage() {
                           title: '股票',
                           width: 170,
                           render: (_, r) => (
-                            <Link className="chains-stock-link" href={marketHref('/analysis/chains', { date, scope }, { view: 'trajectory', code: r.tsCode })} title={`查看${r.name}多日轨迹`}>
-                              <span>{r.name}</span>
+                            <div className="chains-stock-link">
+                              <StockLink code={r.tsCode} name={r.name} date={date} />
                               <span className="chains-stock-code">{r.tsCode}</span>
-                            </Link>
+                              <Link href={marketHref('/analysis/chains', { date, scope }, { view: 'trajectory', code: r.tsCode })}>多日轨迹</Link>
+                            </div>
                           ),
                         },
                         {

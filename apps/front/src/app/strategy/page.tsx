@@ -1,6 +1,6 @@
 'use client';
 
-import Link, { InteractionButton } from '@/components/Interaction';
+import Link from '@/components/Interaction';
 
 import {
   useCallback, useEffect, useMemo, useRef, useState,
@@ -135,7 +135,7 @@ function StrategyPage() {
       ...column,
       fixed: 'left' as const,
       width: column.key === 'tsCode' ? 116 : 145,
-      render: (value: string, row: any) => <InteractionButton intent="preview" title={`查看${row.name}K线`} onClick={() => openStock(row)}>{column.key === 'tsCode' ? value.split('.')[0] : value}</InteractionButton>,
+      render: (value: string, row: any) => <StockLink code={row.tsCode} name={row.name} label={column.key === 'tsCode' ? value.split('.')[0] : value} date={date} onChart={() => openStock(row)} />,
     })),
     {
       title: <Tooltip title="所选交易日之前已披露的最近三个财报期扣非盈亏及最新业绩预告，悬停查看金额">近期业绩</Tooltip>, key: 'profit', width: 260, render: (_: any, row: any) => <CandidateProfit row={financials.rows.get(row.tsCode)} error={financials.error} stopped={financials.stopped} retry={financials.retry} />,
@@ -145,9 +145,6 @@ function StrategyPage() {
     },
     {
       title: '风险核验', key: 'riskCheck', width: 125, render: (_: any, row: any) => <RiskInspect code={row.tsCode} date={date} />,
-    },
-    {
-      title: '档案', key: 'profile', width: 70, render: (_: any, row: any) => <StockLink code={row.tsCode} name="资料" date={date} />,
     },
     ...trendColumns(strategy),
     ...strategyColumns.slice(2).filter((column) => visibleColumns.includes(String(column.key))),
@@ -171,7 +168,7 @@ function StrategyPage() {
             <SectorFilter value={sector} onChange={(value) => updateQuery({ sector: value, code: undefined })} />
           </Space>
         </div>
-        {view === 'performance' ? <Collapse className="strategy-asof-environment" items={[{ key: 'market', label: `截至日大盘环境 · ${date}`, children: <CandidateEnvironment date={date} /> }]} /> : <CandidateEnvironment date={date} />}
+        {view === 'performance' ? <Collapse className="strategy-asof-environment" items={[{ key: 'market', label: `截至日大盘环境，${date}`, children: <CandidateEnvironment date={date} /> }]} /> : <CandidateEnvironment date={date} />}
         <div className="strategy-view-toolbar">
           <Tabs activeKey={view} onChange={(key) => updateQuery({ view: key })} items={[{ key: 'candidates', label: '候选列表' }, { key: 'comparison', label: '横向比较' }, { key: 'performance', label: '历史信号表现' }]} />
           {allowedPath(user, '/analysis/senti') && <Link href={`/analysis/senti/?date=${date}&scope=all&view=popularity#popularity`}>全市场人气榜</Link>}

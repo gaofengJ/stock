@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from '@/components/Interaction';
+import { StockLink } from '@/components/StockActions';
 import {
   Alert, Button, Drawer, Empty, Tabs, Tag, Tooltip,
 } from 'antd';
@@ -159,6 +160,7 @@ export function DragonDetails({
   const reasons = Array.from(new Set([...(result?.summary.map((r) => r.reason) || []), ...(result?.seats.map((r) => r.reason) || [])])).filter((r) => !availableReasons || availableReasons.includes(r));
   return (
     <div className="dragon-details">
+      {stock && <StockLink code={stock.tsCode} name={stock.name} date={date} />}
       <div className="dragon-intro">
         <span>按上榜原因查看买卖席位</span>
         <HelpTooltip label="龙虎榜统计口径" title="金额按上榜原因分别统计。关联名称按营业部名录匹配，实际交易主体需另行核实。" />
@@ -174,7 +176,7 @@ export function DragonDetails({
           onChange={(value) => { setReason(value); onReasonChange?.(value); }}
           items={reasons.map((reason) => ({
             key: reason,
-            label: <Tooltip title={reason}>{`${periodLabels[fundingPeriod(reason)]} · ${reasonLabel(reason)}`}</Tooltip>,
+            label: <Tooltip title={reason}>{`${periodLabels[fundingPeriod(reason)]}，${reasonLabel(reason)}`}</Tooltip>,
             children: (
               <>
                 <div className="dragon-reason">{reason || '未提供上榜原因'}</div>

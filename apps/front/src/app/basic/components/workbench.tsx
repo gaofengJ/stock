@@ -19,14 +19,8 @@ import {
 } from './risk-display';
 import { sourceStatusRows, sourceTimeRows } from './source-display';
 
-export function stockHref(code: string, date?: string) {
-  return `/basic/stock/detail/?code=${encodeURIComponent(code)}${date ? `&date=${date}` : ''}`;
-}
-export function StockLink({ code, name, date }: { code: string; name?: string; date?: string }) {
-  const { user } = useAccount();
-  if (!allowedPath(user, '/basic/stock')) return <span>{name || code}</span>;
-  return <Link href={stockHref(code, date)}>{name || code}</Link>;
-}
+export { stockHref } from '@/utils/stock-interaction';
+export { StockLink } from '@/components/StockActions';
 export function BasicShell({ title, path, children }: { title?: string; path: string; children: React.ReactNode }) {
   return (
     <Layout asideMenuItems={basicSiderMenuItems} headerMenuActive={EHeaderMenuKey.basic} asideMenuActive={path}>

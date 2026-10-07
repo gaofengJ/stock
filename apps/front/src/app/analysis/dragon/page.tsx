@@ -1,6 +1,7 @@
 'use client';
 
 import { InteractionButton } from '@/components/Interaction';
+import { StockLink } from '@/components/StockActions';
 import {
   useCallback, useEffect, useMemo, useRef, useState,
 } from 'react';
@@ -98,12 +99,10 @@ export default function Page() {
       fixed: 'left',
       width: 160,
       render: (_, r) => (
-        <InteractionButton className="dragon-stock-entry" intent="select" selected={selectedKey === dragonRowKey(r)} aria-controls="dragon-detail" onClick={() => open(r)}>
-          <span>
-            <strong>{r.name}</strong>
-            <small>{r.tsCode}</small>
-          </span>
-        </InteractionButton>
+        <div>
+          <StockLink code={r.tsCode} name={r.name} date={date} />
+          <div className="market-note">{r.tsCode}</div>
+        </div>
       ),
     },
     {
@@ -193,7 +192,7 @@ export default function Page() {
             <DataState loading={loading} error={error} retry={retry} empty={false}>
               <div className="dragon-board-stock-heading">
                 <div>
-                  <strong>{selected.name}</strong>
+                  <StockLink code={selected.tsCode} name={selected.name} date={date} />
                   <span className="dragon-stock-code">
                     {selected.tsCode}
                     {' '}

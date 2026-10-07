@@ -1,6 +1,7 @@
 'use client';
 
 import Link, { InteractionButton } from '@/components/Interaction';
+import { StockLink } from '@/components/StockActions';
 
 import {
   useEffect, useMemo, useRef, useState,
@@ -280,7 +281,11 @@ export default function Page() {
               scroll={{ x: 1430 }}
               dataSource={detail.members}
               columns={[
-                { title: '代码', dataIndex: 'tsCode', width: 115 }, { title: '名称', dataIndex: 'name', width: 115 },
+                {
+                  title: '代码', dataIndex: 'tsCode', width: 115, render: (_, r) => <StockLink code={r.tsCode} name={r.name} label={r.tsCode} date={date} />,
+                }, {
+                  title: '名称', dataIndex: 'name', width: 145, render: (_, r) => <StockLink code={r.tsCode} name={r.name} date={date} />,
+                },
                 {
                   title: '所属行业', key: 'industry', width: 160, render: (_, r) => <SectorLinks stock={r} date={date} />,
                 }, {

@@ -55,7 +55,7 @@ function Seat() {
         dataSource={state.data?.items || []}
         columns={[
           { title: '上榜日期', dataIndex: 'date', width: 120 }, {
-            title: '股票', dataIndex: 'tsCode', width: 200, render: (v, r: any) => <StockLink code={v} name={`${r.name || v} ${r.name && r.name !== v ? v : ''}`} date={r.date} />,
+            title: '股票', dataIndex: 'tsCode', width: 200, render: (v, r: any) => <StockLink code={v} name={r.name} label={`${r.name || v} ${r.name && r.name !== v ? v : ''}`} date={r.date} />,
           },
           {
             title: '榜单', dataIndex: 'side', width: 90, render: (v) => (String(v) === '0' ? '买入榜' : String(v) === '1' ? '卖出榜' : '—'),

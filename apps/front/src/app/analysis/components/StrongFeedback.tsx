@@ -1,6 +1,7 @@
 'use client';
 
 import Link, { InteractionButton } from '@/components/Interaction';
+import { StockLink } from '@/components/StockActions';
 
 import { useState } from 'react';
 import {
@@ -39,7 +40,7 @@ export default function StrongFeedback() {
   return (
     <>
       <SectionTitle title="昨日强势股今日表现" description="点击分组查看明细；涨幅、高开和上涨比例仅统计有效样本。断板指前日连板、昨日未涨停，可与炸板组重叠。" />
-      <p className="interaction-hint">选择分组查看涨跌分布与样本，点击股票名称查看多日轨迹。</p>
+      <p className="interaction-hint">选择分组查看涨跌分布与样本。股票菜单提供详情、K线与复制代码，多日轨迹有独立入口。</p>
       <DataState loading={request.loading} error={request.error} retry={request.retry} empty={!data?.ready}>
         <Table<FeedbackGroup>
           rowKey="key"
@@ -124,7 +125,8 @@ export default function StrongFeedback() {
                     width: 160,
                     render: (_, r) => (
                       <Space direction="vertical" size={0}>
-                        {allowedPath(user, '/analysis/chains') ? <Link href={marketHref('/analysis/chains', { date, scope }, { code: r.tsCode, view: 'trajectory' })}>{r.name}</Link> : r.name}
+                        <StockLink code={r.tsCode} name={r.name} date={date} />
+                        {allowedPath(user, '/analysis/chains') && <Link href={marketHref('/analysis/chains', { date, scope }, { code: r.tsCode, view: 'trajectory' })}>多日轨迹</Link>}
                         <span className="market-note">{r.tsCode}</span>
                       </Space>
                     ),

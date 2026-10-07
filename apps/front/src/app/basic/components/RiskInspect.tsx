@@ -1,6 +1,7 @@
 'use client';
 
 import { ExternalLink, InteractionButton } from '@/components/Interaction';
+import { StockLink } from '@/components/StockActions';
 import { useState } from 'react';
 import {
   Card, Collapse, Empty, Modal, Skeleton, Space, Tabs, Tag, Typography,
@@ -132,7 +133,7 @@ export function RiskDetails({ code, date }: { code: string; date: string }) {
   return (
     <div className="basic-risk-details">
       <div className="risk-detail-heading">
-        <strong>{data.name || code}</strong>
+        <StockLink code={code} name={data.name} date={date} />
         <span>
           {data.board}
           {' '}

@@ -190,7 +190,9 @@ test('risk UI renders successful sources and cached records when reduction refre
   const React = require('react');
   const { renderToStaticMarkup } = require('react-dom/server');
   const interaction = { __esModule: true, default: 'a', ExternalLink: 'a', InteractionButton: 'button' };
+  const stockActions = { StockLink: ({ code, name }) => React.createElement('button', null, name || code) };
   const workbench = load('app/basic/components/workbench.tsx', { require: name => {
+    if (name === '@/components/StockActions') return stockActions;
     if (name === './risk-display') return riskDisplay;
     if (name === './source-display') return sourceDisplay;
     if (name === './workbench-polling') return polling();
@@ -219,6 +221,7 @@ test('risk UI renders successful sources and cached records when reduction refre
   const tags = renderToStaticMarkup(React.createElement(workbench.RiskTags, { data, code: data.code }));
   assert.doesNotMatch(tags, /资料尚不完整|该股减持计划期间待核实/);
   const details = load('app/basic/components/RiskInspect.tsx', { require: name => {
+    if (name === '@/components/StockActions') return stockActions;
     if (name === './workbench') return { ...workbench, useWorkbench: () => ({ data, retry: () => {}, loading: false }) };
     if (name === './risk-display') return riskDisplay;
     if (name === '@/components/Interaction') return interaction;

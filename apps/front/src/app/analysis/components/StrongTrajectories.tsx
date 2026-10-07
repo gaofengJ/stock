@@ -1,5 +1,7 @@
 'use client';
 
+import { StockLink } from '@/components/StockActions';
+
 import { useEffect, useMemo, useState } from 'react';
 import {
   Button, Checkbox, Grid, Input, Modal, Select, Space, Tag, Tooltip,
@@ -126,7 +128,7 @@ export default function StrongTrajectories({ sector, onSectorChange, active }: {
               width: 140,
               render: (_, r) => (
                 <Space direction="vertical" size={0}>
-                  <strong>{r.name}</strong>
+                  <StockLink code={r.tsCode} name={r.name} date={date} />
                   <span className="market-note">{r.tsCode}</span>
                   <div className="chains-mobile-current">
                     <span className="market-note">{`${date.slice(5)} 状态`}</span>
@@ -181,7 +183,7 @@ export default function StrongTrajectories({ sector, onSectorChange, active }: {
           ]}
         />
       </DataState>
-      <Modal className="chains-detail-modal" width={640} style={{ top: 40, maxWidth: 'calc(100vw - 32px)' }} title={detail ? `${detail.row.name} · ${detail.cell.date} 交易详情` : ''} open={!!detail} onCancel={() => setDetail(null)} footer={<Button onClick={() => setDetail(null)}>关闭</Button>}>
+      <Modal className="chains-detail-modal" width={640} style={{ top: 40, maxWidth: 'calc(100vw - 32px)' }} title={detail ? `${detail.row.name}：${detail.cell.date} 交易详情` : ''} open={!!detail} onCancel={() => setDetail(null)} footer={<Button onClick={() => setDetail(null)}>关闭</Button>}>
         {detail && (
         <>
           <p className="chains-detail-caption">查看该股票在所选交易日的连板状态、行情及所属行业／概念。</p>
@@ -208,7 +210,7 @@ export default function StrongTrajectories({ sector, onSectorChange, active }: {
           </dl>
           <HistoricalSectors key={`${detail.row.tsCode}:${detail.cell.date}`} date={detail.cell.date} code={detail.row.tsCode} />
           <Space wrap className="chains-detail-actions">
-            {allowedPath(user, '/basic/stock/detail') && <Link href={`/basic/stock/detail/?${new URLSearchParams({ code: detail.row.tsCode, date: detail.cell.date })}`}>查看股票资料</Link>}
+            <StockLink code={detail.row.tsCode} name={detail.row.name} date={detail.cell.date} />
             {allowedPath(user, '/analysis/limits') && ['首板', '炸板', '跌停'].some((s) => detail.cell.state === s) && <Link href={marketHref('/analysis/limits', { date: detail.cell.date, scope }, { keyword: detail.row.tsCode, type: recapType(detail.cell.state) })}>查看复盘明细</Link>}
             {allowedPath(user, '/analysis/limits') && /\d+板/.test(detail.cell.state) && <Link href={marketHref('/analysis/limits', { date: detail.cell.date, scope }, { keyword: detail.row.tsCode, type: 'U' })}>查看复盘明细</Link>}
           </Space>

@@ -28,6 +28,7 @@ function ThemeDetailPanel({ stock, close }: { stock: ThemeStock | null; close: (
   const content = reviewContent(data?.stock.detailReason);
   return (
     <Drawer open={!!stock} title={`${stock?.name || ''}：资料解析`} width="min(760px, 100vw)" onClose={close} destroyOnClose>
+      {stock && <StockLink code={stock.tsCode} name={stock.name} date={date} />}
       <DataState loading={result.loading} error={result.error} retry={result.retry} empty={!data}>
         {data && (
         <div className="theme-review-detail">

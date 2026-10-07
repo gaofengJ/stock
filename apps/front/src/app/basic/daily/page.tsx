@@ -189,7 +189,7 @@ function BasicDailyPage() {
             ...dailyColumns.filter((c) => ['tsCode', 'name'].includes(String(c.key)) || visible.includes(String(c.key))).map((c) => ({
               ...c,
               sorter: true,
-              ...(['tsCode', 'name'].includes(String(c.key)) ? { render: (v: string, row: any) => <StockLink code={row.tsCode} name={v} date={searchParams.tradeDate} /> } : {}),
+              ...(['tsCode', 'name'].includes(String(c.key)) ? { render: (v: string, row: any) => <StockLink code={row.tsCode} name={row.name} label={v} date={searchParams.tradeDate} /> } : {}),
             })), {
               title: '同花顺行业', key: 'industry', width: 180, render: (_, row) => <SectorLinks stock={row} date={searchParams.tradeDate} />,
             },

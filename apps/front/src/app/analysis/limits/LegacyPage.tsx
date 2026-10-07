@@ -84,6 +84,7 @@ function AnalysisLimitsPage() {
           items: items.map((i) => ({
             // 为 items 的每一项添加 key
             ...i,
+            tradeDate: searchParams.date || i.tradeDate,
             key: i.tsCode,
           })),
         }));

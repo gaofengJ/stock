@@ -32,7 +32,10 @@ export function filterBrokerRows(rows: Row[], broker: string, keyword: string) {
   return rows.filter((r) => (!broker || r.broker === broker) && `${r.ts_code} ${r.name}`.toLowerCase().includes(term));
 }
 
-export function brokerStockHref(code: string, month: string, today = beijingTime(new Date().toISOString()).slice(0, 10)) {
+export function brokerStockDate(month: string, today = beijingTime(new Date().toISOString()).slice(0, 10)) {
   const end = dayjs(`${month}-01`).endOf('month').format('YYYY-MM-DD');
-  return `/basic/stock/detail/?${new URLSearchParams({ code, date: end > today ? today : end })}`;
+  return end > today ? today : end;
+}
+export function brokerStockHref(code: string, month: string, today = beijingTime(new Date().toISOString()).slice(0, 10)) {
+  return `/basic/stock/detail/?${new URLSearchParams({ code, date: brokerStockDate(month, today) })}`;
 }

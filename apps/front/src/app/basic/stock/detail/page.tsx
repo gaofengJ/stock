@@ -1,6 +1,7 @@
 'use client';
 
 import Link, { InteractionButton, ExternalLink } from '@/components/Interaction';
+import StockActions, { StockLink } from '@/components/StockActions';
 
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -34,9 +35,9 @@ function SourceNote({ sources = [], stopped, retry }: { sources?: WorkbenchSourc
   const stale = sources.some((source) => source.state === 'stale');
   const dates = sources.map((source) => source.fetchedAt).filter(Boolean).sort();
   let text = dates.length ? `资料更新于 ${dayjs(dates[0]).format('YYYY-MM-DD HH:mm')}` : '资料更新时间暂缺';
-  if (stale && pending && !stopped) text += ' · 正在更新，当前展示上次取得的资料';
-  if (failed) text += ' · 部分资料暂时无法获取，已取得的内容仍可查看';
-  if (pending && stopped && !failed) text += ' · 加载时间较长，可稍后重试';
+  if (stale && pending && !stopped) text += '，正在更新，当前展示上次取得的资料';
+  if (failed) text += '，部分资料暂时无法获取，已取得的内容仍可查看';
+  if (pending && stopped && !failed) text += '，加载时间较长，可稍后重试';
   return (
     <div className="profile-source-note">
       {text}
@@ -174,7 +175,7 @@ function Profile() {
             {state.error && <Alert className="mb-16" type="error" message="公司资料加载失败" description={state.error} action={<Button loading={state.loading} onClick={state.retry}>重试</Button>} />}
             {stock && (
               <nav className="profile-actions" aria-label="个股相关功能">
-                <InteractionButton intent="preview" onClick={() => setChart(true)}>查看 K 线</InteractionButton>
+                <StockActions code={linkedCode} name={stock.name} date={date} onChart={() => setChart(true)} />
                 <Space wrap size={[16, 8]}>{routes.filter((route) => allowedPath(user, route.path)).map((route) => <Link key={route.path} href={`${route.path}/?${route.query}`}>{route.label}</Link>)}</Space>
                 <div className="profile-actions-secondary">
                   {allowedPath(user, '/basic/stock/risk') && <Link href={`/basic/stock/risk/?code=${linkedCode}&date=${date}`}>交易状态</Link>}
@@ -242,7 +243,7 @@ function Profile() {
                     {' '}
                     条）
                   </summary>
-                  <Table rowKey={(r: any) => `${r.tsCode}-${r.startDate}-${r.name}`} dataSource={d.names || []} pagination={false} scroll={{ x: 560 }} locale={{ emptyText: '暂无历史名称记录' }} columns={[{ title: '名称', dataIndex: 'name' }, { title: '代码', dataIndex: 'tsCode' }, { title: '开始日期', dataIndex: 'startDate' }, { title: '结束日期', dataIndex: 'endDate', render: (v) => v || '未提供' }]} />
+                  <Table rowKey={(r: any) => `${r.tsCode}-${r.startDate}-${r.name}`} dataSource={d.names || []} pagination={false} scroll={{ x: 560 }} locale={{ emptyText: '暂无历史名称记录' }} columns={[{ title: '名称', dataIndex: 'name', render: (_, r: any) => <StockLink code={r.tsCode} name={r.name} date={date} /> }, { title: '代码', dataIndex: 'tsCode', render: (_, r: any) => <StockLink code={r.tsCode} name={r.name} label={r.tsCode} date={date} /> }, { title: '开始日期', dataIndex: 'startDate' }, { title: '结束日期', dataIndex: 'endDate', render: (v) => v || '未提供' }]} />
                 </details>
                 <p className="profile-code-history">
                   当前代码：
@@ -258,7 +259,7 @@ function Profile() {
               </Card>
             )}
             {chart && stock && <StockChart key={`${linkedCode}-${date}`} neutral stock={stock} date={date} strategy="fiveMaUp" options={trendDefaults} onClose={() => setChart(false)} />}
-            <Modal className="basic-risk-modal" open={risk} title={`${stock?.name || linkedCode} · 公告与财务风险资料`} onCancel={() => setRisk(false)} footer={null} width={1000} destroyOnClose>{risk && <RiskDetails code={linkedCode} date={date} />}</Modal>
+            <Modal className="basic-risk-modal" open={risk} title={`${stock?.name || linkedCode}，公告与财务风险资料`} onCancel={() => setRisk(false)} footer={null} width={1000} destroyOnClose>{risk && <RiskDetails code={linkedCode} date={date} />}</Modal>
           </>
         )}
       </div>

@@ -12,6 +12,7 @@ import { errorMessage } from '@/api/errors';
 import CChart from '@/components/CChart';
 import candleExtremaMarks from '@/components/CChart/candle-extrema';
 import Loading from '@/components/Loading';
+import StockActions from '@/components/StockActions';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { useSiteTheme } from '@/components/SiteTheme';
 import { lightMovingAverageColors, movingAverageColors, quoteColors } from '@/colors';
@@ -167,6 +168,7 @@ export default function StockChart({
       keyboard
     >
       <div className="strategy-chart-summary">
+        {code && <StockActions key={code} code={code} name={stock?.name} date={date} chartOpen />}
         <span>
           {neutral ? '观察日期' : '信号日期'}
           {' '}

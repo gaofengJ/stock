@@ -20,6 +20,7 @@ test('only exact public content routes bypass the existing account boundary', ()
     if (name === 'next/navigation') return { usePathname: () => pathname };
     if (name === './site') return site;
     if (name === '@/auth/Boundary') return { default: () => React.createElement('span', null, 'protected') };
+    if (name === '@/components/StockActions/Provider') return { default: ({ children }) => children };
     return require(name);
   }).default;
   for (pathname of ['/', '/guides/', ...site.guides.map(g => '/guides/' + g.slug + '/')]) {

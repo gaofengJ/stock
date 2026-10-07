@@ -17,7 +17,7 @@ export const useStockColumns = (date?: string): ColumnsType => {
       title: '股票代码',
       dataIndex: 'symbol',
       key: 'symbol',
-      render: (_, row) => <StockLink code={row.tsCode} date={date} />,
+      render: (_, row) => <StockLink code={row.tsCode} name={row.name} label={row.tsCode} date={date} />,
       fixed: 'left',
       width: 120,
     },
