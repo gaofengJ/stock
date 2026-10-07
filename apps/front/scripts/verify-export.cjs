@@ -2,7 +2,7 @@ const { existsSync, readFileSync, readdirSync } = require('node:fs');
 const { join } = require('node:path');
 
 // Static hosting cannot recover a route omitted from the build context.
-const routes = ['login', 'register', 'profile', 'feedback', 'admin/playbook', 'admin/users', 'admin/users/activity', 'admin/roles', 'admin/sync', 'admin/logs', 'analysis/overview', 'analysis/senti', 'analysis/limits', 'analysis/chains', 'analysis/dragon', 'analysis/sectors', 'basic/stock/broker-picks'];
+const routes = ['login', 'register', 'profile', 'feedback', 'admin/playbook', 'trading-system', 'admin/users', 'admin/users/activity', 'admin/roles', 'admin/sync', 'admin/logs', 'analysis/overview', 'analysis/senti', 'analysis/limits', 'analysis/chains', 'analysis/dragon', 'analysis/sectors', 'basic/stock/broker-picks'];
 const files = [
   'index.html', 'robots.txt', 'sitemap.xml', 'guides/index.html',
   ...['daily-review', 'strategy-screening', 'signal-performance', 'broker-monthly-picks'].map((slug) => `guides/${slug}/index.html`),

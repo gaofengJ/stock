@@ -31,6 +31,10 @@ export enum EHeaderMenuKey {
    */
   blog = '/blog',
   /**
+   * 管理员交易体系
+   */
+  tradingSystem = '/trading-system',
+  /**
    * 后台管理
    */
   admin = '/admin'

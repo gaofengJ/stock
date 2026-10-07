@@ -18,6 +18,7 @@ export { themeConfig } from '@/theme';
  * 顶部菜单 Items
  */
 export const headerMenuItems: MenuProps['items'] = [
+  { key: EHeaderMenuKey.tradingSystem, label: '交易体系' },
   {
     key: EHeaderMenuKey.analysis,
     label: '市场分析',

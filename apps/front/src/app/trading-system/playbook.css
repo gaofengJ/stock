@@ -10,7 +10,7 @@
 .guide-map-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .guide-zoom { min-width: 36px; font-size: 12px; text-align: center; color: var(--text-secondary); }
 .guide-search.ant-input-search { width: 240px; margin-left: auto; }
-.guide-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 300px; min-width: 0; border: 1px solid var(--color-border); border-radius: 6px; overflow: hidden; }
+.guide-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 380px; min-width: 0; border: 1px solid var(--color-border); border-radius: 6px; overflow: hidden; }
 .guide-map-viewport { height: 560px; overflow: auto; overscroll-behavior: contain; background-color: var(--color-surface-muted); background-image: radial-gradient(var(--color-border) 1px, transparent 1px); background-size: 20px 20px; }
 .guide-map-viewport:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 .guide-map-canvas { width: max-content; min-height: 100%; padding: 32px; display: flex; align-items: center; }
@@ -48,3 +48,7 @@
 .guide-outline-node > .guide-node-details { margin: 12px 0 0 20px; }
 @media (max-width: 1100px) { .guide-workspace { grid-template-columns: minmax(0, 1fr); } .guide-inspector { border-left: 0; border-top: 1px solid var(--color-border); max-height: none; } .guide-map-viewport { height: 420px; } }
 @media (max-width: 600px) { .guide-header, .guide-map-heading { flex-wrap: wrap; } .guide-search.ant-input-search { width: 100%; margin-left: 0; } .guide-outline { padding: 12px; } .guide-outline-node > .guide-outline-node { padding-left: 12px; } .guide-map-viewport { height: 360px; } }
+
+.trading-system-page { max-width: 1600px; margin: 0 auto; }
+.guide-executive-summary { margin: 16px 0; padding: 16px 20px; background: var(--color-surface-muted); border-left: 3px solid var(--color-primary); border-radius: 6px; }
+.guide-executive-summary .guide-node-details li:last-child { margin-bottom: 0; }

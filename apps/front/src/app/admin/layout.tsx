@@ -1,13 +1,12 @@
 'use client';
 
 import {
-  TeamOutlined, SafetyCertificateOutlined, SyncOutlined, FileSearchOutlined, BellOutlined, ApartmentOutlined,
+  TeamOutlined, SafetyCertificateOutlined, SyncOutlined, FileSearchOutlined, BellOutlined,
 } from '@ant-design/icons';
 import { usePathname } from 'next/navigation';
 import CommonLayout from '@/components/Layout';
 
 const items = [
-  { key: '/admin/playbook', label: '交易与学习体系', icon: <ApartmentOutlined /> },
   { key: '/admin/users', label: '用户管理', icon: <TeamOutlined /> },
   { key: '/admin/users/activity', label: '登录动态', icon: <BellOutlined /> },
   { key: '/admin/roles', label: '角色管理', icon: <SafetyCertificateOutlined /> },

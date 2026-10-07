@@ -81,7 +81,8 @@ export async function api<T = any>(
 }
 export function allowedPath(user: Account | null, path: string): boolean {
   const p = path.replace(/\/$/, '') || '/';
-  if (p === '/admin/playbook' || p.startsWith('/admin/playbook/')) {
+  if (p === '/trading-system' || p.startsWith('/trading-system/')
+    || p === '/admin/playbook' || p.startsWith('/admin/playbook/')) {
     return !!user && !user.guest && !!user.roles?.some((role) => role.code === 'admin');
   }
   if (p === '/') return !!user;
@@ -105,6 +106,7 @@ export function getAccess(startTrial: boolean): Promise<AccessState> {
   return accessPending;
 }
 export function homePath(user: Account | null, prefix = '') {
+  if (prefix === '/trading-system') return allowedPath(user, prefix) ? prefix : '/profile';
   if (prefix === '/basic') {
     const first = basicNavigationOrder.find((route) => user?.catalog.some(
       (p) => p.route === route && user.permissions.includes(p.code),
