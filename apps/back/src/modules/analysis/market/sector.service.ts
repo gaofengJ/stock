@@ -330,7 +330,9 @@ export class SectorService {
       ]).then((rows) => rows.flat()),
     ]);
     const result = new Map<string, SectorLink[]>();
-    const catalog = new Map(sectors.map((s) => [s.tsCode, s]));
+    const catalog = new Map(
+      sectors.filter(primarySector).map((s) => [s.tsCode, s]),
+    );
     const mapping = new Map(mappingRows.map((r) => [r.oldCode, r.newCode]));
     const reverse = new Map<string, string[]>();
     mapping.forEach((current, old) =>
@@ -361,8 +363,9 @@ export class SectorService {
     return this.memberCache.getOrCreate(
       `stock:${date}:${codes.join(',')}`,
       () =>
-        this.db.query(
-          `SELECT c.ts_code code,c.name,c.type,DATE_FORMAT(s.as_of,'%Y-%m-%d') asOf
+        this.db
+          .query(
+            `SELECT c.ts_code code,c.name,c.type,DATE_FORMAT(s.as_of,'%Y-%m-%d') asOf
          FROM t_source_ths_members s
          JOIN (SELECT ts_code,COALESCE(MAX(CASE WHEN as_of<=? THEN as_of ELSE NULL END),MIN(as_of)) as_of FROM t_source_ths_members GROUP BY ts_code) chosen ON s.ts_code=chosen.ts_code AND s.as_of=chosen.as_of
          JOIN t_source_ths_sector c ON c.ts_code=s.ts_code AND c.active=1
@@ -373,8 +376,13 @@ export class SectorService {
            )
            .join(' OR ')})
          ORDER BY c.type,c.ts_code`,
-          [date, ...codes],
-        ),
+            [date, ...codes],
+          )
+          .then((rows: SectorLink[]) =>
+            rows.filter((row) =>
+              primarySector({ tsCode: row.code, type: row.type }),
+            ),
+          ),
     );
   }
 
@@ -458,7 +466,9 @@ export class SectorService {
       "SELECT DATE_FORMAT(MAX(as_of),'%Y-%m-%d') asOf FROM t_source_ths_members",
     );
     return {
-      items: items.map((s) => ({ code: s.tsCode, name: s.name, type: s.type })),
+      items: items
+        .filter(primarySector)
+        .map((s) => ({ code: s.tsCode, name: s.name, type: s.type })),
       asOf: snapshot?.asOf || null,
     };
   }

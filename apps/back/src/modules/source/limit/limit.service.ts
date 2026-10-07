@@ -1,3 +1,4 @@
+import { withoutSectorClassification } from '@/modules/analysis/market/sector.utils';
 import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
 import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { SectorService } from '@/modules/analysis/market/sector.service';
@@ -65,7 +66,7 @@ export class LimitService {
     return new Pagination(
       this.sectors
         ? await this.sectors.decorate(result.items, tradeDate)
-        : result.items,
+        : result.items.map(withoutSectorClassification),
       result.meta,
     );
   }
@@ -266,7 +267,7 @@ export class LimitService {
     if (!item) throw new NotFoundException('未找到该记录');
     return this.sectors
       ? (await this.sectors.decorate([item], item.tradeDate))[0]
-      : item;
+      : withoutSectorClassification(item);
   }
 
   async create(dto: LimitDto) {

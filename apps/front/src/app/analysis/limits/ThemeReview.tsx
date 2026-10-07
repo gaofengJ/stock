@@ -25,7 +25,7 @@ function ThemeDetailPanel({ stock, close }: { stock: ThemeStock | null; close: (
   const result = useThemeReview<ThemeDetail>('theme-review-detail', { code: stock?.tsCode }, !!stock);
   const { data } = result;
   return (
-    <Drawer open={!!stock} title={`${stock?.name || ''} · 资料解析`} width={760} onClose={close} destroyOnClose>
+    <Drawer open={!!stock} title={`${stock?.name || ''}：资料解析`} width={760} onClose={close} destroyOnClose>
       <DataState loading={result.loading} error={result.error} retry={result.retry} empty={!data}>
         {data && (
         <div className="theme-review-detail">
@@ -35,10 +35,11 @@ function ThemeDetailPanel({ stock, close }: { stock: ThemeStock | null; close: (
           </Space>
           <SourceState data={data} error="" retry={result.retry} pollingStopped={result.pollingStopped} loading={result.loading} />
           <section>
-            <SectionTitle title="涨停原因" description="来自当日榜单的原因摘要；相关公告和业绩资料可用于进一步核验。" />
-            <p className="theme-review-reason">{data.stock.reason || '暂无涨停原因资料'}</p>
+            <SectionTitle title="同花顺复盘解析" description="展示同花顺热点复盘的题材、异动摘要与个股解析，保留原文来源说明。" />
+            <p className="theme-review-reason">{data.stock.reason || '暂无来源摘要'}</p>
             <Space size={[4, 8]} wrap>{data.stock.themes.map((name) => <Tag key={name}>{name}</Tag>)}</Space>
-            <p className="basic-muted">来源：开盘啦（经 Tushare）</p>
+            <p className="theme-review-reason" style={{ whiteSpace: 'pre-wrap' }}>{data.stock.detailReason || '同花顺暂未提供个股解析'}</p>
+            <ExternalLink href="https://eq.10jqka.com.cn/webpage/kamis-renderer/index.0.3.5.html?token=K79OTEyOQB5">来源：同花顺热点复盘</ExternalLink>
           </section>
           <section>
             <SectionTitle title="已披露业绩" description="仅展示截至复盘日期已披露的最近报告期数据。" />
@@ -122,16 +123,16 @@ export default function ThemeReview({ keyword, height, sector }: { keyword: stri
       title: '涨停记录', key: 'height', width: 116, align: 'center', render: (_, row) => row.sourceStatus || (row.limitTimes === 1 ? '首板' : `${row.limitTimes}连板`),
     },
     {
-      title: '涨停原因',
+      title: '题材线索',
       key: 'reason',
       width: 350,
       render: (_, row) => (
         <div className="theme-review-reason">
-          {row.reason || <span className="basic-muted">暂无涨停原因</span>}
-          {row.themes.length > 1 && (
+          {row.themes.join('、') || <span className="basic-muted">暂无同花顺题材</span>}
+          {row.reason && (
           <small>
-            关联题材：
-            {row.themes.slice(1).join('、')}
+            来源摘要：
+            {row.reason}
           </small>
           )}
         </div>
@@ -144,7 +145,7 @@ export default function ThemeReview({ keyword, height, sector }: { keyword: stri
   return (
     <div className="theme-review">
       <div className="limits-table-toolbar">
-        <SectionTitle title="题材复盘" description="非ST涨停股票按当日来源的首个题材归组，每股计一次；其他题材保留为关联标签。分组按家数、最高连板排序，组内按连板数和最后封板时间排序。" />
+        <SectionTitle title="题材复盘" description="非ST涨停股票按同花顺热点复盘的原始题材归组，每股计一次。分组按家数、最高连板排序，组内按连板数和最后封板时间排序。" />
         <Space wrap>
           <Select aria-label="复盘题材" allowClear showSearch placeholder="全部题材" value={theme} onChange={setTheme} style={{ width: 180 }} options={(data?.groups || []).map((group) => ({ value: group.name, label: `${group.name}（${group.count}）` }))} />
           <Button icon={<DownloadOutlined />} loading={exporting} disabled={result.loading || !!result.error || !groups.length || !!pending} onClick={download}>导出长图</Button>
@@ -152,7 +153,14 @@ export default function ThemeReview({ keyword, height, sector }: { keyword: stri
       </div>
       <DataState loading={result.loading} error={result.error} retry={result.retry} empty={!data?.ready}>
         {data && <SourceState data={data} error="" retry={result.retry} pollingStopped={result.pollingStopped} loading={result.loading} />}
-        {data && <p className="theme-review-summary">{`当前筛选 ${visibleStocks.length} 只 · 已取得题材 ${visibleStocks.filter((row) => row.themes.length).length} 只 · 已取得原因 ${visibleStocks.filter((row) => row.reason).length} 只`}</p>}
+        <p className="theme-review-summary">题材与解析来自同花顺热点复盘。未取得对应日期的资料时显示待补充。</p>
+        {data && (
+        <Space className="theme-review-summary" size={16} wrap>
+          <span>{`当前筛选 ${visibleStocks.length} 只`}</span>
+          <span>{`已取得分类 ${visibleStocks.filter((row) => row.theme !== '题材待补充').length} 只`}</span>
+          <span>{`已取得摘要 ${visibleStocks.filter((row) => row.reason).length} 只`}</span>
+        </Space>
+        )}
         {!groups.length && <Empty description="没有符合筛选条件的涨停股票" />}
         {groups.map((group) => (
           <Card
@@ -169,16 +177,13 @@ export default function ThemeReview({ keyword, height, sector }: { keyword: stri
               </span>
 )}
             extra={(
-              <span className="basic-muted">
-                最高
-                {group.maxHeight}
-                板 · 成交额
-                {scaledNumber(group.amount, 100000000)}
-                亿
-              </span>
+              <Space className="basic-muted" size={12} wrap>
+                <span>{`最高${group.maxHeight}板`}</span>
+                <span>{`成交额${scaledNumber(group.amount, 100000000)}亿`}</span>
+              </Space>
 )}
           >
-            {!!group.keywords.length && <p className="theme-review-keywords">{group.keywords.join(' · ')}</p>}
+            {!!group.keywords.length && <p className="theme-review-keywords">{group.keywords.join('、')}</p>}
             <Table<ThemeStock> autoHeight size="small" bordered tableLayout="fixed" rowKey="tsCode" columns={columns} dataSource={group.items} pagination={false} scroll={{ x: 1150 }} />
           </Card>
         ))}

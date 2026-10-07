@@ -29,7 +29,9 @@ describe('standard signal prefilter', () => {
   it('keeps the trend evaluator authoritative and rechecks publication after calculating', async () => {
     const { service, trends, insights } = setup();
     const rows = await service.list(query);
-    expect(rows).toEqual([{ tsCode: '000001.SZ' }]);
+    expect(rows).toEqual([
+      { tsCode: '000001.SZ', industry: '', industries: [], topics: [] },
+    ]);
     expect(trends.list).toHaveBeenCalledTimes(1);
     expect(trends.list.mock.calls[0][3]).toEqual(['000001.SZ']);
     expect(insights.standardCandidates).toHaveBeenCalledTimes(2);
@@ -42,7 +44,9 @@ describe('standard signal prefilter', () => {
     trends.list
       .mockResolvedValueOnce([{ tsCode: '000001.SZ' }])
       .mockResolvedValueOnce([{ tsCode: '000002.SZ' }]);
-    expect(await service.list(query)).toEqual([{ tsCode: '000002.SZ' }]);
+    expect(await service.list(query)).toEqual([
+      { tsCode: '000002.SZ', industry: '', industries: [], topics: [] },
+    ]);
     expect(trends.list.mock.calls[1]).toHaveLength(3);
   });
   it('falls back to the full universe when standard signals are unavailable', async () => {

@@ -114,7 +114,7 @@ function StrategyPage() {
   const context = useInsight<any[]>('candidate-context', { date, codes: items.map((row) => row.tsCode).sort() }, view === 'candidates' && visibleColumns.includes('context') && listCurrent && items.length > 0);
   const contextMap = new Map(context.data?.map((row) => [row.tsCode, row]) || []);
   const decorated = filtered.map((row) => ({
-    ...row, ...labelsMap.get(row.tsCode), industry: labels.loading ? '加载中…' : (labelsMap.get(row.tsCode)?.industry || row.industry || '暂无行业'), ...contextMap.get(row.tsCode), sectorContextLoading: context.loading, sectorLabelsLoading: labels.loading,
+    ...row, industry: '', industries: [], topics: [], ...labelsMap.get(row.tsCode), ...contextMap.get(row.tsCode), sectorContextLoading: context.loading, sectorLabelsLoading: labels.loading,
   }));
   const openStock = (row: any, rows?: any[]) => {
     const order = new Map(visibleRows.current.map((r, i) => [r.tsCode, i]));

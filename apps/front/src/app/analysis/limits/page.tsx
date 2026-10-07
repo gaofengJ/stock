@@ -57,8 +57,9 @@ function LimitsPage() {
   const params = useSearchParams();
   const linkedKeyword = params.get('keyword') || '';
   const linkedType = linkedLimitType(params.get('type'));
+  const linkedThemeView = !params.has('type');
   const [type, setType] = useState(linkedType); const [keyword, setKeyword] = useState(linkedKeyword);
-  const [themeView, setThemeView] = useState(false);
+  const [themeView, setThemeView] = useState(linkedThemeView);
   const [search, setSearch] = useState(linkedKeyword);
   const [height, setHeight] = useState<number | undefined>();
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
@@ -81,8 +82,8 @@ function LimitsPage() {
   const dragonCodes = new Set(dragon.data?.codes || []);
   useEffect(() => {
     setKeyword(linkedKeyword); setSearch(linkedKeyword); setType(linkedType); setHeight(undefined);
-    setThemeView(false);
-  }, [linkedKeyword, linkedType]);
+    setThemeView(linkedThemeView);
+  }, [linkedKeyword, linkedType, linkedThemeView]);
   const {
     data, loading, error, retry,
   } = useMarketData<{ ready: boolean; items: LimitRow[] }>('limits', {
@@ -183,7 +184,7 @@ function LimitsPage() {
   }));
   return (
     <MarketShell title="涨停复盘" path="/analysis/limits">
-      <Tabs activeKey={themeView ? 'themes' : type} onChange={(value) => { setThemeView(value === 'themes'); setType(value === 'themes' ? 'U' : value); setHeight(undefined); }} items={[{ key: 'U', label: '涨停' }, { key: 'themes', label: '题材复盘' }, { key: 'Z', label: '炸板' }, { key: 'D', label: '跌停' }]} />
+      <Tabs activeKey={themeView ? 'themes' : type} onChange={(value) => { setThemeView(value === 'themes'); setType(value === 'themes' ? 'U' : value); setHeight(undefined); }} items={[{ key: 'themes', label: '题材复盘' }, { key: 'U', label: '涨停明细' }, { key: 'Z', label: '炸板明细' }, { key: 'D', label: '跌停明细' }]} />
       <Space className="mb-16" wrap>
         <SectorFilter value={sector} onChange={setSector} />
         <Input.Search allowClear placeholder="股票名称／代码" value={search} onChange={(e) => { setSearch(e.target.value); if (!e.target.value) setKeyword(''); }} onSearch={setKeyword} style={{ width: 260 }} />

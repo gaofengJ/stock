@@ -1,3 +1,7 @@
+import {
+  withoutSectorClassification,
+  sectorFilterCodes,
+} from '@/modules/analysis/market/sector.utils';
 import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
 import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { SectorService } from '@/modules/analysis/market/sector.service';
@@ -39,8 +43,8 @@ export class StockService {
         ...(listStatus && { listStatus }),
         ...(isHs && { isHs }),
       });
-    if (sector && this.sectors) {
-      const codes = [...(await this.sectors.codes(sector, date))];
+    if (sector) {
+      const codes = [...(await sectorFilterCodes(this.sectors, sector, date))];
       queryBuilder.andWhere(
         codes.length ? 't_source_stock.tsCode IN (:...codes)' : '1=0',
         { codes },
@@ -50,7 +54,7 @@ export class StockService {
     return new Pagination(
       this.sectors
         ? await this.sectors.decorate(result.items, date)
-        : result.items,
+        : result.items.map(withoutSectorClassification),
       result.meta,
     );
   }
@@ -58,7 +62,9 @@ export class StockService {
   async detail(id: number): Promise<StockEntity> {
     const item = await this.stockBasicRepository.findOneBy({ id });
     if (!item) throw new NotFoundException('未找到该记录');
-    return this.sectors ? (await this.sectors.decorate([item]))[0] : item;
+    return this.sectors
+      ? (await this.sectors.decorate([item]))[0]
+      : withoutSectorClassification(item);
   }
 
   async create(dto: StockDto) {

@@ -7,6 +7,7 @@ import { TushareService } from '@/shared/tushare/tushare.service';
 import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
 import { BasicSnapshotEntity } from './snapshot.entity';
 import { publicAnnouncements } from './public-announcements';
+import { publicThsReview } from './public-ths-review';
 import { publicReductionPlans } from './public-reduction-plans';
 import { ReductionSourceError } from './reduction-request';
 import { compactUnlockRows } from './unlock-calendar';
@@ -27,7 +28,7 @@ export interface SourceSnapshot {
   nextRetryAt?: string | null;
 }
 const caps: Record<string, number> = {
-  kpl_list: 8000,
+  ths_hot_review: 8000,
   stock_company: 4500,
   stock_st: 1000,
   st: 1000,
@@ -405,7 +406,9 @@ export class BasicSnapshotService implements OnModuleInit {
             setTimeout(resolve, start - Date.now());
           });
           const response =
-            source === 'investment_calendar'
+            source === 'ths_hot_review'
+              ? await publicThsReview(params)
+              : source === 'investment_calendar'
               ? await publicInvestmentCalendar(params)
               : source === 'reduction_plans'
               ? await publicReductionPlans()
@@ -420,8 +423,8 @@ export class BasicSnapshotService implements OnModuleInit {
                 );
           const { data } = response;
           const required =
-            source === 'kpl_list'
-              ? ['ts_code', 'trade_date', 'theme', 'lu_desc']
+            source === 'ths_hot_review'
+              ? ['ts_code', 'trade_date', 'theme', 'lu_desc', 'detail_reason']
               : source === 'investment_calendar'
               ? ['date', 'title']
               : source === 'eco_cal'

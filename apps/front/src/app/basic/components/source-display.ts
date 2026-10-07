@@ -1,7 +1,7 @@
 import type { WorkbenchSource } from './workbench-polling';
 
 export const sourceNames: Record<string, string> = {
-  kpl_list: '题材与涨停原因（开盘啦）',
+  ths_hot_review: '题材与个股解析（同花顺）',
   stk_holdertrade: '股东减持',
   reduction_plans: '减持计划',
   eastmoney_ann: '公司公告',

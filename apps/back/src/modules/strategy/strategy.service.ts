@@ -1,3 +1,7 @@
+import {
+  withoutSectorClassification,
+  sectorFilterCodes,
+} from '@/modules/analysis/market/sector.utils';
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { SectorService } from '@/modules/analysis/market/sector.service';
 import { CommonDateDto } from '@/dto/common.dto';
@@ -251,21 +255,26 @@ export class StrategyService {
           this.candidates(parameters),
         )
       : await this.candidates(parameters);
-    if (sector && this.sectors) {
-      const members = await this.sectors.codes(sector, date);
+    if (sector) {
+      const members = await sectorFilterCodes(this.sectors, sector, date);
       rows = rows.filter((row) => members.has(row.tsCode));
     }
-    if (dto.includeLabels === false) return rows;
+    if (dto.includeLabels === false)
+      return rows.map(withoutSectorClassification);
     // Only membership labels belong on the critical path. Board performance is
     // requested separately when the user enables the corresponding column.
     if (this.reads && rows.length <= 20) return this.reads.decorate(rows, date);
-    return this.sectors ? this.sectors.decorate(rows, date) : rows;
+    return this.sectors
+      ? this.sectors.decorate(rows, date)
+      : rows.map(withoutSectorClassification);
   }
 
   async labels(date: string, codes: string[]) {
     const rows = codes.map((tsCode) => ({ tsCode }) as DailyEntity);
     if (this.reads && rows.length <= 20) return this.reads.decorate(rows, date);
-    return this.sectors ? this.sectors.decorate(rows, date) : rows;
+    return this.sectors
+      ? this.sectors.decorate(rows, date)
+      : rows.map(withoutSectorClassification);
   }
 
   async context(date: string, codes: string[]) {

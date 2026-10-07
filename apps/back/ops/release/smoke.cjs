@@ -131,6 +131,8 @@ async function check(path, cookie, needsRows = false, expectedStatus = 200) {
     if (!Array.isArray(themes.groups) || !Array.isArray(themes.sources) ||
         themes.total !== themes.groups.reduce((sum, group) => sum + group.items.length, 0))
       throw new Error('Theme review grouping verification failed');
+    if (themes.sources.some(source => source.source !== 'ths_hot_review'))
+      throw new Error('Theme review must use the official THS source');
     const themeStock = themes.groups.flatMap(group => group.items)[0];
     if (themeStock) {
       const detail = await check('/api/analysis/market/theme-review-detail?date=' + date + '&code=' + themeStock.tsCode, cookie);

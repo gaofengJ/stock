@@ -2,7 +2,7 @@ import type { LimitRow } from '@/api/market';
 import type { WorkbenchSource } from '../../basic/components/workbench-polling';
 
 export interface ThemeStock extends LimitRow {
-  theme: string; themes: string[]; reason: string | null; keywords: string[]; sourceStatus: string | null;
+  theme: string; themes: string[]; reason: string | null; detailReason: string | null; keywords: string[]; sourceStatus: string | null;
 }
 export interface ThemeGroup {
   name: string; count: number; maxHeight: number; amount: number | null; keywords: string[]; items: ThemeStock[];

@@ -32,14 +32,14 @@ const rows = [
   {
     ts_code: '600001.SH',
     trade_date: '20260930',
-    theme: '创新药、医药、创新药',
+    theme: '医药',
     lu_desc: '创新药+创新药+业绩增长',
     status: '首板',
   },
   {
     ts_code: '600002.SH',
     trade_date: '20260930',
-    theme: '创新药、医药',
+    theme: '医药',
     lu_desc: '',
     status: '3连板',
   },
@@ -59,10 +59,30 @@ const snapshot = (source: string, data: any[] = [], state = 'ready') => ({
 });
 
 describe('theme review provenance and membership', () => {
-  it('counts each eligible stock once, preserves secondary themes, zeros and missing reasons', () => {
+  it('preserves combined official groups and never derives a group from the reason or legacy industry', () => {
+    const result = buildThemeReview(
+      stocks,
+      [
+        { ...rows[0], theme: '算力/半导体产业链', lu_desc: '公司发布新产品' },
+        { ...rows[1], theme: '', lu_desc: '医药' },
+      ],
+      date,
+    );
+    const items = result.groups.flatMap((g) => g.items);
+    expect(items.find((r) => r.tsCode === '600001.SH')).toMatchObject({
+      theme: '算力/半导体产业链',
+      themes: ['算力/半导体产业链'],
+    });
+    expect(items.find((r) => r.tsCode === '600002.SH')?.theme).toBe(
+      '题材待补充',
+    );
+    expect(result.classified).toBe(1);
+  });
+
+  it('counts each eligible stock once, preserves official themes, zeros and missing reasons', () => {
     const result = buildThemeReview(stocks, rows, date);
     expect(result).toMatchObject({ total: 3, classified: 2, explained: 1 });
-    expect(result.groups.map((g) => g.name)).toEqual(['创新药', '题材待补充']);
+    expect(result.groups.map((g) => g.name)).toEqual(['医药', '题材待补充']);
     expect(result.groups[0]).toMatchObject({
       count: 2,
       maxHeight: 3,
@@ -73,8 +93,10 @@ describe('theme review provenance and membership', () => {
       '600001.SH',
     ]);
     expect(result.groups[0].items[0].reason).toBeNull();
-    expect(result.groups[0].items[1].themes).toEqual(['创新药', '医药']);
-    expect(result.groups[0].items[1].keywords).toEqual(['创新药', '业绩增长']);
+    expect(result.groups[0].items[1].themes).toEqual(['医药']);
+    expect(result.groups[0].items[1].keywords).toEqual([
+      '创新药+创新药+业绩增长',
+    ]);
     expect(result.groups.flatMap((g) => g.items)).toHaveLength(3);
   });
 
@@ -133,7 +155,7 @@ describe('theme review provenance and membership', () => {
     };
     const cache = {
       read: jest.fn().mockResolvedValue({
-        ...snapshot('kpl_list', [], 'error'),
+        ...snapshot('ths_hot_review', [], 'error'),
         message: '数据源权限或日额度不足',
       }),
     };
@@ -154,7 +176,16 @@ describe('theme review provenance and membership', () => {
         type: 'U',
       }),
     );
-    expect(result.sources[0]).toMatchObject({ state: 'error' });
+    expect(result.sources[0]).toMatchObject({
+      source: 'ths_hot_review',
+      state: 'error',
+    });
+    expect(cache.read).toHaveBeenCalledTimes(1);
+    expect(cache.read).toHaveBeenCalledWith(
+      'ths_hot_review',
+      { trade_date: '20260930' },
+      expect.any(String),
+    );
     expect(result.groups[0].name).toBe('题材待补充');
     expect(result.explained).toBe(0);
   });
@@ -167,7 +198,7 @@ describe('theme review provenance and membership', () => {
       read: jest.fn(async (source) =>
         snapshot(
           source,
-          source === 'kpl_list'
+          source === 'ths_hot_review'
             ? rows
             : source === 'fina_indicator'
             ? [

@@ -1,3 +1,34 @@
+import { ServiceUnavailableException } from '@nestjs/common';
+
+/** Raw stock/limit industries use a different taxonomy and must never escape as labels. */
+export function withoutSectorClassification<T>(row: T) {
+  return { ...row, industry: '', industries: [], topics: [] };
+}
+
+type SectorCodeService = {
+  codes: (code: string, date?: string) => Promise<Set<string>>;
+};
+
+export function sectorFilterCodes(
+  service: SectorCodeService | undefined,
+  code: string,
+  date?: string,
+): Promise<Set<string>>;
+export function sectorFilterCodes(
+  service: SectorCodeService | undefined,
+  code?: string,
+  date?: string,
+): Promise<Set<string> | null>;
+export function sectorFilterCodes(
+  service: SectorCodeService | undefined,
+  code?: string,
+  date?: string,
+) {
+  if (!code) return Promise.resolve(null);
+  if (!service) throw new ServiceUnavailableException('同花顺分类服务暂不可用');
+  return service.codes(code, date);
+}
+
 export function primarySector(row: { tsCode: string; type: string }) {
   return (
     (row.type === 'I' && /^881\d{3}\.TI$/.test(row.tsCode)) ||

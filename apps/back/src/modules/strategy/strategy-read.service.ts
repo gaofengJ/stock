@@ -3,6 +3,7 @@ import { DataSource, EntityManager } from 'typeorm';
 import { DailyEntity } from '../source/daily/daily.entity';
 import { StockHistoryEntity } from '../source/stock/stock-history.entity';
 import { StockIdentityService } from '../source/stock/stock-identity.service';
+import { primarySector } from '../analysis/market/sector.utils';
 import { AsyncTtlCache } from '../analysis/async-ttl-cache';
 import { BseMappingEntity } from '../analysis/market/market.entity';
 
@@ -38,7 +39,9 @@ export class StrategyReadService {
     );
     return rows.map((row, i) => {
       const links = membership
-        .filter((s) => s.hits[i])
+        .filter(
+          (s) => s.hits[i] && primarySector({ tsCode: s.code, type: s.type }),
+        )
         .map((s) => ({
           code: s.code,
           name: s.name,

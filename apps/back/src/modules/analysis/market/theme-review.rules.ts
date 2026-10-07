@@ -10,14 +10,6 @@ export const reviewNumber = (value: unknown): number | null =>
   value == null || value === '' || !Number.isFinite(Number(value))
     ? null
     : Number(value);
-const labels = (value: unknown) => [
-  ...new Set(
-    text(value)
-      .split(/[、,，;；+\n]/)
-      .map((s) => s.trim())
-      .filter(Boolean),
-  ),
-];
 
 export function validateReviewRows(rows: Record<string, any>[], date: string) {
   const seen = new Set<string>();
@@ -32,7 +24,7 @@ export function validateReviewRows(rows: Record<string, any>[], date: string) {
   });
 }
 
-/** One stock belongs to the source's first theme; additional themes remain visible as labels. */
+/** Preserve the official THS editorial group verbatim, including combined themes. */
 export function buildThemeReview(
   stocks: LimitEntity[],
   rows: Record<string, any>[],
@@ -42,15 +34,17 @@ export function buildThemeReview(
   const byCode = new Map(rows.map((row) => [row.ts_code, row]));
   const items = stocks.map((stock) => {
     const source = byCode.get(stock.tsCode);
-    const themes = labels(source?.theme);
+    const primary = text(source?.theme);
+    const themes = primary ? [primary] : [];
     const reason = text(source?.lu_desc);
     return {
       ...stock,
-      theme: themes[0] || '题材待补充',
+      theme: primary || '题材待补充',
       themes,
       reason: reason || null,
-      keywords: labels(reason),
-      sourceStatus: text(source?.status) || null,
+      detailReason: text(source?.detail_reason) || null,
+      keywords: reason ? [reason] : [],
+      sourceStatus: null,
     };
   });
   const groups = [...new Set(items.map((r) => r.theme))]
@@ -95,7 +89,7 @@ export function buildThemeReview(
     groups,
     total: items.length,
     explained: items.filter((r) => r.reason).length,
-    classified: items.filter((r) => r.themes.length).length,
+    classified: items.filter((r) => r.theme !== '题材待补充').length,
   };
 }
 

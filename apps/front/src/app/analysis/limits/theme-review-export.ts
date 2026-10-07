@@ -27,7 +27,7 @@ export async function exportThemeReview(groups: ThemeGroup[], date: string, scop
     rows: group.items.map((stock) => {
       const cells = [
         `${stock.name}\n${stock.tsCode}`, numberText(stock.close), scaledNumber(stock.amount, 100000000), stock.lastTime || '—', stock.sourceStatus || (stock.limitTimes === 1 ? '首板' : `${stock.limitTimes}连板`),
-        `${stock.reason || '暂无涨停原因'}${stock.themes.length > 1 ? `\n关联题材：${stock.themes.slice(1).join('、')}` : ''}`,
+        `${stock.themes.join('、') || '暂无同花顺题材'}\n来源摘要：${stock.reason || '暂无摘要'}`,
       ].map((text, i) => wrap(text, widths[i] - 28));
       return { cells, height: Math.max(84, ...cells.map((lines) => lines.length * 30 + 28)) };
     }),
@@ -39,16 +39,16 @@ export async function exportThemeReview(groups: ThemeGroup[], date: string, scop
   ctx.textBaseline = 'top';
   ctx.font = `600 30px ${font}`; ctx.fillStyle = colors.text; ctx.fillText('题材涨停复盘', 30, 24);
   ctx.font = `20px ${font}`; ctx.fillStyle = colors.secondary;
-  ctx.fillText(`${date} · ${scope} · 当前筛选 ${groups.reduce((sum, g) => sum + g.count, 0)} 只 · ${groups.length} 个分组`, 30, 72);
-  ctx.fillText('每只股票按来源首个题材归组；题材和涨停原因来自开盘啦（经 Tushare）。', 30, 108);
+  ctx.fillText(`${date}    ${scope}    当前筛选 ${groups.reduce((sum, g) => sum + g.count, 0)} 只    ${groups.length} 个分组`, 30, 72);
+  ctx.fillText('按同花顺热点复盘原始题材归组。题材与摘要来源：同花顺。', 30, 108);
   let y = 154;
   sections.forEach(({ group, rows }) => {
     ctx.fillStyle = colors.surfaceMuted; ctx.fillRect(30, y, 1420, 56);
-    ctx.font = `600 23px ${font}`; ctx.fillStyle = colors.text; ctx.fillText(`${group.name} · ${group.count}只`, 44, y + 14);
+    ctx.font = `600 23px ${font}`; ctx.fillStyle = colors.text; ctx.fillText(`${group.name}（${group.count}只）`, 44, y + 14);
     y += 56;
     let x = 30;
     ctx.font = `20px ${font}`; ctx.fillStyle = colors.secondary;
-    ['股票', '收盘价(元)', '成交额(亿)', '最后封板', '涨停记录', '涨停原因'].forEach((label, i) => { ctx.fillText(label, x + 14, y + 16); x += widths[i]; });
+    ['股票', '收盘价(元)', '成交额(亿)', '最后封板', '涨停记录', '题材线索'].forEach((label, i) => { ctx.fillText(label, x + 14, y + 16); x += widths[i]; });
     y += 56;
     rows.forEach(({ cells, height: rowHeight }) => {
       x = 30;
@@ -65,7 +65,7 @@ export async function exportThemeReview(groups: ThemeGroup[], date: string, scop
     });
   });
   ctx.fillStyle = colors.secondary; ctx.font = `18px ${font}`;
-  ctx.fillText(`木风同学 · 数据获取时间：${beijingTime(fetchedAt || undefined)} · 资料解析及来源链接可在站内查看`, 30, y + 22);
+  ctx.fillText(`木风同学    数据获取时间：${beijingTime(fetchedAt || undefined)}    资料解析及来源链接可在站内查看`, 30, y + 22);
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((value) => (value ? resolve(value) : reject(new Error('图片生成失败，请缩小范围后重试'))), 'image/png');
   });

@@ -1,3 +1,7 @@
+import {
+  withoutSectorClassification,
+  sectorFilterCodes,
+} from '@/modules/analysis/market/sector.utils';
 import { BadRequestException, Injectable, Optional } from '@nestjs/common';
 import { Between, DataSource, In, LessThanOrEqual } from 'typeorm';
 import * as dayjs from 'dayjs';
@@ -177,10 +181,7 @@ export class MarketService {
       tradeDate: q.date,
       limit: q.type,
     });
-    const members =
-      q.sector && this.sectors
-        ? await this.sectors.codes(q.sector, q.date)
-        : null;
+    const members = await sectorFilterCodes(this.sectors, q.sector, q.date);
     const items = list
       .filter(
         (r) =>
@@ -201,7 +202,9 @@ export class MarketService {
       );
     return {
       ready: true,
-      items: this.sectors ? await this.sectors.decorate(items, q.date) : items,
+      items: this.sectors
+        ? await this.sectors.decorate(items, q.date)
+        : items.map(withoutSectorClassification),
     };
   }
 
@@ -226,10 +229,7 @@ export class MarketService {
       tradeDate: q.date,
       limit: 'U',
     });
-    const sectorCodes =
-      q.sector && this.sectors
-        ? await this.sectors.codes(q.sector, q.date)
-        : null;
+    const sectorCodes = await sectorFilterCodes(this.sectors, q.sector, q.date);
     const limits = new Map(allCurrent.map((r) => [canonical(r.tsCode), r]));
     const trading = new Map(
       (await this.db.manager.findBy(DailyEntity, { tradeDate: q.date })).map(
@@ -306,13 +306,10 @@ export class MarketService {
 
   async dragonBoard(q: MarketQueryDto) {
     const { items, queriedAt } = await this.dragonSnapshot(q.date);
-    const members =
-      q.sector && this.sectors
-        ? await this.sectors.codes(q.sector, q.date)
-        : null;
+    const members = await sectorFilterCodes(this.sectors, q.sector, q.date);
     const decorated = this.sectors
       ? await this.sectors.decorate(items, q.date)
-      : items;
+      : items.map(withoutSectorClassification);
     if (
       items.some(
         (r) => typeof r.name !== 'string' || typeof r.reason !== 'string',

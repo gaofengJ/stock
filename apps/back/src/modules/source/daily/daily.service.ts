@@ -1,3 +1,7 @@
+import {
+  withoutSectorClassification,
+  sectorFilterCodes,
+} from '@/modules/analysis/market/sector.utils';
 import { SectorService } from '@/modules/analysis/market/sector.service';
 import { BseMappingEntity } from '@/modules/analysis/market/market.entity';
 import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
@@ -129,8 +133,10 @@ export class DailyService {
       bj: "t_source_daily.tsCode LIKE '%.BJ'",
     };
     if (scope && scopeSql[scope]) queryBuilder.andWhere(scopeSql[scope]);
-    if (sector && this.sectors) {
-      const codes = [...(await this.sectors.codes(sector, tradeDate))];
+    if (sector) {
+      const codes = [
+        ...(await sectorFilterCodes(this.sectors, sector, tradeDate)),
+      ];
       queryBuilder.andWhere(
         codes.length ? 't_source_daily.tsCode IN (:...sectorCodes)' : '1=0',
         { sectorCodes: codes },
@@ -167,7 +173,9 @@ export class DailyService {
       return clean;
     });
     return new Pagination(
-      this.sectors ? await this.sectors.decorate(items, tradeDate) : items,
+      this.sectors
+        ? await this.sectors.decorate(items, tradeDate)
+        : items.map(withoutSectorClassification),
       result.meta,
     );
   }

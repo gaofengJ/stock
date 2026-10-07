@@ -48,9 +48,9 @@ export class ThemeReviewService {
         sources: [],
       };
     const source = await this.cache.read(
-      'kpl_list',
-      { trade_date: compact(q.date!), tag: '涨停' },
-      'ts_code,name,trade_date,theme,lu_desc,status',
+      'ths_hot_review',
+      { trade_date: compact(q.date!) },
+      'ts_code,name,trade_date,theme,lu_desc,detail_reason',
     );
     let { rows } = source;
     try {
