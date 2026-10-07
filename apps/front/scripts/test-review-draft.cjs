@@ -13,6 +13,35 @@ function load(file, imports = {}, storage) {
   return exports;
 }
 const draft = load('review-draft.ts');
+const { reviewMarkdown } = load('review-document.ts');
+
+test('export retains the preview snapshot, multiline notes and optional holdings without changing it', () => {
+  const snapshot = {
+    title: '2026-09-30 每日复盘', filename: '每日复盘-2026-09-30.md', metadata: ['计划生成时间：2026-10-08 08:30:00'],
+    sections: [
+      { title: '观察名单', items: [{ title: '测试股票 000001.SZ', fields: [{ label: '观察条件', text: '第一行\n第二行 <script>仍作为文本</script>' }, { label: '风险核验', text: '资料待核验' }] }] },
+      { title: '下一交易日计划', fields: [{ label: '重点观察', text: '市场量能' }] },
+      { title: '本次持仓分析', paragraphs: ['模拟分析'], items: [{ title: '持仓股票 000002.SZ', fields: [{ label: '成本价格差', text: '0.00%' }] }] },
+    ],
+  };
+  const original = structuredClone(snapshot);
+  const markdown = reviewMarkdown(snapshot);
+  for (const text of ['第一行\n第二行 <script>仍作为文本</script>', '风险核验：资料待核验', '重点观察：市场量能', '成本价格差：0.00%', snapshot.metadata[0]]) assert(markdown.includes(text));
+  assert.deepEqual(snapshot, original);
+  assert.equal(reviewMarkdown(snapshot), markdown);
+});
+
+test('an empty watchlist still exports the general plan and missing-data explanations', () => {
+  const markdown = reviewMarkdown({title:'复盘',filename:'复盘.md',metadata:[],sections:[
+    {title:'观察名单',paragraphs:['本次未选观察股票。'],items:[]},
+    {title:'下一交易日计划',fields:[{label:'重点观察',text:'待填写'}]},
+    {title:'数据说明',paragraphs:['候选资料尚未取得。']},
+  ]});
+  assert(markdown.includes('本次未选观察股票。'));
+  assert(markdown.includes('重点观察：待填写'));
+  assert(markdown.includes('候选资料尚未取得。'));
+  assert(!markdown.includes('本次持仓分析'));
+});
 const pick = (n) => ({ tsCode: `${String(n).padStart(6, '0')}.SZ`, name: `股票${n}` });
 
 function mount(storage, account = 1, date = '2026-09-30') {
