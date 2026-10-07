@@ -28,6 +28,40 @@ export const sourceNames: Record<string, string> = {
   top_inst: '龙虎榜席位',
 };
 
+/** Preserve successful batches and cached values when another request fails. */
+export function sourceStatusRows(sources: WorkbenchSource[], stopped = false) {
+  const groups = new Map<string, WorkbenchSource[]>();
+  sources.forEach((source) => {
+    const label = sourceNames[source.source] || '其他资料';
+    groups.set(label, [...(groups.get(label) || []), source]);
+  });
+  return Array.from(groups, ([label, entries]) => {
+    const pending = entries.filter((entry) => entry.state !== 'ready' && entry.state !== 'unpublished');
+    const failed = pending.filter((entry) => entry.state === 'error' || entry.message);
+    const ready = entries.filter((entry) => entry.state === 'ready').length;
+    const cached = pending.some((entry) => !!entry.fetchedAt);
+    let status = ready ? '已获取' : '尚未发布';
+    if (pending.length) {
+      status = stopped ? '尚未就绪' : '获取中';
+      if (failed.length) status = '获取失败';
+      if (cached) status = failed.length ? '更新失败，保留已获取资料' : '更新中，保留已获取资料';
+      else if (ready) status = failed.length ? '部分已获取，部分获取失败' : '部分已获取，其余尚未就绪';
+    }
+    const nextRetryAt = pending.map((entry) => entry.nextRetryAt).filter(Boolean).sort()[0];
+    let color = ready ? 'green' : undefined;
+    if (pending.length) color = failed.length ? 'orange' : 'blue';
+    return {
+      label,
+      status,
+      complete: !pending.length,
+      available: ready > 0 || cached,
+      color,
+      messages: Array.from(new Set(failed.map((entry) => entry.message).filter(Boolean))),
+      nextRetryAt,
+    };
+  });
+}
+
 const beijingTime = (time: number) => {
   const parts = new Intl.DateTimeFormat('zh-CN', {
     timeZone: 'Asia/Shanghai',

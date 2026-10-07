@@ -531,6 +531,13 @@ export class WorkbenchService implements OnModuleInit {
         active: items.filter((r) => r.type === '减持').length,
         unknown: latestReductions.filter((r) => r.reductionState === 'unknown')
           .length,
+        unknownCodes: Array.from(
+          new Set(
+            latestReductions
+              .filter((r) => r.reductionState === 'unknown')
+              .map((r) => r.tsCode),
+          ),
+        ),
       },
       checklist: RISK_CHECKLIST,
       note: `ST及停复牌按所选日期展示；当前减持计划按今天（${reductionDate}）核验，与左侧日期无关。只展示计划起止日期明确且仍在期间内的计划，已完成、终止、到期及尚未开始的计划不计入。实际股份变动的起止日期不能当作计划期间，资料未核实不表示没有计划。`,

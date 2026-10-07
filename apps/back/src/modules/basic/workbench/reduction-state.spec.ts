@@ -113,7 +113,11 @@ describe('current reduction periods across platform risk consumers', () => {
     expect(
       read.mock.calls.some(([source]) => source === 'stk_holdertrade'),
     ).toBe(false);
-    expect(result.reductionCoverage).toEqual({ active: 1, unknown: 1 });
+    expect(result.reductionCoverage).toEqual({
+      active: 1,
+      unknown: 1,
+      unknownCodes: ['000001.SZ'],
+    });
     expect(currentReduction(result.items[0], result.reductionDate)).toBe(true);
     expect(
       currentReduction(

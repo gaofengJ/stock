@@ -6,7 +6,7 @@ const ts = require('typescript');
 const vm = require('node:vm');
 
 function load(file, extra = {}) {
-  const code = ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText;
+  const code = ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src', file), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText;
   const sandbox = { exports: {}, require, URL, URLSearchParams, AbortController, ...extra };
   vm.runInNewContext(code, sandbox);
   return sandbox.exports;
@@ -138,6 +138,105 @@ test('risk row identities remain stable through filtering and distinguish record
 });
 
 const sourceDisplay = load('app/basic/components/source-display.ts');
+
+test('one failed source does not hide successful sources, including empty successful responses', () => {
+  const rows = sourceDisplay.sourceStatusRows([
+    { source: 'fina_indicator', state: 'ready' },
+    { source: 'stock_st', state: 'ready' },
+    { source: 'reduction_plans', state: 'error', message: '连接失败' },
+  ]);
+  assert.equal(rows[0].status, '已获取');
+  assert.equal(rows[0].color, 'green');
+  assert.equal(rows[1].complete, true);
+  assert.equal(rows[2].status, '获取失败');
+  assert.equal(rows[2].available, false);
+});
+
+test('source status preserves partial batches and distinguishes a failed update with cached data', () => {
+  const rows = sourceDisplay.sourceStatusRows([
+    { source: 'eastmoney_ann', state: 'ready' },
+    { source: 'eastmoney_ann', state: 'error', message: '连接失败' },
+    { source: 'reduction_plans', state: 'stale', message: '连接失败', fetchedAt: '2026-10-07T05:00:00Z', nextRetryAt: '2026-10-07T06:00:00Z' },
+  ]);
+  assert.equal(rows[0].status, '部分已获取，部分获取失败');
+  assert.equal(rows[0].available, true);
+  assert.equal(rows[0].complete, false);
+  assert.equal(rows[1].status, '更新失败，保留已获取资料');
+  assert.equal(rows[1].nextRetryAt, '2026-10-07T06:00:00Z');
+  assert.equal(sourceDisplay.sourceStatusRows([{ source: 'stock_st', state: 'loading' }], true)[0].status, '尚未就绪');
+});
+
+test('risk sections use only their own dependencies and unknown counts never masquerade as zero', () => {
+  const sources = riskDisplay.riskEventSources.map(source => ({ source, state: 'ready' }));
+  sources.push({ source: 'reduction_plans', state: 'error' }, { source: 'fina_indicator', state: 'error' });
+  assert.equal(riskDisplay.riskSourcesReady(sources, riskDisplay.riskEventSources), true);
+  assert.equal(riskDisplay.riskSourcesReady(sources, ['reduction_plans']), false);
+  assert.equal(riskDisplay.riskSourcesReady(sources.slice(1), riskDisplay.riskEventSources), false);
+  assert.equal(riskDisplay.riskSourcesReady([...sources, { source: 'stock_st', state: 'error' }], riskDisplay.riskEventSources), false);
+  assert.equal(riskDisplay.riskSectionTitle('当前减持计划', 0, '项', false), '当前减持计划（资料待补全）');
+  assert.equal(riskDisplay.riskSectionTitle('当前减持计划', 2, '项', false), '当前减持计划（已获取2项，资料待补全）');
+  assert.equal(riskDisplay.riskSectionTitle('其他状态与事件', 0, '条', true), '其他状态与事件（0条）');
+});
+
+test('unknown reduction plans affect only the stock concerned, including older server responses', () => {
+  const data = { reductionCoverage: { unknown: 2, unknownCodes: ['000001.SZ'] } };
+  assert.equal(riskDisplay.stockReductionUnknown(data, '000001.SZ'), true);
+  assert.equal(riskDisplay.stockReductionUnknown(data, '000090.SZ'), false);
+  assert.equal(riskDisplay.stockReductionUnknown({ reductionCoverage: { unknown: 2 } }, '000090.SZ'), false);
+  assert.equal(riskDisplay.stockReductionUnknown({ code: '000090.SZ', reductionCoverage: { unknown: 2 } }, '000090.SZ'), true);
+});
+
+test('risk UI renders successful sources and cached records when reduction refresh fails', () => {
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+  const interaction = { __esModule: true, default: 'a', ExternalLink: 'a', InteractionButton: 'button' };
+  const workbench = load('app/basic/components/workbench.tsx', { require: name => {
+    if (name === './risk-display') return riskDisplay;
+    if (name === './source-display') return sourceDisplay;
+    if (name === './workbench-polling') return polling();
+    if (name === './workbench.css') return {};
+    if (name === '@/components/Interaction') return interaction;
+    if (name === '@/auth/Boundary') return { useAccount: () => ({ user: {} }) };
+    if (name === '@/auth/client') return { allowedPath: () => false };
+    if (name.startsWith('@/')) return {};
+    return require(name);
+  } });
+  const data = {
+    code: '000090.SZ', name: '天健集团', date: '2026-09-30', reductionDate: '2026-10-07',
+    sources: [
+      ...riskDisplay.riskEventSources.map(source => ({ source, state: 'ready' })),
+      ...['fina_indicator', 'balancesheet', 'fina_audit', 'eastmoney_ann'].map(source => ({ source, state: 'ready' })),
+      { source: 'reduction_plans', state: 'stale', message: '连接失败', fetchedAt: '2026-10-07T05:00:00Z' },
+    ],
+    items: [], reductionCoverage: { unknown: 1, unknownCodes: ['000001.SZ'] },
+    financial: { profit_dedt: -356036909.75, end_date: '20260630', ann_date: '20260822' },
+  };
+  const statusHtml = renderToStaticMarkup(React.createElement(workbench.SourceState, { data, retry: () => {} }));
+  assert.match(statusHtml, /财务指标：已获取/);
+  assert.match(statusHtml, /公司公告：已获取/);
+  assert.match(statusHtml, /减持计划：更新失败，保留已获取资料/);
+  assert.match(statusHtml, /查看资料获取时间/);
+  const tags = renderToStaticMarkup(React.createElement(workbench.RiskTags, { data, code: data.code }));
+  assert.doesNotMatch(tags, /资料尚不完整|该股减持计划期间待核实/);
+  const details = load('app/basic/components/RiskInspect.tsx', { require: name => {
+    if (name === './workbench') return { ...workbench, useWorkbench: () => ({ data, retry: () => {}, loading: false }) };
+    if (name === './risk-display') return riskDisplay;
+    if (name === '@/components/Interaction') return interaction;
+    if (name === '@/components/DataTable') return { __esModule: true, default: () => null };
+    if (name === '@/utils/format') return { scaledNumber: value => (value / 1e8).toFixed(2) };
+    return require(name);
+  } });
+  let html = renderToStaticMarkup(React.createElement(details.RiskDetails, { code: data.code, date: data.date }));
+  assert.match(html, /-3.56 亿元/);
+  assert.match(html, /其他状态与事件（0条）/);
+  assert.match(html, /资料已获取，暂无其他状态或事件记录/);
+  assert.match(html, /当前减持计划（资料待补全）/);
+  assert.doesNotMatch(html, /当前减持计划（0项）|状态资料尚未完整取得/);
+  data.items.push({ type: '减持', tsCode: data.code, recordId: 'cached-plan', recordKind: 'plan', reductionState: 'active', reductionDate: data.reductionDate, announcementDate: '2026-09-01', effectiveDate: '2026-09-21', endDate: '2026-12-20', detail: '已获取的减持计划内容' });
+  html = renderToStaticMarkup(React.createElement(details.RiskDetails, { code: data.code, date: data.date }));
+  assert.match(html, /已获取的减持计划内容/);
+  assert.match(html, /当前减持计划（已获取1项，资料待补全）/);
+});
 test('source timestamps group batches and show their full range in Beijing time', () => {
   const rows = sourceDisplay.sourceTimeRows([
     { source: 'stock_st', fetchedAt: '2026-10-05T16:00:00Z' },

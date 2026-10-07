@@ -14,8 +14,10 @@ import { basicSiderMenuItems } from '@/components/Layout/config';
 import { EHeaderMenuKey } from '@/components/Layout/enum';
 import './workbench.css';
 import { startWorkbenchPolling } from './workbench-polling';
-import { currentReduction, riskTypeLabel } from './risk-display';
-import { sourceNames, sourceTimeRows } from './source-display';
+import {
+  currentReduction, riskEventSources, riskSourcesReady, riskTypeLabel, stockReductionUnknown,
+} from './risk-display';
+import { sourceStatusRows, sourceTimeRows } from './source-display';
 
 export function stockHref(code: string, date?: string) {
   return `/basic/stock/detail/?code=${encodeURIComponent(code)}${date ? `&date=${date}` : ''}`;
@@ -75,11 +77,12 @@ export function SourceState({
 }: { data: any; error?: string; retry: () => void; pollingStopped?: boolean; loading?: boolean }) {
   const pending = data?.sources?.filter((s: any) => s.state !== 'ready' && s.state !== 'unpublished') || [];
   const unpublished = Array.from(new Set<string>((data?.sources || []).filter((s: any) => s.state === 'unpublished').map((s: any) => s.period || '部分月份')));
-  const sources = Array.from(new Set<string>(pending.map((s: any) => s.source)));
+  const statuses = sourceStatusRows(data?.sources || [], pollingStopped);
+  const availableCount = statuses.filter((row) => row.available).length;
   const hasError = pending.some((s: any) => s.message || s.state === 'error');
   let notice = '正在获取资料，完成后自动更新';
   if (pollingStopped) notice = '部分资料尚未就绪，可稍后检查更新';
-  if (hasError) notice = '部分资料暂时无法获取';
+  if (hasError) notice = availableCount ? '已获取的资料可正常查看，未完成项目单独标注' : '资料暂时无法获取';
   if (!error && !pending.length && !data?.sources?.length) return null;
   return (
     <div className="workbench-source-state">
@@ -93,21 +96,16 @@ export function SourceState({
         description={(
           <div>
             <Space wrap>
-              {sources.map((source) => {
-                const entries = pending.filter((s: any) => s.source === source);
-                const failed = entries.find((s: any) => s.message || s.state === 'error');
-                const nextRetryAt = entries.map((s: any) => s.nextRetryAt).filter(Boolean).sort()[0];
-                const title = nextRetryAt ? `下次可获取时间：${new Date(nextRetryAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}` : '可检查资料是否已更新';
-                let status = '获取中';
-                if (pollingStopped) status = '尚未就绪';
-                if (failed) status = '获取失败';
+              {statuses.map((row) => {
+                const retryTime = row.nextRetryAt ? `下次可获取时间：${new Date(row.nextRetryAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}` : '';
+                const title = [...row.messages, retryTime].filter(Boolean).join('。') || `${row.label}：${row.status}`;
                 return (
-                  <Tooltip key={source} title={title}>
-                    <span>
-                      {sourceNames[source] || '其他资料'}
+                  <Tooltip key={row.label} title={title}>
+                    <Tag color={row.color}>
+                      {row.label}
                       ：
-                      {status}
-                    </span>
+                      {row.status}
+                    </Tag>
                   </Tooltip>
                 );
               })}
@@ -118,7 +116,7 @@ export function SourceState({
         action={<Button size="small" loading={loading} onClick={retry}>检查更新</Button>}
       />
       )}
-      {!pending.length && !!data?.sources?.length && (
+      {!!data?.sources?.length && (
       <Popover
         trigger="click"
         placement="bottomLeft"
@@ -150,11 +148,31 @@ export function RiskTags({
   const canLink = allowedPath(user, '/basic/stock/risk');
   const items = data?.items?.filter((r: any) => r.tsCode === code && (r.type !== '减持' || currentReduction(r, date || data?.date))) || [];
   const labels = Array.from(new Set<string>(items.map((r: any) => r.type)));
+  const sources = data?.sources || [];
+  const statuses = sourceStatusRows(sources);
+  const issues = statuses.filter((row) => !row.complete).map((row) => `${row.label}：${row.status}`);
+  const briefIssues = statuses.filter((row) => !row.complete).map((row) => `${row.label}${row.available ? '待更新' : '未就绪'}`);
+  if (stockReductionUnknown(data, code)) {
+    issues.push('该股减持计划期间待核实');
+    briefIssues.push('该股减持期间待核实');
+  }
+  const acquired = statuses.filter((row) => row.available).map((row) => row.label);
+  const completedCount = statuses.filter((row) => row.complete && row.available).length;
+  let summary = '资料尚未取得';
+  if (sources.length) summary = issues.length ? [...(completedCount ? [`已获取${completedCount}类资料`] : []), ...briefIssues].join('；') : '已获取资料中暂无风险记录';
+  if (sources.length && !issues.length && labels.length) summary = '风险资料已获取';
+  const eventSourcesReady = riskSourcesReady(sources, riskEventSources);
+  const sourceTip = [
+    acquired.length ? `已获取：${acquired.join('、')}。` : '',
+    issues.length ? `${issues.join('；')}。` : '',
+    eventSourcesReady && !labels.length ? '已获取的状态与事件中暂无相关记录。' : '',
+    '标签仅覆盖已取得的风险记录，具体影响需结合公告正文核实。',
+  ].join('');
   if (!showSourceState && !labels.length) return null;
   return (
     <Space size={2} wrap>
       {labels.map((label) => (canLink ? <Link key={label} href={`/basic/stock/risk/?code=${code}&date=${date || ''}`}><Tag color={label === '复牌' ? 'blue' : 'orange'}>{riskTypeLabel(label)}</Tag></Link> : <Tag color="orange" key={label}>{riskTypeLabel(label)}</Tag>))}
-      {showSourceState && <Tooltip title="标签仅覆盖已取得的风险记录，具体影响需结合公告正文核实。"><span className="basic-muted">{!data || data.reductionCoverage?.unknown || data.sources?.some((s: any) => s.state !== 'ready') ? '资料尚不完整' : '标签仅含已取得记录'}</span></Tooltip>}
+      {showSourceState && <Tooltip title={sourceTip}><span className="basic-muted">{summary}</span></Tooltip>}
     </Space>
   );
 }

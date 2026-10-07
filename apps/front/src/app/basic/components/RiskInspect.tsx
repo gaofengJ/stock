@@ -9,7 +9,7 @@ import Table from '@/components/DataTable';
 import { scaledNumber } from '@/utils/format';
 import { SourceState, useWorkbench } from './workbench';
 import {
-  currentReduction, reductionStateLabel, riskCheckLabel, riskDate, riskMissing, riskRowKey,
+  currentReduction, reductionStateLabel, riskCheckLabel, riskDate, riskEventSources, riskMissing, riskRowKey, riskSectionTitle, riskSourcesReady,
 } from './risk-display';
 
 function Evidence({ records = [] }: { records?: any[] }) {
@@ -113,9 +113,11 @@ export function RiskDetails({ code, date }: { code: string; date: string }) {
   const sources = data.sources || [];
   const currentReductions = (data.items || []).filter((r: any) => currentReduction(r, date));
   let reductionEmpty = riskMissing(sources, 'reduction_plans', state.pollingStopped);
-  if (sources.find((s: any) => s.source === 'reduction_plans')?.state === 'ready') reductionEmpty = '暂无已核实的当前减持计划';
+  const reductionReady = riskSourcesReady(sources, ['reduction_plans']) && !data.reductionCoverage?.unknown;
+  if (reductionReady) reductionEmpty = '暂无已核实的当前减持计划';
   if (data.reductionCoverage?.unknown) reductionEmpty = '计划资料尚有待核实项';
   const otherEvents = (data.items || []).filter((r: any) => r.type !== '减持');
+  const eventsReady = riskSourcesReady(sources, riskEventSources);
   const values = [
     {
       label: '扣非净利润', source: 'fina_indicator', record: data.financial, value: data.financial?.profit_dedt,
@@ -134,7 +136,7 @@ export function RiskDetails({ code, date }: { code: string; date: string }) {
         <span>
           {data.board}
           {' '}
-          · 观察日期
+          观察日期：
           {' '}
           {riskDate(date)}
         </span>
@@ -146,7 +148,7 @@ export function RiskDetails({ code, date }: { code: string; date: string }) {
           label: '资料概览',
           children: (
             <>
-              <Card size="small" title={`当前减持计划（${currentReductions.length}项）`}>
+              <Card size="small" title={riskSectionTitle('当前减持计划', currentReductions.length, '项', reductionReady)}>
                 {currentReductions.length ? <RiskRecords items={currentReductions} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={reductionEmpty} />}
                 <p className="basic-muted">
                   核验日期：
@@ -176,8 +178,8 @@ export function RiskDetails({ code, date }: { code: string; date: string }) {
                 })}
               </div>
               {!!data.findings?.length && <Card size="small" title="已披露的财务异常事实"><Evidence records={data.findings.map((finding: any) => ({ kind: 'financial', date: finding.date, title: finding.detail }))} /></Card>}
-              <Card size="small" title={`其他状态与事件（${otherEvents.length}条）`}>
-                {otherEvents.length ? <RiskRecords items={otherEvents} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={sources.some((s: any) => s.state !== 'ready') ? '状态资料尚未完整取得' : '已取得资料中暂无其他状态或事件记录'} />}
+              <Card size="small" title={riskSectionTitle('其他状态与事件', otherEvents.length, '条', eventsReady)}>
+                {otherEvents.length ? <RiskRecords items={otherEvents} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={eventsReady ? '资料已获取，暂无其他状态或事件记录' : '部分状态资料尚未取得，已获取的记录仍可查看'} />}
               </Card>
               <p className="basic-muted">ST为所选日状态，最近一次变更不代表全部触发原因。财务异常及减持记录的具体影响需结合适用规则和公告正文核对。</p>
             </>
@@ -266,7 +268,7 @@ export default function RiskInspect({ code, date, name }: { code: string; date: 
   return (
     <>
       <InteractionButton intent="preview" aria-label={`${name || code}风险资料`} size="small" onClick={() => setOpen(true)}>风险资料</InteractionButton>
-      <Modal className="basic-risk-modal" open={open} title={`${name ? `${name} · ` : ''}${code} · 风险资料`} onCancel={() => setOpen(false)} footer={null} width={1000} destroyOnClose>{open && <RiskDetails code={code} date={date} />}</Modal>
+      <Modal className="basic-risk-modal" open={open} title={`${name ? `${name} ` : ''}${code} 风险资料`} onCancel={() => setOpen(false)} footer={null} width={1000} destroyOnClose>{open && <RiskDetails code={code} date={date} />}</Modal>
     </>
   );
 }
