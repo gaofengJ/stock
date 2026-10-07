@@ -120,6 +120,7 @@
 .role-editor-permissions .ant-checkbox-wrapper { margin-inline-start: 0; }
 .role-editor-summary { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; flex-shrink: 0; padding-top: 12px; font-size: 12px; }
 .role-editor-summary > span { color: var(--text-secondary); }
+.role-editor-counts, .sync-list-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; }
 @media (max-width: 575px) {
   .role-editor-fields { grid-template-columns: 1fr; }
   .role-editor-modal .ant-modal-content, .role-view-modal .ant-modal-content { padding: 16px; }

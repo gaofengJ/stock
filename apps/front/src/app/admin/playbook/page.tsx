@@ -181,7 +181,7 @@ export default function Page() {
       </div>
       <div className="guide-meta">
         <Tag color="gold">{guide.status}</Tag>
-        <span>{`v${guide.version} · 更新于 ${guide.updatedAt}`}</span>
+        <span>{`版本 v${guide.version}，更新于 ${guide.updatedAt}。`}</span>
       </div>
       <Alert type="info" showIcon message={guide.introduction} />
       <Tabs activeKey={map.id} onChange={setTab} items={guide.maps.map((item) => ({ key: item.id, label: item.title }))} />

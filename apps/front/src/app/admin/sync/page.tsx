@@ -187,12 +187,12 @@ export default function Page() {
           {' '}
           条
         </span>
-        <span>
-          任务日期按同步范围交集筛选 · 时间均为北京时间 ·
-          {updatedAt ? `最近更新 ${formatTime(new Date(updatedAt).toISOString())}` : '尚未更新'}
-          {' '}
-          · 每 5 秒自动更新
-        </span>
+        <div className="sync-list-meta">
+          <span>任务日期按同步范围交集筛选</span>
+          <span>时间均为北京时间</span>
+          <span>{updatedAt ? `最近更新 ${formatTime(new Date(updatedAt).toISOString())}` : '尚未更新'}</span>
+          <span>每 5 秒自动更新</span>
+        </div>
       </div>
       {loadError && <Alert type="error" message={loadError} description="当前记录可能不是最新状态，请重试后再执行任务操作。" showIcon action={<Button size="small" onClick={() => load()}>重试</Button>} />}
       <Table<Job>

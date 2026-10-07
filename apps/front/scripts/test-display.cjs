@@ -53,7 +53,7 @@ test('access log labels distinguish authenticated accounts, guests, failures and
   assert.equal(logs.accessUser({actorType:'user',userId:2}), '用户 #2');
   assert.equal(logs.accessUser({actorType:'guest'}), '游客体验');
   assert.equal(logs.accessUser({actorType:'anonymous'}), '未认证');
-  assert.equal(logs.accessStatus({result:'client-error',statusCode:403}), '请求未通过（4xx） · 403');
+  assert.equal(logs.accessStatus({result:'client-error',statusCode:403}), '请求未通过（4xx），状态码 403');
   assert.equal(logs.durationText(0), '0 毫秒');
   assert.equal(logs.durationText(20), '20 毫秒');
   assert.equal(logs.durationText(1200), '1.20 秒');

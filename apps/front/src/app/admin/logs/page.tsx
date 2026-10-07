@@ -255,7 +255,7 @@ export default function Page() {
           <>
             <Form.Item name="view" label="范围"><Select aria-label="日志范围" className="logs-select" options={[{ value: 'issues', label: '错误与警告' }, { value: 'all', label: '全部系统日志' }]} /></Form.Item>
             {view === 'all' && <Form.Item name="level" label="级别" preserve={false}><Select className="logs-select" aria-label="日志级别" allowClear placeholder="全部级别" options={options(levelLabels)} /></Form.Item>}
-            <Form.Item name="module" label="模块"><AutoComplete className="logs-module" aria-label="日志模块" allowClear placeholder="选择模块或输入名称" options={Object.entries(moduleLabels).map(([value, label]) => ({ value, label: `${label} · ${value}` }))} filterOption={(input, option) => String(option?.label).toLowerCase().includes(input.toLowerCase())} popupMatchSelectWidth={320} /></Form.Item>
+            <Form.Item name="module" label="模块"><AutoComplete className="logs-module" aria-label="日志模块" allowClear placeholder="选择模块或输入名称" options={Object.entries(moduleLabels).map(([value, label]) => ({ value, label: `${label}（${value}）` }))} filterOption={(input, option) => String(option?.label).toLowerCase().includes(input.toLowerCase())} popupMatchSelectWidth={320} /></Form.Item>
           </>
         )}
         {tab === 'audit-logs' && (
@@ -276,13 +276,12 @@ export default function Page() {
         <span>
           当前查询：
           {ready ? `${query.startDate} 至 ${query.endDate}（北京时间）` : '加载中…'}
-          {' '}
-          · 每次最多 7 天
+          ，每次最多 7 天。
         </span>
         <span>
           {retentionText}
-          {updatedAt ? ` · 列表更新 ${beijingTime(updatedAt)}` : ''}
         </span>
+        {updatedAt && <span>{`列表更新 ${beijingTime(updatedAt)}`}</span>}
       </div>
       {tab === 'access-logs' && <AccessOverview summary={data?.summary} loading={loading} slowMs={slowMs} />}
       {tab === 'logs' && (
@@ -338,13 +337,13 @@ export default function Page() {
       <div className="logs-range-note">
         <span>
           {summaryText}
-          {tab === 'access-logs' && data?.summary ? ` · 平均耗时 ${durationText(data.summary.avgDurationMs)} · 统计按当前筛选条件计算` : ''}
         </span>
+        {tab === 'access-logs' && data?.summary && <span>{`平均耗时 ${durationText(data.summary.avgDurationMs)}，统计按当前筛选条件计算。`}</span>}
         {tab !== 'audit-logs' && data && (
         <span>
           有日志的日期：
           {data.availableDates?.join('、') || '无'}
-          {data.malformed ? ` · 已跳过 ${data.malformed} 行无效日志` : ''}
+          {data.malformed ? `，已跳过 ${data.malformed} 行无效日志。` : ''}
         </span>
         )}
       </div>

@@ -258,8 +258,7 @@ export default function LoginActivity() {
       />
       <p className="login-activity-note login-activity-updated">
         {updatedAt ? `最近更新 ${formatTime(updatedAt)}` : '尚未完成首次加载'}
-        {' '}
-        · 每 30 秒自动更新
+        。每 30 秒自动更新。
       </p>
     </section>
   );

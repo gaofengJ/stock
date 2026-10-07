@@ -144,7 +144,7 @@ export default function MaintenanceForm({
             defaultActiveKey={advanced ? ['modules'] : []}
             items={[{
               key: 'modules',
-              label: `高级维护：单独修复模块${advanced ? ` · 已选${operation.title}` : ''}`,
+              label: `高级维护：单独修复模块${advanced ? `（已选：${operation.title}）` : ''}`,
               children: (
                 <div className="sync-module-options">
                   {modes.slice(2).map((m) => (

@@ -229,7 +229,7 @@ export default function Page() {
             render: (_, r) => (
               <div className="role-members">
                 <div>{r.users.slice(0, 2).map((u) => <Tag key={u.id} title={`@${u.username}`}>{u.nickname || u.username}</Tag>)}</div>
-                <Button type="link" size="small" onClick={() => { setMembers(r); setMemberSearch(''); }}>{r.users.length ? `共 ${r.users.length} 位 · 查看全部` : '暂无关联用户'}</Button>
+                <Button type="link" size="small" onClick={() => { setMembers(r); setMemberSearch(''); }}>{r.users.length ? `查看全部 ${r.users.length} 位用户` : '暂无关联用户'}</Button>
               </div>
             ),
           },
@@ -247,7 +247,7 @@ export default function Page() {
           },
         ]}
       />
-      <Modal className="role-view-modal" centered title={`${viewing?.name || ''} · 权限`} width={760} open={!!viewing} onCancel={() => setViewing(null)} footer={<Button onClick={() => setViewing(null)}>关闭</Button>} destroyOnClose>
+      <Modal className="role-view-modal" centered title={`角色权限：${viewing?.name || ''}`} width={760} open={!!viewing} onCancel={() => setViewing(null)} footer={<Button onClick={() => setViewing(null)}>关闭</Button>} destroyOnClose>
         <Typography.Paragraph type="secondary">
           已授予
           {viewedPermissions.length}
@@ -264,7 +264,7 @@ export default function Page() {
         {!viewedPermissions.length && <Typography.Paragraph type="secondary">未授予权限</Typography.Paragraph>}
         {viewing?.permissions.includes('news:manage') && <Typography.Paragraph type="secondary">资讯来源管理影响所有用户：启停来源、调整采集间隔、立即采集。个人关注在资讯页面设置。</Typography.Paragraph>}
       </Modal>
-      <Modal title={`${members?.name || ''} · 关联用户`} width={720} open={!!members} onCancel={() => setMembers(null)} footer={<Button onClick={() => setMembers(null)}>关闭</Button>} destroyOnClose>
+      <Modal title={`关联用户：${members?.name || ''}`} width={720} open={!!members} onCancel={() => setMembers(null)} footer={<Button onClick={() => setMembers(null)}>关闭</Button>} destroyOnClose>
         <div className="role-member-toolbar">
           <Typography.Text>
             共
@@ -335,7 +335,7 @@ export default function Page() {
             <Form.Item className="role-editor-description" name="description" label="说明" rules={[{ max: 64 }]}><Input maxLength={64} /></Form.Item>
           </div>
           <div className="role-editor-context">
-            <span>{original ? `关联 ${original.users.length} 位用户 · 保存后在下次请求时生效` : '创建后可在用户管理中分配角色'}</span>
+            <span>{original ? `关联 ${original.users.length} 位用户，保存后在下次请求时生效。` : '创建后可在用户管理中分配角色。'}</span>
             {original?.code === 'user' && <span>普通用户仅可配置业务查看权限。</span>}
             <HelpTooltip label="角色权限规则" title={`多角色权限取并集，移除此角色的权限后，用户仍可能通过其他角色拥有该权限。${original?.code === 'user' ? '普通用户角色的修改也会影响今后注册的用户；管理权限请通过独立角色分配。' : ''}资讯来源管理影响全站采集，个人关注在资讯页面设置。`} />
           </div>
@@ -351,11 +351,10 @@ export default function Page() {
           </Form.Item>
           {original && (
           <div className="role-editor-summary" aria-live="polite">
-            新增权限（
-            {added.length}
-            ） · 移除权限（
-            {removed.length}
-            ）
+            <div className="role-editor-counts">
+              <span>{`新增权限（${added.length}）`}</span>
+              <span>{`移除权限（${removed.length}）`}</span>
+            </div>
             <span>保存前可核对变更明细</span>
           </div>
           )}
