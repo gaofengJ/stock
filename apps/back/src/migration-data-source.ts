@@ -42,7 +42,6 @@ export default new DataSource({
   timezone: 'Z',
   synchronize: false,
   migrations: [
-    RecoverSectorCatalog1792108800000,
     ReliableSync1790380800000,
     SyncSafety1790380800001,
     Accounts1790467200000,
@@ -67,6 +66,7 @@ export default new DataSource({
     PrivateFeedback1791849600000,
     FeedbackRead1791936000000,
     LoginActivityItemRead1792022400000,
+    RecoverSectorCatalog1792108800000,
   ],
   migrationsTransactionMode: 'none',
   logging: false,
