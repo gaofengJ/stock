@@ -14,13 +14,22 @@ function load(relative) {
 test('private route refuses guests and delegated managers even with matching catalog entries', () => {
   const { allowedPath } = load('auth/client.ts');
   const account = { roles: [{ code: 'user' }], permissions: ['users:manage'], catalog: [{ code: 'users:manage', route: '/admin' }] };
-  assert.equal(allowedPath(account, '/admin/playbook/'), false);
-  assert.equal(allowedPath(null, '/admin/playbook'), false);
-  assert.equal(allowedPath({ ...account, roles: [{ code: 'admin' }] }, '/admin/playbook'), true);
-  assert.equal(allowedPath({ ...account, guest: true, roles: [{ code: 'admin' }] }, '/admin/playbook'), false);
+  for (const route of ['/trading-system/', '/trading-system/details', '/admin/playbook']) {
+    assert.equal(allowedPath(account, route), false);
+    assert.equal(allowedPath(null, route), false);
+    assert.equal(allowedPath({ ...account, roles: [{ code: 'admin' }] }, route), true);
+    assert.equal(allowedPath({ ...account, guest: true, roles: [{ code: 'admin' }] }, route), false);
+  }
+});
+test('standalone header opens the private route without permission-catalog fallbacks', () => {
+  const { homePath } = load('auth/client.ts');
+  const account = { roles: [{ code: 'admin' }], permissions: [], catalog: [] };
+  assert.equal(homePath(account, '/trading-system'), '/trading-system');
+  assert.equal(homePath({ ...account, roles: [{ code: 'user' }] }, '/trading-system'), '/profile');
+  assert.equal(homePath(null, '/trading-system'), '/profile');
 });
 test('search finds instruction text and reveals all ancestors of a hidden node', () => {
-  const { searchNodes, ancestorsOf } = load('app/admin/playbook/model.ts');
+  const { searchNodes, ancestorsOf } = load('app/trading-system/model.ts');
   const tree = { id: 'r', title: 'root', children: [{ id: 'b', title: 'branch', children: [{ id: 'l', title: 'leaf', points: ['风险预算'] }] }] };
   assert.deepEqual(searchNodes(tree, '风险').map(n => n.id), ['l']);
   assert.deepEqual(ancestorsOf(tree, 'l'), ['r', 'b']);
@@ -28,7 +37,7 @@ test('search finds instruction text and reveals all ancestors of a hidden node',
   assert.deepEqual(searchNodes(tree, '   '), []);
 });
 test('XMind export includes UTF-8 topics and full notes in a consistent ZIP directory', () => {
-  const { xmindArchive } = load('app/admin/playbook/xmind.ts');
+  const { xmindArchive } = load('app/trading-system/xmind.ts');
   const bytes = xmindArchive({ id: 'fixture', title: '测试体系', root: { id: 'root', title: '风险', children: [{ id: 'leaf', title: '预算', points: ['计划损失不等于最大损失'], links: [{ title: 'source', url: 'https://example.com' }] }] } });
   const zip = Buffer.from(bytes);
   let offset = 0;
@@ -50,7 +59,7 @@ test('XMind export includes UTF-8 topics and full notes in a consistent ZIP dire
 });
 
 test('ZIP checksums match the standard CRC-32 vector', () => {
-  const { zipFiles } = load('app/admin/playbook/xmind.ts');
+  const { zipFiles } = load('app/trading-system/xmind.ts');
   const zip = Buffer.from(zipFiles({ 'check.txt': '123456789' }));
   assert.equal(zip.readUInt32LE(14), 0xcbf43926);
   const centralOffset = zip.readUInt32LE(zip.length - 6);
