@@ -168,7 +168,7 @@ export default function StockChart({
       keyboard
     >
       <div className="strategy-chart-summary">
-        {code && <StockActions key={code} code={code} name={stock?.name} date={date} chartOpen />}
+        {code && <StockActions key={code} code={code} name={stock?.name} date={date} chartOpen onDetails={onClose} />}
         <span>
           {neutral ? '观察日期' : '信号日期'}
           {' '}

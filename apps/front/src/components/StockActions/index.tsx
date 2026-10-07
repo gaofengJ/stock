@@ -16,11 +16,11 @@ import './stock-actions.css';
 
 interface Props {
   code: string; name?: string; date?: string; label?: React.ReactNode;
-  onChart?: () => void; chartOpen?: boolean;
+  onChart?: () => void; onDetails?: () => void; chartOpen?: boolean;
 }
 /** Explicit actions keep stock navigation separate from page-specific selection. */
 export default function StockActions({
-  code, name, date, label = '股票操作', onChart, chartOpen = false,
+  code, name, date, label = '股票操作', onChart, onDetails, chartOpen = false,
 }: Props) {
   const { user } = useAccount();
   const actions = useStockActions();
@@ -46,7 +46,7 @@ export default function StockActions({
       getPopupContainer={(trigger) => trigger.closest<HTMLElement>('.ant-modal-content, .ant-drawer-content') || document.body}
       content={(
         <div className="stock-actions-menu">
-          {canDetails ? <Link href={stockHref(code, date)} title="查看个股详情" onClick={() => setOpen(false)}>查看详情</Link> : <Tooltip title="当前账号没有个股详情权限"><span><Button type="text" size="small" disabled>查看详情</Button></span></Tooltip>}
+          {canDetails ? <Link href={stockHref(code, date)} title="查看个股详情" onClick={() => { setOpen(false); onDetails?.(); }}>查看详情</Link> : <Tooltip title="当前账号没有个股详情权限"><span><Button type="text" size="small" disabled>查看详情</Button></span></Tooltip>}
           <Tooltip title={chartHint}>
             <span>
               <InteractionButton intent="preview" disabled={!canChart || chartOpen} onClick={() => { setOpen(false); if (onChart) onChart(); else actions.openChart({ code, name, date }); }}>查看K线</InteractionButton>

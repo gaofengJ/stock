@@ -89,6 +89,15 @@ test('restricted accounts keep copying available without denied detail/chart req
 test('the chart menu prevents opening a second copy of the same chart', () => {
   assert.equal(renderMenu({ code: '000503.SZ', chartOpen: true }).find('查看K线').props.disabled, true);
 });
+
+test('detail navigation dismisses an existing chart even when the destination page is unchanged', () => {
+  let closed = 0;
+  const menu = renderMenu({ code: '000503.SZ', chartOpen: true, onDetails: () => { closed += 1; } });
+  menu.find('查看详情').props.onClick();
+  assert.equal(closed, 1);
+  assert.match(menu.find('查看详情').props.href, /code=000503\.SZ/);
+  assert.deepEqual(menu.calls, []);
+});
 test('invalid stock identities do not offer navigation or clipboard actions', () => {
   const menu = renderMenu({ code: 'bad', label: '未知股票' });
   assert.equal(menu.element.type, 'span');
