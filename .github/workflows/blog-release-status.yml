@@ -2,39 +2,24 @@ name: Inspect article release
 on:
   workflow_dispatch:
 jobs:
-  inspect:
+  repair:
     runs-on: ubuntu-latest
     steps:
-      - name: Read server release progress
-        uses: appleboy/ssh-action@master
+      - name: Validate and install safe article deployment
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
-          command_timeout: 40m
+          command_timeout: 10m
           script: |
             set -eu
-            if ! docker inspect stock-blog >/dev/null 2>&1; then
-              docker run --restart unless-stopped -d -p 8082:80 --name stock-blog registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-blog:178fd09a2f2e902e7fc74f66116887a05de3dc38
-            fi
-            echo 'Previous article service restored while the new image downloads.'
-            echo 'Running Docker operations (arguments omitted):'
-            ps -eo pid,etime,args | awk '$3 ~ /(^|\/)docker$/ {print $1,$2,$3,$4}'
-            echo 'Article containers:'
-            docker ps --filter name=stock-blog --format '{{.Names}} {{.Status}} {{.Image}}'
-            docker ps -a --filter name=stock-blog --format '{{.Names}} {{.Status}} {{.Ports}}'
-            echo 'Deployment order and runtime options:'
-            grep -E 'docker (stop|rm|pull|run)|--name|--restart|--network|--publish| -p | -v ' /home/stock-blog-deploy.sh || true
-            python3 - <<'PY'
-            import json
-            p='/opt/stock-blog-style/178fd09a2f2e902e7fc74f66116887a05de3dc38/previous-container.json'
-            x=json.load(open(p))[0]
-            print(json.dumps({k:x['HostConfig'].get(k) for k in ['NetworkMode','PortBindings','Binds','RestartPolicy']},ensure_ascii=False))
-            PY
-            echo 'Article images:'
-            docker images --format '{{.Repository}}:{{.Tag}} {{.Size}}' | grep 'stock-blog' || true
-            echo 'Media-verified release build directories:'
-            find /opt/stock-blog-style -maxdepth 2 -name Dockerfile -print
-            echo 'Memory and disk:'
-            free -m
-            df -h / /opt
+            release_dir=$(mktemp -d /tmp/stock-blog-deploy.XXXXXX)
+            printf '%s' 'IyEvYmluL3NoCiMgSW5zdGFsbGVkIGFzIC9ob21lL3N0b2NrLWJsb2ctZGVwbG95LnNoOyBjYWxsZWQgYnkgdGhlIGFydGljbGUgcmVsZWFzZSB3b3JrZmxvdy4Kc2V0IC1ldQpyZWdpc3RyeT1yZWdpc3RyeS5jbi1oYW5nemhvdS5hbGl5dW5jcy5jb20vbXVmZW5ndG9uZ3h1ZS9zdG9jay1ibG9nCmV4ZWMgOT4iJHtCTE9HX0RFUExPWV9MT0NLOi0vdmFyL2xvY2svc3RvY2stYmxvZy1mdWxsLXJlbGVhc2UubG9ja30iCmZsb2NrIC1uIDkgfHwgeyBlY2hvICdBbm90aGVyIGFydGljbGUgZGVwbG95bWVudCBpcyBydW5uaW5nJzsgZXhpdCAxOyB9CgppZiBbIC1uICIke0RPQ0tFUl9VU0VSTkFNRTotfSIgXSAmJiBbIC1uICIke0RPQ0tFUl9QQVNTV09SRDotfSIgXTsgdGhlbgogIHByaW50ZiAnJXMnICIkRE9DS0VSX1BBU1NXT1JEIiB8IGRvY2tlciBsb2dpbiAtLXVzZXJuYW1lICIkRE9DS0VSX1VTRVJOQU1FIiAtLXBhc3N3b3JkLXN0ZGluIHJlZ2lzdHJ5LmNuLWhhbmd6aG91LmFsaXl1bmNzLmNvbQpmaQpzdGF0dXM9JChjdXJsIC0tbWF4LXRpbWUgMTAgLXNTIC1vIC9kZXYvbnVsbCAtdyAnJXtodHRwX2NvZGV9JyBodHRwOi8vMTI3LjAuMC4xOjMwMDAvYXBpL2F1dGgvYmxvZy1hY2Nlc3MpClsgIiRzdGF0dXMiID0gNDAxIF0gfHwgWyAiJHN0YXR1cyIgPSA0MDMgXSB8fCB7IGVjaG8gJ0JhY2tlbmQgYXJ0aWNsZSBhY2Nlc3MgY2hlY2sgaXMgbm90IHJlYWR5JzsgZXhpdCAxOyB9CgojIERvd25sb2FkcyBhbmQgdmFsaWRhdGlvbiBtdXN0IGZpbmlzaCB3aGlsZSB0aGUgcHJldmlvdXMgc2VydmljZSBpcyBzdGlsbCBydW5uaW5nLgpkb2NrZXIgcHVsbCAiJHJlZ2lzdHJ5OmxhdGVzdCIKaW1hZ2U9JChkb2NrZXIgaW1hZ2UgaW5zcGVjdCAtLWZvcm1hdCAne3suSWR9fScgIiRyZWdpc3RyeTpsYXRlc3QiKQpkb2NrZXIgcnVuIC0tcm0gIiRpbWFnZSIgbmdpbnggLXQKY3VycmVudD0kKGRvY2tlciBpbnNwZWN0IC0tZm9ybWF0ICd7ey5JbWFnZX19JyBzdG9jay1ibG9nIDI+L2Rldi9udWxsIHx8IHRydWUpCnJ1bm5pbmc9JChkb2NrZXIgaW5zcGVjdCAtLWZvcm1hdCAne3suU3RhdGUuUnVubmluZ319JyBzdG9jay1ibG9nIDI+L2Rldi9udWxsIHx8IHRydWUpCmlmIFsgIiRjdXJyZW50IiA9ICIkaW1hZ2UiIF0gJiYgWyAiJHJ1bm5pbmciID0gdHJ1ZSBdOyB0aGVuCiAgZWNobyAnUmVxdWVzdGVkIGFydGljbGUgaW1hZ2UgaXMgYWxyZWFkeSBydW5uaW5nLicKICBleGl0IDAKZmkKCmJhY2t1cD1zdG9jay1ibG9nLXByZXZpb3VzLSQoZGF0ZSArJVklbSVkJUglTSVTKS0kJApyZW5hbWVkPTAKY3JlYXRlZD0wCnJvbGxiYWNrKCkgewogIGNvZGU9JD8KICB0cmFwIC0gMAogIGlmIFsgIiRjb2RlIiAhPSAwIF07IHRoZW4KICAgIGVjaG8gJ0FydGljbGUgZGVwbG95bWVudCBmYWlsZWQ7IHJlc3RvcmluZyB0aGUgcHJldmlvdXMgY29udGFpbmVyLicgPiYyCiAgICBpZiBbICIkY3JlYXRlZCIgPSAxIF07IHRoZW4gZG9ja2VyIHJtIC1mIHN0b2NrLWJsb2cgfHwgdHJ1ZTsgZmkKICAgIGlmIFsgIiRyZW5hbWVkIiA9IDEgXTsgdGhlbgogICAgICBkb2NrZXIgc3RhcnQgIiRiYWNrdXAiIHx8IHRydWUKICAgICAgZG9ja2VyIHJlbmFtZSAiJGJhY2t1cCIgc3RvY2stYmxvZyB8fCB0cnVlCiAgICBmaQogIGZpCiAgZXhpdCAiJGNvZGUiCn0KdHJhcCByb2xsYmFjayAwCmlmIFsgLW4gIiRjdXJyZW50IiBdOyB0aGVuCiAgZG9ja2VyIHJlbmFtZSBzdG9jay1ibG9nICIkYmFja3VwIgogIHJlbmFtZWQ9MQogIGRvY2tlciBzdG9wICIkYmFja3VwIgpmaQojIFNldCBiZWZvcmUgcnVuIHNvIHJvbGxiYWNrIGFsc28gcmVtb3ZlcyBhIGNyZWF0ZWQgY29udGFpbmVyIHRoYXQgZmFpbGVkIHRvIHN0YXJ0LgpjcmVhdGVkPTEKZG9ja2VyIHJ1biAtLXJlc3RhcnQgdW5sZXNzLXN0b3BwZWQgLWQgLXAgODA4Mjo4MCAtLW5hbWUgc3RvY2stYmxvZyAiJGltYWdlIgpkb2NrZXIgZXhlYyBzdG9jay1ibG9nIG5naW54IC10CmF0dGVtcHQ9MAp3aGlsZSBbICIkYXR0ZW1wdCIgLWx0IDEwIF07IGRvCiAgc3RhdHVzPSQoY3VybCAtLW1heC10aW1lIDEwIC1zUyAtbyAvZGV2L251bGwgLXcgJyV7aHR0cF9jb2RlfScgaHR0cDovLzEyNy4wLjAuMTo4MDgyLyB8fCB0cnVlKQogIGlmIFsgIiRzdGF0dXMiID0gNDAzIF07IHRoZW4KICAgIGVjaG8gJ0FydGljbGUgZGVwbG95bWVudCB2ZXJpZmllZDsgdW5hdXRoZW50aWNhdGVkIGFjY2VzcyByZW1haW5zIGRlbmllZC4nCiAgICBleGl0IDAKICBmaQogIGF0dGVtcHQ9JCgoYXR0ZW1wdCArIDEpKQogIHNsZWVwIDEKZG9uZQplY2hvICdBcnRpY2xlIGhlYWx0aCBvciBhY2Nlc3MgY2hlY2sgZmFpbGVkJyA+JjIKZXhpdCAxCg==' | base64 -d > "$release_dir/deploy.sh"
+            printf '%s' 'IiIiRXhlcmNpc2UgcmVsZWFzZSBmYWlsdXJlcyB1c2luZyBmYWtlIERvY2tlci9jdXJsLCB3aXRob3V0IHRvdWNoaW5nIGNvbnRhaW5lcnMuIiIiCmltcG9ydCBqc29uCmltcG9ydCBvcwpmcm9tIHBhdGhsaWIgaW1wb3J0IFBhdGgKaW1wb3J0IHN1YnByb2Nlc3MKaW1wb3J0IHRlbXBmaWxlCmltcG9ydCB1bml0dGVzdAoKU0NSSVBUID0gUGF0aChfX2ZpbGVfXykud2l0aF9uYW1lKCdkZXBsb3kuc2gnKQpNT0NLID0gcicnJyMhL3Vzci9iaW4vZW52IHB5dGhvbjMKaW1wb3J0IGpzb24sIG9zLCBzeXMKZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCmNtZCA9IFBhdGgoc3lzLmFyZ3ZbMF0pLm5hbWUKYSA9IHN5cy5hcmd2WzE6XQptb2RlID0gb3MuZW52aXJvblsnVEVTVF9NT0RFJ10Kd2l0aCBvcGVuKG9zLmVudmlyb25bJ1RFU1RfTE9HJ10sICdhJykgYXMgZjoKICAgIGYud3JpdGUoanNvbi5kdW1wcyhbY21kXSArIGEpICsgJ1xuJykKaWYgY21kID09ICdkb2NrZXInOgogICAgaWYgYVswXSA9PSAncHVsbCcgYW5kIG1vZGUgPT0gJ3B1bGwtZmFpbHVyZSc6IHN5cy5leGl0KDEpCiAgICBpZiBhWzoyXSA9PSBbJ2ltYWdlJywgJ2luc3BlY3QnXTogcHJpbnQoJ3NoYTI1NjpuZXcnKQogICAgaWYgYVswXSA9PSAnaW5zcGVjdCc6CiAgICAgICAgcHJpbnQoJ3RydWUnIGlmICdSdW5uaW5nJyBpbiBhWzJdIGVsc2UgKCdzaGEyNTY6bmV3JyBpZiBtb2RlID09ICd1bmNoYW5nZWQnIGVsc2UgJ3NoYTI1NjpvbGQnKSkKICAgIGlmIGFbOjJdID09IFsncnVuJywgJy0tcm0nXSBhbmQgbW9kZSA9PSAnaW52YWxpZC1uZ2lueCc6IHN5cy5leGl0KDEpCiAgICBpZiBhWzoyXSA9PSBbJ3J1bicsICctLXJlc3RhcnQnXSBhbmQgbW9kZSA9PSAnc3RhcnQtZmFpbHVyZSc6IHN5cy5leGl0KDEpCmVsaWYgY21kID09ICdjdXJsJzoKICAgIHByaW50KCc0MDEnIGlmICc6MzAwMC8nIGluIGFbLTFdIGVsc2UgKCc1MDInIGlmIG1vZGUgPT0gJ2hlYWx0aC1mYWlsdXJlJyBlbHNlICc0MDMnKSwgZW5kPScnKQonJycKCgpjbGFzcyBEZXBsb3lUZXN0cyh1bml0dGVzdC5UZXN0Q2FzZSk6CiAgICBkZWYgcnVuX21vZGUoc2VsZiwgbW9kZSk6CiAgICAgICAgd2l0aCB0ZW1wZmlsZS5UZW1wb3JhcnlEaXJlY3RvcnkoKSBhcyBkOgogICAgICAgICAgICByb290ID0gUGF0aChkKQogICAgICAgICAgICBmb3IgbmFtZSBpbiAoJ2RvY2tlcicsICdjdXJsJywgJ2Zsb2NrJywgJ3NsZWVwJyk6CiAgICAgICAgICAgICAgICBmaWxlID0gcm9vdCAvIG5hbWUKICAgICAgICAgICAgICAgIGZpbGUud3JpdGVfdGV4dChNT0NLKQogICAgICAgICAgICAgICAgZmlsZS5jaG1vZCgwbzc1NSkKICAgICAgICAgICAgbG9nID0gcm9vdCAvICdjYWxscy5qc29ubCcKICAgICAgICAgICAgZW52ID0gZGljdChvcy5lbnZpcm9uLCBQQVRIPWQgKyBvcy5wYXRoc2VwICsgb3MuZW52aXJvblsnUEFUSCddLAogICAgICAgICAgICAgICAgICAgICAgIFRFU1RfTU9ERT1tb2RlLCBURVNUX0xPRz1zdHIobG9nKSwKICAgICAgICAgICAgICAgICAgICAgICBCTE9HX0RFUExPWV9MT0NLPXN0cihyb290IC8gJ2xvY2snKSwgRE9DS0VSX1VTRVJOQU1FPScnLCBET0NLRVJfUEFTU1dPUkQ9JycpCiAgICAgICAgICAgIHJlc3VsdCA9IHN1YnByb2Nlc3MucnVuKFsnc2gnLCBzdHIoU0NSSVBUKV0sIGVudj1lbnYsIGNhcHR1cmVfb3V0cHV0PVRydWUsIHRleHQ9VHJ1ZSkKICAgICAgICAgICAgY2FsbHMgPSBbanNvbi5sb2FkcyhsaW5lKSBmb3IgbGluZSBpbiBsb2cucmVhZF90ZXh0KCkuc3BsaXRsaW5lcygpXQogICAgICAgICAgICByZXR1cm4gcmVzdWx0LnJldHVybmNvZGUsIGNhbGxzCgogICAgZGVmIHRlc3RfcHVsbF9hbmRfdmFsaWRhdGlvbl9mYWlsdXJlc19sZWF2ZV9zZXJ2aWNlX3J1bm5pbmcoc2VsZik6CiAgICAgICAgZm9yIG1vZGUgaW4gKCdwdWxsLWZhaWx1cmUnLCAnaW52YWxpZC1uZ2lueCcpOgogICAgICAgICAgICB3aXRoIHNlbGYuc3ViVGVzdChtb2RlPW1vZGUpOgogICAgICAgICAgICAgICAgY29kZSwgY2FsbHMgPSBzZWxmLnJ1bl9tb2RlKG1vZGUpCiAgICAgICAgICAgICAgICBzZWxmLmFzc2VydE5vdEVxdWFsKGNvZGUsIDApCiAgICAgICAgICAgICAgICBzZWxmLmFzc2VydEZhbHNlKGFueShjWzoyXSBpbiAoWydkb2NrZXInLCAnc3RvcCddLCBbJ2RvY2tlcicsICdyZW5hbWUnXSwgWydkb2NrZXInLCAncm0nXSkgZm9yIGMgaW4gY2FsbHMpKQoKICAgIGRlZiB0ZXN0X2hlYWx0aHlfc3dpdGNoX3B1bGxzX2JlZm9yZV9zdG9wKHNlbGYpOgogICAgICAgIGNvZGUsIGNhbGxzID0gc2VsZi5ydW5fbW9kZSgnc3VjY2VzcycpCiAgICAgICAgc2VsZi5hc3NlcnRFcXVhbChjb2RlLCAwKQogICAgICAgIHB1bGwgPSBuZXh0KGkgZm9yIGksIGMgaW4gZW51bWVyYXRlKGNhbGxzKSBpZiBjWzoyXSA9PSBbJ2RvY2tlcicsICdwdWxsJ10pCiAgICAgICAgc3RvcCA9IG5leHQoaSBmb3IgaSwgYyBpbiBlbnVtZXJhdGUoY2FsbHMpIGlmIGNbOjJdID09IFsnZG9ja2VyJywgJ3N0b3AnXSkKICAgICAgICBzZWxmLmFzc2VydExlc3MocHVsbCwgc3RvcCkKICAgICAgICBzZWxmLmFzc2VydEZhbHNlKGFueShjWzoyXSA9PSBbJ2RvY2tlcicsICdybSddIGZvciBjIGluIGNhbGxzKSkKCiAgICBkZWYgdGVzdF9mYWlsZWRfc3RhcnRfYW5kX2hlYWx0aF9yZXN0b3JlX3ByZXZpb3VzX2NvbnRhaW5lcihzZWxmKToKICAgICAgICBmb3IgbW9kZSBpbiAoJ3N0YXJ0LWZhaWx1cmUnLCAnaGVhbHRoLWZhaWx1cmUnKToKICAgICAgICAgICAgd2l0aCBzZWxmLnN1YlRlc3QobW9kZT1tb2RlKToKICAgICAgICAgICAgICAgIGNvZGUsIGNhbGxzID0gc2VsZi5ydW5fbW9kZShtb2RlKQogICAgICAgICAgICAgICAgc2VsZi5hc3NlcnROb3RFcXVhbChjb2RlLCAwKQogICAgICAgICAgICAgICAgc2VsZi5hc3NlcnRJbihbJ2RvY2tlcicsICdybScsICctZicsICdzdG9jay1ibG9nJ10sIGNhbGxzKQogICAgICAgICAgICAgICAgYmFja3VwID0gbmV4dChjWzNdIGZvciBjIGluIGNhbGxzIGlmIGNbOjNdID09IFsnZG9ja2VyJywgJ3JlbmFtZScsICdzdG9jay1ibG9nJ10pCiAgICAgICAgICAgICAgICBzZWxmLmFzc2VydEluKFsnZG9ja2VyJywgJ3N0YXJ0JywgYmFja3VwXSwgY2FsbHMpCiAgICAgICAgICAgICAgICBzZWxmLmFzc2VydEluKFsnZG9ja2VyJywgJ3JlbmFtZScsIGJhY2t1cCwgJ3N0b2NrLWJsb2cnXSwgY2FsbHMpCgogICAgZGVmIHRlc3Rfc2FtZV9pbWFnZV9kb2VzX25vdF9yZXN0YXJ0KHNlbGYpOgogICAgICAgIGNvZGUsIGNhbGxzID0gc2VsZi5ydW5fbW9kZSgndW5jaGFuZ2VkJykKICAgICAgICBzZWxmLmFzc2VydEVxdWFsKGNvZGUsIDApCiAgICAgICAgc2VsZi5hc3NlcnRGYWxzZShhbnkoY1s6Ml0gPT0gWydkb2NrZXInLCAnc3RvcCddIGZvciBjIGluIGNhbGxzKSkKCgppZiBfX25hbWVfXyA9PSAnX19tYWluX18nOgogICAgdW5pdHRlc3QubWFpbigpCg==' | base64 -d > "$release_dir/test_deploy.py"
+            sh -n "$release_dir/deploy.sh"
+            python3 "$release_dir/test_deploy.py"
+            cp -p /home/stock-blog-deploy.sh "/home/stock-blog-deploy.sh.backup-$(date +%Y%m%d%H%M%S)"
+            install -m 755 "$release_dir/deploy.sh" /home/stock-blog-deploy.sh
+            sh /home/stock-blog-deploy.sh
+            docker ps --filter name=stock-blog --format '{{.Names}} {{.Status}}'
