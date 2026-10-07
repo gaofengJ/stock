@@ -58,6 +58,7 @@ const detailLabels: Record<string, string> = {
   code: '角色编码',
   description: '角色说明',
   registered: '注册后自动登录',
+  isAdmin: '登录时为管理员',
   status: '任务状态',
   content: '内容',
   avatar: '头像',
@@ -65,7 +66,7 @@ const detailLabels: Record<string, string> = {
 const detailText = (key: string, value: unknown) => {
   if (value === null || value === undefined) return '—';
   if (key === 'active' && typeof value === 'boolean') return value ? '正常' : '禁用';
-  if (key === 'registered' && typeof value === 'boolean') return value ? '是' : '否';
+  if (['registered', 'isAdmin'].includes(key) && typeof value === 'boolean') return value ? '是' : '否';
   if (key === 'status' && typeof value === 'string') return resultLabels[value] || value;
   return typeof value === 'object' ? JSON.stringify(value) : String(value);
 };

@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 
-module.exports = async function verifyLoginActivity({ db, auth, inject, admin, user }) {
+module.exports = async function verifyLoginActivity({ db, auth, inject, admin, user, loginAdmin }) {
   const ids = [];
   const keyword = 'activity_fixture';
   const day = new Date(Date.now() - 86400000 + 8 * 3600000).toISOString().slice(0, 10);
@@ -19,6 +19,14 @@ module.exports = async function verifyLoginActivity({ db, auth, inject, admin, u
     return response.json().data;
   };
   try {
+    await loginAdmin();
+    const adminRows = (await inject('GET', '/admin/login-activity?keyword=mufeng', undefined, admin)).json().data;
+    assert.ok(adminRows.items.some(item => item.isAdmin && !item.registered && item.unread), 'Real administrator login appears and notifies');
+    const adminItem = adminRows.items.find(item => item.isAdmin && !item.registered);
+    ids.push(adminItem.id);
+    assert.equal((await inject('POST', `/admin/login-activity/${adminItem.id}/read`, undefined, admin)).statusCode, 201);
+    assert.ok(!(await inject('GET', '/admin/login-activity?keyword=mufeng&status=unread', undefined, admin)).json().data.items.some(item => item.id === adminItem.id));
+    assert.ok((await auth.loginActivity(user.user, { page: 1, pageSize: 20, keyword: 'mufeng' })).items.find(item => item.id === adminItem.id).unread, 'Administrator record read status remains personal');
     for (let i = 0; i < 60; i++) await insert(midnight + 43200000 + i * 1000, i === 0);
     await insert(midnight);
     await insert(midnight + 86400000 - 1);
@@ -26,6 +34,7 @@ module.exports = async function verifyLoginActivity({ db, auth, inject, admin, u
     await insert(midnight + 86400000);
     const expired = await insert(Date.now() - 91 * 86400000);
     const first = await get();
+    assert.ok(first.items.every(item => item.isAdmin === false), 'Legacy ordinary-user activity defaults to non-administrator');
     assert.equal(first.total, 64, 'Expired entries are excluded before daily cleanup runs');
     assert.equal(first.items.length, 20);
     const pages = [first];

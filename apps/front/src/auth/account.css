@@ -253,6 +253,7 @@
 .login-activity-note { color: var(--text-secondary); font-size: 12px; }
 .login-activity-user { min-width: 160px; overflow-wrap: anywhere; }
 .login-activity-user strong { display: block; font-weight: 500; }
+.login-activity-user strong .ant-tag { margin-inline-start: 8px; margin-inline-end: 0; }
 .login-activity-user small { display: block; color: var(--text-secondary); margin-top: 4px; }
 .login-activity .login-activity-unread > .ant-table-cell { background: var(--color-primary-subtle); }
 .login-activity-unread-label { color: var(--color-primary-text); font-weight: 600; }

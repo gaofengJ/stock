@@ -5,7 +5,7 @@ export const levelColors: Record<string, string> = { error: 'red', warn: 'orange
 export const actionLabels: Record<string, string> = {
   'auth.register': '注册账号',
   'auth.login': '登录',
-  'auth.member-login': '普通用户登录通知',
+  'auth.member-login': '登录动态通知',
   'auth.logout': '退出登录',
   'auth.password': '修改密码',
   'user.create': '创建用户',

@@ -18,6 +18,7 @@ interface ActivityItem {
   nickname?: string;
   createdAt: string;
   registered: boolean;
+  isAdmin?: boolean;
   unread: boolean;
 }
 interface Activity {
@@ -185,7 +186,7 @@ export default function LoginActivity() {
             {' '}
             条
           </span>
-          <HelpTooltip label="登录动态" title="记录普通用户登录及注册后的自动登录，管理员登录不提醒。每 30 秒自动更新，保留最近 90 天；日期与时间均为北京时间。已读状态仅影响当前管理员。" />
+          <HelpTooltip label="登录动态" title="记录所有账号的成功登录及注册后的自动登录，包含管理员并计入未读提醒。管理员标识为登录时身份；历史管理员登录可在日志中心的操作审计中查询。每 30 秒自动更新，保留最近 90 天；日期与时间均为北京时间。已读状态仅影响当前管理员。" />
         </div>
         <div className="login-activity-buttons">
           <Button loading={refreshing} onClick={reload}>刷新</Button>
@@ -232,7 +233,10 @@ export default function LoginActivity() {
             title: '用户',
             render: (_, item) => (
               <div className="login-activity-user">
-                <strong>{item.nickname || item.username}</strong>
+                <strong>
+                  {item.nickname || item.username}
+                  {item.isAdmin && <Tag color="purple">管理员</Tag>}
+                </strong>
                 {item.nickname && item.nickname !== item.username && (
                 <small>
                   @

@@ -264,15 +264,14 @@ export class AuthService implements OnModuleInit {
     manager: EntityManager,
     registered = false,
   ) {
-    if (!user.roles.some((role) => role.code === 'admin'))
-      await this.audit(
-        user,
-        'auth.member-login',
-        user.id,
-        'success',
-        { registered },
-        manager,
-      );
+    await this.audit(
+      user,
+      'auth.member-login',
+      user.id,
+      'success',
+      { registered, isAdmin: user.roles.some((role) => role.code === 'admin') },
+      manager,
+    );
   }
 
   async loginActivity(actor: CurrentUser, q = new ActivityQueryDto()) {
@@ -328,6 +327,7 @@ export class AuthService implements OnModuleInit {
       const page = Math.min(q.page, Math.max(1, Math.ceil(total / q.pageSize)));
       const items = await m.query(
         `SELECT a.id,a.actor_name username,u.nickname,${registered} registered,${unread} unread,
+          COALESCE(JSON_UNQUOTE(JSON_EXTRACT(a.detail,'$.isAdmin')),'false')='true' isAdmin,
           DATE_FORMAT(a.created_at,'%Y-%m-%dT%H:%i:%s.%fZ') createdAt
           ${from} WHERE ${where} ORDER BY a.id DESC LIMIT ? OFFSET ?`,
         [...args, q.pageSize, (page - 1) * q.pageSize],
@@ -338,11 +338,14 @@ export class AuthService implements OnModuleInit {
         total,
         page,
         pageSize: q.pageSize,
-        items: items.map((item: { registered: number; unread: number }) => ({
-          ...item,
-          registered: !!Number(item.registered),
-          unread: !!Number(item.unread),
-        })),
+        items: items.map(
+          (item: { registered: number; unread: number; isAdmin: number }) => ({
+            ...item,
+            registered: !!Number(item.registered),
+            unread: !!Number(item.unread),
+            isAdmin: !!Number(item.isAdmin),
+          }),
+        ),
       };
     });
   }

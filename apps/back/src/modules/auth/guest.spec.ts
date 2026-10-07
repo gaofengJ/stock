@@ -131,15 +131,24 @@ describe('guest access and login activity', () => {
     expect(db.query).not.toHaveBeenCalled();
   });
 
-  it('suppresses administrator activity and distinguishes automatic registration login', async () => {
+  it('records administrator and regular logins with login-time identity and registration event', async () => {
     const auth = new AuthService({} as any);
     const audit = jest.spyOn(auth, 'audit').mockResolvedValue();
     const manager = {} as any;
-    await auth.memberLogin(
-      { id: 1, roles: [{ code: 'admin' }] } as any,
+    const admin = {
+      id: 1,
+      roles: [{ code: 'user' }, { code: 'admin' }],
+    } as any;
+    await auth.memberLogin(admin, manager);
+    expect(audit).toHaveBeenNthCalledWith(
+      1,
+      admin,
+      'auth.member-login',
+      1,
+      'success',
+      { registered: false, isAdmin: true },
       manager,
     );
-    expect(audit).not.toHaveBeenCalled();
     const user = { id: 2, username: 'alice', roles: [{ code: 'user' }] } as any;
     await auth.memberLogin(user, manager, true);
     expect(audit).toHaveBeenCalledWith(
@@ -147,9 +156,10 @@ describe('guest access and login activity', () => {
       'auth.member-login',
       2,
       'success',
-      { registered: true },
+      { registered: true, isAdmin: false },
       manager,
     );
+    expect(audit).toHaveBeenCalledTimes(2);
   });
 
   it('marks only a real displayed snapshot and keeps each administrator cursor separate', async () => {

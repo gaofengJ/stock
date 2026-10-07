@@ -176,7 +176,7 @@ async function main() {
     await verifyUsersManagement({ db, inject, admin, user, login });
     if (process.argv.includes('--users-management-only')) return;
     if (process.argv.includes('--login-activity-only')) {
-      await verifyLoginActivity({ db, auth: app.get(AuthService), inject, admin, user });
+      await verifyLoginActivity({ db, auth: app.get(AuthService), inject, admin, user, loginAdmin: () => login('mufeng', adminPassword) });
       return;
     }
     await verifyFeedback({ inject, user, admin, db });
@@ -315,13 +315,14 @@ async function main() {
     assert.equal(Number((await db.query('SELECT COUNT(*) n FROM t_news_stock WHERE news_id IN (?)',[ruleIds]))[0].n),0);
     assert.equal(Number((await db.query('SELECT COUNT(*) n FROM t_news_read WHERE news_id IN (?)',[ruleIds]))[0].n),0);
     const activity = (await inject('GET', '/admin/login-activity', undefined, admin)).json().data;
-    assert.equal(activity.unread, 2, 'Registration and regular login notify; administrator login does not');
+    assert.equal(activity.unread, 3, 'Registration, regular login and administrator login all notify');
+    assert.ok(activity.items.some(item => item.username === 'mufeng' && item.isAdmin && !item.registered));
     assert.ok(activity.items.some(item => item.registered));
     await login('alice', 'test-password-123');
     assert.equal((await inject('POST', '/admin/login-activity/read', { throughId: activity.latestId }, admin)).statusCode, 201);
     assert.equal((await inject('GET', '/admin/login-activity', undefined, admin)).json().data.unread, 1, 'A login arriving after the snapshot stays unread');
     assert.equal((await inject('GET', '/admin/login-activity', undefined, user)).statusCode, 403);
-    await verifyLoginActivity({ db, auth: app.get(AuthService), inject, admin, user });
+    await verifyLoginActivity({ db, auth: app.get(AuthService), inject, admin, user, loginAdmin: () => login('mufeng', adminPassword) });
     assert.match(user.user.avatar, /^auto-bull-(red|pink|gold|green|blue|purple|coffee)-(star|heart|flower|bow)$/);
     assert.equal((await login('alice', 'test-password-123')).user.avatar, user.user.avatar, 'Avatar persists across sessions');
     const created = await inject('POST', '/admin/users', { username: 'portrait_fixture', password: 'test-password-123' }, admin);
