@@ -63,7 +63,7 @@ export function accessUser(row: { actorType?: string; username?: string; nicknam
   return row.nickname && row.nickname !== row.username ? `${row.nickname}（${row.username || `用户 #${row.userId}`}）` : row.username || `用户 #${row.userId}`;
 }
 export function accessStatus(row: { result: string; statusCode: number }) {
-  return `${accessResults[row.result] || row.result} · ${row.statusCode}`;
+  return `${accessResults[row.result] || row.result}，状态码 ${row.statusCode}`;
 }
 export function durationText(ms: number) {
   if (!Number.isFinite(ms) || ms < 0) return '—';

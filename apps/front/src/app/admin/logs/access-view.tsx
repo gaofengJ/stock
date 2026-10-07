@@ -61,14 +61,14 @@ export function accessColumns(open: (row: AccessEntry) => void, slowMs: number):
         </div>
       ),
     },
-    { title: '结果', width: 200, render: (_, row) => <Tag color={accessColor(row.statusCode)}>{accessStatus(row)}</Tag> },
+    { title: '结果', width: 240, render: (_, row) => <Tag color={accessColor(row.statusCode)}>{accessStatus(row)}</Tag> },
     {
       title: '耗时',
       width: 145,
       render: (_, row) => (
         <span className={row.durationMs >= slowMs ? 'logs-slow' : ''}>
           {durationText(row.durationMs)}
-          {row.durationMs >= slowMs && ' · 慢'}
+          {row.durationMs >= slowMs && '（慢请求）'}
         </span>
       ),
     },

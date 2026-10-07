@@ -15,6 +15,7 @@ import { api, Permission } from '@/auth/client';
 import { SafetyCertificateOutlined } from '@ant-design/icons';
 import PageHeading from '@/auth/PageHeading';
 import AccountAvatar from '@/auth/AccountAvatar';
+import HelpTooltip from '@/components/HelpTooltip';
 
 interface Member { id: number; username: string; nickname: string; avatar?: string; active: boolean }
 interface Role {
@@ -228,7 +229,7 @@ export default function Page() {
             render: (_, r) => (
               <div className="role-members">
                 <div>{r.users.slice(0, 2).map((u) => <Tag key={u.id} title={`@${u.username}`}>{u.nickname || u.username}</Tag>)}</div>
-                <Button type="link" size="small" onClick={() => { setMembers(r); setMemberSearch(''); }}>{r.users.length ? `共 ${r.users.length} 位 · 查看全部` : '暂无关联用户'}</Button>
+                <Button type="link" size="small" onClick={() => { setMembers(r); setMemberSearch(''); }}>{r.users.length ? `查看全部 ${r.users.length} 位用户` : '暂无关联用户'}</Button>
               </div>
             ),
           },
@@ -246,7 +247,7 @@ export default function Page() {
           },
         ]}
       />
-      <Modal title={`${viewing?.name || ''} · 权限`} width={760} open={!!viewing} onCancel={() => setViewing(null)} footer={<Button onClick={() => setViewing(null)}>关闭</Button>} destroyOnClose>
+      <Modal className="role-view-modal" centered title={`角色权限：${viewing?.name || ''}`} width={760} open={!!viewing} onCancel={() => setViewing(null)} footer={<Button onClick={() => setViewing(null)}>关闭</Button>} destroyOnClose>
         <Typography.Paragraph type="secondary">
           已授予
           {viewedPermissions.length}
@@ -263,7 +264,7 @@ export default function Page() {
         {!viewedPermissions.length && <Typography.Paragraph type="secondary">未授予权限</Typography.Paragraph>}
         {viewing?.permissions.includes('news:manage') && <Typography.Paragraph type="secondary">资讯来源管理影响所有用户：启停来源、调整采集间隔、立即采集。个人关注在资讯页面设置。</Typography.Paragraph>}
       </Modal>
-      <Modal title={`${members?.name || ''} · 关联用户`} width={720} open={!!members} onCancel={() => setMembers(null)} footer={<Button onClick={() => setMembers(null)}>关闭</Button>} destroyOnClose>
+      <Modal title={`关联用户：${members?.name || ''}`} width={720} open={!!members} onCancel={() => setMembers(null)} footer={<Button onClick={() => setMembers(null)}>关闭</Button>} destroyOnClose>
         <div className="role-member-toolbar">
           <Typography.Text>
             共
@@ -305,24 +306,40 @@ export default function Page() {
           ]}
         />
       </Modal>
-      <Modal title={original ? `编辑角色：${original.name}` : '创建角色'} width={760} open={!!editing} onCancel={closeEditor} onOk={() => form.submit()} okText={original ? '核对并保存' : '创建角色'} confirmLoading={busy} cancelButtonProps={{ disabled: busy || loading }} okButtonProps={{ disabled: stale || loading || !!pending }} keyboard={!busy && !pending} maskClosable={!busy && !pending} destroyOnClose>
+      <Modal className="role-editor-modal" centered title={original ? `编辑角色：${original.name}` : '创建角色'} width={760} open={!!editing} onCancel={closeEditor} onOk={() => form.submit()} okText={original ? '核对并保存' : '创建角色'} confirmLoading={busy} cancelButtonProps={{ disabled: busy || loading }} okButtonProps={{ disabled: stale || loading || !!pending }} keyboard={!busy && !pending} maskClosable={!busy && !pending} destroyOnClose>
         {saveError && <Alert type="error" message={saveError} showIcon action={stale && original ? <Button size="small" onClick={reloadEditor}>重新加载最新角色</Button> : undefined} />}
         {loading && <Typography.Paragraph type="secondary">正在加载最新角色…</Typography.Paragraph>}
-        <Form form={form} layout="vertical" disabled={busy || loading || !!pending || stale} onValuesChange={() => { setDirty(true); if (!stale) setSaveError(''); }} onFinish={(values) => { if (original) setPending(values); else save(values); }}>
-          <Form.Item
-            name="name"
-            label="名称"
-            rules={[{
-              required: true, whitespace: true, max: 64, message: '请输入角色名称，最多 64 个字符',
-            }]}
-          >
-            <Input maxLength={64} />
-          </Form.Item>
-          <Form.Item name="code" label="稳定编码" extra="2–32 位，以小写字母开头，可含数字、下划线或连字符。" rules={[{ required: true, pattern: /^[a-z][a-z0-9_-]{1,31}$/, message: '请输入有效的稳定编码' }]}><Input disabled={!!original?.builtin || busy || loading || !!pending || stale} maxLength={32} /></Form.Item>
-          <Form.Item name="description" label="说明" rules={[{ max: 64 }]}><Input maxLength={64} /></Form.Item>
-          {original?.code === 'user' && <Alert type="info" showIcon message="普通用户角色仅可配置业务查看权限。修改会影响当前关联用户，也会影响今后注册并获得此角色的用户。管理操作请创建独立角色，再到用户管理分配。" />}
-          <Alert type="info" showIcon message={original ? `当前关联 ${original.users.length} 位用户。角色权限调整将在这些用户下次请求时生效。` : '新角色尚未关联用户，创建后可到用户管理中分配。'} description="多角色权限取并集。移除此角色的权限后，用户仍可能通过其他角色拥有该权限。" />
-          <Form.Item name="permissions" label={`模块与操作权限（已选 ${selected.length} 项）`}>
+        <Form className="role-editor-form" form={form} layout="vertical" disabled={busy || loading || !!pending || stale} onValuesChange={() => { setDirty(true); if (!stale) setSaveError(''); }} onFinish={(values) => { if (original) setPending(values); else save(values); }}>
+          <div className="role-editor-fields">
+            <Form.Item
+              name="name"
+              label="名称"
+              rules={[{
+                required: true, whitespace: true, max: 64, message: '请输入角色名称，最多 64 个字符',
+              }]}
+            >
+              <Input maxLength={64} />
+            </Form.Item>
+            <Form.Item
+              name="code"
+              label={(
+                <Space size={6}>
+                  稳定编码
+                  <HelpTooltip label="稳定编码" title={original?.builtin ? '内置角色的稳定编码不能修改。' : '2–32 位，以小写字母开头，可含数字、下划线或连字符。'} />
+                </Space>
+              )}
+              rules={[{ required: true, pattern: /^[a-z][a-z0-9_-]{1,31}$/, message: '请输入有效的稳定编码' }]}
+            >
+              <Input disabled={!!original?.builtin || busy || loading || !!pending || stale} maxLength={32} />
+            </Form.Item>
+            <Form.Item className="role-editor-description" name="description" label="说明" rules={[{ max: 64 }]}><Input maxLength={64} /></Form.Item>
+          </div>
+          <div className="role-editor-context">
+            <span>{original ? `关联 ${original.users.length} 位用户，保存后在下次请求时生效。` : '创建后可在用户管理中分配角色。'}</span>
+            {original?.code === 'user' && <span>普通用户仅可配置业务查看权限。</span>}
+            <HelpTooltip label="角色权限规则" title={`多角色权限取并集，移除此角色的权限后，用户仍可能通过其他角色拥有该权限。${original?.code === 'user' ? '普通用户角色的修改也会影响今后注册的用户；管理权限请通过独立角色分配。' : ''}资讯来源管理影响全站采集，个人关注在资讯页面设置。`} />
+          </div>
+          <Form.Item className="role-editor-permissions" name="permissions" label={`模块与操作权限（已选 ${selected.length} 项）`}>
             <Checkbox.Group className="role-permission-options">
               {groups.map((group) => (
                 <div key={group} className="account-permission-group">
@@ -332,11 +349,18 @@ export default function Page() {
               ))}
             </Checkbox.Group>
           </Form.Item>
-          {selected.includes('news:manage') && <Typography.Paragraph type="secondary">资讯来源管理影响全站采集，个人关注在资讯页面设置。</Typography.Paragraph>}
-          {permissionChanges}
+          {original && (
+          <div className="role-editor-summary" aria-live="polite">
+            <div className="role-editor-counts">
+              <span>{`新增权限（${added.length}）`}</span>
+              <span>{`移除权限（${removed.length}）`}</span>
+            </div>
+            <span>保存前可核对变更明细</span>
+          </div>
+          )}
         </Form>
       </Modal>
-      <Modal title="核对角色变更" zIndex={1100} width={640} open={!!pending} onCancel={() => { if (!busyRef.current) setPending(null); }} onOk={() => { if (pending) save(pending); }} okText="确认保存" cancelText="返回编辑" confirmLoading={busy} cancelButtonProps={{ disabled: busy }} keyboard={!busy} maskClosable={!busy}>
+      <Modal className="role-view-modal" centered title="核对角色变更" zIndex={1100} width={640} open={!!pending} onCancel={() => { if (!busyRef.current) setPending(null); }} onOk={() => { if (pending) save(pending); }} okText="确认保存" cancelText="返回编辑" confirmLoading={busy} cancelButtonProps={{ disabled: busy }} keyboard={!busy} maskClosable={!busy}>
         <Typography.Paragraph>
           角色：
           <strong>{original?.name}</strong>

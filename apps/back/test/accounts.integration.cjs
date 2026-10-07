@@ -49,6 +49,14 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
 
+function assertLoginCoverage(activity, entries) {
+  const successfulLogins = entries.filter(entry => entry.method === 'POST' && ['/api/auth/login', '/api/auth/register'].includes(entry.path) && entry.statusCode === 201).length;
+  assert.equal(activity.unread, successfulLogins, 'Every successful login, including temporary administrators, notifies exactly once');
+  assert.equal(activity.total, successfulLogins);
+  assert.ok(activity.items.some(item => item.username === 'mufeng' && item.isAdmin && !item.registered));
+  assert.ok(activity.items.some(item => item.registered));
+}
+
 async function main() {
   const database = process.env.AUTH_TEST_DATABASE;
   assert.ok(/^stock_auth_test_[a-z0-9_]+$/.test(database || ''), 'AUTH_TEST_DATABASE must name a disposable stock_auth_test_* database');
@@ -176,6 +184,7 @@ async function main() {
     await verifyUsersManagement({ db, inject, admin, user, login });
     if (process.argv.includes('--users-management-only')) return;
     if (process.argv.includes('--login-activity-only')) {
+      assertLoginCoverage((await inject('GET', '/admin/login-activity', undefined, admin)).json().data, accessEntries);
       await verifyLoginActivity({ db, auth: app.get(AuthService), inject, admin, user, loginAdmin: () => login('mufeng', adminPassword) });
       return;
     }
@@ -315,9 +324,7 @@ async function main() {
     assert.equal(Number((await db.query('SELECT COUNT(*) n FROM t_news_stock WHERE news_id IN (?)',[ruleIds]))[0].n),0);
     assert.equal(Number((await db.query('SELECT COUNT(*) n FROM t_news_read WHERE news_id IN (?)',[ruleIds]))[0].n),0);
     const activity = (await inject('GET', '/admin/login-activity', undefined, admin)).json().data;
-    assert.equal(activity.unread, 3, 'Registration, regular login and administrator login all notify');
-    assert.ok(activity.items.some(item => item.username === 'mufeng' && item.isAdmin && !item.registered));
-    assert.ok(activity.items.some(item => item.registered));
+    assertLoginCoverage(activity, accessEntries);
     await login('alice', 'test-password-123');
     assert.equal((await inject('POST', '/admin/login-activity/read', { throughId: activity.latestId }, admin)).statusCode, 201);
     assert.equal((await inject('GET', '/admin/login-activity', undefined, admin)).json().data.unread, 1, 'A login arriving after the snapshot stays unread');
