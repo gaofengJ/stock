@@ -56,6 +56,7 @@ function MarketPanel({ date }: { date: string }) {
         {tab !== 'ranking' && <Button onClick={state.retry} loading={state.loading}>刷新资料</Button>}
         <span className="live-research-note">
           观察日期
+          {' '}
           {date}
           {' '}
           {tab === 'ranking' ? ' · 当日榜单；数据范围独立于本页行情筛选' : ' · 近90天；数据范围独立于本页行情筛选'}
@@ -67,7 +68,7 @@ function MarketPanel({ date }: { date: string }) {
           <SourceBlock source={source} retry={state.retry} title={tab === 'funds' ? '沪深市场主力资金' : '交易所融资融券'} note={tab === 'funds' ? '东方财富主力资金口径，源金额为元，展示时换算为亿元。数据覆盖沪深市场，不含北交所。' : '趋势图为沪深两市合计，任一交易所缺失时保留断点；明细保留接口返回的各交易所，金额统一为亿元。'}>
             {tab === 'funds' ? (
               <>
-                <ResearchChart rows={rows} unit="亿元" series={[{ key: 'net_amount', name: '主力净流入', divisor: 1e8 }]} />
+                <ResearchChart rows={rows} unit="亿元" showAverage series={[{ key: 'net_amount', name: '主力净流入', divisor: 1e8 }]} />
                 <ResearchTable rows={rows} columns={[dateColumn('trade_date'), numberColumn('net_amount', '主力净流入（亿元）', 1e8, true), numberColumn('net_amount_rate', '净流入占比（%）', 1, true), numberColumn('buy_elg_amount', '超大单净流入（亿元）', 1e8, true), numberColumn('buy_lg_amount', '大单净流入（亿元）', 1e8, true)]} />
               </>
             ) : (

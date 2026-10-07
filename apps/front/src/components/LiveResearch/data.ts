@@ -34,6 +34,10 @@ export const dateText = (value: unknown) => {
   return /^\d{8}$/.test(raw) ? `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6)}` : '—';
 };
 export const newest = (rows: Row[], field = 'trade_date') => [...rows].sort((a, b) => String(b[field]).localeCompare(String(a[field])));
+export function researchAverage(rows: Row[], field: string, divisor = 1) {
+  const values = rows.map((row) => finiteNumber(row[field])).filter((value): value is number => value != null);
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length / divisor : null;
+}
 export function businessRows(rows: Row[]): Row[] {
   const period = newest(rows, 'end_date')[0]?.end_date;
   const map = new Map<string, Row>();

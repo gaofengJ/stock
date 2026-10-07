@@ -9,12 +9,12 @@ import request from '@/api/request';
 import Table from '@/components/DataTable';
 import CChart from '@/components/CChart';
 import { useSiteTheme } from '@/components/SiteTheme';
-import { chartPalette } from '@/colors';
+import { chartColors, chartPalette } from '@/colors';
 import {
   beijingTime, changeClass, finiteNumber, numberText, scaledNumber,
 } from '@/utils/format';
 import {
-  dateText, newest, Research, Row, Source, sourceLabels,
+  dateText, newest, researchAverage, Research, Row, Source, sourceLabels,
 } from './data';
 import './research.css';
 
@@ -80,8 +80,8 @@ export function ResearchTable({ rows, columns }: { rows: Row[]; columns: Columns
 }
 
 export function ResearchChart({
-  rows, field = 'trade_date', series, unit,
-}: { rows: Row[]; field?: string; series: { key: string; name: string; divisor?: number }[]; unit: string }) {
+  rows, field = 'trade_date', series, unit, showAverage = false,
+}: { rows: Row[]; field?: string; series: { key: string; name: string; divisor?: number }[]; unit: string; showAverage?: boolean }) {
   const { colors, mode } = useSiteTheme();
   const sorted = newest(rows, field).reverse();
   if (!sorted.some((r) => series.some((s) => finiteNumber(r[s.key]) != null))) return null;
@@ -103,9 +103,23 @@ export function ResearchChart({
         yAxis: {
           type: 'value', name: unit, axisLabel: { color: colors.secondary }, splitLine: { lineStyle: { color: colors.border } },
         },
-        series: series.map((s) => ({
-          name: s.name, type: 'line', connectNulls: false, showSymbol: false, data: sorted.map((r) => { const n = finiteNumber(r[s.key]); return n == null ? null : Number((n / (s.divisor || 1)).toFixed(4)); }),
-        })),
+        series: series.map((s) => {
+          const mean = showAverage ? researchAverage(sorted, s.key, s.divisor || 1) : null;
+          return {
+            name: s.name,
+            type: 'line' as const,
+            connectNulls: false,
+            showSymbol: false,
+            data: sorted.map((r) => { const n = finiteNumber(r[s.key]); return n == null ? null : n / (s.divisor || 1); }),
+            markLine: showAverage ? {
+              silent: true,
+              symbol: 'none',
+              lineStyle: { color: chartColors.reference, type: 'dashed' as const, width: 1 },
+              label: { position: 'insideEndTop' as const, formatter: '{b}', color: colors.secondary },
+              data: mean == null ? [] : [{ name: `区间均值 ${numberText(mean)} ${unit}`, yAxis: mean }],
+            } : undefined,
+          };
+        }),
       })}
     />
   );

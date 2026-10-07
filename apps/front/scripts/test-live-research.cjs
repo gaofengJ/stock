@@ -15,6 +15,15 @@ const format = load('utils/format.ts');
 const data = load('components/LiveResearch/data.ts', { '@/utils/format': format });
 const picks = load('app/basic/stock/broker-picks/display.ts', { '@/utils/format': format });
 
+test('capital mean uses valid days, includes zero and outflows, converts units once and retains precision', () => {
+  const rows = [{ net: -4e8 }, { net: 0 }, { net: '100000000' }, { net: null }, { net: '' }, { net: NaN }, { net: Infinity }];
+  assert.equal(data.researchAverage(rows, 'net', 1e8), -1);
+  assert.equal(data.researchAverage([{ net: 0 }], 'net', 1e8), 0);
+  assert.equal(data.researchAverage([{ net: 123456789 }, { net: 123456790 }], 'net', 1e8), 1.234567895);
+  assert.equal(data.researchAverage([], 'net', 1e8), null);
+  assert.equal(data.researchAverage([{ net: null }, { net: '' }, { net: Infinity }], 'net', 1e8), null);
+});
+
 test('business composition deduplicates revisions and never combines currencies or incomplete subtotals', () => {
   const rows = [
     { end_date: '20260630', bz_item: 'A', bz_code: 'P', curr_type: 'CNY', bz_sales: 10, update_flag: 0 },
