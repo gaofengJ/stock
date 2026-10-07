@@ -28,7 +28,18 @@
 .review-filters { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0 12px; }
 .review-filters .ant-select, .review-filters .ant-input-affix-wrapper { width: 220px; max-width: 100%; }
 .review-stock-name { display: block; font-weight: 600; }
-.review-stock-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 4px; }
+.review-stock-cell { display: grid; gap: 4px; }
+.review-stock-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.review-stock-heading > .review-caption { white-space: nowrap; }
+.review-stock-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+/* Align button text with the column heading while retaining its hit area. */
+.review-stock-cell .interaction-button.ant-btn { margin-inline-start: -7px; }
+.review-signal-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.review-risk-cell > .ant-space { display: flex; align-items: center; column-gap: 8px !important; row-gap: 8px !important; }
+.review-risk-cell > .ant-space > .ant-space-item:has(> .basic-muted) { flex-basis: 100%; line-height: 1.6; }
+.review-signal-tags .ant-tag, .review-risk-cell .ant-tag { margin: 0; }
+.review-page #review-candidate-table .ant-table-thead > tr > th,
+.review-page #review-candidate-table .ant-table-tbody > tr > td { padding: 12px; vertical-align: middle; }
 .review-plan .ant-card-head-title { white-space: normal; }
 .review-empty { padding: 16px; border: 1px dashed var(--color-border); border-radius: 6px; line-height: 1.8; }
 .review-picks, .review-day-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 16px; }
@@ -42,7 +53,6 @@
 .review-pick-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .review-field { display: block; margin: 0; }
 .review-field > span { display: block; margin-bottom: 6px; font-weight: 500; }
-.review-candidate-next { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
 .review-page .review-candidates .ant-table-wrapper .ant-table-pagination { margin-bottom: 0; }
 .review-details .ant-collapse-content-box > p { line-height: 1.8; margin: 0 0 12px; }
 .review-details .ant-collapse-content-box > p:last-child { margin-bottom: 0; }

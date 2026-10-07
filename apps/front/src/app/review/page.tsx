@@ -88,13 +88,6 @@ function Report({ date, account }: { date: string; account: number }) {
     document.getElementById(id)?.scrollIntoView({ block: 'start' });
     document.getElementById(`${id}-title`)?.focus({ preventScroll: true });
   };
-  const plan = (code?: string) => {
-    goToStep('review-plan');
-    const target = code || selected[0];
-    const field = document.getElementById(target ? `review-note-${target}` : 'review-focus');
-    field?.scrollIntoView({ block: 'nearest' });
-    field?.focus({ preventScroll: true });
-  };
   const candidatesTop = () => document.getElementById('review-candidates-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const riskLabel = (row: any) => {
     if (!row) return data ? '本次候选未包含，请重新确认' : '候选资料尚未取得';
@@ -220,9 +213,11 @@ function Report({ date, account }: { date: string; account: number }) {
                   key: 'stock',
                   width: 175,
                   render: (_, r: any) => (
-                    <div>
-                      <StockLink code={r.tsCode} name={r.name} date={date} onChart={() => setStock(r)} />
-                      <span className="review-caption">{r.tsCode}</span>
+                    <div className="review-stock-cell">
+                      <div className="review-stock-heading">
+                        <StockLink code={r.tsCode} name={r.name} date={date} onChart={() => setStock(r)} />
+                        <span className="review-caption">{r.tsCode}</span>
+                      </div>
                       <div className="review-stock-actions">
                         <RiskInspect code={r.tsCode} name={r.name} date={date} />
                       </div>
@@ -230,7 +225,7 @@ function Report({ date, account }: { date: string; account: number }) {
                   ),
                 },
                 {
-                  title: '入选线索', key: 'signals', width: 200, render: (_, r: any) => r.strategies.map((s: any) => <Tag key={s.key}>{s.label}</Tag>),
+                  title: '入选线索', key: 'signals', width: 200, render: (_, r: any) => <div className="review-signal-tags">{r.strategies.map((s: any) => <Tag key={s.key}>{s.label}</Tag>)}</div>,
                 },
                 {
                   title: '收盘价／元', dataIndex: 'close', width: 100, align: 'right', render: (v) => numberText(v),
@@ -246,18 +241,13 @@ function Report({ date, account }: { date: string; account: number }) {
                   key: 'risk',
                   width: 180,
                   render: (_, r: any) => (
-                    <>
-                      <Tag color={blocked(r) ? 'red' : 'orange'}>{blocked(r) ? '已知风险排除' : '待核验'}</Tag>
-                      <RiskTags data={risk.data} code={r.tsCode} date={date} />
-                    </>
+                    <div className="review-risk-cell">
+                      <RiskTags data={risk.data} code={r.tsCode} date={date} prefix={<Tag color={blocked(r) ? 'red' : 'orange'}>{blocked(r) ? '已知风险排除' : '待核验'}</Tag>} />
+                    </div>
                   ),
                 },
               ]}
             />
-          </div>
-          <div className="review-candidate-next">
-            <span className="review-caption">{`已选 ${selected.length}/3 只${selected.length ? '' : '，也可只记录市场计划'}`}</span>
-            <Button type="primary" onClick={() => plan()}>下一步：填写计划</Button>
           </div>
         </section>
         <section className="review-plan" id="review-plan" aria-labelledby="review-plan-title">

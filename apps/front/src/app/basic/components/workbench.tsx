@@ -136,8 +136,8 @@ export function SourceState({
   );
 }
 export function RiskTags({
-  data, code, date, showSourceState = true,
-}: { data: any; code: string; date?: string; showSourceState?: boolean }) {
+  data, code, date, showSourceState = true, prefix,
+}: { data: any; code: string; date?: string; showSourceState?: boolean; prefix?: React.ReactNode }) {
   const { user } = useAccount();
   const canLink = allowedPath(user, '/basic/stock/risk');
   const items = data?.items?.filter((r: any) => r.tsCode === code && (r.type !== '减持' || currentReduction(r, date || data?.date))) || [];
@@ -162,9 +162,10 @@ export function RiskTags({
     eventSourcesReady && !labels.length ? '已获取的状态与事件中暂无相关记录。' : '',
     '标签仅覆盖已取得的风险记录，具体影响需结合公告正文核实。',
   ].join('');
-  if (!showSourceState && !labels.length) return null;
+  if (!showSourceState && !labels.length && !prefix) return null;
   return (
     <Space size={2} wrap>
+      {prefix}
       {labels.map((label) => (canLink ? <Link key={label} href={`/basic/stock/risk/?code=${code}&date=${date || ''}`}><Tag color={label === '复牌' ? 'blue' : 'orange'}>{riskTypeLabel(label)}</Tag></Link> : <Tag color="orange" key={label}>{riskTypeLabel(label)}</Tag>))}
       {showSourceState && <Tooltip title={sourceTip}><span className="basic-muted">{summary}</span></Tooltip>}
     </Space>
