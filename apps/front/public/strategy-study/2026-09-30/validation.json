@@ -1,0 +1,1283 @@
+{
+  "partitionChecked": true,
+  "strategies": [
+    {
+      "key": "gapThreeUp",
+      "signals": 1678,
+      "stocks": 1218,
+      "readyDays": 250,
+      "screeningMissing": 0,
+      "summary": [
+        {
+          "horizon": 1,
+          "total": 1678,
+          "sample": 1671,
+          "average": 0.373602,
+          "median": -0.256422,
+          "wins": 791,
+          "riseRate": 47.336924,
+          "confidence": [
+            44.951833,
+            49.734231
+          ],
+          "pending": 3,
+          "inactive": 4,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 1671,
+          "benchmark": {
+            "sample": 1671,
+            "average": 0.103631,
+            "median": 0.136898
+          },
+          "excess": {
+            "sample": 1671,
+            "average": 0.26997,
+            "median": -0.455278
+          },
+          "outperformRate": 45.721125,
+          "outperformConfidence": [
+            43.345113,
+            48.116765
+          ]
+        },
+        {
+          "horizon": 3,
+          "total": 1678,
+          "sample": 1666,
+          "average": 0.234464,
+          "median": -0.529749,
+          "wins": 774,
+          "riseRate": 46.458583,
+          "confidence": [
+            44.074567,
+            48.858894
+          ],
+          "pending": 4,
+          "inactive": 8,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 1666,
+          "benchmark": {
+            "sample": 1666,
+            "average": 0.099594,
+            "median": 0.380506
+          },
+          "excess": {
+            "sample": 1666,
+            "average": 0.13487,
+            "median": -0.7704
+          },
+          "outperformRate": 45.438175,
+          "outperformConfidence": [
+            43.060476,
+            47.836863
+          ]
+        },
+        {
+          "horizon": 5,
+          "total": 1678,
+          "sample": 1655,
+          "average": 0.069893,
+          "median": -1.058445,
+          "wins": 742,
+          "riseRate": 44.833837,
+          "confidence": [
+            42.452537,
+            47.239063
+          ],
+          "pending": 15,
+          "inactive": 8,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 1655,
+          "benchmark": {
+            "sample": 1655,
+            "average": -0.116356,
+            "median": -0.288446
+          },
+          "excess": {
+            "sample": 1655,
+            "average": 0.186249,
+            "median": -0.91347
+          },
+          "outperformRate": 45.135952,
+          "outperformConfidence": [
+            42.75249,
+            47.541941
+          ]
+        },
+        {
+          "horizon": 10,
+          "total": 1678,
+          "sample": 1643,
+          "average": -0.130921,
+          "median": -2.592397,
+          "wins": 682,
+          "riseRate": 41.509434,
+          "confidence": [
+            39.149368,
+            43.909111
+          ],
+          "pending": 31,
+          "inactive": 4,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 1643,
+          "benchmark": {
+            "sample": 1643,
+            "average": -0.2639,
+            "median": -0.230254
+          },
+          "excess": {
+            "sample": 1643,
+            "average": 0.132979,
+            "median": -2.408463
+          },
+          "outperformRate": 41.87462,
+          "outperformConfidence": [
+            39.510736,
+            44.27641
+          ]
+        }
+      ]
+    },
+    {
+      "key": "gapTwoUp",
+      "signals": 3633,
+      "stocks": 2155,
+      "readyDays": 250,
+      "screeningMissing": 0,
+      "summary": [
+        {
+          "horizon": 1,
+          "total": 3633,
+          "sample": 3625,
+          "average": 0.079425,
+          "median": -0.368128,
+          "wins": 1682,
+          "riseRate": 46.4,
+          "confidence": [
+            44.781229,
+            48.026393
+          ],
+          "pending": 1,
+          "inactive": 7,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 3625,
+          "benchmark": {
+            "sample": 3625,
+            "average": 0.016447,
+            "median": 0.051549
+          },
+          "excess": {
+            "sample": 3625,
+            "average": 0.062978,
+            "median": -0.491968
+          },
+          "outperformRate": 45.103448,
+          "outperformConfidence": [
+            43.489643,
+            46.72762
+          ]
+        },
+        {
+          "horizon": 3,
+          "total": 3633,
+          "sample": 3611,
+          "average": 0.330562,
+          "median": -0.17301,
+          "wins": 1758,
+          "riseRate": 48.684575,
+          "confidence": [
+            47.056589,
+            50.315356
+          ],
+          "pending": 8,
+          "inactive": 14,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 3611,
+          "benchmark": {
+            "sample": 3611,
+            "average": 0.10998,
+            "median": 0.164144
+          },
+          "excess": {
+            "sample": 3611,
+            "average": 0.220582,
+            "median": -0.427274
+          },
+          "outperformRate": 46.662974,
+          "outperformConfidence": [
+            45.040204,
+            48.292837
+          ]
+        },
+        {
+          "horizon": 5,
+          "total": 3633,
+          "sample": 3590,
+          "average": 0.097246,
+          "median": -0.797203,
+          "wins": 1637,
+          "riseRate": 45.598886,
+          "confidence": [
+            43.975226,
+            47.231954
+          ],
+          "pending": 30,
+          "inactive": 13,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 3590,
+          "benchmark": {
+            "sample": 3590,
+            "average": 0.06893,
+            "median": 0.030595
+          },
+          "excess": {
+            "sample": 3590,
+            "average": 0.028317,
+            "median": -1.073921
+          },
+          "outperformRate": 44.011142,
+          "outperformConfidence": [
+            42.394597,
+            45.64049
+          ]
+        },
+        {
+          "horizon": 10,
+          "total": 3633,
+          "sample": 3531,
+          "average": -0.303664,
+          "median": -2.153638,
+          "wins": 1515,
+          "riseRate": 42.905692,
+          "confidence": [
+            41.281772,
+            44.545033
+          ],
+          "pending": 88,
+          "inactive": 14,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 3531,
+          "benchmark": {
+            "sample": 3531,
+            "average": -0.082278,
+            "median": 0.02768
+          },
+          "excess": {
+            "sample": 3531,
+            "average": -0.221386,
+            "median": -2.294006
+          },
+          "outperformRate": 41.914472,
+          "outperformConfidence": [
+            40.296641,
+            43.549876
+          ]
+        }
+      ]
+    },
+    {
+      "key": "gapThreeHighTurnover",
+      "signals": 3277,
+      "stocks": 2050,
+      "readyDays": 250,
+      "screeningMissing": 0,
+      "summary": [
+        {
+          "horizon": 1,
+          "total": 3277,
+          "sample": 3269,
+          "average": 0.002977,
+          "median": -0.484178,
+          "wins": 1470,
+          "riseRate": 44.96788,
+          "confidence": [
+            43.269481,
+            46.678092
+          ],
+          "pending": 3,
+          "inactive": 5,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 3269,
+          "benchmark": {
+            "sample": 3269,
+            "average": 0.055586,
+            "median": 0.080002
+          },
+          "excess": {
+            "sample": 3269,
+            "average": -0.052609,
+            "median": -0.587729
+          },
+          "outperformRate": 43.927807,
+          "outperformConfidence": [
+            42.234605,
+            45.635263
+          ]
+        },
+        {
+          "horizon": 3,
+          "total": 3277,
+          "sample": 3260,
+          "average": -0.167875,
+          "median": -0.775514,
+          "wins": 1458,
+          "riseRate": 44.723926,
+          "confidence": [
+            43.024348,
+            46.435924
+          ],
+          "pending": 8,
+          "inactive": 9,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 3260,
+          "benchmark": {
+            "sample": 3260,
+            "average": 0.081886,
+            "median": 0.230678
+          },
+          "excess": {
+            "sample": 3260,
+            "average": -0.249761,
+            "median": -1.001544
+          },
+          "outperformRate": 43.466258,
+          "outperformConfidence": [
+            41.773286,
+            45.17461
+          ]
+        },
+        {
+          "horizon": 5,
+          "total": 3277,
+          "sample": 3233,
+          "average": -0.244451,
+          "median": -1.238399,
+          "wins": 1410,
+          "riseRate": 43.612744,
+          "confidence": [
+            41.911927,
+            45.328721
+          ],
+          "pending": 37,
+          "inactive": 7,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 3233,
+          "benchmark": {
+            "sample": 3233,
+            "average": -0.05942,
+            "median": -0.221837
+          },
+          "excess": {
+            "sample": 3233,
+            "average": -0.185031,
+            "median": -1.24163
+          },
+          "outperformRate": 43.458088,
+          "outperformConfidence": [
+            41.758149,
+            45.173556
+          ]
+        },
+        {
+          "horizon": 10,
+          "total": 3277,
+          "sample": 3205,
+          "average": -0.449011,
+          "median": -2.456632,
+          "wins": 1336,
+          "riseRate": 41.684867,
+          "confidence": [
+            39.988892,
+            43.400752
+          ],
+          "pending": 66,
+          "inactive": 6,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 3205,
+          "benchmark": {
+            "sample": 3205,
+            "average": -0.138367,
+            "median": 0.048335
+          },
+          "excess": {
+            "sample": 3205,
+            "average": -0.310643,
+            "median": -2.377849
+          },
+          "outperformRate": 41.279251,
+          "outperformConfidence": [
+            39.586185,
+            42.993198
+          ]
+        }
+      ]
+    },
+    {
+      "key": "threeDaysHighVol",
+      "signals": 37893,
+      "stocks": 4292,
+      "readyDays": 250,
+      "screeningMissing": 0,
+      "summary": [
+        {
+          "horizon": 1,
+          "total": 37893,
+          "sample": 37807,
+          "average": -0.072188,
+          "median": -0.514291,
+          "wins": 16850,
+          "riseRate": 44.568466,
+          "confidence": [
+            44.068024,
+            45.070012
+          ],
+          "pending": 49,
+          "inactive": 37,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 37807,
+          "benchmark": {
+            "sample": 37807,
+            "average": 0.026748,
+            "median": 0.058534
+          },
+          "excess": {
+            "sample": 37807,
+            "average": -0.098936,
+            "median": -0.636258
+          },
+          "outperformRate": 43.089904,
+          "outperformConfidence": [
+            42.591466,
+            43.589746
+          ]
+        },
+        {
+          "horizon": 3,
+          "total": 37893,
+          "sample": 37717,
+          "average": 0.007328,
+          "median": -0.744048,
+          "wins": 16913,
+          "riseRate": 44.841849,
+          "confidence": [
+            44.340489,
+            45.344259
+          ],
+          "pending": 108,
+          "inactive": 68,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 37717,
+          "benchmark": {
+            "sample": 37717,
+            "average": 0.059398,
+            "median": 0.164144
+          },
+          "excess": {
+            "sample": 37717,
+            "average": -0.05207,
+            "median": -0.913558
+          },
+          "outperformRate": 43.50293,
+          "outperformConfidence": [
+            43.003292,
+            44.003891
+          ]
+        },
+        {
+          "horizon": 5,
+          "total": 37893,
+          "sample": 37530,
+          "average": -0.142513,
+          "median": -1.116345,
+          "wins": 16535,
+          "riseRate": 44.058087,
+          "confidence": [
+            43.556447,
+            44.560943
+          ],
+          "pending": 278,
+          "inactive": 85,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 37530,
+          "benchmark": {
+            "sample": 37530,
+            "average": -0.041329,
+            "median": 0.028329
+          },
+          "excess": {
+            "sample": 37530,
+            "average": -0.101184,
+            "median": -1.181187
+          },
+          "outperformRate": 43.434586,
+          "outperformConfidence": [
+            42.933805,
+            43.936711
+          ]
+        },
+        {
+          "horizon": 10,
+          "total": 37893,
+          "sample": 36491,
+          "average": -0.299072,
+          "median": -2.065718,
+          "wins": 15531,
+          "riseRate": 42.561179,
+          "confidence": [
+            42.054689,
+            43.069236
+          ],
+          "pending": 1314,
+          "inactive": 88,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 36491,
+          "benchmark": {
+            "sample": 36491,
+            "average": -0.120095,
+            "median": -0.050641
+          },
+          "excess": {
+            "sample": 36491,
+            "average": -0.178977,
+            "median": -2.101901
+          },
+          "outperformRate": 42.048724,
+          "outperformConfidence": [
+            41.543106,
+            42.556016
+          ]
+        }
+      ]
+    },
+    {
+      "key": "continuousGap",
+      "signals": 791,
+      "stocks": 577,
+      "readyDays": 250,
+      "screeningMissing": 0,
+      "summary": [
+        {
+          "horizon": 1,
+          "total": 791,
+          "sample": 786,
+          "average": 1.041047,
+          "median": 0.518706,
+          "wins": 415,
+          "riseRate": 52.798982,
+          "confidence": [
+            49.303841,
+            56.266897
+          ],
+          "pending": 1,
+          "inactive": 4,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 786,
+          "benchmark": {
+            "sample": 786,
+            "average": -0.021515,
+            "median": 0.017803
+          },
+          "excess": {
+            "sample": 786,
+            "average": 1.062562,
+            "median": 0.496424
+          },
+          "outperformRate": 52.671756,
+          "outperformConfidence": [
+            49.17675,
+            56.140773
+          ]
+        },
+        {
+          "horizon": 3,
+          "total": 791,
+          "sample": 775,
+          "average": 1.18902,
+          "median": -0.056306,
+          "wins": 383,
+          "riseRate": 49.419355,
+          "confidence": [
+            45.910947,
+            52.93349
+          ],
+          "pending": 3,
+          "inactive": 13,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 775,
+          "benchmark": {
+            "sample": 775,
+            "average": 0.038842,
+            "median": 0.071405
+          },
+          "excess": {
+            "sample": 775,
+            "average": 1.150179,
+            "median": -0.123282
+          },
+          "outperformRate": 49.290323,
+          "outperformConfidence": [
+            45.782668,
+            52.804978
+          ]
+        },
+        {
+          "horizon": 5,
+          "total": 791,
+          "sample": 777,
+          "average": 0.0201,
+          "median": -2.064694,
+          "wins": 330,
+          "riseRate": 42.471042,
+          "confidence": [
+            39.040864,
+            45.9753
+          ],
+          "pending": 5,
+          "inactive": 9,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 777,
+          "benchmark": {
+            "sample": 777,
+            "average": 0.001772,
+            "median": 0.011206
+          },
+          "excess": {
+            "sample": 777,
+            "average": 0.018328,
+            "median": -2.346336
+          },
+          "outperformRate": 42.599743,
+          "outperformConfidence": [
+            39.167575,
+            46.104723
+          ]
+        },
+        {
+          "horizon": 10,
+          "total": 791,
+          "sample": 765,
+          "average": -0.592862,
+          "median": -4.740149,
+          "wins": 300,
+          "riseRate": 39.215686,
+          "confidence": [
+            35.818066,
+            42.721073
+          ],
+          "pending": 20,
+          "inactive": 6,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 765,
+          "benchmark": {
+            "sample": 765,
+            "average": -0.056863,
+            "median": -0.050641
+          },
+          "excess": {
+            "sample": 765,
+            "average": -0.535999,
+            "median": -5.07307
+          },
+          "outperformRate": 38.562092,
+          "outperformConfidence": [
+            35.178213,
+            42.060267
+          ]
+        }
+      ]
+    },
+    {
+      "key": "shadowWrap",
+      "signals": 429,
+      "stocks": 395,
+      "readyDays": 250,
+      "screeningMissing": 0,
+      "summary": [
+        {
+          "horizon": 1,
+          "total": 429,
+          "sample": 428,
+          "average": -0.564481,
+          "median": -1.163282,
+          "wins": 175,
+          "riseRate": 40.88785,
+          "confidence": [
+            36.331367,
+            45.606449
+          ],
+          "pending": 0,
+          "inactive": 1,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 428,
+          "benchmark": {
+            "sample": 428,
+            "average": -0.003876,
+            "median": -0.003344
+          },
+          "excess": {
+            "sample": 428,
+            "average": -0.560604,
+            "median": -1.186442
+          },
+          "outperformRate": 39.485981,
+          "outperformConfidence": [
+            34.968195,
+            44.190823
+          ]
+        },
+        {
+          "horizon": 3,
+          "total": 429,
+          "sample": 427,
+          "average": -0.564664,
+          "median": -1.78713,
+          "wins": 180,
+          "riseRate": 42.154567,
+          "confidence": [
+            37.5612,
+            46.887836
+          ],
+          "pending": 0,
+          "inactive": 2,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 427,
+          "benchmark": {
+            "sample": 427,
+            "average": -0.094911,
+            "median": -0.044413
+          },
+          "excess": {
+            "sample": 427,
+            "average": -0.469753,
+            "median": -1.602914
+          },
+          "outperformRate": 42.154567,
+          "outperformConfidence": [
+            37.5612,
+            46.887836
+          ]
+        },
+        {
+          "horizon": 5,
+          "total": 429,
+          "sample": 419,
+          "average": -0.484543,
+          "median": -2.571638,
+          "wins": 170,
+          "riseRate": 40.572792,
+          "confidence": [
+            35.9774,
+            45.339475
+          ],
+          "pending": 8,
+          "inactive": 2,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 419,
+          "benchmark": {
+            "sample": 419,
+            "average": -0.078296,
+            "median": -0.052025
+          },
+          "excess": {
+            "sample": 419,
+            "average": -0.406247,
+            "median": -2.024788
+          },
+          "outperformRate": 41.288783,
+          "outperformConfidence": [
+            36.674414,
+            46.061432
+          ]
+        },
+        {
+          "horizon": 10,
+          "total": 429,
+          "sample": 409,
+          "average": 0.274777,
+          "median": -2.515723,
+          "wins": 174,
+          "riseRate": 42.542787,
+          "confidence": [
+            37.842514,
+            47.381839
+          ],
+          "pending": 19,
+          "inactive": 1,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 409,
+          "benchmark": {
+            "sample": 409,
+            "average": -0.112158,
+            "median": -0.050641
+          },
+          "excess": {
+            "sample": 409,
+            "average": 0.386935,
+            "median": -2.720518
+          },
+          "outperformRate": 43.031785,
+          "outperformConfidence": [
+            38.320149,
+            47.873098
+          ]
+        }
+      ]
+    },
+    {
+      "key": "volumeBreakout",
+      "signals": 24727,
+      "stocks": 5069,
+      "readyDays": 250,
+      "screeningMissing": 0,
+      "summary": [
+        {
+          "horizon": 1,
+          "total": 24727,
+          "sample": 24623,
+          "average": -0.042967,
+          "median": -0.673397,
+          "wins": 10440,
+          "riseRate": 42.399383,
+          "confidence": [
+            41.783351,
+            43.017785
+          ],
+          "pending": 48,
+          "inactive": 56,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 24623,
+          "benchmark": {
+            "sample": 24623,
+            "average": -0.02638,
+            "median": 0.037954
+          },
+          "excess": {
+            "sample": 24623,
+            "average": -0.016587,
+            "median": -0.698572
+          },
+          "outperformRate": 42.163831,
+          "outperformConfidence": [
+            41.548295,
+            42.78181
+          ]
+        },
+        {
+          "horizon": 3,
+          "total": 24727,
+          "sample": 24509,
+          "average": -0.151658,
+          "median": -1.069509,
+          "wins": 10379,
+          "riseRate": 42.347709,
+          "confidence": [
+            41.730357,
+            42.967459
+          ],
+          "pending": 147,
+          "inactive": 71,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 24509,
+          "benchmark": {
+            "sample": 24509,
+            "average": -0.064509,
+            "median": 0.064637
+          },
+          "excess": {
+            "sample": 24509,
+            "average": -0.087149,
+            "median": -1.073297
+          },
+          "outperformRate": 42.490514,
+          "outperformConfidence": [
+            41.872866,
+            43.110515
+          ]
+        },
+        {
+          "horizon": 5,
+          "total": 24727,
+          "sample": 24287,
+          "average": -0.443101,
+          "median": -1.613771,
+          "wins": 9947,
+          "riseRate": 40.956067,
+          "confidence": [
+            40.33909,
+            41.575905
+          ],
+          "pending": 356,
+          "inactive": 84,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 24287,
+          "benchmark": {
+            "sample": 24287,
+            "average": -0.093215,
+            "median": -0.052025
+          },
+          "excess": {
+            "sample": 24287,
+            "average": -0.349886,
+            "median": -1.603464
+          },
+          "outperformRate": 40.816074,
+          "outperformConfidence": [
+            40.199446,
+            41.435608
+          ]
+        },
+        {
+          "horizon": 10,
+          "total": 24727,
+          "sample": 23745,
+          "average": -0.325821,
+          "median": -2.132988,
+          "wins": 9864,
+          "riseRate": 41.541377,
+          "confidence": [
+            40.915998,
+            42.169493
+          ],
+          "pending": 909,
+          "inactive": 73,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 23745,
+          "benchmark": {
+            "sample": 23745,
+            "average": -0.072002,
+            "median": -0.11281
+          },
+          "excess": {
+            "sample": 23745,
+            "average": -0.253818,
+            "median": -2.194731
+          },
+          "outperformRate": 40.71594,
+          "outperformConfidence": [
+            40.092587,
+            41.342297
+          ]
+        }
+      ]
+    },
+    {
+      "key": "breakoutPullback",
+      "signals": 12243,
+      "stocks": 3859,
+      "readyDays": 250,
+      "screeningMissing": 0,
+      "summary": [
+        {
+          "horizon": 1,
+          "total": 12243,
+          "sample": 12213,
+          "average": -0.033636,
+          "median": -0.394474,
+          "wins": 5171,
+          "riseRate": 42.340129,
+          "confidence": [
+            41.466378,
+            43.218697
+          ],
+          "pending": 24,
+          "inactive": 6,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 12213,
+          "benchmark": {
+            "sample": 12213,
+            "average": 0.000234,
+            "median": 0.051549
+          },
+          "excess": {
+            "sample": 12213,
+            "average": -0.03387,
+            "median": -0.416339
+          },
+          "outperformRate": 42.340129,
+          "outperformConfidence": [
+            41.466378,
+            43.218697
+          ]
+        },
+        {
+          "horizon": 3,
+          "total": 12243,
+          "sample": 12147,
+          "average": 0.045001,
+          "median": -0.544366,
+          "wins": 5340,
+          "riseRate": 43.961472,
+          "confidence": [
+            43.080859,
+            44.845903
+          ],
+          "pending": 74,
+          "inactive": 22,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 12147,
+          "benchmark": {
+            "sample": 12147,
+            "average": -0.039997,
+            "median": 0.138771
+          },
+          "excess": {
+            "sample": 12147,
+            "average": 0.084999,
+            "median": -0.531174
+          },
+          "outperformRate": 44.142587,
+          "outperformConfidence": [
+            43.261531,
+            45.027346
+          ]
+        },
+        {
+          "horizon": 5,
+          "total": 12243,
+          "sample": 12084,
+          "average": 0.047645,
+          "median": -0.72365,
+          "wins": 5310,
+          "riseRate": 43.942403,
+          "confidence": [
+            43.059551,
+            44.829105
+          ],
+          "pending": 135,
+          "inactive": 24,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 12084,
+          "benchmark": {
+            "sample": 12084,
+            "average": -0.045496,
+            "median": 0.030595
+          },
+          "excess": {
+            "sample": 12084,
+            "average": 0.093141,
+            "median": -0.686765
+          },
+          "outperformRate": 44.59616,
+          "outperformConfidence": [
+            43.711756,
+            45.483999
+          ]
+        },
+        {
+          "horizon": 10,
+          "total": 12243,
+          "sample": 11979,
+          "average": 0.076569,
+          "median": -1.165614,
+          "wins": 5174,
+          "riseRate": 43.192253,
+          "confidence": [
+            42.307532,
+            44.081339
+          ],
+          "pending": 242,
+          "inactive": 22,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 11979,
+          "benchmark": {
+            "sample": 11979,
+            "average": -0.197514,
+            "median": -0.261033
+          },
+          "excess": {
+            "sample": 11979,
+            "average": 0.274082,
+            "median": -0.930589
+          },
+          "outperformRate": 44.202354,
+          "outperformConfidence": [
+            43.315012,
+            45.093413
+          ]
+        }
+      ]
+    },
+    {
+      "key": "fiveMaUp",
+      "signals": 13998,
+      "stocks": 3723,
+      "readyDays": 250,
+      "screeningMissing": 0,
+      "summary": [
+        {
+          "horizon": 1,
+          "total": 13998,
+          "sample": 13956,
+          "average": 0.060119,
+          "median": -0.34344,
+          "wins": 6267,
+          "riseRate": 44.905417,
+          "confidence": [
+            44.081708,
+            45.73193
+          ],
+          "pending": 29,
+          "inactive": 13,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 13956,
+          "benchmark": {
+            "sample": 13956,
+            "average": 0.031107,
+            "median": 0.058534
+          },
+          "excess": {
+            "sample": 13956,
+            "average": 0.029011,
+            "median": -0.450431
+          },
+          "outperformRate": 43.823445,
+          "outperformConfidence": [
+            43.002069,
+            44.64822
+          ]
+        },
+        {
+          "horizon": 3,
+          "total": 13998,
+          "sample": 13921,
+          "average": 0.116456,
+          "median": -0.571672,
+          "wins": 6353,
+          "riseRate": 45.636089,
+          "confidence": [
+            44.809993,
+            46.464593
+          ],
+          "pending": 49,
+          "inactive": 28,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 13921,
+          "benchmark": {
+            "sample": 13921,
+            "average": -0.033633,
+            "median": 0.138771
+          },
+          "excess": {
+            "sample": 13921,
+            "average": 0.15009,
+            "median": -0.661495
+          },
+          "outperformRate": 44.845916,
+          "outperformConfidence": [
+            44.021293,
+            45.673383
+          ]
+        },
+        {
+          "horizon": 5,
+          "total": 13998,
+          "sample": 13884,
+          "average": 0.103801,
+          "median": -0.920075,
+          "wins": 6195,
+          "riseRate": 44.619706,
+          "confidence": [
+            43.794448,
+            45.447941
+          ],
+          "pending": 75,
+          "inactive": 39,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 13884,
+          "benchmark": {
+            "sample": 13884,
+            "average": -0.052453,
+            "median": 0.06983
+          },
+          "excess": {
+            "sample": 13884,
+            "average": 0.156254,
+            "median": -0.993453
+          },
+          "outperformRate": 44.000288,
+          "outperformConfidence": [
+            43.176381,
+            44.827515
+          ]
+        },
+        {
+          "horizon": 10,
+          "total": 13998,
+          "sample": 13758,
+          "average": -0.078158,
+          "median": -1.912439,
+          "wins": 5841,
+          "riseRate": 42.455299,
+          "confidence": [
+            41.631595,
+            43.283214
+          ],
+          "pending": 193,
+          "inactive": 47,
+          "missing": 0,
+          "benchmarkMissing": 0,
+          "paired": 13758,
+          "benchmark": {
+            "sample": 13758,
+            "average": -0.146188,
+            "median": -0.11281
+          },
+          "excess": {
+            "sample": 13758,
+            "average": 0.06803,
+            "median": -1.847516
+          },
+          "outperformRate": 42.259049,
+          "outperformConfidence": [
+            41.435908,
+            43.086513
+          ]
+        }
+      ]
+    }
+  ],
+  "quality": {
+    "dailyReady": 372,
+    "factorReady": 372,
+    "missingDaily": [],
+    "missingFactors": [],
+    "benchmarkMissing": [],
+    "screeningMissing": 0,
+    "identityAsOf": "2026-10-07"
+  }
+}

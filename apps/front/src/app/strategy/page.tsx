@@ -215,7 +215,7 @@ function StrategyPage() {
         <div hidden={view !== 'comparison'}><CandidateComparison loadingCandidates={loadingCandidates} date={date} allCandidates={tableLoading || !listCurrent ? [] : items} candidates={tableLoading ? [] : decorated} active={view === 'comparison'} strategies={navList} onStock={openStock} /></div>
         <div hidden={view !== 'performance'}><SignalPerformance date={date} strategy={strategy} sector={sector} active={view === 'performance'} onStock={(row, rows) => { setChartList(rows.map((r) => ({ ...r, tsCode: r.code }))); setObservation({ ...row, tsCode: row.code }); }} /></div>
         <StockChart navigation={chartList} onNavigate={setSelectedStock} stock={selectedStock} date={date} strategy={strategy} options={{ ...options, ...(hasTurnoverFilter ? { minTurnoverRateF } : {}) }} onClose={() => setSelectedStock(null)} />
-        <StockChart navigation={chartList} onNavigate={setObservation} stock={observation} date={observation?.date || date} strategy={strategy} options={trendDefaults} onClose={() => setObservation(null)} />
+        <StockChart navigation={chartList} onNavigate={setObservation} stock={observation} date={observation?.date || date} strategy={observation?.studyStrategy || strategy} options={trendDefaults} onClose={() => setObservation(null)} />
       </div>
     </Layout>
   );
