@@ -165,7 +165,8 @@ function MapViewer({ map, version }: { map: GuideMap; version: string }) {
       open
       title="思维导图全屏"
       width="100vw"
-      style={{ top: 0, maxWidth: '100vw', paddingBottom: 0 }}
+      style={{ top: 0, maxWidth: '100vw', paddingBottom: 0, margin: 0 }}
+      styles={{ content: { height: '100dvh', borderRadius: 0, display: 'flex', flexDirection: 'column', padding: 16 }, body: { flex: 1, minHeight: 0 } }}
       className="guide-fullscreen-modal"
       footer={null}
       closable={false}

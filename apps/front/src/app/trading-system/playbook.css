@@ -52,9 +52,6 @@
 .trading-system-page { max-width: 1600px; margin: 0 auto; }
 .guide-executive-summary { margin: 16px 0; padding: 16px 20px; background: var(--color-surface-muted); border-left: 3px solid var(--color-primary); border-radius: 6px; }
 .guide-executive-summary .guide-node-details li:last-child { margin-bottom: 0; }
-.guide-fullscreen-modal.ant-modal { margin: 0; }
-.guide-fullscreen-modal .ant-modal-content { height: 100dvh; border-radius: 0; display: flex; flex-direction: column; padding: 16px; }
-.guide-fullscreen-modal .ant-modal-body { flex: 1; min-height: 0; }
 .guide-fullscreen-viewer { display: flex; flex-direction: column; height: 100%; min-height: 0; color: var(--color-black); }
 .guide-fullscreen-viewer .guide-workspace { flex: 1; min-height: 0; }
 .guide-fullscreen-viewer .guide-map-viewport { height: 100%; min-height: 0; }
@@ -62,4 +59,4 @@
 .guide-fullscreen-viewer .guide-outline { flex: 1; min-height: 0; overflow: auto; }
 .guide-fullscreen-viewer .guide-search-results { max-height: 120px; overflow: auto; flex-shrink: 0; }
 @media (max-width: 1100px) { .guide-fullscreen-viewer .guide-workspace { grid-template-rows: minmax(160px, 1fr) minmax(0, .6fr); } }
-@media (max-width: 600px) { .guide-fullscreen-modal .ant-modal-content { padding: 12px; } .guide-fullscreen-viewer .guide-map-heading p, .guide-fullscreen-viewer .guide-footnote { display: none; } .guide-fullscreen-viewer .guide-toolbar { gap: 8px; margin: 8px 0; } }
+@media (max-width: 600px) { .guide-fullscreen-viewer .guide-map-heading p, .guide-fullscreen-viewer .guide-footnote { display: none; } .guide-fullscreen-viewer .guide-toolbar { gap: 8px; margin: 8px 0; } }
