@@ -11,7 +11,13 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
+          command_timeout: 40m
           script: |
+            set -eu
+            if ! docker inspect stock-blog >/dev/null 2>&1; then
+              docker run --restart unless-stopped -d -p 8082:80 --name stock-blog registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-blog:178fd09a2f2e902e7fc74f66116887a05de3dc38
+            fi
+            echo 'Previous article service restored while the new image downloads.'
             echo 'Running Docker operations (arguments omitted):'
             ps -eo pid,etime,args | awk '$3 ~ /(^|\/)docker$/ {print $1,$2,$3,$4}'
             echo 'Article containers:'
