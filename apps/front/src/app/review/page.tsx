@@ -25,6 +25,7 @@ import { currentReduction } from '../basic/components/risk-display';
 import Holdings from './Holdings';
 import useReviewDraft from './useReviewDraft';
 import { compareCap, validDate } from './review-interactions';
+import { ReviewDocument, reviewMarkdown } from './review-document';
 import '../strategy/strategy.sass';
 import './review.css';
 
@@ -44,6 +45,7 @@ function Report({ date, account }: { date: string; account: number }) {
   const [holdingsResult, setHoldingsResult] = useState<any>(null);
   const [exported, setExported] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [preview, setPreview] = useState<ReviewDocument | null>(null);
   useEffect(() => { setScrollContainer(document.querySelector<HTMLElement>('.platform-content') || undefined); }, []);
   useEffect(() => { setPage(1); }, [filter, keyword, strategy]);
   const {
@@ -98,20 +100,66 @@ function Report({ date, account }: { date: string; account: number }) {
   let sortCaption = '当前使用候选原始顺序';
   if (sortOrder === 'ascend') sortCaption = '当前按流通市值从小到大排列';
   if (sortOrder === 'descend') sortCaption = '当前按流通市值从大到小排列';
+  const openPreview = () => {
+    setExported(false);
+    setPreview({
+      title: `${date} 每日复盘与下一交易日计划`,
+      filename: `每日复盘-${date}.md`,
+      metadata: [
+        `候选生成时间：${data?.generatedAt ? beijingTime(data.generatedAt) : '尚未取得'}`,
+        `计划生成时间：${beijingTime(new Date().toISOString())}`,
+        '候选范围：全部策略默认参数，合并重复股票；总市值小于200亿元，默认按流通市值从小到大排列。',
+      ],
+      sections: [
+        {
+          title: '观察名单',
+          paragraphs: chosen.length ? [] : ['本次未选观察股票。'],
+          items: chosen.map(({ name, tsCode, row }) => ({
+            title: `${row?.name || name} ${tsCode}`,
+            fields: [
+              { label: '入选线索', text: row?.strategies?.map((s: any) => s.label).join('、') || '候选资料待确认' },
+              { label: '风险资料状态', text: riskLabel(row) },
+              { label: '观察理由与触发条件', text: draft.notes[tsCode] || '待填写' },
+              { label: '人工风险核验记录', text: draft.riskNotes[tsCode] || '未记录' },
+            ],
+          })),
+        },
+        {
+          title: '下一交易日计划',
+          fields: [
+            { label: '重点观察', text: draft.focus || '待填写' },
+            { label: '放弃或退出条件', text: draft.exit || '待填写' },
+            { label: '新机会与持仓比较', text: draft.reason || '未填写' },
+          ],
+        },
+        ...(holdingsResult ? [{
+          title: '本次持仓分析',
+          paragraphs: holdingsResult.note ? [holdingsResult.note] : [],
+          items: holdingsResult.items.map((r: any) => ({
+            title: `${r.name} ${r.code}`,
+            fields: [
+              { label: '持仓情况', text: `持有 ${r.heldDays ?? '未知'} 个交易日；收盘 ${numberText(r.close)} 元；成本价格差 ${numberText(r.profitPct)}%；${r.ma5.label}，MA5 ${numberText(r.ma5.ma5)}。` },
+              { label: '观察记录', text: r.timeReview || '暂无记录' },
+              { label: '原买入理由', text: r.rationale || '未输入' },
+            ],
+          })),
+        }] : []),
+        {
+          title: '数据与核验说明',
+          paragraphs: [
+            '人工记录仅为本次复盘笔记；风险资料状态单独列示。请结合公告原文记录减持、重大利空及财务审计等事项的核验结论与时间。',
+            `数据说明：${data?.riskNote || '候选资料尚未取得。'} 历史日期按当前可用资料回看。`,
+            ...(data && !data.complete ? ['部分策略未取得结果，候选范围不完整。'] : []),
+          ],
+        },
+      ],
+    });
+  };
   const download = () => {
-    const text = [
-      `# ${date} 每日复盘与下一交易日计划`,
-      `候选生成时间：${data?.generatedAt ? beijingTime(data.generatedAt) : '尚未取得'}；导出时间：${beijingTime(new Date().toISOString())}。`,
-      '候选范围：全部策略默认参数，合并重复股票；总市值小于200亿元，默认按流通市值从小到大排列。',
-      '## 观察名单',
-      ...(chosen.length ? chosen.map(({ name, tsCode, row }) => `- ${row?.name || name} ${tsCode}：${row?.strategies?.map((s: any) => s.label).join('、') || '候选资料待确认'}；${riskLabel(row)}。\n  看图与观察条件：${draft.notes[tsCode] || '待填写'}\n  人工风险核验记录：${draft.riskNotes[tsCode] || '未记录'}`) : ['本次未选观察股票。']),
-      `## 下一交易日计划\n重点观察：${draft.focus || '待填写'}\n放弃／退出条件：${draft.exit || '待填写'}\n新机会与持仓比较：${draft.reason || '未填写'}`,
-      ...(holdingsResult ? ['## 本次持仓分析', ...holdingsResult.items.map((r: any) => `- ${r.name} ${r.code}：持有 ${r.heldDays ?? '未知'} 个交易日；收盘 ${numberText(r.close)} 元；成本价格差 ${numberText(r.profitPct)}%；${r.ma5.label}，MA5 ${numberText(r.ma5.ma5)}。\n  ${r.timeReview}\n  原买入理由：${r.rationale || '未输入'}`), holdingsResult.note || ''] : []),
-      '## 数据与核验说明\n人工记录仅为本次复盘笔记；风险资料状态单独列示。请结合公告原文记录减持、重大利空及财务审计等事项的核验结论与时间。',
-      `数据说明：${data?.riskNote || '候选资料尚未取得。'} 历史日期按当前可用资料回看。`,
-    ].join('\n\n');
+    if (!preview) return;
+    const text = reviewMarkdown(preview);
     const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown;charset=utf-8' }));
-    const a = document.createElement('a'); a.href = url; a.download = `每日复盘-${date}.md`; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = preview.filename; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     setExported(true);
   };
@@ -132,7 +180,7 @@ function Report({ date, account }: { date: string; account: number }) {
         {[
           ['review-market', '看市场背景', '查看涨跌、均线与成交情况'],
           ['review-candidates', '筛选观察股票', '看K线和风险资料，选择0–3只股票'],
-          ['review-plan', '填写并导出计划', '核验名单，记录下一交易日计划'],
+          ['review-plan', '填写并预览计划', '记录下一交易日计划，预览复盘结果'],
         ].map(([id, title, description], i) => (
           <button type="button" className="review-step" key={id} aria-label={`第${i + 1}步：${title}`} aria-controls={id} onClick={() => goToStep(id)}>
             <span className="review-step-number">{i + 1}</span>
@@ -256,7 +304,7 @@ function Report({ date, account }: { date: string; account: number }) {
               <div className="review-plan-title">
                 <h2 id="review-plan-title" tabIndex={-1} className="review-step-title">
                   <span className="review-step-number">3</span>
-                  填写并导出计划
+                  填写并预览计划
                 </h2>
                 <span className="review-caption">{`${selected.length}/3只`}</span>
               </div>
@@ -330,17 +378,71 @@ function Report({ date, account }: { date: string; account: number }) {
             </div>
             <div className="review-plan-footer">
               <div className="review-plan-actions">
-                <Button type="primary" disabled={!ready} onClick={download}>导出复盘与计划</Button>
-                <span className="review-caption">Markdown 文件</span>
+                <Button type="primary" disabled={!ready} onClick={openPreview}>预览复盘与计划</Button>
+                <span className="review-caption">预览中可导出 Markdown 文件</span>
               </div>
               <p role="status" className="review-caption">
-                {exported ? '已导出，请查看浏览器下载。' : ''}
                 {status}
               </p>
             </div>
           </Card>
         </section>
       </div>
+      <Modal
+        title="复盘与计划预览"
+        open={!!preview}
+        onCancel={() => setPreview(null)}
+        width={860}
+        className="review-preview-modal"
+        destroyOnClose
+        footer={(
+          <div className="review-preview-footer">
+            <span role="status" className="review-caption">{exported ? '已导出，请查看浏览器下载。' : '可关闭预览继续编辑。'}</span>
+            <Space>
+              <Button onClick={() => setPreview(null)}>返回编辑</Button>
+              <Button type="primary" onClick={download}>导出 Markdown</Button>
+            </Space>
+          </div>
+        )}
+      >
+        {preview && (
+          <article className="review-preview-document">
+            <header>
+              <h2>{preview.title}</h2>
+              {preview.metadata.map((text) => <p className="review-caption" key={text}>{text}</p>)}
+            </header>
+            {preview.sections.map((section) => (
+              <section key={section.title}>
+                <h3>{section.title}</h3>
+                {section.paragraphs?.map((text) => <p key={text}>{text}</p>)}
+                {section.fields && (
+                  <dl>
+                    {section.fields.map((field) => (
+                      <div key={field.label}>
+                        <dt>{field.label}</dt>
+                        <dd>{field.text}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+                {section.items?.map((item) => (
+                  <div className="review-preview-stock" key={item.title}>
+                    <h4>{item.title}</h4>
+                    <dl>
+                      {item.fields.map((field) => (
+                        <div key={field.label}>
+                          <dt>{field.label}</dt>
+                          <dd>{field.text}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                ))}
+              </section>
+            ))}
+          </article>
+        )}
+      </Modal>
       <Modal title="复盘说明" open={helpOpen} onCancel={() => setHelpOpen(false)} footer={<Button onClick={() => setHelpOpen(false)}>知道了</Button>}>
         <div className="review-help-content">
           <p>候选使用全部策略默认参数，合并重复股票。观察名单最多3只，限定总市值小于200亿元，排除已知ST、停牌和进行中的已核实减持计划。</p>

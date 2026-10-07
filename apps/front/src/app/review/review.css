@@ -65,6 +65,28 @@
 .review-plan-footer { display: grid; gap: 12px; padding-top: 24px; border-top: 1px solid var(--color-border); }
 .review-plan-footer .review-plan-actions { justify-content: flex-start; margin: 0; }
 .review-plan-footer p { margin: 0; }
+.review-preview-modal.ant-modal { top: 24px; padding-bottom: 24px; }
+body:has(.review-preview-modal) .platform-content:has(.review-page) { overflow: hidden; scrollbar-gutter: stable; }
+.review-preview-modal .ant-modal-body { max-height: calc(100dvh - 200px); overflow-y: auto; overscroll-behavior: contain; }
+.review-preview-document { display: grid; gap: 24px; padding-right: 12px; overflow-wrap: anywhere; }
+.review-preview-document h2 { margin: 0 0 12px; font-size: 20px; line-height: 1.5; }
+.review-preview-document h3 { margin: 0 0 16px; font-size: 16px; }
+.review-preview-document h4 { margin: 0 0 12px; font-size: 14px; }
+.review-preview-document p { margin: 0; white-space: pre-wrap; line-height: 1.8; }
+.review-preview-document p + p { margin-top: 8px; }
+.review-preview-document dl { display: grid; gap: 12px; margin: 0; }
+.review-preview-document dt { margin-bottom: 4px; font-weight: 500; color: var(--text-secondary); }
+.review-preview-document dd { margin: 0; white-space: pre-wrap; line-height: 1.8; }
+.review-preview-stock { padding: 16px; border: 1px solid var(--color-border); border-radius: 6px; }
+.review-preview-stock + .review-preview-stock { margin-top: 12px; }
+.review-preview-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+@media (max-width: 767px) {
+  .review-preview-modal.ant-modal { top: 16px; padding-bottom: 16px; }
+  .review-preview-modal .ant-modal-content { padding: 16px; }
+  .review-preview-document { padding-right: 8px; }
+  .review-preview-document h2 { font-size: 16px; }
+  .review-preview-footer .ant-space { margin-left: auto; }
+}
 .review-help-content { display: grid; gap: 16px; }
 .review-help-content > p { margin: 0; line-height: 1.8; }
 .review-selection { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px; margin-bottom: 12px; background: var(--color-surface-muted); border-radius: 6px; }
