@@ -58,7 +58,7 @@ onMounted(async () => {
   let restored = false;
   try {
     const saved = JSON.parse(sessionStorage.getItem(storageKey) || 'null');
-    if (saved && years.some(item => item.year === saved.year)
+    if (saved && saved.latestDate === catalog.latestDate && years.some(item => item.year === saved.year)
       && (saved.month === '' || new RegExp(`^${saved.year}-(0[1-9]|1[0-2])$`).test(saved.month))
       && (saved.date === '' || (archiveDate({text: saved.date, link: ''}) === saved.date && saved.date.startsWith(saved.year)))) {
       year.value = saved.year; month.value = saved.month; date.value = saved.date; restored = true;
@@ -70,15 +70,15 @@ onMounted(async () => {
 });
 onBeforeUnmount(() => {
   ++request;
-  try { sessionStorage.setItem(storageKey, JSON.stringify({ year: year.value, month: month.value, date: date.value })); }
+  try { sessionStorage.setItem(storageKey, JSON.stringify({ year: year.value, month: month.value, date: date.value, latestDate: catalog.latestDate })); }
   catch { /* Browsing still works if storage is disabled. */ }
 });
 </script>
 
 <template>
   <section class="review-archive" data-pagefind-ignore>
-    <div class="library-status"><span>复盘资料截至 <time>{{ catalog.latestDate }}</time></span><span>原文与历史整理资料</span></div>
-    <p>按日期回看市场记录，按年份阅读精华整理。这里保存历史资料，并非每日实时更新。</p>
+    <div class="library-status"><span>复盘资料截至 <time>{{ catalog.latestDate }}</time></span><span>作者：爱在冰川</span><span>本站收录与整理</span></div>
+    <p>按日期回看爱在冰川的市场复盘，按年份阅读精华整理。这里保存历史资料，并非每日实时更新。</p>
     <nav class="archive-shortcuts" aria-label="复盘资料入口"><a href="#每日复盘">每日复盘</a><a href="#年度精华">年度精华</a><a :href="withBase('/reviews/aizaibingchuan/strategies/')">交易战法</a></nav>
     <section aria-labelledby="每日复盘">
       <h2 id="每日复盘">每日复盘</h2>

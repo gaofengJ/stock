@@ -167,7 +167,7 @@ export default defineComponent({
       if (!index.value) return error.value ? h('p', { class: 'archive-empty', role: 'status' }, error.value) : null;
 
       return h('section', { class: 'aizaibingchuan-archive' }, [
-        h('a', { class: 'archive-all-link', href: withBase('/reviews/') }, '全部复盘与年度精华'),
+        h('a', { class: 'archive-all-link', href: withBase('/reviews/') }, '爱在冰川复盘与年度精华'),
         h('label', { class: 'archive-date-filter' }, ['筛选复盘日期', h('input', {
           type: 'date', value: selectedDate.value,
           onChange: async (event: Event) => {

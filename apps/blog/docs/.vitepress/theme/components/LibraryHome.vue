@@ -21,7 +21,7 @@ onMounted(() => { previous.value = readings()[0]; });
     <p v-if="catalog.importFailures" role="status">历史导入报告记录 {{ catalog.importFailures }} 篇失败，已收录内容仍可阅读。</p>
     <a v-if="previous" class="library-resume" :href="previous.path">继续上次阅读：{{ previous.title }}</a>
     <section class="library-feature">
-      <div><span class="library-eyebrow">历史复盘</span><h2>复盘文档</h2><p>{{ reviewCategory?.count.toLocaleString('zh-CN') }} 篇资料，按日期查阅每日复盘，按年份阅读精华整理。</p></div>
+      <div><span class="library-eyebrow">爱在冰川的历史复盘</span><h2>复盘文档</h2><p>本站收录与整理 {{ reviewCategory?.count.toLocaleString('zh-CN') }} 篇资料，按日期查阅每日复盘，按年份阅读精华。</p></div>
       <div class="library-actions"><a class="library-primary" :href="withBase('/reviews/')">查阅每日复盘</a><a :href="withBase('/reviews/#年度精华')">阅读年度精华</a></div>
     </section>
     <h2>交易知识</h2>
