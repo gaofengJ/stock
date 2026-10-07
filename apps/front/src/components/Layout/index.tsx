@@ -99,6 +99,11 @@ const CommonLayout: React.FC<ILayoutProps> = ({
   );
   const accountName = user?.nickname || user?.username || '我的账户';
   const visible = (items: MenuProps['items']) => items?.filter((item) => item && allowedPath(user, String(item.key)));
+  const navigationItems = visible([
+    ...(headerMenuItems || []),
+    { key: '/admin', label: adminLabel },
+    { key: '/trading-system', label: '交易体系' },
+  ]);
 
   const { getAllOptions } = useOptionsState();
 
@@ -148,7 +153,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
         <Menu
           mode="horizontal"
           selectedKeys={[headerMenuActive]}
-          items={visible([...(headerMenuItems || []), { key: '/admin', label: adminLabel }])}
+          items={navigationItems}
           onClick={handleHeaderMenuSelect}
           className="platform-nav"
           style={{ borderBottom: 'none', minWidth: 0, flex: '1 1 auto' }}
@@ -271,7 +276,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
         ) : null}
         {mobile && (
           <Drawer title="栏目导航" placement="left" width={280} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-            <Menu mode="inline" selectedKeys={[headerMenuActive]} items={visible([...(headerMenuItems || []), { key: '/admin', label: adminLabel }])} onClick={handleHeaderMenuSelect} />
+            <Menu mode="inline" selectedKeys={[headerMenuActive]} items={navigationItems} onClick={handleHeaderMenuSelect} />
             {showAsideMenu && !!asideMenuItems?.length && (
               <>
                 <p className="drawer-section-label">当前栏目</p>

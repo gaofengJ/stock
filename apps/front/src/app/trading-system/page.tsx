@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {
-  Alert, Button, Empty, Input, Result, Segmented, Skeleton, Tabs, Tag,
+  Alert, Button, Empty, Input, Modal, Result, Segmented, Skeleton, Tabs, Tag,
 } from 'antd';
 import {
-  ApartmentOutlined, DownloadOutlined, MinusOutlined, PlusOutlined, ReloadOutlined, SafetyCertificateOutlined,
+  ApartmentOutlined, DownloadOutlined, FullscreenExitOutlined, FullscreenOutlined, MinusOutlined, PlusOutlined, ReloadOutlined, SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { useAccount } from '@/auth/Boundary';
 import { api } from '@/auth/client';
@@ -49,7 +49,23 @@ function MapViewer({ map, version }: { map: GuideMap; version: string }) {
   const [zoom, setZoom] = useState(0.85);
   const [mode, setMode] = useState('思维导图');
   const [query, setQuery] = useState('');
+  const [fullscreen, setFullscreen] = useState(false);
   const viewport = useRef<HTMLDivElement>(null);
+  const fullscreenButton = useRef<HTMLButtonElement>(null);
+  const hasExpanded = useRef(false);
+  const scrollPosition = useRef({ left: 0, top: 0 });
+  const setExpandedView = (expanded: boolean) => {
+    scrollPosition.current = { left: viewport.current?.scrollLeft || 0, top: viewport.current?.scrollTop || 0 };
+    setFullscreen(expanded);
+  };
+  useEffect(() => {
+    if (fullscreen) hasExpanded.current = true;
+    const frame = window.requestAnimationFrame(() => {
+      viewport.current?.scrollTo(scrollPosition.current);
+      if (!fullscreen && hasExpanded.current) fullscreenButton.current?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [fullscreen]);
   const nodes = flattenNodes(map.root);
   const active = nodes.find((node) => node.id === selected) || map.root;
   const matches = searchNodes(map.root, query);
@@ -89,8 +105,8 @@ function MapViewer({ map, version }: { map: GuideMap; version: string }) {
     anchor.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  return (
-    <section aria-label={map.title}>
+  const viewer = (
+    <section aria-label={map.title} className={fullscreen ? 'guide-fullscreen-viewer' : undefined}>
       <div className="guide-map-heading">
         <div>
           <h2>{map.title}</h2>
@@ -98,7 +114,7 @@ function MapViewer({ map, version }: { map: GuideMap; version: string }) {
         </div>
         <Button icon={<DownloadOutlined />} onClick={download}>下载 XMind</Button>
       </div>
-      <div className="guide-executive-summary" aria-label="执行结论"><NodeDetails node={map.root} /></div>
+      {!fullscreen && <div className="guide-executive-summary" aria-label="执行结论"><NodeDetails node={map.root} /></div>}
       <div className="guide-toolbar">
         <Segmented aria-label="内容显示方式" options={['思维导图', '体系正文']} value={mode} onChange={(value) => setMode(String(value))} />
         {mode === '思维导图' && (
@@ -114,6 +130,7 @@ function MapViewer({ map, version }: { map: GuideMap; version: string }) {
           <Button size="small" onClick={() => setCollapsed(new Set((map.root.children || []).map((node) => node.id)))}>收起分支</Button>
         </div>
         )}
+        {(mode === '思维导图' || fullscreen) && <Button ref={fullscreenButton} aria-label={fullscreen ? '退出全屏' : '全屏查看思维导图'} icon={fullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />} onClick={() => setExpandedView(!fullscreen)}>{fullscreen ? '退出全屏' : '全屏'}</Button>}
         <Input.Search aria-label="搜索当前体系" placeholder="搜索规则、书名或关键词" allowClear value={query} onChange={(event) => setQuery(event.target.value)} className="guide-search" />
       </div>
       {query.trim() && (
@@ -141,6 +158,29 @@ function MapViewer({ map, version }: { map: GuideMap; version: string }) {
       )}
       <p className="guide-footnote">点击节点阅读详情，使用节点旁的箭头展开分支。切换体系正文可连续阅读全部规则；下载文件的节点备注包含完整说明。</p>
     </section>
+  );
+  if (!fullscreen) return viewer;
+  return (
+    <Modal
+      open
+      title="思维导图全屏"
+      width="100vw"
+      style={{
+        top: 0, maxWidth: '100vw', paddingBottom: 0, margin: 0,
+      }}
+      styles={{
+        content: {
+          height: '100dvh', borderRadius: 0, display: 'flex', flexDirection: 'column', padding: 16,
+        },
+        body: { flex: 1, minHeight: 0 },
+      }}
+      className="guide-fullscreen-modal"
+      footer={null}
+      closable={false}
+      onCancel={() => setExpandedView(false)}
+    >
+      {viewer}
+    </Modal>
   );
 }
 

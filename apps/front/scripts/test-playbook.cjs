@@ -36,6 +36,17 @@ test('search finds instruction text and reveals all ancestors of a hidden node',
   assert.equal(ancestorsOf(tree, 'missing'), null);
   assert.deepEqual(searchNodes(tree, '   '), []);
 });
+test('home stays in market analysis regardless of catalog order and respects access', () => {
+  const { homePath } = load('auth/client.ts');
+  const account = { roles: [{ code: 'admin' }], permissions: ['strategy', 'overview'], catalog: [
+    { code: 'strategy', route: '/strategy' },
+    { code: 'overview', route: '/analysis/overview' },
+  ] };
+  assert.equal(homePath(account), '/analysis/overview');
+  assert.equal(homePath({ ...account, permissions: ['strategy'] }), '/strategy');
+  assert.equal(homePath({ ...account, permissions: [] }), '/profile');
+  assert.equal(homePath(account, '/strategy'), '/strategy');
+});
 test('XMind export includes UTF-8 topics and full notes in a consistent ZIP directory', () => {
   const { xmindArchive } = load('app/trading-system/xmind.ts');
   const bytes = xmindArchive({ id: 'fixture', title: '测试体系', root: { id: 'root', title: '风险', children: [{ id: 'leaf', title: '预算', points: ['计划损失不等于最大损失'], links: [{ title: 'source', url: 'https://example.com' }] }] } });
