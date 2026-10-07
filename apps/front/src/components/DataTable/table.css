@@ -1,5 +1,7 @@
 .data-table { position: relative; min-width: 0; }
 .data-table .ant-table-body { overscroll-behavior: contain; scrollbar-gutter: stable; }
+/* Natural-height bodies have no vertical scrollbar; reserving its gutter offsets the sticky header. */
+.data-table-auto-height .ant-table-body { scrollbar-gutter: auto; }
 .data-table.is-loading > .data-table-content { opacity: .35; pointer-events: none; user-select: none; }
 .data-table.is-loading .ant-table-body { min-height: min(320px, var(--table-body-height)); }
 .data-table-loading-space { height: min(280px, calc(var(--table-body-height) - 34px)); }

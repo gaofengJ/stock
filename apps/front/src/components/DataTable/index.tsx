@@ -70,7 +70,7 @@ export default function DataTable<Row extends object = any>({
     };
   }, [maxBodyHeight, minBodyHeight, bottomSpacing, autoHeight]);
   return (
-    <div ref={rootRef} className={`data-table${loading ? ' is-loading' : ''}`} aria-busy={loading} style={{ '--table-body-height': `${height}px` } as CSSProperties}>
+    <div ref={rootRef} className={`data-table${autoHeight ? ' data-table-auto-height' : ''}${loading ? ' is-loading' : ''}`} aria-busy={loading} style={{ '--table-body-height': `${height}px` } as CSSProperties}>
       <div className="data-table-content" aria-hidden={loading || undefined}>
         <Table<Row>
           {...props}
