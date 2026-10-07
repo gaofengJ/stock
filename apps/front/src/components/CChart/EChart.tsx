@@ -18,6 +18,7 @@ import {
   LegendComponent,
   MarkAreaComponent,
   MarkLineComponent,
+  MarkPointComponent,
   TitleComponent,
   ToolboxComponent,
   TooltipComponent,
@@ -40,6 +41,7 @@ echarts.use([
   LegendComponent,
   MarkAreaComponent,
   MarkLineComponent,
+  MarkPointComponent,
   CanvasRenderer,
 ]);
 

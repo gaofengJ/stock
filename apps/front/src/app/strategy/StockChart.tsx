@@ -10,6 +10,7 @@ import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import request from '@/api/request';
 import { errorMessage } from '@/api/errors';
 import CChart from '@/components/CChart';
+import candleExtremaMarks from '@/components/CChart/candle-extrema';
 import Loading from '@/components/Loading';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { useSiteTheme } from '@/components/SiteTheme';
@@ -181,7 +182,7 @@ export default function StockChart({
         <span className="strategy-chart-visible-range" aria-live="polite">
           {data && !loading ? `${data.series[range.start]?.date || ''} ～ ${data.series[range.end]?.date || ''}` : '正在加载行情'}
         </span>
-        <span>两侧箭头每次移动1个交易日，拖动下方滑块缩放；悬停查看行情</span>
+        <span>两侧箭头每次移动1个交易日，拖动下方滑块缩放；高低点随范围更新，悬停查看行情</span>
       </div>
       <div className="strategy-chart-stage has-navigation">
         <Button className="strategy-chart-nav strategy-chart-prev" aria-label="查看更早K线" title="查看更早K线" icon={<LeftOutlined />} disabled={loading || !data || (!range.start && !data.hasEarlier)} onClick={() => moveTime(-1)} />
@@ -210,9 +211,9 @@ export default function StockChart({
                   },
                   axisPointer: { link: [{ xAxisIndex: 'all' }] },
                   grid: [{
-                    left: 76, right: 28, top: height < 360 ? 44 : 60, height: height < 360 ? '42%' : '55%',
+                    left: 76, right: 44, top: height < 360 ? 44 : 60, height: height < 360 ? '42%' : '55%',
                   }, {
-                    left: 76, right: 28, top: '73%', height: '14%',
+                    left: 76, right: 44, top: '73%', height: '14%',
                   }],
                   xAxis: [
                     {
@@ -222,7 +223,9 @@ export default function StockChart({
                       type: 'category', gridIndex: 1, data: candles.map((c) => c.date), axisTick: { alignWithLabel: true }, axisLabel: { hideOverlap: true, formatter: (v: string) => v.slice(5) },
                     },
                   ],
-                  yAxis: [{ scale: true, name: `${data?.basis}（元）`, splitNumber: 5 }, {
+                  yAxis: [{
+                    scale: true, boundaryGap: ['12%', '12%'], name: `${data?.basis}（元）`, splitNumber: 5,
+                  }, {
                     scale: true, min: 0, gridIndex: 1, name: '成交量（万手）', splitNumber: 2,
                   }],
                   dataZoom: [{
@@ -235,6 +238,7 @@ export default function StockChart({
                     {
                       type: 'candlestick',
                       name: '日K',
+                      markPoint: candleExtremaMarks(colors.text, colors.surfaceMuted),
                       data: candles.map((c) => c.value || ['-', '-', '-', '-']),
                       itemStyle: {
                         color: quoteColors.up, color0: quoteColors.down, borderColor: quoteColors.up, borderColor0: quoteColors.down,

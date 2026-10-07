@@ -13,6 +13,39 @@ function load(file, imports = {}) {
   return exports;
 }
 const format = load('utils/format.ts');
+const candleExtremaMarks = load('components/CChart/candle-extrema.ts', { '@/utils/format': format }).default;
+
+test('candle extrema use wick prices in the visible zoom window and update on zoom/reset', () => {
+  const echarts = require('echarts');
+  const chart = echarts.init(null, null, { renderer: 'svg', ssr: true, width: 768, height: 440 });
+  try {
+    chart.setOption({
+      animation: false,
+      xAxis: { type: 'category', data: ['2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24'] },
+      yAxis: { scale: true },
+      dataZoom: [{ type: 'inside', startValue: 1, endValue: 2, filterMode: 'filter' }],
+      series: [{ type: 'candlestick', data: [[90, 95, 80, 110], [10, 15, 8, 25], [20, 18, 9, 30], [35, 38, 32, 40]], markPoint: candleExtremaMarks('#697386') }],
+    });
+    const svg = () => chart.renderToSVGString();
+    assert.match(svg(), />最高</);
+    assert.match(svg(), />最低</);
+    assert.match(svg(), />30\.00</);
+    assert.match(svg(), />8\.00</);
+    assert.doesNotMatch(svg(), />110\.00</);
+    chart.dispatchAction({ type: 'dataZoom', startValue: 2, endValue: 3 });
+    assert.match(svg(), />40\.00</);
+    assert.match(svg(), />9\.00</);
+    assert.doesNotMatch(svg(), />8\.00</);
+    chart.dispatchAction({ type: 'dataZoom', start: 0, end: 100 });
+    assert.match(svg(), />110\.00</);
+    assert.match(svg(), />8\.00</);
+    chart.setOption({ series: [{ data: [['-', '-', '-', '-'], [10, 15, 8, 25], ['-', '-', '-', '-'], ['-', '-', '-', '-']] }] });
+    assert.match(svg(), />25\.00</);
+    assert.match(svg(), />8\.00</);
+    chart.setOption({ series: [{ data: Array.from({ length: 4 }, () => ['-', '-', '-', '-']) }] });
+    assert.doesNotMatch(svg(), />最高<|>最低<|>NaN<|>Infinity</);
+  } finally { chart.dispose(); }
+});
 const logs = load('app/admin/logs/log-display.ts');
 
 test('access log labels distinguish authenticated accounts, guests, failures and millisecond durations', () => {

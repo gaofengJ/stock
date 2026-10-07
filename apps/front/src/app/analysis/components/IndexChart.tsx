@@ -8,6 +8,7 @@ import {
 } from 'antd';
 import { ExpandOutlined, ReloadOutlined } from '@ant-design/icons';
 import CChart from '@/components/CChart';
+import candleExtremaMarks from '@/components/CChart/candle-extrema';
 import { useSiteTheme } from '@/components/SiteTheme';
 import HelpTooltip from '@/components/HelpTooltip';
 import { MarketSeries } from '@/api/market';
@@ -90,10 +91,10 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
           }],
           grid: [
             {
-              left: 64, right: 20, top: 44, height: Math.max(60, height - 156) * 0.72,
+              left: 64, right: 44, top: 44, height: Math.max(60, height - 156) * 0.72,
             },
             {
-              left: 64, right: 20, top: 84 + Math.max(60, height - 156) * 0.72, height: Math.max(60, height - 156) * 0.28,
+              left: 64, right: 44, top: 84 + Math.max(60, height - 156) * 0.72, height: Math.max(60, height - 156) * 0.28,
             },
           ],
           legend: {
@@ -109,7 +110,7 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
           ],
           yAxis: [
             {
-              type: 'value', gridIndex: 0, scale: true, axisLabel: { formatter: (v: number) => numberText(v) },
+              type: 'value', gridIndex: 0, scale: true, boundaryGap: ['12%', '12%'], axisLabel: { formatter: (v: number) => numberText(v) },
             },
             {
               type: 'value', gridIndex: 1, name: '成交量（万手）', nameGap: 12, splitNumber: 2, axisLabel: { formatter: (v: number) => numberText(v, v > 0 && v < 1 ? 2 : 0) },
@@ -118,6 +119,7 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
           series: [{
             type: 'candlestick',
             name: index?.name,
+            markPoint: candleExtremaMarks(panel.text, colors.surface),
             itemStyle: {
               color: quoteColors.up, color0: quoteColors.down, borderColor: quoteColors.up, borderColor0: quoteColors.down,
             },
@@ -163,7 +165,7 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
         title={(
           <span className="market-section-title">
             {index?.name || '指数'}
-            <HelpTooltip label="指数走势" title="上方K线、下方成交量，共用日期与缩放。淡色虚线为未回补缺口边界。" />
+            <HelpTooltip label="指数走势" title="上方K线、下方成交量，共用日期与缩放。标记当前日期范围内的最高价与最低价；淡色虚线为未回补缺口边界。" />
           </span>
       )}
         extra={(
