@@ -85,6 +85,11 @@ export function PopularityChanges({ date, code, endpoint = '/analysis/market/pop
   useEffect(() => { setFocusCode(code || ''); }, [code]);
   const [selected, setSelected] = useState<HotRow | null>(null);
   const { data } = state;
+  const unavailableMessage = () => {
+    if (data?.stage?.status === 'skipped') return '该日人气数据已标记为不再补齐。';
+    if (data?.stage?.status === 'failed') return '日终人气数据暂不可用，请查看同步任务。';
+    return '日终人气数据正在补齐。';
+  };
   const rows = data?.items.filter((r) => !focusCode || r.code === focusCode).filter((r) => filter === 'all' || (filter === 'new' && r.state === 'new') || (filter === 'up' && (r.change || 0) > 0) || (filter === 'down' && (r.change || 0) < 0)) || [];
 
   return (
@@ -101,7 +106,7 @@ export function PopularityChanges({ date, code, endpoint = '/analysis/market/pop
         <HelpTooltip label="人气变化口径" title="对比上一交易日日终榜单，展示名次变化。上升表示排名前移，下降表示排名后移。" />
       </Space>
       {data?.ready && (!data.complete || !data.previousReady) && <Alert className="mb-16" type="info" message={`当日返回 ${data.count}/100 条。前后榜单有缺位时，仅比较已有排名，不将缺数据判为新上榜或离榜。`} />}
-      {data && !data.ready && <Alert className="mb-16" type={data.stage?.status === 'failed' ? 'warning' : 'info'} message={data.stage?.status === 'failed' ? '日终人气数据暂不可用，请查看同步任务。' : '日终人气数据正在补齐。'} />}
+      {data && !data.ready && <Alert className="mb-16" type={data.stage?.status === 'failed' ? 'warning' : 'info'} message={unavailableMessage()} />}
       <div className="popularity-filters">
         <Segmented aria-label="人气变化筛选" value={filter} onChange={(v) => setFilter(String(v))} options={[{ label: '全部', value: 'all' }, { label: '排名上升', value: 'up' }, { label: '排名下降', value: 'down' }, { label: '新上榜', value: 'new' }, { label: '离榜', value: 'exit' }]} />
       </div>

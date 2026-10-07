@@ -337,11 +337,17 @@ describe('InsightService observation boundaries', () => {
 
 describe('historical hot-rank source gaps', () => {
   const dates = ['2020-09-30', '2020-09-29', '2020-09-28'];
-  function setup(error = '数据源返回空快照', age = 0, days = dates) {
+  function setup(
+    error = '数据源返回空快照',
+    age = 0,
+    days = dates,
+    ignored = false,
+  ) {
     const manager: any = {
       query: jest.fn().mockResolvedValue([]),
-      find: jest.fn().mockImplementation(async (entity: any) =>
-        entity === SyncRunEntity
+      find: jest.fn().mockImplementation(async (entity: any, options: any) =>
+        entity === SyncRunEntity &&
+        (options.where.status === 'failed' || ignored)
           ? [
               {
                 tradeDate: dates[0],
@@ -364,8 +370,41 @@ describe('historical hot-rank source gaps', () => {
     jest.spyOn(service as any, 'calendar').mockResolvedValue(days);
     jest.spyOn(service as any, 'revisions').mockResolvedValue([]);
     const sync = jest.spyOn(service, 'syncHot').mockResolvedValue(undefined);
-    return { service, sync };
+    return { service, sync, manager };
   }
+  it('skips only the waived popularity date and continues the other dates', async () => {
+    const { service, sync } = setup('用户确认无需补齐', 0, dates, true);
+    const result = await service.batch(dates[2], dates[0], true);
+    expect(sync.mock.calls.map((c) => c[1])).toEqual(dates.slice(1));
+    expect(result).toMatchObject({
+      remaining: 0,
+      failures: [],
+      completed: dates.slice(1),
+    });
+    expect(result?.stage).toContain(`已忽略 ${dates[0]}`);
+    expect(result?.retryAt).toBeUndefined();
+  });
+  it('an explicit hot-date fetch respects the waiver without overwriting its audit state', async () => {
+    const { service, sync, manager } = setup();
+    sync.mockRestore();
+    manager.findOneBy = jest.fn().mockResolvedValue({ status: 'skipped' });
+    await service.syncHot(manager, dates[0]);
+    expect(manager.findOneBy).toHaveBeenCalledWith(SyncRunEntity, {
+      task: 'ths-hot',
+      tradeDate: dates[0],
+      status: 'skipped',
+    });
+    expect(manager.query).not.toHaveBeenCalled();
+  });
+  it('a popularity waiver never removes the day from stock insight processing', async () => {
+    const { service } = setup('用户确认无需补齐', 0, dates, true);
+    const build = jest
+      .spyOn(service as any, 'buildDay')
+      .mockResolvedValue(undefined);
+    const result = await service.batch(dates[2], dates[0], false);
+    expect(build.mock.calls.map((c) => c[1])).toEqual(dates);
+    expect(result?.completed).toEqual(dates);
+  });
   it('continues other dates while retaining an empty-source date as incomplete', async () => {
     const { service, sync } = setup();
     const result = await service.batch(dates[2], dates[0], true);

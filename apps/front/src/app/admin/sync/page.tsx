@@ -31,6 +31,7 @@ const labels: Record<string, string> = {
   pausing: '正在暂停',
   cancelled: '已取消',
   cancelling: '正在取消',
+  dismissed: '已忽略',
 };
 const modeLabel = (mode: string) => modes.find((m) => m.value === mode)?.label || mode || '行情缺失补齐';
 const formatTime = (value?: string) => (value ? new Date(value).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false }) : '—');
@@ -162,6 +163,7 @@ export default function Page() {
     { category: 'source-wait', title: '等待数据源', count: handlingCount('source-wait') },
     { category: 'needs-attention', title: '需人工处理', count: handlingCount('needs-attention') },
     { category: 'history', title: '历史已接续', count: summary ? (handlingSummary.recovered || 0) + (handlingSummary.continued || 0) : '—' },
+    { category: 'ignored', title: '已忽略', count: handlingCount('ignored') },
     { category: 'success', title: '校验完成', count: summary ? summary.success || 0 : '—' },
   ];
   const isStatusCategory = (category: string) => ['queued', 'running', 'success'].includes(category);
@@ -440,7 +442,7 @@ export default function Page() {
                 {
                   title: '状态',
                   dataIndex: 'status',
-                  render: (v) => labels[v] || v,
+                  render: (v) => (v === 'skipped' ? '已忽略，不再补齐' : labels[v] || v),
                 },
                 { title: '行情条数', dataIndex: 'dailyCount' },
                 { title: '涨跌停条数', dataIndex: 'limitCount' },

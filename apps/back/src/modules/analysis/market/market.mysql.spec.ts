@@ -22,6 +22,8 @@ import { ThsSectors1790985600000 } from '@/migrations/1790985600000-ThsSectors';
 import { JobsService, validRange } from '@/modules/admin/jobs.service';
 import { DataLockService } from '@/modules/admin/data-lock.service';
 import { AuthService } from '@/modules/auth/auth.service';
+import { InsightService } from '@/modules/strategy/insight.service';
+import { ThsHotEntity } from '@/modules/strategy/insight.entity';
 import {
   SectorEntity,
   SectorDailyEntity,
@@ -43,6 +45,7 @@ const mysqlDescribe = process.env.SYNC_TEST_MYSQL_PORT
   ? describe
   : describe.skip;
 const entities = [
+  ThsHotEntity,
   SectorEntity,
   SectorDailyEntity,
   SectorMembersEntity,
@@ -396,6 +399,66 @@ mysqlDescribe('市场分析迁移、发布及持久化续跑', () => {
     expect(result.summary.pending).toBe(5);
     expect(result.handlingSummary['auto-retry']).toBe(3);
     expect(result.handlingSummary['source-wait']).toBe(2);
+  });
+
+  it('persisted hot waivers survive service recreation and never fabricate snapshots or exclude other days', async () => {
+    await db.manager.save(SyncRunEntity, {
+      task: 'ths-hot',
+      tradeDate: dates[0],
+      status: 'skipped',
+      attempts: 6,
+      error: '用户确认无需补齐；原始错误：数据源返回空快照',
+    });
+    const api = { queryData: jest.fn() };
+    const insights = new InsightService(
+      db,
+      writes,
+      market,
+      api as any,
+      {} as any,
+      {} as any,
+    );
+    await insights.syncHot(db.manager, dates[0]);
+    expect(api.queryData).not.toHaveBeenCalled();
+    expect(
+      await db.manager.countBy(ThsHotEntity, { tradeDate: dates[0] }),
+    ).toBe(0);
+    expect(
+      await db.manager.findOneBy(SyncRunEntity, {
+        task: 'ths-hot',
+        tradeDate: dates[0],
+      }),
+    ).toMatchObject({ status: 'skipped', attempts: 6 });
+    expect(await writes.excluded(db.manager, dates[0])).toBe(false);
+    jest
+      .spyOn(insights as any, 'calendar')
+      .mockResolvedValue([dates[1], dates[0]]);
+    jest.spyOn(insights as any, 'revisions').mockResolvedValue([]);
+    const sync = jest.spyOn(insights, 'syncHot').mockResolvedValue(undefined);
+    const result = await insights.batch(dates[0], dates[1], true);
+    expect(sync.mock.calls.map((c) => c[1])).toEqual([dates[1]]);
+    expect(result?.remaining).toBe(0);
+    expect(result?.stage).toContain(`已忽略 ${dates[0]}`);
+    await db.query(
+      "INSERT INTO t_admin_job(actor_name,start_date,end_date,status,mode,error) VALUES('系统自动',?,?,'failed','hot','历史失败')",
+      [dates[0], dates[1]],
+    );
+    await db.query(
+      "INSERT INTO t_admin_job(actor_name,start_date,end_date,status,mode,stage) VALUES('系统自动',?,?,'dismissed','hot','已忽略指定人气缺口')",
+      [dates[0], dates[1]],
+    );
+    const jobs = new JobsService(db, daily, {} as any, new DataLockService(db));
+    const list = await jobs.list({
+      page: 1,
+      pageSize: 10,
+      handling: 'ignored',
+    });
+    expect(list.total).toBe(2);
+    expect(list.summary).toMatchObject({ failed: 1, dismissed: 1 });
+    expect(list.items.find((j: any) => j.status === 'failed').error).toBe(
+      '历史失败',
+    );
+    expect(list.handlingSummary['needs-attention']).toBeUndefined();
   });
   it('重复迁移幂等，新权限仅授予内置角色，跨闰年允许两个自然年', async () => {
     const [count] = await db.query(

@@ -4,6 +4,7 @@
 // failed successor, so only the current task requires attention.
 export const jobHandlingSource = `(SELECT related.*,
   CASE
+    WHEN status='dismissed' OR (status IN ('failed','interrupted') AND successorStatus='dismissed') THEN 'ignored'
     WHEN status IN ('failed','interrupted') AND successorStatus='success' THEN 'recovered'
     WHEN status IN ('failed','interrupted') AND successorId IS NOT NULL THEN 'continued'
     WHEN status IN ('failed','interrupted') THEN 'needs-attention'
@@ -18,7 +19,7 @@ export const jobHandlingSource = `(SELECT related.*,
       SELECT MAX(n.id) FROM t_admin_job n
       WHERE j.status IN ('failed','interrupted') AND n.id>j.id
         AND n.mode=j.mode AND n.start_date<=j.start_date AND n.end_date>=j.end_date
-        AND (n.status IN ('success','failed','interrupted','paused')
+        AND (n.status IN ('success','failed','interrupted','paused','dismissed')
           OR (n.status IN ('queued','running','pending') AND n.active_key IS NOT NULL))
         AND (n.status<>'success' OR (j.finished_at IS NOT NULL AND n.finished_at>=j.finished_at))
     )

@@ -6,7 +6,7 @@ export function startJobPolling<T extends { status: string; handling?: string }>
 }) {
   let disposed = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  const terminal = ['success', 'failed', 'interrupted', 'paused', 'cancelled'];
+  const terminal = ['success', 'failed', 'interrupted', 'paused', 'cancelled', 'dismissed'];
   const poll = async () => {
     if (disposed) return;
     if (options.visible()) {

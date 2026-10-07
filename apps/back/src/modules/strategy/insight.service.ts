@@ -3,7 +3,13 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { createHash } from 'crypto';
 import * as dayjs from 'dayjs';
-import { DataSource, EntityManager, In, LessThanOrEqual } from 'typeorm';
+import {
+  Between,
+  DataSource,
+  EntityManager,
+  In,
+  LessThanOrEqual,
+} from 'typeorm';
 import { TushareService } from '@/shared/tushare/tushare.service';
 import { TradeCalEntity } from '../source/trade-cal/trade-cal.entity';
 import { DailyEntity } from '../source/daily/daily.entity';
@@ -409,6 +415,18 @@ export class InsightService {
           [start, end],
         );
         const protectedDates = protectedRows.map((r) => r.date);
+        // A source-specific waiver must not exclude the day's market data or
+        // fabricate an empty popularity snapshot as a successful collection.
+        const ignored = hot
+          ? await manager.find(SyncRunEntity, {
+              where: {
+                task: 'ths-hot',
+                tradeDate: Between(start, end),
+                status: 'skipped',
+              },
+            })
+          : [];
+        const ignoredDates = ignored.map((r) => r.tradeDate);
         const revisions = await this.revisions(start, end, manager);
         const records = hot
           ? await manager.find(ThsHotEntity, { select: ['tradeDate'] })
@@ -418,6 +436,7 @@ export class InsightService {
         const pending = days.filter(
           (d) =>
             !protectedDates.includes(d) &&
+            !ignoredDates.includes(d) &&
             !records.some(
               (r) =>
                 r.tradeDate === d &&
@@ -472,6 +491,13 @@ export class InsightService {
         return {
           completed,
           failures,
+          ...(ignoredDates.length && pending.length === completed.length
+            ? {
+                stage: `校验完成，已忽略 ${ignoredDates.join(
+                  '、',
+                )} 人气数据，不再补齐`,
+              }
+            : {}),
           retryAt: waiting
             ? new Date(
                 Math.min(...[...deferred.values()].map((d) => d.getTime())),
@@ -493,6 +519,14 @@ export class InsightService {
   }
 
   async syncHot(manager: EntityManager, date: string) {
+    if (
+      await manager.findOneBy(SyncRunEntity, {
+        task: 'ths-hot',
+        tradeDate: date,
+        status: 'skipped',
+      })
+    )
+      return;
     if (await this.writes.excluded(manager, date))
       throw new Error('该日受主动删除保护');
     const today = shanghaiDate();

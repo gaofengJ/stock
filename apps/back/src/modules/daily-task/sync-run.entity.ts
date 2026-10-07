@@ -1,7 +1,12 @@
 import { Column, Entity, Index } from 'typeorm';
 import { CommonEntity } from '@/entity/common.entity';
 
-export type SyncStatus = 'running' | 'success' | 'failed' | 'pending';
+export type SyncStatus =
+  | 'running'
+  | 'success'
+  | 'failed'
+  | 'pending'
+  | 'skipped';
 
 @Entity({ name: 't_sync_run', comment: '数据同步状态' })
 @Index('uq_sync_task_date', ['task', 'tradeDate'], { unique: true })

@@ -93,6 +93,7 @@ export class SyncJobsQueryDto extends PageDto {
     'history',
     'recovered',
     'continued',
+    'ignored',
   ])
   handling?: string;
 
@@ -108,6 +109,7 @@ export class SyncJobsQueryDto extends PageDto {
     'pausing',
     'cancelled',
     'cancelling',
+    'dismissed',
   ])
   status?: string;
 

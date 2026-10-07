@@ -20,6 +20,9 @@ test('covered history retains its outcome but directs the user to the successor'
   assert.match(handlingMessage({ ...job, handling: 'recovered' }), /校验/);
 });
 test('source waiting has guidance and avoids repetitive retries without hiding real failures', () => {
+  assert.equal(canRequeue({ status: 'dismissed', handling: 'ignored' }), false);
+  assert.equal(needsWarning({ status: 'failed', handling: 'ignored' }), false);
+  assert.match(handlingMessage({ status: 'dismissed', handling: 'ignored' }), /无需补齐/);
   assert.equal(canRequeue({ status: 'pending', handling: 'source-wait' }), false);
   assert.match(handlingMessage({ status: 'pending', handling: 'source-wait' }), /不会增加失败次数/);
   assert.equal(canRequeue({ status: 'failed', handling: 'needs-attention' }), true);

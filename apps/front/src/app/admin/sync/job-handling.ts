@@ -10,8 +10,10 @@ export const handlingLabels: Record<string, string> = {
   'source-wait': '等待数据源',
   recovered: '后续任务已完成',
   continued: '后续任务已接续',
+  ignored: '已忽略',
 };
 export function handlingMessage(job: HandlingJob): string | undefined {
+  if (job.handling === 'ignored') return '管理员已确认无需补齐。忽略标记仅作用于指定数据，原始执行记录保留。';
   if (job.handling === 'recovered') return `任务 #${job.successorId} 已完成同类型、完整日期范围的校验。本条保留历史失败，无需重复执行。`;
   if (job.handling === 'continued') {
     const stopped = ['failed', 'interrupted', 'paused'].includes(job.successorStatus || '');
@@ -22,6 +24,6 @@ export function handlingMessage(job: HandlingJob): string | undefined {
   if (job.handling === 'auto-retry') return '系统会在下次重试时间继续执行，请先等待自动处理。';
   return undefined;
 }
-export const isHistorical = (job: HandlingJob) => ['recovered', 'continued'].includes(job.handling || '');
+export const isHistorical = (job: HandlingJob) => ['recovered', 'continued', 'ignored'].includes(job.handling || '');
 export const needsWarning = (job: HandlingJob) => (job.handling ? job.handling === 'needs-attention' : ['failed', 'interrupted'].includes(job.status));
 export const canRequeue = (job: HandlingJob) => !isHistorical(job) && job.handling !== 'source-wait' && ['failed', 'pending', 'interrupted', 'paused'].includes(job.status);
