@@ -25,7 +25,9 @@ export interface NotebookContent { private: Record<string, string>; public: Reco
 export const emptyNotebook = (): NotebookContent => ({ private: Object.fromEntries(internalFields.map(([k]) => [k, ''])), public: Object.fromEntries(publicFields.map(([k]) => [k, ''])) });
 
 export function internalText(date: string, value: NotebookContent) {
-  return [`# ${date} 每日复盘与下一交易日计划`, '私人笔记，仅供内部使用。', ...internalFields.map(([key, label]) => `## ${label}\n${value.private[key] || '待填写'}`)].join('\n\n');
+  const main = ['marketJudgment', 'execution', 'normalPlan', 'lesson'];
+  const fields = [...main.map((key) => internalFields.find(([k]) => k === key)!), ...internalFields.filter(([key]) => !main.includes(key) && value.private[key]?.trim())];
+  return [`# ${date} 每日复盘与下一交易日计划`, '私人笔记，仅供内部使用。', ...fields.map(([key, label]) => `## ${label}\n${value.private[key] || '未填写'}`)].join('\n\n');
 }
 export function templateText() {
   return `# 每日交易复盘
