@@ -19,11 +19,7 @@ import { BseMappingEntity, MarketBreadthEntity } from './market.entity';
 import { MARKET_SCOPES } from './market.constants';
 import { MarketSyncService } from './market-sync.service';
 import { MarketQueryDto } from './market.dto';
-import {
-  BreadthFactor,
-  equivalentBreadthFactors,
-  marketBreadth,
-} from './market-environment.utils';
+import { BreadthFactor, marketBreadth } from './market-environment.utils';
 
 @Injectable()
 export class MarketBreadthService {
@@ -82,19 +78,18 @@ export class MarketBreadthService {
         ]),
       );
       const canonical = (code: string) => mapping.get(code) || code;
-      if (new Set(raw.map((r) => r.tsCode)).size !== raw.length)
-        throw new Error('均线数据代码重复');
+      const sourceCodes = new Set(raw.map((r) => r.tsCode));
+      if (sourceCodes.size !== raw.length) throw new Error('均线数据代码重复');
       const factorsByCode = new Map<string, BreadthFactor>();
       raw.forEach((r) => {
         if (r.tradeDate !== date.replace(/-/g, ''))
           throw new Error('均线数据日期不匹配');
-        const factor = { ...r, tsCode: canonical(r.tsCode) } as BreadthFactor;
-        const previous = factorsByCode.get(factor.tsCode);
-        // 只合并已知映射且统计含义一致的样本，真实冲突仍保留旧汇总。
-        if (previous && !equivalentBreadthFactors(previous, factor))
-          throw new Error('北交所新旧代码均线数值冲突');
-        if (!previous || r.tsCode === factor.tsCode)
-          factorsByCode.set(factor.tsCode, factor);
+        const tsCode = canonical(r.tsCode);
+        // 新代码的整条后复权记录为准，不比较或混用旧代码的复权基点。
+        // 历史日期仅返回旧代码时保留完整旧记录，仍按映射后的代码只计一次。
+        if (r.tsCode !== tsCode && sourceCodes.has(tsCode)) return;
+        if (factorsByCode.has(tsCode)) throw new Error('北交所代码映射冲突');
+        factorsByCode.set(tsCode, { ...r, tsCode } as BreadthFactor);
       });
       const factors = [...factorsByCode.values()];
       if (

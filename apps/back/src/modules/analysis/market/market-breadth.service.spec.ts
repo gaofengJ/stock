@@ -126,17 +126,26 @@ describe('均线广度独立同步', () => {
     expect(rows.find((r: any) => r.scope === 'bj').data.ma20.eligible).toBe(1);
   });
 
-  it('北交所新旧代码指标冲突时不发布', async () => {
-    const test = make([
-      ['830001.BJ', '20260930', 10, 9, 11],
-      ['920001.BJ', '20260930', 12, 9, 11],
-      ['600000.SH', '20260930', 10, 9, 11],
-    ]);
-    await expect(
-      test.service.syncDay(test.manager as any, date),
-    ).rejects.toThrow('数值冲突');
-    expect(test.manager.transaction).not.toHaveBeenCalled();
-  });
+  it.each([false, true])(
+    '新旧代码判断不同也以新代码的整条复权记录为准，返回顺序不影响结果 (%s)',
+    async (reverse) => {
+      const pair = [
+        ['830001.BJ', '20260930', 10, 9, 11],
+        ['920001.BJ', '20260930', 12, 13, 10],
+      ];
+      const test = make([
+        ...(reverse ? pair.reverse() : pair),
+        ['600000.SH', '20260930', 10, 9, 11],
+      ]);
+      await test.service.syncDay(test.manager as any, date);
+      const rows = test.tx.insert.mock.calls[0][1];
+      expect(rows.find((r: any) => r.scope === 'bj').data).toMatchObject({
+        total: 1,
+        ma20: { eligible: 1, above: 0, ratio: 0 },
+        ma60: { eligible: 1, above: 1, ratio: 100 },
+      });
+    },
+  );
 
   it.each([false, true])(
     '不同复权基点但比例一致的新旧代码只计一次，返回顺序不影响结果 (%s)',
@@ -159,15 +168,78 @@ describe('均线广度独立同步', () => {
     },
   );
 
-  it('取整误差不能掩盖均线上下位置改变', async () => {
+  it.each([false, true])(
+    '历史复权比例的微小精度差不阻断新代码的数据发布 (%s)',
+    async (reverse) => {
+      const pair = [
+        ['830001.BJ', '20260930', 1086.1189, 1133.97527, 1093.41958],
+        ['920001.BJ', '20260930', 185.95386, 194.14733, 187.20391],
+      ];
+      const test = make([
+        ...(reverse ? pair.reverse() : pair),
+        ['600000.SH', '20260930', 10, 9, 11],
+      ]);
+      await test.service.syncDay(test.manager as any, date);
+      const rows = test.tx.insert.mock.calls[0][1];
+      expect(rows.find((r: any) => r.scope === 'bj').data).toMatchObject({
+        total: 1,
+        ma20: { eligible: 1, above: 0, ratio: 0 },
+        ma60: { eligible: 1, above: 0, ratio: 0 },
+      });
+    },
+  );
+
+  it('历史日期仅有旧代码时使用同条记录内的价格和均线', async () => {
     const test = make([
-      ['830001.BJ', '20260930', 10.00001, 10, 11],
-      ['920001.BJ', '20260930', 20, 20.00001, 22],
+      ['830001.BJ', '20260930', 10, 9, 11],
+      ['600000.SH', '20260930', 10, 9, 11],
+    ]);
+    await test.service.syncDay(test.manager as any, date);
+    const rows = test.tx.insert.mock.calls[0][1];
+    expect(rows.find((r: any) => r.scope === 'bj').data).toMatchObject({
+      total: 1,
+      ma20: { eligible: 1, above: 1 },
+      ma60: { eligible: 1, above: 0 },
+    });
+  });
+
+  it('新代码无有效价格时不能用旧代码掩盖覆盖不足，旧汇总保留', async () => {
+    const test = make([
+      ['830001.BJ', '20260930', 10, 9, 11],
+      ['920001.BJ', '20260930', 0, 9, 11],
       ['600000.SH', '20260930', 10, 9, 11],
     ]);
     await expect(
       test.service.syncDay(test.manager as any, date),
-    ).rejects.toThrow('数值冲突');
+    ).rejects.toThrow('覆盖不足95%');
+    expect(test.manager.transaction).not.toHaveBeenCalled();
+  });
+
+  it('新代码缺少单条均线时保留不足状态，不拼接旧代码的均线', async () => {
+    const test = make([
+      ['830001.BJ', '20260930', 10, 9, 11],
+      ['920001.BJ', '20260930', 12, null, 10],
+      ['600000.SH', '20260930', 10, 9, 11],
+    ]);
+    await test.service.syncDay(test.manager as any, date);
+    const rows = test.tx.insert.mock.calls[0][1];
+    expect(rows.find((r: any) => r.scope === 'bj').data).toMatchObject({
+      total: 1,
+      ma20: { eligible: 0, insufficient: 1, ratio: null },
+      ma60: { eligible: 1, above: 1, ratio: 100 },
+    });
+  });
+
+  it('新代码本身重复仍拒绝发布', async () => {
+    const test = make([
+      ['830001.BJ', '20260930', 10, 9, 11],
+      ['920001.BJ', '20260930', 12, 13, 10],
+      ['920001.BJ', '20260930', 12, 13, 10],
+      ['600000.SH', '20260930', 10, 9, 11],
+    ]);
+    await expect(
+      test.service.syncDay(test.manager as any, date),
+    ).rejects.toThrow('均线数据代码重复');
     expect(test.manager.transaction).not.toHaveBeenCalled();
   });
 

@@ -576,6 +576,82 @@ mysqlDescribe('市场分析迁移、发布及持久化续跑', () => {
     expect(job.next_retry_at).toBeNull();
   });
 
+  it('旧均线失败阶段可按新代码复权数据恢复，重复同步不增加汇总或请求', async () => {
+    await daily.marketBatch(dates[1], dates[5]);
+    await daily.marketBatch(dates[1], dates[5]);
+    const beforeDate = (i: number) =>
+      new Date(Date.parse(`${dates[0]}T00:00:00Z`) - i * 86400000)
+        .toISOString()
+        .slice(0, 10);
+    await db.manager.insert(BseMappingEntity, {
+      oldCode: '830001.BJ',
+      newCode: '920001.BJ',
+    });
+    await db.manager.insert(
+      TradeCalEntity,
+      Array.from({ length: 60 }, (_, i) => ({
+        calDate: beforeDate(i + 1),
+        isOpen: 1,
+        preTradeDate: beforeDate(i + 2),
+      })),
+    );
+    await db.manager.insert(SyncRunEntity, {
+      task: 'market-breadth',
+      tradeDate: dates[5],
+      status: 'failed',
+      attempts: 5,
+      error: '北交所新旧代码均线数值冲突',
+      updatedAt: new Date(Date.now() - 10000),
+    });
+    const rawBefore = await db.manager.findBy(DailyEntity, {
+      tradeDate: dates[5],
+    });
+    remote.queryData.mockResolvedValue({
+      code: 0,
+      data: {
+        fields: [
+          'ts_code',
+          'trade_date',
+          'close_hfq',
+          'ma_hfq_20',
+          'ma_hfq_60',
+        ],
+        items: [
+          ['830001.BJ', '20240305', 10, 9, 11],
+          ['920001.BJ', '20240305', 12, 13, 10],
+          ['600000.SH', '20240305', 10, 9, 11],
+          ['000001.SZ', '20240305', 10, 9, 11],
+        ],
+      },
+    });
+    const breadth = new MarketBreadthService(db, remote as any, writes, market);
+    await writes.withLock((manager) => breadth.syncDay(manager, dates[5]));
+    const summaries = await db.manager.findBy(MarketBreadthEntity, {
+      tradeDate: dates[5],
+    });
+    expect(summaries).toHaveLength(6);
+    expect(summaries.find((r) => r.scope === 'bj')?.data).toMatchObject({
+      total: 1,
+      ma20: { eligible: 1, above: 0, ratio: 0 },
+      ma60: { eligible: 1, above: 1, ratio: 100 },
+    });
+    expect(
+      await db.manager.findOneBy(SyncRunEntity, {
+        task: 'market-breadth',
+        tradeDate: dates[5],
+      }),
+    ).toMatchObject({ status: 'success', attempts: 6, error: null });
+    const requests = remote.queryData.mock.calls.length;
+    await writes.withLock((manager) => breadth.syncDay(manager, dates[5]));
+    expect(remote.queryData).toHaveBeenCalledTimes(requests);
+    expect(
+      await db.manager.findBy(MarketBreadthEntity, { tradeDate: dates[5] }),
+    ).toEqual(summaries);
+    expect(
+      await db.manager.findBy(DailyEntity, { tradeDate: dates[5] }),
+    ).toEqual(rawBefore);
+  });
+
   it('自动入口不反复创建同一失败范围，新交易日仍合并到唯一活跃任务', async () => {
     await db.manager.insert(SyncRunEntity, {
       task: 'market',
