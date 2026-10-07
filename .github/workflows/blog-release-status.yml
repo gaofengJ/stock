@@ -16,6 +16,15 @@ jobs:
             ps -eo pid,etime,args | awk '$3 ~ /(^|\/)docker$/ {print $1,$2,$3,$4}'
             echo 'Article containers:'
             docker ps --filter name=stock-blog --format '{{.Names}} {{.Status}} {{.Image}}'
+            docker ps -a --filter name=stock-blog --format '{{.Names}} {{.Status}} {{.Ports}}'
+            echo 'Deployment order and runtime options:'
+            grep -E 'docker (stop|rm|pull|run)|--name|--restart|--network|--publish| -p | -v ' /home/stock-blog-deploy.sh || true
+            python3 - <<'PY'
+            import json
+            p='/opt/stock-blog-style/178fd09a2f2e902e7fc74f66116887a05de3dc38/previous-container.json'
+            x=json.load(open(p))[0]
+            print(json.dumps({k:x['HostConfig'].get(k) for k in ['NetworkMode','PortBindings','Binds','RestartPolicy']},ensure_ascii=False))
+            PY
             echo 'Article images:'
             docker images --format '{{.Repository}}:{{.Tag}} {{.Size}}' | grep 'stock-blog' || true
             echo 'Media-verified release build directories:'
