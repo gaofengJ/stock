@@ -186,7 +186,7 @@ export default function LoginActivity() {
             {' '}
             条
           </span>
-          <HelpTooltip label="登录动态" title="记录所有账号的成功登录及注册后的自动登录，包含管理员并计入未读提醒。管理员标识为登录时身份；历史管理员登录可在日志中心的操作审计中查询。每 30 秒自动更新，保留最近 90 天；日期与时间均为北京时间。已读状态仅影响当前管理员。" />
+          <HelpTooltip label="登录动态" title="记录账号成功登录及注册后的自动登录。管理员标识为登录时身份。每 30 秒自动更新，保留最近 90 天；日期与时间均为北京时间。已读状态仅影响当前管理员。" />
         </div>
         <div className="login-activity-buttons">
           <Button loading={refreshing} onClick={reload}>刷新</Button>

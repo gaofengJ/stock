@@ -68,7 +68,7 @@ export default function Page() {
   const [maxFailures, setMaxFailures] = useState(5);
   const [updatedAt, setUpdatedAt] = useState(0);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(10);
   const [query, setQuery] = useState<Query>({});
   const [search, setSearch] = useState('');
   const [dates, setDates] = useState<[Dayjs, Dayjs] | null>(null);
@@ -198,19 +198,21 @@ export default function Page() {
       <Table<Job>
         loading={loading}
         size="middle"
-        scroll={{ x: 1600 }}
-        autoHeight={rows.length <= 5}
+        scroll={{ x: 1380 }}
+        autoHeight={rows.length <= 10}
+        minBodyHeight={960}
+        maxBodyHeight={960}
         rowKey="id"
         dataSource={rows}
         rowClassName={(r) => (['failed', 'interrupted'].includes(r.status) || (r.status === 'pending' && r.retryCount >= maxFailures - 1) ? 'sync-job-warning' : '')}
         locale={{ emptyText: loadError || '没有符合条件的同步任务' }}
         pagination={{
-          current: page, pageSize, total, showSizeChanger: true, pageSizeOptions: [20, 50, 100], hideOnSinglePage: true, showTotal: (n) => `共 ${n} 条`, onChange: (next, size) => { setPage(size === pageSize ? next : 1); setPageSize(size); },
+          current: page, pageSize, total, showSizeChanger: true, pageSizeOptions: [10, 20, 50, 100], hideOnSinglePage: true, showTotal: (n) => `共 ${n} 条`, onChange: (next, size) => { setPage(size === pageSize ? next : 1); setPageSize(size); },
         }}
         columns={[
           {
             title: '任务',
-            width: 210,
+            width: 170,
             render: (_, r) => (
               <div className="sync-job-cell">
                 <strong>{modeLabel(r.mode)}</strong>
@@ -221,13 +223,13 @@ export default function Page() {
               </div>
             ),
           },
-          { title: '触发人', width: 110, render: (_, r) => (r.actorId === null ? <Tag>系统自动</Tag> : `@${r.actorName}`) },
+          { title: '触发人', width: 100, render: (_, r) => (r.actorId === null ? <Tag>系统自动</Tag> : `@${r.actorName}`) },
           {
-            title: '同步日期范围', width: 210, className: 'admin-cell-nowrap', render: (_, r) => `${r.startDate} 至 ${r.endDate}`,
+            title: '同步日期范围', width: 195, className: 'admin-cell-nowrap', render: (_, r) => `${r.startDate} 至 ${r.endDate}`,
           },
           {
             title: '状态',
-            width: 105,
+            width: 100,
             render: (_, r) => (
               <Tag color={({
                 success: 'success', failed: 'error', interrupted: 'error', pending: r.retryCount >= maxFailures - 1 ? 'warning' : 'processing',
@@ -250,7 +252,7 @@ export default function Page() {
           },
           {
             title: '失败次数',
-            width: 90,
+            width: 80,
             render: (_, r) => (
               <Tag color={r.retryCount >= maxFailures - 1 ? 'error' : undefined}>
                 {r.retryCount}
@@ -263,7 +265,7 @@ export default function Page() {
           },
           {
             title: '下次重试（北京）',
-            width: 180,
+            width: 160,
             className: 'admin-cell-nowrap',
             render: (_, r) => (
               <div className="sync-job-cell">
@@ -274,7 +276,7 @@ export default function Page() {
           },
           {
             title: '任务时间（北京）',
-            width: 220,
+            width: 195,
             render: (_, r) => (
               <div className="sync-job-cell">
                 <span>{`创建 ${formatTime(r.createdAt)}`}</span>
@@ -285,7 +287,7 @@ export default function Page() {
           },
           {
             title: '操作',
-            width: 210,
+            width: 180,
             render: (_, r) => (
               <Space size={4} wrap>
                 <Button type="text" size="small" onClick={() => openDetail(r.id)}>详情</Button>
