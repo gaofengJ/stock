@@ -1,11 +1,27 @@
 import type { IntradayCountPoint } from '@/api/intraday-counts';
 
+export const intradayThresholds = { ice: 1000, boiling: 4000 };
+
+export function intradayPhase(up: number | null | undefined) {
+  if (up == null || !Number.isFinite(up) || up < 0) return null;
+  if (up <= intradayThresholds.ice) return '冰点';
+  if (up >= intradayThresholds.boiling) return '沸点';
+  return '常态';
+}
+
 export interface IntradayPlotRow {
   label: string;
   date: string;
   time: string;
   point: IntradayCountPoint | null;
   first: boolean;
+}
+
+/** Only actual 15:00 observations are daily closes; an absent close breaks the overview. */
+export function intradayCloses(rows: IntradayPlotRow[]) {
+  return rows.filter((row) => row.time === '15:00').map((row) => [
+    row.label, row.point?.up ?? null,
+  ]);
 }
 
 const sessionTimes = [[570, 690], [780, 900]].flatMap(([start, end]) => Array.from(

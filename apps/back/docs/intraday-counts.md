@@ -1,6 +1,6 @@
 # 盘中涨跌家数
 
-市场情绪页的“连日盘中涨跌家数”实时使用财联社全市场统计，包含 ST，
+市场情绪页的“全市场盘中上涨家数”实时使用财联社全市场统计，包含 ST，
 独立于页面其他盘后图表的日期和市场筛选。可查看最近 1、5、10、20、30
 个已采集交易日（默认 10 个），也可指定截止日期。
 
@@ -12,7 +12,7 @@
 
 读取接口 `GET /api/analysis/market/intraday-counts?days=10&date=2026-09-30`
 复用 `analysis:senti` 权限，只读数据库，不随页面刷新请求上游。前端每
-分钟读取已有记录。空历史显示等待采集，缺失时点和跨日处断线；旧时点不
+分钟读取已有记录。空历史显示等待采集，跨日连续展示，缺失时点保留断线；旧时点不
 补写为零，也不将休市时返回的上一交易日行情记到今天。
 
 开关 `INTRADAY_COUNTS_ENABLED=false` 或 `SCHEDULE_ENABLED=false` 可停止
@@ -55,3 +55,11 @@ node ops/backfill-intraday-counts.cjs --env .env.development --end 2026-10-03 --
 来源与参考实现：
 [财联社市场情绪](https://x-quote.cls.cn/v2/quote/a/stock/emotion)、
 [levistock 调用代码](https://github.com/fleetinglife/levistock/blob/main/levistock/market/market_emotion_cls.py)。
+
+## 上涨家数情绪展示
+
+页面只绘制上涨家数，下跌家数仍保留在采集记录中。固定观察阈值为上涨家数
+不超过1000只时显示绿色冰点，达到4000只时显示红色沸点，中间使用主题中性色。
+阈值在图中公开展示，不随区间或市场样本数量自动变化。每日收盘圆点只取15:00
+真实采样，缺失收盘保留断点，盘中最新值不作为当日收盘补入。均值线按所选
+交易日内全部有效采样的上涨家数计算，包含零值，排除缺失值。
