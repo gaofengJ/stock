@@ -1,20 +1,52 @@
 import type { IntradayCountPoint } from '@/api/intraday-counts';
 
-export const intradayThresholds = { ice: 1000, boiling: 4000 };
-
-export function intradayPhase(up: number | null | undefined) {
-  if (up == null || !Number.isFinite(up) || up < 0) return null;
-  if (up <= intradayThresholds.ice) return '冰点';
-  if (up >= intradayThresholds.boiling) return '沸点';
-  return '常态';
-}
-
 export interface IntradayPlotRow {
   label: string;
   date: string;
   time: string;
   point: IntradayCountPoint | null;
   first: boolean;
+}
+
+export interface IntradayDistribution {
+  min: number;
+  max: number;
+  ice: number;
+  boiling: number;
+  count: number;
+  canClassify: boolean;
+}
+
+/** Linear-interpolated percentiles of valid observations in the selected trading days. */
+export function intradayDistribution(rows: IntradayPlotRow[]): IntradayDistribution | null {
+  const values = rows.flatMap((row) => {
+    const value = row.point?.up;
+    return value != null && Number.isFinite(value) && value >= 0 ? [value] : [];
+  }).sort((a, b) => a - b);
+  if (!values.length) return null;
+  const quantile = (fraction: number) => {
+    const index = (values.length - 1) * fraction;
+    const lower = Math.floor(index);
+    return values[lower] + (values[Math.ceil(index)] - values[lower]) * (index - lower);
+  };
+  const ice = quantile(0.2);
+  const boiling = quantile(0.8);
+  return {
+    min: values[0],
+    max: values[values.length - 1],
+    ice,
+    boiling,
+    count: values.length,
+    canClassify: values.length >= 5 && ice < boiling,
+  };
+}
+
+export function intradayPhase(up: number | null | undefined, distribution: IntradayDistribution | null) {
+  if (up == null || !Number.isFinite(up) || up < 0 || !distribution) return null;
+  if (!distribution.canClassify) return '常规区间';
+  if (up <= distribution.ice) return '冰点';
+  if (up >= distribution.boiling) return '沸点';
+  return '常规区间';
 }
 
 /** Only actual 15:00 observations are daily closes; an absent close breaks the overview. */

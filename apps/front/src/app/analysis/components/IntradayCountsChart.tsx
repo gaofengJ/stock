@@ -16,7 +16,7 @@ import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { numberText } from '@/utils/format';
 import { chartColors, quoteColors } from '@/colors';
 import {
-  intradayCloses, intradayMean, intradayPhase, intradayPlot, intradayThresholds,
+  intradayCloses, intradayDistribution, intradayMean, intradayPhase, intradayPlot,
 } from './intraday-counts-plot';
 import './intraday-counts.css';
 
@@ -54,14 +54,15 @@ export default function IntradayCountsChart() {
   const rows = intradayPlot(visible?.points || [], visible?.dates || []);
   const latest = visible?.points.at(-1);
   const mean = intradayMean(rows, { 下跌家数: false });
-  const phase = intradayPhase(latest?.up);
+  const distribution = intradayDistribution(rows);
+  const phase = intradayPhase(latest?.up, distribution);
   const singleDay = new Set(rows.map((row) => row.date)).size <= 1;
   return (
     <Card
       title={(
         <span className="market-section-title">
           全市场盘中上涨家数
-          <HelpTooltip label="盘中上涨家数" title="全市场含ST，每5分钟统计。观察阈值：≤1,000只为冰点，≥4,000只为沸点。圆点连接每日15:00的上涨家数；虚线为所选交易日内有效时点的均值，缺失数据保留断点。" />
+          <HelpTooltip label="盘中上涨家数" title="全市场含ST，每5分钟统计。以所选交易日有效时点的20%和80%分位值划分冰点、常规区间、沸点；颜色随区间内上涨家数由低到高渐变。少于5个有效样本或分位值重合时不划分极端区间。圆点为每日15:00收盘值，灰色虚线为时点均值。" />
         </span>
       )}
       className="market-chart market-intraday-card"
@@ -102,12 +103,16 @@ export default function IntradayCountsChart() {
             {' '}
             只
           </span>
-          {phase && <span className={`intraday-phase intraday-phase-${{ 沸点: 'hot', 冰点: 'cold', 常态: 'normal' }[phase]}`}>{phase}</span>}
-          <span className="intraday-thresholds">
-            <span className="intraday-hot">沸点 ≥4,000</span>
-            <span>常态 1,001—3,999</span>
-            <span className="intraday-cold">冰点 ≤1,000</span>
-          </span>
+          {phase && <span className={`intraday-phase intraday-phase-${{ 沸点: 'hot', 冰点: 'cold', 常规区间: 'normal' }[phase]}`}>{phase}</span>}
+          <div className="intraday-scale" aria-label="上涨家数由低到高渐变，按所选交易日相对划分">
+            <div className="intraday-scale-labels">
+              <span className="intraday-cold">冰点</span>
+              <span>常规区间</span>
+              <span className="intraday-hot">沸点</span>
+            </div>
+            <div className="intraday-scale-bar" style={distribution?.canClassify ? undefined : { background: colors.text }} />
+            <span>{distribution?.canClassify ? '所选交易日内相对划分' : '有效样本不足或分布集中，暂不划分冰点、沸点'}</span>
+          </div>
         </div>
       </div>
       <div className="sentiment-chart-canvas">
@@ -123,14 +128,12 @@ export default function IntradayCountsChart() {
             },
             visualMap: {
               show: false,
-              type: 'piecewise',
+              type: 'continuous',
               seriesIndex: 0,
               dimension: 1,
-              pieces: [
-                { lte: intradayThresholds.ice, color: quoteColors.down },
-                { gt: intradayThresholds.ice, lt: intradayThresholds.boiling, color: colors.text },
-                { gte: intradayThresholds.boiling, color: quoteColors.up },
-              ],
+              min: distribution?.min ?? 0,
+              max: distribution?.max === distribution?.min ? (distribution?.max ?? 0) + 1 : distribution?.max ?? 1,
+              inRange: { color: distribution?.canClassify ? [quoteColors.down, colors.text, quoteColors.up] : [colors.text, colors.text] },
             },
             tooltip: {
               trigger: 'axis',
@@ -141,7 +144,7 @@ export default function IntradayCountsChart() {
                 if (!row?.time) return '';
                 return [
                   `${row.date} ${row.time}`,
-                  row.point ? `上涨：${numberText(row.point.up, 0)}只（${intradayPhase(row.point.up)}）` : '该时点未采集',
+                  row.point ? `上涨：${numberText(row.point.up, 0)}只（${intradayPhase(row.point.up, distribution)}）` : '该时点未采集',
                   ...(row.time === '15:00' && row.point ? ['每日收盘'] : []),
                 ].join('\n');
               },
@@ -165,7 +168,7 @@ export default function IntradayCountsChart() {
               name: '只',
               minInterval: 1,
               min: 0,
-              max: (value: { max: number }) => Math.max(5000, Math.ceil(value.max / 1000) * 1000),
+              max: (value: { max: number }) => Math.max(1000, Math.ceil((value.max * 1.08) / 1000) * 1000),
               splitLine: { lineStyle: { type: 'dashed', opacity: 0.5 } },
             },
             dataZoom: [
@@ -199,12 +202,6 @@ export default function IntradayCountsChart() {
                   ...rows.filter((row) => row.first).slice(1).map((row) => ({
                     xAxis: row.label, label: { show: false }, lineStyle: { opacity: 0.2 },
                   })),
-                  {
-                    yAxis: intradayThresholds.ice, name: '冰点 1,000', lineStyle: { color: quoteColors.down, opacity: 0.6 }, label: { position: 'insideStartTop', color: quoteColors.down },
-                  },
-                  {
-                    yAxis: intradayThresholds.boiling, name: '沸点 4,000', lineStyle: { color: quoteColors.up, opacity: 0.6 }, label: { position: 'insideStartTop', color: quoteColors.up },
-                  },
                   ...(mean ? [{ name: `时点均值 ${numberText(mean.value)}只`, yAxis: mean.value }] : []),
                 ],
               },

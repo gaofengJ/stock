@@ -5,5 +5,8 @@
 .intraday-phase { padding: 2px 8px; border-radius: 4px; background: var(--color-surface-muted); }
 .intraday-phase-hot, .intraday-hot { color: var(--quote-up); }
 .intraday-phase-cold, .intraday-cold { color: var(--quote-down); }
-.intraday-thresholds { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-left: auto; }
-@media (max-width: 600px) { .intraday-thresholds { width: 100%; margin-left: 0; } }
+.intraday-scale { display: grid; gap: 4px; min-width: 220px; margin-left: auto; font-size: 12px; }
+.intraday-scale-labels { display: flex; justify-content: space-between; gap: 12px; }
+.intraday-scale-bar { height: 5px; border-radius: 3px; background: linear-gradient(90deg, var(--quote-down), var(--color-black) 50%, var(--quote-up)); }
+.intraday-scale > span { color: var(--text-muted); text-align: right; }
+@media (max-width: 600px) { .intraday-scale { width: 100%; margin-left: 0; } }

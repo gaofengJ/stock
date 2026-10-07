@@ -11,7 +11,7 @@ const compiled = ts.transpileModule(fs.readFileSync(source, 'utf8'), {
 }).outputText;
 const sandbox = { exports: {} };
 vm.runInNewContext(compiled, sandbox);
-const { intradayPlot, intradayMean, intradayCloses, intradayPhase } = sandbox.exports;
+const { intradayPlot, intradayMean, intradayCloses, intradayPhase, intradayDistribution } = sandbox.exports;
 const point = (date, time, up = 2567, down = 2824) => ({
   date, time, up, down, collectedAt: date + 'T01:35:00Z',
 });
@@ -74,13 +74,37 @@ test('single-line mean includes zero and omits missing samples; multiple or no l
 });
 
 
-test('ice and boiling thresholds include boundaries without treating missing values as ice', () => {
-  assert.equal(intradayPhase(0), '冰点');
-  assert.equal(intradayPhase(1000), '冰点');
-  assert.equal(intradayPhase(1001), '常态');
-  assert.equal(intradayPhase(3999), '常态');
-  assert.equal(intradayPhase(4000), '沸点');
-  for (const value of [null, undefined, NaN, Infinity, -1]) assert.equal(intradayPhase(value), null);
+const observations = (values) => values.map((up) => ({ point: { up } }));
+
+test('relative boundaries follow selected observations, include zero and exclude invalid samples', () => {
+  const distribution = intradayDistribution(observations([0, 100, 200, 300, 400, null, undefined, NaN, Infinity, -1]));
+  assert.equal(distribution.ice, 80);
+  assert.equal(distribution.boiling, 320);
+  assert.equal(distribution.count, 5);
+  assert.equal(intradayPhase(80, distribution), '冰点');
+  assert.equal(intradayPhase(200, distribution), '常规区间');
+  assert.equal(intradayPhase(320, distribution), '沸点');
+  const shifted = intradayDistribution(observations([3000, 3100, 3200, 3300, 3400]));
+  assert.equal(shifted.ice, 3080);
+  assert.equal(shifted.boiling, 3320);
+  assert.equal(intradayPhase(3000, shifted), '冰点');
+  assert.equal(intradayPhase(300, distribution), '常规区间');
+  assert.equal(intradayDistribution([]), null);
+  for (const value of [null, undefined, NaN, Infinity, -1]) assert.equal(intradayPhase(value, distribution), null);
+});
+
+test('small, flat or concentrated samples do not force ice or boiling classifications', () => {
+  for (const values of [[0], [1, 2, 3, 4], [2000, 2000, 2000, 2000, 2000], [100, 100, 100, 100, 100, 100, 100, 100, 100, 5000]]) {
+    const distribution = intradayDistribution(observations(values));
+    assert.equal(distribution.canClassify, false);
+    assert.equal(intradayPhase(values[0], distribution), '常规区间');
+  }
+});
+
+test('percentiles retain precision and are not pulled toward a single outlier', () => {
+  const distribution = intradayDistribution(observations([0, 1, 2, 3, 4, 5, 6, 7, 8, 10000]));
+  assert.equal(distribution.ice, 1.8);
+  assert.equal(distribution.boiling, 7.2);
 });
 
 test('daily close overview preserves missing closes and never substitutes an unfinished session', () => {
