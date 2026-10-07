@@ -1,10 +1,7 @@
-import { computed, defineComponent, h, onMounted, ref, watch } from 'vue';
+import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useData, withBase } from 'vitepress';
+import { archiveDate, archiveLabel, archiveMonths, type ArchiveItem } from '../archive-utils';
 
-type ArchiveItem = {
-  text: string;
-  link: string;
-};
 
 type ArchiveIndex = {
   highlights: ArchiveItem[];
@@ -29,10 +26,6 @@ const loadArchive = async <T>(name: string) => {
 };
 
 const cleanLink = (link: string) => link.replace(/\.md$/, '');
-const archiveDate = (text: string) => {
-  const match = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:-|$)/);
-  return match ? Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : 0;
-};
 
 export default defineComponent({
   name: 'AizaibingchuanArchive',
@@ -41,8 +34,11 @@ export default defineComponent({
     const index = ref<ArchiveIndex>();
     const yearItems = ref<Record<string, ArchiveItem[]>>({});
     const expandedMenu = ref<string>();
+    const expandedMonth = ref<string>();
     const selectedDate = ref('');
     const error = ref('');
+    const busy = ref(false);
+    let request = 0;
 
     const currentYear = computed(() => (
       page.value.relativePath.match(/^reviews\/aizaibingchuan\/(\d{4})\//)?.[1]
@@ -63,18 +59,19 @@ export default defineComponent({
       await loadIndex();
       if (yearItems.value[year]) return;
       const archive = await loadArchive<ArchiveYear>(year);
-      if (!archive) return;
+      if (!archive) throw new Error('Missing archive');
       yearItems.value = {
         ...yearItems.value,
-        [year]: [...archive.items].sort((left, right) => archiveDate(right.text) - archiveDate(left.text)),
+        [year]: [...archive.items].sort((left, right) => archiveDate(right).localeCompare(archiveDate(left))),
       };
     };
 
     const loadArchiveForPage = async () => {
       if (!isArchiveSection.value) return;
-      const archiveIndex = await loadIndex();
-      if (!archiveIndex) return;
+      const id = ++request;
       const relativePath = page.value.relativePath;
+      const archiveIndex = await loadIndex();
+      if (!archiveIndex || id !== request) return;
       if (/^reviews\/aizaibingchuan\/review-summary-\d{4}\.md$/.test(relativePath)) {
         expandedMenu.value = 'highlights';
         return;
@@ -86,17 +83,31 @@ export default defineComponent({
       const defaultYear = currentYear.value || archiveIndex.years.at(-1)?.year;
       expandedMenu.value = defaultYear;
       await loadYear(defaultYear);
+      if (id !== request || expandedMenu.value !== defaultYear) return;
+      const active = (yearItems.value[defaultYear || ''] || []).find(item => isActiveLink(item.link));
+      expandedMonth.value = active ? archiveDate(active).slice(0, 7) : archiveMonths(yearItems.value[defaultYear || ''] || [])[0]?.month;
     };
 
     const toggleMenu = async (menu: string) => {
+      const id = ++request;
+      error.value = '';
       if (expandedMenu.value === menu) {
         expandedMenu.value = undefined;
+        busy.value = false;
         return;
       }
       expandedMenu.value = menu;
       selectedDate.value = '';
-      try { if (/^\d{4}$/.test(menu)) await loadYear(menu); }
-      catch { error.value = '目录加载失败，请重新展开年份重试。'; }
+      expandedMonth.value = undefined;
+      busy.value = true;
+      try {
+        if (/^\d{4}$/.test(menu)) {
+          await loadYear(menu);
+          if (id === request) expandedMonth.value = archiveMonths(yearItems.value[menu] || [])[0]?.month;
+        }
+      }
+      catch { if (id === request) error.value = '目录加载失败，请重新展开年份重试。'; }
+      finally { if (id === request) busy.value = false; }
     };
 
     const isActiveLink = (link: string) => (
@@ -108,9 +119,26 @@ export default defineComponent({
       { class: 'aizaibingchuan-menu-items' },
       items.map((item) => h('a', {
         class: { active: isActiveLink(item.link) },
+        'aria-current': isActiveLink(item.link) ? 'page' : undefined,
+        title: item.title || item.text,
         href: withBase(cleanLink(item.link)),
-      }, item.text)),
+      }, archiveDate(item) ? archiveLabel(item) : item.text)),
     );
+
+    const renderYear = (menu: string, items: ArchiveItem[]) => {
+      if (busy.value && !yearItems.value[menu]) return h('p', { class: 'archive-empty', role: 'status' }, '正在加载目录…');
+      if (selectedDate.value) {
+        const matches = items.filter(item => archiveDate(item) === selectedDate.value);
+        return matches.length ? renderItems(matches) : h('p', { class: 'archive-empty', role: 'status' }, '该日期未收录复盘。');
+      }
+      return archiveMonths(items).map(({ month, items: entries }) => h('section', { class: 'archive-month' }, [
+        h('button', {
+          type: 'button', class: 'archive-month-button', 'aria-expanded': expandedMonth.value === month,
+          'aria-controls': `archive-month-${month}`, onClick: () => { expandedMonth.value = expandedMonth.value === month ? undefined : month; },
+        }, [h('span', `${Number(month.slice(5))} 月`), h('span', { class: 'archive-month-count' }, `${entries.length} 篇`)]),
+        expandedMonth.value === month ? h('div', { id: `archive-month-${month}` }, [renderItems(entries)]) : null,
+      ]));
+    };
 
     const renderMenu = (menu: string, label: string, items: ArchiveItem[]) => {
       const expanded = expandedMenu.value === menu;
@@ -119,40 +147,46 @@ export default defineComponent({
           class: { 'aizaibingchuan-menu-button': true, active: expanded },
           type: 'button',
           'aria-expanded': expanded,
+          'aria-controls': `archive-group-${menu}`,
           onClick: () => toggleMenu(menu),
         }, [
           h('span', label),
           h('span', { class: 'aizaibingchuan-menu-chevron', 'aria-hidden': 'true' }),
         ]),
-        expanded ? renderItems(selectedDate.value && /^\d{4}$/.test(menu)
-          ? items.filter(item => archiveDate(item.text) === Date.parse(`${selectedDate.value}T00:00:00Z`)) : items) : null,
-        expanded && selectedDate.value && /^\d{4}$/.test(menu) && !items.some(item => archiveDate(item.text) === Date.parse(`${selectedDate.value}T00:00:00Z`))
-          ? h('p', { class: 'archive-empty' }, '该日期未收录复盘。') : null,
+        expanded ? h('div', { id: `archive-group-${menu}` }, /^\d{4}$/.test(menu) ? renderYear(menu, items) : renderItems(items)) : null,
       ]);
     };
 
-    const loadSafely = () => { selectedDate.value = ''; loadArchiveForPage().catch(() => { error.value = '目录加载失败，请刷新重试。'; }); };
+    const loadSafely = () => { selectedDate.value = ''; error.value = ''; loadArchiveForPage().catch(() => { error.value = '目录加载失败，请刷新重试。'; }); };
     onMounted(loadSafely);
+    onBeforeUnmount(() => { ++request; });
     watch(() => page.value.relativePath, loadSafely);
 
     return () => {
-      if (!isArchiveSection.value || !index.value) return null;
+      if (!isArchiveSection.value) return null;
+      if (!index.value) return error.value ? h('p', { class: 'archive-empty', role: 'status' }, error.value) : null;
 
       return h('section', { class: 'aizaibingchuan-archive' }, [
-        h('label', { class: 'archive-date-filter' }, ['查找复盘日期', h('input', {
+        h('a', { class: 'archive-all-link', href: withBase('/reviews/') }, '全部复盘与年度精华'),
+        h('label', { class: 'archive-date-filter' }, ['筛选复盘日期', h('input', {
           type: 'date', value: selectedDate.value,
           onChange: async (event: Event) => {
+            const id = ++request;
+            error.value = '';
             selectedDate.value = (event.target as HTMLInputElement).value;
             if (!selectedDate.value) return;
             const year = selectedDate.value.slice(0, 4);
-            if (!index.value?.years.some(item => item.year === year)) { error.value = '该年份尚未收录。'; return; }
+            if (!index.value?.years.some(item => item.year === year)) { expandedMenu.value = undefined; error.value = '该年份尚未收录。'; return; }
             error.value = '';
             expandedMenu.value = year;
-            try { await loadYear(year); } catch { error.value = '目录加载失败，请重新展开年份重试。'; }
+            busy.value = true;
+            try { await loadYear(year); } catch { if (id === request) error.value = '目录加载失败，请重新展开年份重试。'; }
+            finally { if (id === request) busy.value = false; }
           },
         })]),
+        selectedDate.value ? h('button', { type: 'button', class: 'archive-clear', onClick: loadSafely }, '清除日期筛选') : null,
         error.value ? h('p', { role: 'status', class: 'archive-empty' }, error.value) : null,
-        renderMenu('highlights', '年度精华', index.value.highlights),
+        renderMenu('highlights', '年度精华', [...index.value.highlights].reverse()),
         ...[...index.value.years].reverse().map(({ year }) => renderMenu(year, year, yearItems.value[year] || [])),
         renderMenu('strategies', '交易战法', index.value.strategies),
       ]);

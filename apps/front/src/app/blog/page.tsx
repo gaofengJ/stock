@@ -34,15 +34,12 @@ const MarketStoriesPage = () => {
       else url.searchParams.set('article', path);
       window.history.replaceState(window.history.state, '', url);
     };
-    const restore = () => send('stock-blog-navigate', { path: queryPath() });
     const check = () => { api('/auth/blog-access').catch(() => {}); };
     const timer = window.setInterval(check, 60000);
     window.addEventListener('message', receive);
-    window.addEventListener('popstate', restore);
     return () => {
       window.clearInterval(timer);
       window.removeEventListener('message', receive);
-      window.removeEventListener('popstate', restore);
     };
   }, [base]);
 
@@ -66,13 +63,19 @@ const MarketStoriesPage = () => {
   }, [src]);
 
   return (
-    <div className="w-full" style={{ height: height || 'calc(100dvh - 160px)', minHeight: 240 }}>
+    <div
+      className="w-full"
+      style={{
+        position: 'relative', zIndex: 10, height: height || 'calc(100dvh - 160px)', minHeight: 240,
+      }}
+    >
       {src && (
         <iframe
           ref={frame}
           src={src}
           className="w-full h-full border-none"
           title="市场那些事"
+          allow="clipboard-write"
         />
       )}
     </div>

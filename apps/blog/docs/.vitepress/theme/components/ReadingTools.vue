@@ -10,6 +10,7 @@ const image = ref('');
 const imageAlt = ref('');
 const enlarged = ref(false);
 const shared = ref('');
+const shareUrl = ref('');
 const restoring = ref(false);
 let timer: ReturnType<typeof setTimeout>;
 let activePath = '';
@@ -83,7 +84,7 @@ async function share() {
   const url = new URL('/blog/', location.origin);
   url.searchParams.set('article', location.pathname.replace(/^\/blog-frame/, '') + location.hash);
   try { await navigator.clipboard.writeText(url.href); shared.value = '链接已复制'; }
-  catch { shared.value = '请复制浏览器地址分享'; }
+  catch { shared.value = '请复制下方链接分享。'; shareUrl.value = url.href; }
 }
 onMounted(() => {
   disposed = false;
@@ -102,10 +103,13 @@ onMounted(() => {
   window.addEventListener('scroll', scroll, { passive: true });
   window.addEventListener('pagehide', save);
   window.addEventListener('hashchange', notify);
+  // The iframe owns article history. A history traversal may change only an
+  // anchor, so route.path alone is not sufficient to synchronize the parent.
+  window.addEventListener('popstate', notify);
   document.addEventListener('click', showImage);
   document.addEventListener('keydown', showImage);
 });
-watch(() => route.path, () => { clearTimeout(timer); shared.value = ''; changed(); });
+watch(() => route.path, () => { clearTimeout(timer); shared.value = ''; shareUrl.value = ''; changed(); });
 onBeforeUnmount(() => {
   save(); disposed = true; clearTimeout(timer);
   if (router.onBeforeRouteChange === beforeNavigate) router.onBeforeRouteChange = previousBefore;
@@ -113,15 +117,18 @@ onBeforeUnmount(() => {
   window.removeEventListener('scroll', scroll);
   window.removeEventListener('pagehide', save);
   window.removeEventListener('hashchange', notify);
+  window.removeEventListener('popstate', notify);
   document.removeEventListener('click', showImage);
   document.removeEventListener('keydown', showImage);
 });
 </script>
 
 <template>
-  <div v-if="page.relativePath !== 'index.md'" class="reading-tools" data-pagefind-ignore>
+  <div v-if="article()" class="reading-tools" data-pagefind-ignore>
     <a :href="withBase('/')">资料首页</a>
-    <button type="button" @click="share">分享文章</button><span role="status">{{ shared }}</span>
+    <a v-if="page.relativePath.startsWith('reviews/') && article()" :href="withBase('/reviews/')">复盘文档</a>
+    <button v-if="article()" type="button" @click="share">分享文章</button><span role="status">{{ shared }}</span>
+    <input v-if="shareUrl" :value="shareUrl" readonly aria-label="文章分享链接">
   </div>
   <dialog ref="zoom" class="article-image-dialog" aria-label="正文图片放大" @click="event => { if (event.target === zoom) zoom?.close(); }">
     <div class="library-dialog-header"><button type="button" @click="enlarged = !enlarged">{{ enlarged ? '适应屏幕' : '原图尺寸' }}</button><button type="button" @click="zoom?.close()">关闭图片</button></div>

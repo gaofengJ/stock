@@ -28,6 +28,6 @@ export default defineConfig({
       prev: '上一页',
       next: '下一页'
     },
-    lastUpdated: { text: '文档修改时间' },
+    lastUpdated: { text: '页面修改于', formatOptions: { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Shanghai' } },
   },
 })

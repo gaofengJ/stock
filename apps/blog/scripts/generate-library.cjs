@@ -23,7 +23,7 @@ function walk(directory) {
   }
 }
 walk(root);
-const sorted = articles.filter(a => a.date).sort((a, b) => b.date.localeCompare(a.date) || b.published.localeCompare(a.published) || a.path.localeCompare(b.path));
+const sorted = articles.filter(a => a.date && /^\/reviews\/aizaibingchuan\/\d{4}\//.test(a.path)).sort((a, b) => b.date.localeCompare(a.date) || b.published.localeCompare(a.published) || a.path.localeCompare(b.path));
 const catalog = {
   total: articles.length,
   latestDate: sorted[0]?.date || '',

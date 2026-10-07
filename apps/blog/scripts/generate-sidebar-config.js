@@ -308,6 +308,7 @@ const getSideBarConfig = (dirs) => {
               ? getAizaibingchuanSidebarText(file, title, subDir)
               : title;
             const item = {
+              title,
               text: lastPathOfFistLevel === 'reviews'
                 && secondLevelDir === 'aizaibingchuan'
                 && /^\d{4}$/.test(subDir)

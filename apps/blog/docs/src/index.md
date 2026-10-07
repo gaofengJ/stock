@@ -2,6 +2,9 @@
 title: 市场那些事
 sidebar: false
 outline: false
+aside: false
+pageClass: library-index
+lastUpdated: false
 ---
 
 <script setup>
