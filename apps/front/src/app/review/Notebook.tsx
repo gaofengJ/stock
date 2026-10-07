@@ -22,22 +22,16 @@ import './notebook.css';
 interface Snapshot { date: string; revision: number; content: NotebookContent | null; updatedAt?: string; previous: { date: string; revision: number; content: NotebookContent } | null; versions: { revision: number; createdAt: string }[]; publications: { id: number; revision: number; channel: string; url: string; body: string }[] }
 const stages = [
   {
-    title: '1 昨日验证与数据', keys: ['dataState', 'yesterday'], links: [['/analysis/overview', '大盘概览']], rule: 'T01 / T08', outcome: '保留昨日判断，对照实际结果；先确认日期与数据状态。',
+    title: '1 市场与主线', keys: ['marketJudgment'], optional: ['marketFacts', 'themes', 'dataState', 'yesterday'], links: [['/analysis/overview', '大盘概览'], ['/analysis/sectors', '板块分析'], ['/analysis/limits', '涨停复盘']], outcome: '今天适不适合出手？重点看哪个方向？各写一句即可。',
   },
   {
-    title: '2 判断市场', keys: ['marketFacts', 'marketJudgment'], links: [['/analysis/overview', '大盘概览'], ['/analysis/senti', '市场情绪']], rule: 'T02 / T07', outcome: '从指数、广度和强势股反馈得出参与强度，不只抄涨跌数据。',
+    title: '2 今日操作', keys: ['execution'], optional: ['toolEvidence'], links: [], outcome: '做了什么，是否按计划。没有交易就写等待。',
   },
   {
-    title: '3 研究方向', keys: ['themes'], links: [['/analysis/sectors', '板块分析'], ['/analysis/limits', '涨停复盘'], ['/analysis/chains', '连板分析'], ['/news', '实时资讯'], ['/analysis/dragon', '龙虎榜']], rule: 'T02 / T04', outcome: '区分方向阶段、核心与跟随，写明证据和转弱条件。',
+    title: '3 明日计划', keys: ['normalPlan'], optional: ['candidates', 'strongPlan', 'weakPlan'], links: [['/strategy', '策略选股'], ['/basic/stock/risk', '风险核验']], outcome: '持仓怎么处理；候选何时买、何时放弃。没有合适机会就等待。',
   },
   {
-    title: '4 持仓与执行', keys: ['execution'], links: [], rule: 'T06 / T08', outcome: '原计划、实际操作与结果分别记录，不能事后修改入场理由。',
-  },
-  {
-    title: '5 候选与风险', keys: ['candidates', 'toolEvidence'], links: [['/strategy', '策略选股'], ['/basic/stock/risk', '风险与交易状态']], rule: 'T03 / T04 / T05', outcome: '观察名单与执行计划分开。触发、失效、预算、核验和未知项缺一不可。',
-  },
-  {
-    title: '6 明日计划与经验', keys: ['normalPlan', 'strongPlan', 'weakPlan', 'lesson'], links: [], rule: 'T05 / T07 / T09', outcome: '分别推演正常、转强、转弱；未触发与空仓也有明确安排。',
+    title: '4 一条总结', keys: ['lesson'], optional: [], links: [], outcome: '今天最需要保留或改正的一件事。',
   },
 ];
 function download(name: string, text: string, type = 'text/markdown;charset=utf-8') {
@@ -124,6 +118,15 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
       setStatus('市场数据已带入事实栏，请补充变化与判断后保存。');
     } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   };
+  const renderField = (key: string) => {
+    const field = internalFields.find(([k]) => k === key)!;
+    return (
+      <div className="notebook-field" key={key}>
+        <label htmlFor={`note-${key}`}>{field[1]}</label>
+        <Input.TextArea id={`note-${key}`} disabled={!snapshot} value={content.private[key]} placeholder={field[2]} rows={3} maxLength={key === 'toolEvidence' ? 12000 : 4000} onChange={(e) => change('private', key, e.target.value)} />
+      </div>
+    );
+  };
   const article = publicText(date, content, channel);
   return (
     <div className="review-notebook">
@@ -161,21 +164,15 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
               )}
               <div className="notebook-stages">
                 {stages.map((stage) => (
-                  <Card key={stage.title} title={stage.title} extra={<Tag>{stage.rule}</Tag>}>
+                  <Card key={stage.title} title={stage.title}>
                     <p className="review-caption">{stage.outcome}</p>
                     <Space wrap className="notebook-links">
                       {stage.links.map(([path, label]) => <Link key={path} href={`${path}?date=${date}`} target="_blank" rel="noopener noreferrer">{label}</Link>)}
-                      {(stage.keys.includes('execution') || stage.keys.includes('candidates')) && <Button type="link" onClick={() => setTab('tools')}>使用候选与持仓工具</Button>}
+                      {(stage.keys.includes('execution') || stage.keys.includes('normalPlan')) && <Button type="link" onClick={() => setTab('tools')}>使用候选与持仓工具</Button>}
                     </Space>
-                    {stage.keys.includes('marketFacts') && <Button disabled={!snapshot} loading={busy} onClick={importMarket}>带入所选日期的市场事实</Button>}
-                    {stage.keys.map((key) => {
-                      const field = internalFields.find(([k]) => k === key)!; return (
-                <div className="notebook-field" key={key}>
-                  <label htmlFor={`note-${key}`}>{field[1]}</label>
-                  <Input.TextArea id={`note-${key}`} disabled={!snapshot} value={content.private[key]} placeholder={field[2]} rows={key === 'toolEvidence' ? 3 : 4} maxLength={key === 'toolEvidence' ? 12000 : 4000} showCount onChange={(e) => change('private', key, e.target.value)} />
-                </div>
-                      );
-                    })}
+                    {stage.keys.includes('marketJudgment') && <Button disabled={!snapshot} loading={busy} onClick={importMarket}>带入所选日期的市场事实</Button>}
+                    {stage.keys.map(renderField)}
+                    {stage.optional.length > 0 && <Collapse ghost items={[{ key: 'detail', label: '补充细节（可选）', children: stage.optional.map(renderField) }]} />}
                   </Card>
                 ))}
               </div>

@@ -11,5 +11,5 @@ test('rich text export escapes scripts, images and attributes rather than execut
  assert.ok(!html.includes('<script>')&&!html.includes('<img'));assert.ok(html.includes('&lt;script&gt;'));
 });
 test('template covers research, plan validation, execution and separate public writing',()=>{
- const t=exp.templateText();for(const s of ['昨日判断验证','市场结论','主线与题材演变','持仓及执行复盘','候选与风险核验','正常延续','转强或高开','转弱或低开','公开笔记'])assert.ok(t.includes(s));
+ const t=exp.templateText();for(const s of ['市场与主线','今日操作','明日计划','一条总结','买入触发','放弃条件','公开笔记'])assert.ok(t.includes(s));
 });
