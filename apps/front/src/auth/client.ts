@@ -106,6 +106,11 @@ export function getAccess(startTrial: boolean): Promise<AccessState> {
   return accessPending;
 }
 export function homePath(user: Account | null, prefix = '') {
+  if (!prefix) {
+    const market = user?.catalog.find((p) => p.route === '/analysis/overview' && user.permissions.includes(p.code))
+      || user?.catalog.find((p) => p.route?.startsWith('/analysis/') && user.permissions.includes(p.code));
+    if (market) return market.route;
+  }
   if (prefix === '/trading-system') return allowedPath(user, prefix) ? prefix : '/profile';
   if (prefix === '/basic') {
     const first = basicNavigationOrder.find((route) => user?.catalog.some(

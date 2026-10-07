@@ -11,7 +11,7 @@ const compiled = ts.transpileModule(fs.readFileSync(source, 'utf8'), {
 }).outputText;
 const sandbox = { exports: {} };
 vm.runInNewContext(compiled, sandbox);
-const { intradayPlot, intradayMean } = sandbox.exports;
+const { intradayPlot, intradayMean, intradayCloses, intradayPhase } = sandbox.exports;
 const point = (date, time, up = 2567, down = 2824) => ({
   date, time, up, down, collectedAt: date + 'T01:35:00Z',
 });
@@ -71,4 +71,25 @@ test('single-line mean includes zero and omits missing samples; multiple or no l
   assert.equal(intradayMean(rows, { '下跌家数': false }).value, 1000);
   assert.equal(intradayMean(rows, { '上涨家数': false }).value, 3000);
   assert.equal(intradayMean([], { '上涨家数': false }), null);
+});
+
+
+test('ice and boiling thresholds include boundaries without treating missing values as ice', () => {
+  assert.equal(intradayPhase(0), '冰点');
+  assert.equal(intradayPhase(1000), '冰点');
+  assert.equal(intradayPhase(1001), '常态');
+  assert.equal(intradayPhase(3999), '常态');
+  assert.equal(intradayPhase(4000), '沸点');
+  for (const value of [null, undefined, NaN, Infinity, -1]) assert.equal(intradayPhase(value), null);
+});
+
+test('daily close overview preserves missing closes and never substitutes an unfinished session', () => {
+  const rows = intradayPlot([
+    point('2026-09-28', '15:00', 4000),
+    point('2026-09-29', '14:55', 600),
+    point('2026-09-30', '10:00', 1200),
+  ], ['2026-09-28', '2026-09-29', '2026-09-30']);
+  const closes = JSON.parse(JSON.stringify(intradayCloses(rows)));
+  assert.deepEqual(closes, [['2026-09-28 15:00', 4000], ['2026-09-29 15:00', null]]);
+  assert.equal(intradayCloses([]).length, 0);
 });
