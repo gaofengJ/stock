@@ -13,6 +13,18 @@ const fixture = () => {
 };
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
+test('historical failure follows its successor until recovery annotations are final', async () => {
+  const f = fixture();
+  const values = [];
+  let calls = 0;
+  f.start({ read: async () => ({ status: 'failed', handling: ++calls === 1 ? 'continued' : 'recovered' }), onValue: v => values.push(v.handling), onError: () => assert.fail(), visible: () => true });
+  await flush();
+  assert.equal(f.scheduled(), true);
+  await f.next();
+  assert.deepEqual(values, ['continued', 'recovered']);
+  assert.equal(f.scheduled(), false);
+});
+
 test('late task A cannot overwrite task B after switching or closing the drawer', async () => {
   const { start } = fixture();
   const values = [];

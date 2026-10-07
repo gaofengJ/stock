@@ -15,6 +15,9 @@ import { api } from '@/auth/client';
 import { SyncOutlined } from '@ant-design/icons';
 import PageHeading from '@/auth/PageHeading';
 import { startJobPolling } from './job-polling';
+import {
+  handlingLabels, handlingMessage, isHistorical, needsWarning, canRequeue,
+} from './job-handling';
 import MaintenanceForm, { modes, jobGuidance, SyncSubmission } from './maintenance-form';
 
 const labels: Record<string, string> = {
@@ -35,9 +38,10 @@ interface Job {
   id: number; mode: string; actorId: number | null; actorName: string; startDate: string; endDate: string;
   status: string; stage: string; retryCount: number; nextRetryAt?: string; lastProgressAt?: string;
   startedAt?: string; finishedAt?: string; createdAt?: string; error?: string;
+  handling?: string; successorId?: number; successorStatus?: string;
 }
-interface Query { keyword?: string; status?: string; mode?: string; startDate?: string; endDate?: string }
-interface JobList { items: Job[]; total: number; page?: number; summary?: Record<string, number>; maxFailures?: number }
+interface Query { keyword?: string; status?: string; handling?: string; mode?: string; startDate?: string; endDate?: string }
+interface JobList { items: Job[]; total: number; page?: number; summary?: Record<string, number>; handlingSummary?: Record<string, number>; maxFailures?: number }
 const progressText = (job: Pick<Job, 'status' | 'stage'>) => (job.status === 'success' && /^已处理 0 日，待补 0 日$/.test(job.stage) ? '校验完成，本次无需补齐' : job.stage || '等待调度');
 const errorSummary = (value: string) => {
   const text = errorMessage(value, '同步异常，请查看详情');
@@ -65,6 +69,7 @@ export default function Page() {
   const [rows, setRows] = useState<Job[]>([]);
   const [total, setTotal] = useState(0);
   const [summary, setSummary] = useState<Record<string, number> | null>(null);
+  const [handlingSummary, setHandlingSummary] = useState<Record<string, number>>({});
   const [maxFailures, setMaxFailures] = useState(5);
   const [updatedAt, setUpdatedAt] = useState(0);
   const [page, setPage] = useState(1);
@@ -100,6 +105,7 @@ export default function Page() {
         onStart: () => { if (!silent) { setLoading(true); setRefreshing(true); } },
         onSuccess: (r) => {
           setRows(r.items); setTotal(r.total); setSummary(r.summary || null); setMaxFailures(r.maxFailures || 5);
+          setHandlingSummary(r.handlingSummary || {});
           setLoadError(''); setUpdatedAt(Date.now());
           if (r.page && r.page !== page) setPage(r.page);
         },
@@ -147,6 +153,24 @@ export default function Page() {
   const filtered = Object.values(query).some(Boolean);
   const allCount = summary ? Object.values(summary).reduce((sum, n) => sum + n, 0) : null;
   const operationsDisabled = !!busy || submitting || loading || !!loadError;
+  const handlingCount = (category: string) => (summary ? handlingSummary[category] || 0 : '—');
+  const overview = [
+    { category: '', title: '全部任务', count: allCount ?? '—' },
+    { category: 'queued', title: '等待排队', count: summary ? summary.queued || 0 : '—' },
+    { category: 'running', title: '执行中', count: summary ? summary.running || 0 : '—' },
+    { category: 'auto-retry', title: '等待自动重试', count: handlingCount('auto-retry') },
+    { category: 'source-wait', title: '等待数据源', count: handlingCount('source-wait') },
+    { category: 'needs-attention', title: '需人工处理', count: handlingCount('needs-attention') },
+    { category: 'history', title: '历史已接续', count: summary ? (handlingSummary.recovered || 0) + (handlingSummary.continued || 0) : '—' },
+    { category: 'success', title: '校验完成', count: summary ? summary.success || 0 : '—' },
+  ];
+  const isStatusCategory = (category: string) => ['queued', 'running', 'success'].includes(category);
+  const jobColor = (job: Job) => {
+    if (isHistorical(job)) return 'default';
+    if (job.handling === 'source-wait') return 'processing';
+    if (job.status === 'pending') return job.retryCount >= maxFailures - 1 ? 'warning' : 'processing';
+    return ({ success: 'success', failed: 'error', interrupted: 'error' } as Record<string, string>)[job.status];
+  };
   return (
     <>
       {contextHolder}
@@ -155,17 +179,20 @@ export default function Page() {
       <Typography.Title level={4} className="account-section-heading sync-records-heading">执行记录</Typography.Title>
       <Typography.Paragraph type="secondary">任务在服务器排队执行，可以关闭页面。提交后的进度和结果会自动更新。</Typography.Paragraph>
       <div className="sync-overview" aria-label="全部任务状态概览">
-        {[['', '全部任务'], ['queued', '等待排队'], ['running', '执行中'], ['pending', '等待重试'], ['failed', '失败'], ['success', '校验完成']].map(([status, title]) => (
-          <Button key={status} className={`sync-overview-item${status === 'failed' ? ' sync-overview-danger' : ''}`} aria-pressed={(query.status || '') === status} onClick={() => filter({ status: status || undefined })}>
-            <strong>{status ? summary?.[status] ?? (summary ? 0 : '—') : allCount ?? '—'}</strong>
+        {overview.map(({ category, title, count }) => (
+          <Button key={category} className={`sync-overview-item${category === 'needs-attention' ? ' sync-overview-danger' : ''}`} aria-pressed={isStatusCategory(category) ? query.status === category && !query.handling : !query.status && (query.handling || '') === category} onClick={() => filter({ status: isStatusCategory(category) ? category : undefined, handling: category && !isStatusCategory(category) ? category : undefined })}>
+            <strong>{count}</strong>
             <span>{title}</span>
           </Button>
         ))}
       </div>
-      <Typography.Paragraph type="secondary">概览统计全部任务；点击状态会筛选列表，并保留其他筛选条件。</Typography.Paragraph>
+      <Typography.Paragraph type="secondary">
+        历史失败根据后续任务自动标记，保留原始错误。已接续表示由后续任务负责，不代表数据已经完整。
+      </Typography.Paragraph>
       <div className="account-toolbar sync-filters" aria-label="任务筛选">
         <Input.Search className="sync-search" placeholder="搜索任务编号或触发人" aria-label="搜索任务编号或触发人" maxLength={100} value={search} allowClear onChange={(e) => { setSearch(e.target.value); if (!e.target.value) filter({ keyword: undefined }); }} onSearch={(v) => filter({ keyword: v.trim() || undefined })} />
-        <Select className="sync-filter-select" aria-label="任务状态" placeholder="全部状态" value={query.status} allowClear options={Object.entries(labels).map(([value, label]) => ({ value, label }))} onChange={(status) => filter({ status })} />
+        <Select className="sync-filter-select" aria-label="原始执行结果" placeholder="全部执行结果" value={query.status} allowClear options={Object.entries(labels).map(([value, label]) => ({ value, label }))} onChange={(status) => filter({ status })} />
+        <Select className="sync-filter-select" aria-label="处理情况" placeholder="全部处理情况" value={query.handling} allowClear options={[...Object.entries(handlingLabels).map(([value, label]) => ({ value, label })), { value: 'history', label: '全部历史接续' }]} onChange={(handling) => filter({ handling })} />
         <Select className="sync-mode" aria-label="任务类型" placeholder="全部任务类型" value={query.mode} allowClear options={modes} popupMatchSelectWidth={280} onChange={(mode) => filter({ mode })} />
         <DatePicker.RangePicker
           aria-label="任务日期范围"
@@ -204,7 +231,7 @@ export default function Page() {
         maxBodyHeight={960}
         rowKey="id"
         dataSource={rows}
-        rowClassName={(r) => (['failed', 'interrupted'].includes(r.status) || (r.status === 'pending' && r.retryCount >= maxFailures - 1) ? 'sync-job-warning' : '')}
+        rowClassName={(r) => (needsWarning(r) ? 'sync-job-warning' : '')}
         locale={{ emptyText: loadError || '没有符合条件的同步任务' }}
         pagination={{
           current: page, pageSize, total, showSizeChanger: true, pageSizeOptions: [10, 20, 50, 100], hideOnSinglePage: true, showTotal: (n) => `共 ${n} 条`, onChange: (next, size) => { setPage(size === pageSize ? next : 1); setPageSize(size); },
@@ -229,13 +256,10 @@ export default function Page() {
           },
           {
             title: '状态',
-            width: 100,
+            width: 130,
             render: (_, r) => (
-              <Tag color={({
-                success: 'success', failed: 'error', interrupted: 'error', pending: r.retryCount >= maxFailures - 1 ? 'warning' : 'processing',
-              } as Record<string, string>)[r.status]}
-              >
-                {labels[r.status] || r.status}
+              <Tag color={jobColor(r)}>
+                {handlingLabels[r.handling || ''] || labels[r.status] || r.status}
               </Tag>
             ),
           },
@@ -243,10 +267,11 @@ export default function Page() {
             title: '进度与异常',
             render: (_, r) => (
               <div className="sync-job-cell">
-                <span>{progressText(r)}</span>
-                {r.error && <span className="sync-job-error">{errorSummary(r.error)}</span>}
-                {r.status === 'pending' && r.retryCount >= maxFailures - 1 && <strong className="sync-job-error">接近失败上限，再失败一次将停止自动重试</strong>}
-                {r.status === 'failed' && <span className="sync-job-error">自动重试已停止，请检查原因后重新排队</span>}
+                {handlingMessage(r) && <span>{handlingMessage(r)}</span>}
+                {isHistorical(r) ? <small>{`原始执行结果：${labels[r.status]}。历史错误可在详情中查看。`}</small> : <span>{progressText(r)}</span>}
+                {r.error && !isHistorical(r) && <span className={needsWarning(r) ? 'sync-job-error' : undefined}>{errorSummary(r.error)}</span>}
+                {r.status === 'pending' && r.handling !== 'source-wait' && r.retryCount >= maxFailures - 1 && <strong className="sync-job-error">接近失败上限，再失败一次将停止自动重试</strong>}
+                {r.successorId && <Button type="link" size="small" onClick={() => openDetail(r.successorId!)}>{`查看后续任务 #${r.successorId}`}</Button>}
               </div>
             ),
           },
@@ -254,7 +279,7 @@ export default function Page() {
             title: '失败次数',
             width: 80,
             render: (_, r) => (
-              <Tag color={r.retryCount >= maxFailures - 1 ? 'error' : undefined}>
+              <Tag color={!isHistorical(r) && r.handling !== 'source-wait' && r.retryCount >= maxFailures - 1 ? 'error' : undefined}>
                 {r.retryCount}
                 {' '}
                 /
@@ -291,7 +316,7 @@ export default function Page() {
             render: (_, r) => (
               <Space size={4} wrap>
                 <Button type="text" size="small" onClick={() => openDetail(r.id)}>详情</Button>
-                {canRun && ['failed', 'pending', 'interrupted', 'paused'].includes(r.status) && (
+                {canRun && canRequeue(r) && (
                   <Tooltip title="继续原任务的同步方式和已完成进度，保留已保存的数据，清零失败计数。需要重新获取行情时，请在上方提交新任务。">
                     <Button type="primary" size="small" disabled={operationsDisabled} loading={busy?.id === r.id && busy.action === 'retry'} onClick={() => control(r.id, 'retry')}>{r.status === 'paused' ? '继续排队' : '重新排队'}</Button>
                   </Tooltip>
@@ -336,11 +361,12 @@ export default function Page() {
         {detail && (
           <>
             <Alert
-              type={({ failed: 'error', interrupted: 'error', success: 'success' } as const)[detail.status as 'failed' | 'interrupted' | 'success'] || 'info'}
+              type={isHistorical(detail) || detail.handling === 'source-wait' ? 'info' : ({ failed: 'error', interrupted: 'error', success: 'success' } as const)[detail.status as 'failed' | 'interrupted' | 'success'] || 'info'}
               showIcon
-              message={labels[detail.status] || detail.status}
-              description={jobGuidance(detail.status)}
+              message={handlingLabels[detail.handling] || labels[detail.status] || detail.status}
+              description={handlingMessage(detail) || jobGuidance(detail.status)}
             />
+            {detail.successorId && <Button type="link" onClick={() => openDetail(detail.successorId)}>{`查看后续任务 #${detail.successorId}`}</Button>}
             <Typography.Paragraph>{modes.find((m) => m.value === detail.mode)?.scope}</Typography.Paragraph>
             {canRun && (
               <div className="sync-detail-recollect">
@@ -372,7 +398,7 @@ export default function Page() {
                 { key: 'finished', label: '完成时间（北京）', children: formatTime(detail.finished_at) },
                 {
                   key: 'state',
-                  label: '状态',
+                  label: '原始执行结果',
                   children: labels[detail.status],
                 },
                 { key: 'stage', label: '进度', children: progressText(detail) },

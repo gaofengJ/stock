@@ -87,6 +87,17 @@ export class JobControlDto {
 export class SyncJobsQueryDto extends PageDto {
   @IsOptional()
   @IsIn([
+    'needs-attention',
+    'source-wait',
+    'auto-retry',
+    'history',
+    'recovered',
+    'continued',
+  ])
+  handling?: string;
+
+  @IsOptional()
+  @IsIn([
     'queued',
     'running',
     'success',

@@ -18,6 +18,7 @@ import { AuthService, CurrentUser } from '../auth/auth.service';
 import { SyncJobsQueryDto } from './admin.dto';
 import { DataLockService } from './data-lock.service';
 import { JobControl, MAX_JOB_FAILURES, retryOutcome } from './job-policy';
+import { jobHandlingSource } from './job-handling';
 
 export function validRange(start: string, end: string) {
   for (const d of [start, end])
@@ -127,6 +128,14 @@ export class JobsService implements OnApplicationBootstrap {
       conditions.push('status=?');
       parameters.push(q.status);
     }
+    if (q.handling) {
+      if (q.handling === 'history')
+        conditions.push("handling IN ('recovered','continued')");
+      else {
+        conditions.push('handling=?');
+        parameters.push(q.handling);
+      }
+    }
     if (q.mode) {
       conditions.push('mode=?');
       parameters.push(q.mode);
@@ -152,26 +161,32 @@ export class JobsService implements OnApplicationBootstrap {
     const where = conditions.length ? ` WHERE ${conditions.join(' AND ')}` : '';
     return this.db.transaction('REPEATABLE READ', async (m) => {
       const [{ total: count }] = await m.query(
-        `SELECT COUNT(*) total FROM t_admin_job${where}`,
+        `SELECT COUNT(*) total FROM ${jobHandlingSource}${where}`,
         parameters,
       );
       const total = Number(count);
       const page = Math.min(q.page, Math.max(1, Math.ceil(total / q.pageSize)));
       const items = await m.query(
-        `SELECT id,mode,actor_id actorId,actor_name actorName,DATE_FORMAT(start_date,"%Y-%m-%d") startDate,DATE_FORMAT(end_date,"%Y-%m-%d") endDate,status,stage,retry_count retryCount,next_retry_at nextRetryAt,last_progress_at lastProgressAt,started_at startedAt,finished_at finishedAt,created_at createdAt,error FROM t_admin_job${where} ORDER BY id DESC LIMIT ? OFFSET ?`,
+        `SELECT id,mode,actor_id actorId,actor_name actorName,DATE_FORMAT(start_date,"%Y-%m-%d") startDate,DATE_FORMAT(end_date,"%Y-%m-%d") endDate,status,stage,retry_count retryCount,next_retry_at nextRetryAt,last_progress_at lastProgressAt,started_at startedAt,finished_at finishedAt,created_at createdAt,error,handling,successorId,successorStatus FROM ${jobHandlingSource}${where} ORDER BY id DESC LIMIT ? OFFSET ?`,
         [...parameters, q.pageSize, (page - 1) * q.pageSize],
       );
       const counts = await m.query(
-        'SELECT status,COUNT(*) count FROM t_admin_job GROUP BY status',
+        `SELECT status,handling,COUNT(*) count FROM ${jobHandlingSource} GROUP BY status,handling`,
       );
       const summary: Record<string, number> = {};
-      for (const row of counts) summary[row.status] = Number(row.count);
+      const handlingSummary: Record<string, number> = {};
+      for (const row of counts) {
+        summary[row.status] = (summary[row.status] || 0) + Number(row.count);
+        handlingSummary[row.handling] =
+          (handlingSummary[row.handling] || 0) + Number(row.count);
+      }
       return {
         items,
         total,
         page,
         pageSize: q.pageSize,
         summary,
+        handlingSummary,
         maxFailures: MAX_JOB_FAILURES,
       };
     });
@@ -179,7 +194,7 @@ export class JobsService implements OnApplicationBootstrap {
 
   async detail(id: number) {
     const [job] = await this.db.query(
-      'SELECT *,DATE_FORMAT(start_date,"%Y-%m-%d") startDate,DATE_FORMAT(end_date,"%Y-%m-%d") endDate FROM t_admin_job WHERE id=?',
+      `SELECT *,DATE_FORMAT(start_date,"%Y-%m-%d") startDate,DATE_FORMAT(end_date,"%Y-%m-%d") endDate FROM ${jobHandlingSource} WHERE id=?`,
       [id],
     );
     if (!job) throw new NotFoundException('任务不存在');

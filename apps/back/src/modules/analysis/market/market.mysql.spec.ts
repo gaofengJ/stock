@@ -250,6 +250,153 @@ mysqlDescribe('市场分析迁移、发布及持久化续跑', () => {
     await db.manager.insert(DailyEntity, dailyRows(dates[0]));
     await db.manager.insert(LimitEntity, limitRows(dates[0]));
   });
+
+  it('annotates covered failures without changing history or hiding partial and cancelled repairs', async () => {
+    const jobs = new JobsService(db, daily, {} as any, new DataLockService(db));
+    const insert = async (
+      status: string,
+      mode = 'breadth',
+      start = dates[0],
+      end = dates[5],
+      finished = '2026-10-07 13:30:00',
+      key: string | null = null,
+      error = '原始错误',
+    ) => {
+      const result = await db.query(
+        'INSERT INTO t_admin_job(actor_name,start_date,end_date,status,mode,finished_at,active_key,error,retry_count) VALUES(?,?,?,?,?,?,?,?,5)',
+        ['系统自动', start, end, status, mode, finished, key, error],
+      );
+      return Number(result.insertId);
+    };
+    const original = await insert('failed');
+    await insert('success', 'hot');
+    await insert('success', 'breadth', dates[1]);
+    await insert('cancelled');
+    await insert(
+      'success',
+      'breadth',
+      dates[0],
+      dates[5],
+      '2026-10-07 13:00:00',
+    );
+    await insert('pending'); // No worker ownership: cannot assume it will run.
+    expect(await jobs.detail(original)).toMatchObject({
+      status: 'failed',
+      handling: 'needs-attention',
+      successorId: null,
+    });
+    const successor = await insert(
+      'pending',
+      'breadth',
+      dates[0],
+      dates[5],
+      '2026-10-07 13:35:00',
+      'test-owner',
+    );
+    expect(await jobs.detail(original)).toMatchObject({
+      status: 'failed',
+      handling: 'continued',
+      successorId: successor,
+      successorStatus: 'pending',
+      error: '原始错误',
+      retry_count: 5,
+    });
+    await db.query(
+      "UPDATE t_admin_job SET status='failed',active_key=NULL WHERE id=?",
+      [successor],
+    );
+    expect(await jobs.detail(original)).toMatchObject({
+      handling: 'continued',
+      successorId: successor,
+    });
+    expect(await jobs.detail(successor)).toMatchObject({
+      handling: 'needs-attention',
+    });
+    await db.query("UPDATE t_admin_job SET status='cancelled' WHERE id=?", [
+      successor,
+    ]);
+    expect(await jobs.detail(original)).toMatchObject({
+      handling: 'needs-attention',
+    });
+    const complete = await insert(
+      'success',
+      'breadth',
+      dates[0],
+      dates[5],
+      '2026-10-07 14:00:00',
+    );
+    expect(await jobs.detail(original)).toMatchObject({
+      status: 'failed',
+      handling: 'recovered',
+      successorId: complete,
+      error: '原始错误',
+      retry_count: 5,
+    });
+    const history = await jobs.list({
+      page: 1,
+      pageSize: 10,
+      handling: 'history',
+    });
+    expect(history.items.map((j: { id: number }) => j.id)).toEqual([original]);
+    expect(history.total).toBe(1);
+    expect(history.summary.failed).toBe(1);
+    expect(history.handlingSummary.recovered).toBe(1);
+    expect(
+      (await jobs.list({ page: 1, pageSize: 10, handling: 'needs-attention' }))
+        .total,
+    ).toBe(0);
+    expect(
+      (
+        await jobs.list({
+          page: 20,
+          pageSize: 10,
+          status: 'failed',
+          handling: 'recovered',
+          keyword: String(original),
+        })
+      ).page,
+    ).toBe(1);
+  });
+
+  it('separates source-only waiting from real retry errors and retains pending ownership', async () => {
+    const jobs = new JobsService(db, daily, {} as any, new DataLockService(db));
+    for (const [mode, error, expected] of [
+      ['hot', '等待源端补齐：2026-08-18', 'source-wait'],
+      [
+        'hot',
+        '日终人气数据待源端补齐，24小时后重试：2026-08-18',
+        'source-wait',
+      ],
+      ['hot', '等待源端补齐：2026-08-18\n网络错误', 'auto-retry'],
+      ['breadth', '等待源端补齐：2026-08-18', 'auto-retry'],
+      ['hot', 'HTTP 500', 'auto-retry'],
+    ]) {
+      const result = await db.query(
+        "INSERT INTO t_admin_job(actor_name,start_date,end_date,status,mode,error,retry_count,active_key) VALUES('系统自动',?,?,'pending',?,?,4,?)",
+        [
+          dates[0],
+          dates[5],
+          mode,
+          error,
+          `test-owner-${expected}-${error}`.slice(0, 64),
+        ],
+      );
+      expect(await jobs.detail(result.insertId)).toMatchObject({
+        handling: expected,
+        status: 'pending',
+        retry_count: 4,
+      });
+    }
+    const result = await jobs.list({
+      page: 1,
+      pageSize: 10,
+      handling: 'source-wait',
+    });
+    expect(result.total).toBe(2);
+    expect(result.summary.pending).toBe(5);
+    expect(result.handlingSummary['auto-retry']).toBe(3);
+    expect(result.handlingSummary['source-wait']).toBe(2);
+  });
   it('重复迁移幂等，新权限仅授予内置角色，跨闰年允许两个自然年', async () => {
     const [count] = await db.query(
       "SELECT COUNT(*) n FROM t_role_permission rp JOIN t_permission p ON rp.permission_id=p.id WHERE p.code='analysis:overview'",

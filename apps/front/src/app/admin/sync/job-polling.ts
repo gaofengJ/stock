@@ -1,4 +1,4 @@
-export function startJobPolling<T extends { status: string }>(options: {
+export function startJobPolling<T extends { status: string; handling?: string }>(options: {
   read: () => Promise<T>;
   onValue: (value: T) => void;
   onError: (error: unknown) => void;
@@ -14,7 +14,7 @@ export function startJobPolling<T extends { status: string }>(options: {
         const value = await options.read();
         if (disposed) return;
         options.onValue(value);
-        if (terminal.includes(value.status)) return;
+        if (terminal.includes(value.status) && value.handling !== 'continued') return;
       } catch (error) {
         if (disposed) return;
         options.onError(error);
