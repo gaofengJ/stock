@@ -1,9 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class ReviewNotebookGeneration1792281600000
-  implements MigrationInterface
-{
-  name = 'ReviewNotebookGeneration1792281600000';
+export class ReviewGeneration1792281600000 implements MigrationInterface {
+  name = 'ReviewGeneration1792281600000';
 
   async up(q: QueryRunner): Promise<void> {
     await q.query(`CREATE TABLE IF NOT EXISTS t_review_notebook_state (

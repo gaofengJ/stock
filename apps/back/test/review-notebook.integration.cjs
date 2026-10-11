@@ -1,10 +1,10 @@
 const assert = require('node:assert/strict');
 const { ReviewNotebook1792195200000 } = require('../dist/migrations/1792195200000-ReviewNotebook');
-const { ReviewNotebookGeneration1792281600000 } = require('../dist/migrations/1792281600000-ReviewNotebookGeneration');
+const { ReviewGeneration1792281600000 } = require('../dist/migrations/1792281600000-ReviewNotebookGeneration');
 const { NotebookService } = require('../dist/modules/review/notebook.service');
 module.exports = async ({ db, inject, admin, user }) => {
   const q = db.createQueryRunner();
-  try { await new ReviewNotebook1792195200000().up(q); await new ReviewNotebook1792195200000().up(q); await new ReviewNotebookGeneration1792281600000().up(q); await new ReviewNotebookGeneration1792281600000().up(q); } finally { await q.release(); }
+  try { await new ReviewNotebook1792195200000().up(q); await new ReviewNotebook1792195200000().up(q); await new ReviewGeneration1792281600000().up(q); await new ReviewGeneration1792281600000().up(q); } finally { await q.release(); }
   const date = '2026-09-28';
   const content = { private: { execution: 'PRIVATE_SENTINEL', normalPlan: 'PRIVATE_PLAN' }, public: { summary: 'Public thesis', sources: 'Public source at close' } };
   const post = (revision, value = content) => inject('POST', '/review/notebook', { date, revision, content: JSON.stringify(value) }, admin);
