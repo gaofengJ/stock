@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  useCallback, useEffect, useId, useMemo, useRef, useState,
+  useCallback, useEffect, useMemo, useRef, useState,
 } from 'react';
 import {
   Alert, Button, Empty, Modal,
@@ -13,11 +13,11 @@ import CChart from '@/components/CChart';
 import candleExtremaMarks from '@/components/CChart/candle-extrema';
 import Loading from '@/components/Loading';
 import StockActions from '@/components/StockActions';
-import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { useSiteTheme } from '@/components/SiteTheme';
 import { lightMovingAverageColors, movingAverageColors, quoteColors } from '@/colors';
 import { movingAverage } from '@/app/analysis/components/market-display';
 import ExpandedChart from '@/app/analysis/components/ExpandedChart';
+import { createChartLoader } from './chart-loader';
 import StockQuotePanel, { StockPoint, StockQuoteHandle } from './StockQuotePanel';
 import { hoverAverageLabel } from '../analysis/components/overview-chart';
 import type { TrendOptions } from './TrendParameters';
@@ -47,8 +47,9 @@ export default function StockChart({
   const [range, setRange] = useState<ChartRange>({ start: 0, end: 0 });
   const [view, setView] = useState<{ identity: string; mode: string; anchor?: string; page?: { data: StockChartData; range: ChartRange; direction: number } } | null>(null);
   const { mode, colors } = useSiteTheme();
-  const instance = useId();
-  const { requestConfig, runLatestRequest } = useLatestRequest(`strategy-stock-chart-${instance}`);
+  const loader = useMemo(() => createChartLoader((params, signal) => request.get<StockChartData>('/strategy/chart', {
+    params, signal, timeout: 30000, autoShowError: false,
+  })), []);
   const quoteRef = useRef<StockQuoteHandle>(null);
   const onAxisHover = useCallback((hoverDate: string | null) => quoteRef.current?.select(hoverDate), []);
   const code = stock?.tsCode;
@@ -60,45 +61,65 @@ export default function StockChart({
   const page = view?.identity === identity ? view.page : undefined;
   const position = navigation.findIndex((row) => row.tsCode === code && (!stock?.date || row.date === stock.date));
   const chartTitle = [stock?.name, code, neutral ? '日K' : '信号形态'].filter(Boolean).join(' ');
-  useEffect(() => { setView(null); }, [identity]);
+  useEffect(() => { setView(null); setAttempt(0); }, [identity]);
   useEffect(() => {
-    if (!code) { request.cancelRace(requestConfig.raceKey!); return; }
-    runLatestRequest({
-      request: () => request.get<StockChartData>('/strategy/chart', {
-        ...requestConfig,
-        params: {
-          date,
-          code,
-          strategyType: strategy,
-          ...queryOptions,
-          ...(viewMode === 'signal' ? { chartAroundSignal: true } : {}),
-          ...(viewMode === 'latest' ? { chartLatest: true } : {}),
-          ...(viewMode === 'before' ? { chartBefore: anchor } : {}),
-          ...(viewMode === 'after' ? { chartAfter: anchor } : {}),
-        },
-        timeout: 30000,
-      }),
-      onStart: () => { setLoading(true); setError(''); setData(null); quoteRef.current?.select(null); },
-      onSuccess: (response) => {
-        if (page) {
-          const merged = pagedChartRange(page.data.series, response.data.series, page.range, page.direction);
-          setData({
-            ...response.data,
-            series: merged.series,
-            hasEarlier: merged.clippedEarlier || (page.direction < 0 ? response.data.hasEarlier : page.data.hasEarlier),
-            hasLater: merged.clippedLater || (page.direction > 0 ? response.data.hasLater : page.data.hasLater),
-          });
-          setRange(merged.range);
-        } else {
-          setData(response.data);
-          setRange(initialChartRange(response.data.series.map((row) => row.date), date, viewMode, anchor));
-        }
-        setReset((v) => v + 1);
-      },
-      onError: (e) => setError(errorMessage(e, 'K线加载失败')),
-      onFinally: () => setLoading(false),
+    if (!code) return undefined;
+    let active = true;
+    const task = loader.acquire({
+      date,
+      code,
+      strategyType: strategy,
+      ...queryOptions,
+      ...(viewMode === 'signal' ? { chartAroundSignal: true } : {}),
+      ...(viewMode === 'latest' ? { chartLatest: true } : {}),
+      ...(viewMode === 'before' ? { chartBefore: anchor } : {}),
+      ...(viewMode === 'after' ? { chartAfter: anchor } : {}),
+    }, attempt > 0);
+    setLoading(true); setError(''); setData(null); quoteRef.current?.select(null);
+    task.promise.then((response) => {
+      if (!active) return;
+
+      if (page) {
+        const merged = pagedChartRange(page.data.series, response.data.series, page.range, page.direction);
+        setData({
+          ...response.data,
+          series: merged.series,
+          hasEarlier: merged.clippedEarlier || (page.direction < 0 ? response.data.hasEarlier : page.data.hasEarlier),
+          hasLater: merged.clippedLater || (page.direction > 0 ? response.data.hasLater : page.data.hasLater),
+        });
+        setRange(merged.range);
+      } else {
+        setData(response.data);
+        setRange(initialChartRange(response.data.series.map((row) => row.date), date, viewMode, anchor));
+      }
+      setReset((v) => v + 1);
+    }).catch((e) => { if (active) setError(errorMessage(e, 'K线加载失败')); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; task.release(); };
+  }, [code, date, strategy, queryOptions, viewMode, anchor, page, attempt, loader]);
+  const nextStock = navigation[position + 1];
+  const nextCode = nextStock?.tsCode;
+  const nextDate = nextStock?.date || date;
+  const nextStrategy = nextStock?.strategies?.[0]?.key || strategy;
+  useEffect(() => {
+    if (!code || loading || !data || !nextCode || !onNavigate) return undefined;
+    const task = loader.acquire({
+      date: nextDate, code: nextCode, strategyType: nextStrategy, ...queryOptions, chartAroundSignal: true,
     });
-  }, [code, date, strategy, queryOptions, viewMode, anchor, page, attempt, requestConfig, runLatestRequest]);
+    task.promise.catch(() => {}).finally(task.release);
+    return task.release;
+  }, [code, loading, data, nextCode, nextDate, nextStrategy, queryOptions, loader, onNavigate]);
+  useEffect(() => {
+    if (!code || !onNavigate) return undefined;
+    const navigate = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || target.closest('input, textarea, select, [contenteditable="true"], [role="combobox"]')) return;
+      const direction = ({ ArrowUp: -1, ArrowDown: 1 } as Record<string, number>)[event.key] || 0;
+      if (direction && position >= 0 && navigation[position + direction]) { event.preventDefault(); onNavigate(navigation[position + direction]); }
+    };
+    window.addEventListener('keydown', navigate);
+    return () => window.removeEventListener('keydown', navigate);
+  }, [code, onNavigate, navigation, position]);
   const onZoomChange = useCallback((start: number, end: number) => {
     const last = (data?.series.length || 1) - 1;
     const next = { start: Math.round((start * last) / 100), end: Math.round((end * last) / 100) };
@@ -146,7 +167,7 @@ export default function StockChart({
           {onNavigate && navigation.length > 1 && (
             <span className="strategy-chart-stock-navigation">
               <Button size="small" aria-label="上一只股票" title="上一只股票" icon={<LeftOutlined />} disabled={position <= 0} onClick={() => onNavigate(navigation[position - 1])} />
-              <span className="strategy-chart-position" aria-live="polite">
+              <span className="strategy-chart-position" title="按 ↑ / ↓ 切换股票" aria-live="polite">
                 {position + 1}
                 {' '}
                 /

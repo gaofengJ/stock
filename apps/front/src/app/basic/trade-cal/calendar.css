@@ -39,3 +39,12 @@
   .calendar-events .ant-table-tbody > tr > td { padding: 6px 4px; }
   .calendar-events .ant-table-thead > tr > th { padding: 8px 4px; }
 }
+
+.investment-calendar, .investment-day, .investment-detail { display: grid; gap: 16px; min-width: 0; }
+.investment-calendar .trading-months.monthly { max-width: none; }
+.investment-calendar .trading-day[aria-pressed="true"] { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.investment-day h3 { margin: 0; font-size: 14px; }
+.investment-detail { overflow-wrap: anywhere; justify-items: start; }
+.investment-detail p { margin: 0; }
+.investment-calendar .ant-input-search { max-width: 260px; }
+.investment-calendar .ant-collapse-header-text { white-space: normal; overflow-wrap: anywhere; }

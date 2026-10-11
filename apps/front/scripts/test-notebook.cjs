@@ -11,11 +11,6 @@ test('rich text export escapes scripts, images and attributes rather than execut
  const html=exp.noteHtml('# <script>alert(1)</script>\n<img src=x onerror=alert(1)>');
  assert.ok(!html.includes('<script>')&&!html.includes('<img'));assert.ok(html.includes('&lt;script&gt;'));
 });
-test('template covers research, plan validation, execution and separate public writing',()=>{
- const t=exp.templateText();for(const s of ['市场与主线','今日操作','明日计划','一条总结','买入触发','放弃条件','公开笔记'])assert.ok(t.includes(s));
-});
-
-
 test('published snapshot matches the preview and never imports private writing', () => {
  const server = load('../../back/src/modules/review/notebook.content.ts');
  const c = exp.emptyNotebook();
@@ -60,6 +55,50 @@ test('partial source errors remain explicit and wrong dates never enter research
  const market={snapshot:{amount:100,up:50,down:20,flat:1,limitUp:3,limitDown:1,broken:2,maxHeight:4},indexes:[]};
  const research=load('../src/app/review/research.ts',{'@/api/request':{default:{get:async()=>({data:{date:'2026-09-30',items:[]}})}},'@/api/market':{marketRequest:async(endpoint)=>{if(endpoint==='overview')return {data:{date:'2026-09-29',...market}};if(endpoint==='sentiment')return {data:{date:'2026-09-30',...market}};throw Error('fixture unavailable');}},'@/utils/format':{numberText:v=>v==null?'—':String(v)}});
  const r=await research.loadResearch('2026-09-30');assert.equal(r.sections.find(x=>x.key==='market').state,'missing');assert.equal(r.sections.find(x=>x.key==='sentiment').state,'ready');
- const text=research.researchDraft(r);assert.ok(text.includes('缺失')&&text.includes('涨停 3 家'));
+ assert.equal(r.sections.length,6);assert.ok(!r.sections.some(x=>['news','dragon'].includes(x.key)));assert.ok(r.sections.find(x=>x.key==='sentiment').text.includes('涨停 3 家'));
  assert.deepEqual(contract.validateResearch(r),serverContract.validateResearch(r));
+});
+
+const materialsContract=load('../src/app/review/materials-contract.ts');
+test('v2 preserves user words, separates context, and includes execution only by explicit choice',()=>{
+ const c=exp.emptyNotebook(); c.private.marketJudgment='我的判断，保持原文。\n第二行';c.private.lesson='不要追涨';c.private.execution='PRIVATE_TRADE';c.private.toolEvidence='股票 000001.SZ 的原始观察';
+ c.materials={links:[{id:'link1',title:'自选图',url:'https://example.com/chart',note:'取日线图'}],calendar:[{id:'event1',date:'2026-10-12',title:'展会',detail:'相关题材',source:'https://example.com/event'}],showCalendar:false,includeExecution:false};
+ c.research={date:'2026-09-30',fetchedAt:'2026-09-30T12:00:00Z',sections:[{key:'market',title:'大盘',source:'/analysis/overview?date=2026-09-30',text:'GENERIC_MARKET',state:'ready',points:[],unit:''},{key:'themes',title:'题材',source:'/analysis/limits?date=2026-09-30',text:'THEME',state:'ready',points:[],unit:''},{key:'news',title:'新闻',source:'/news?date=2026-09-30',text:'OLD_NEWS',state:'ready',points:[],unit:''}]};
+ let p=handoff.reviewPacket('2026-09-30',1,c,'https://stock.example.com');
+ assert.equal(p.schema,'stock-review/v2');assert.equal(p.article.body,'');assert.equal(p.userNotes.find(n=>n.key==='marketJudgment').text,c.private.marketJudgment);
+ assert.ok(!p.userNotes.some(n=>n.key==='themes'));assert.ok(!JSON.stringify(p).includes('PRIVATE_TRADE'));assert.ok(!JSON.stringify(p.research).includes('GENERIC_MARKET'));assert.ok(JSON.stringify(p.context).includes('GENERIC_MARKET'));assert.ok(!JSON.stringify(p).includes('OLD_NEWS'));
+ assert.equal(p.materials.calendar.length,1,'hiding the calendar preserves selected events');assert.ok(p.materials.links.some(l=>l.url==='https://stock.example.com/basic/stock/detail/?code=000001.SZ&date=2026-09-30'));
+ c.materials.includeExecution=true;p=handoff.reviewPacket('2026-09-30',1,c);assert.equal(p.userNotes.find(n=>n.key==='execution').text,'PRIVATE_TRADE');
+ const server=load('../../back/src/modules/review/notebook.content.ts');assert.deepEqual(server.parseNotebook(JSON.stringify(c)),c);
+});
+test('material contract is identical on client and server, rejects executable links and duplicate IDs',()=>{
+ const server=load('../../back/src/modules/review/materials-contract.ts');
+ const m={links:[{id:'a',title:'t',url:'https://example.com/a',note:'n'}],calendar:[],showCalendar:true,includeExecution:false};
+ for(const validate of [materialsContract.validateMaterials,server.validateMaterials]){
+   assert.deepEqual(validate(m),m);
+   assert.throws(()=>validate({...m,links:[...m.links,...m.links]}));
+   for(const url of ['javascript:alert(1)','data:image/png;base64,abc','https://user:pass@example.com/a'])assert.throws(()=>validate({...m,links:[{...m.links[0],url}]}));
+ }
+});
+const {createChartLoader}=load('../src/app/strategy/chart-loader.ts');
+test('chart prefetch and foreground share one request, cancellation is isolated, cache expires',async()=>{
+ let time=0;const pending=[];const loader=createChartLoader((params,signal)=>new Promise((resolve,reject)=>{pending.push({params,signal,resolve,reject});signal.addEventListener('abort',()=>reject(Object.assign(new Error('abort'),{code:'ERR_CANCELED'})));}),()=>time);
+ const a=loader.acquire({code:'A',date:'D'}); a.release();const b=loader.acquire({date:'D',code:'A'});await Promise.resolve();assert.equal(pending.length,1);assert.equal(pending[0].signal.aborted,false,'switching into an active prefetch must not abort it');
+ pending[0].resolve({code:'A'});assert.equal((await b.promise).code,'A');b.release();
+ const cached=loader.acquire({code:'A',date:'D'});await cached.promise;cached.release();assert.equal(pending.length,1);
+ time=60001;const fresh=loader.acquire({code:'A',date:'D'});assert.equal(pending.length,2);fresh.promise.catch(()=>{});fresh.release();await Promise.resolve();assert.equal(pending[1].signal.aborted,true);
+ const c=loader.acquire({code:'B',date:'D'});const d=loader.acquire({code:'C',date:'D'});c.promise.catch(()=>{});c.release();await Promise.resolve();assert.equal(pending[2].signal.aborted,true);assert.equal(pending[3].signal.aborted,false);pending[3].resolve({code:'C'});await d.promise;d.release();
+});
+test('transient chart failure retries once; business and auth failures are never retried or cached',async()=>{
+ for(const status of [401,403,409,502]){let count=0;const loader=createChartLoader(async()=>{count++;throw {response:{status}};});const task=loader.acquire({code:'A'});await assert.rejects(task.promise);task.release();assert.equal(count,status===502?2:1);const next=loader.acquire({code:'A'});await assert.rejects(next.promise);next.release();assert.equal(count,status===502?4:2);}
+});
+
+test('v2 result import preserves original notes and images and requires independent analysis',()=>{
+ const c=illustrated();c.private.lesson='我的经验，原样保留';
+ const p=handoff.reviewPacket('2026-09-30',4,c);
+ const valid={...p,article:{...p.article,body:'# 图文\n\n## 用户记录\n我的经验，原样保留\n\n## AI 分析\n依据图片补充的独立分析。'}};
+ assert.equal(handoff.readResult(JSON.stringify(valid),p.date,4,c).body,valid.article.body);
+ assert.throws(()=>handoff.readResult(JSON.stringify({...valid,article:{...valid.article,body:'## AI 分析\n只有分析。'}}),p.date,4,c),/原文/);
+ assert.throws(()=>handoff.readResult(JSON.stringify({...valid,article:{...valid.article,body:'我的经验，原样保留'}}),p.date,4,c),/AI 分析/);
+ assert.throws(()=>handoff.readResult(JSON.stringify({...valid,article:{...valid.article,images:[]}}),p.date,4,c),/配图/);
 });

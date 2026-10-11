@@ -1,132 +1,90 @@
 'use client';
 
-import { useState } from 'react';
+/* eslint-disable no-bitwise, react/jsx-closing-tag-location -- Stable FNV event ids; nested Collapse content follows local layout. */
+
+import { useEffect, useState } from 'react';
 import {
-  Button, DatePicker, Input, Modal, Popover, Select, Space, Tag,
+  Alert, Button, Checkbox, Collapse, DatePicker, Empty, Input, Space, Spin,
 } from 'antd';
 import dayjs from 'dayjs';
-import Table from '@/components/DataTable';
+import { getBasicTradeCalList } from '@/api/services';
+import { errorMessage } from '@/api/errors';
+import { CalendarMaterial } from '@/app/review/materials-contract';
+import TradeCalendarGrid from '../trade-cal/TradeCalendarGrid';
 import { SourceState, useWorkbench } from './workbench';
-import useCalendarPagination from './useCalendarPagination';
+import '../trade-cal/calendar.css';
 
-export default function InvestmentCalendar({ date, onDate }: { date: string; onDate: (v: string) => void }) {
-  const [days, setDays] = useState('30'); const [category, setCategory] = useState<string>(); const [country, setCountry] = useState<string>(); const [keyword, setKeyword] = useState(''); const [detail, setDetail] = useState<any>(null);
-  const state = useWorkbench('market-events', { date, days });
-  const items = (state.data?.items || []).filter((r: any) => (!category || r.category === category) && (!country || r.country === country) && (!keyword || `${r.title} ${r.sectors.join(' ')} ${r.issuingOrg || ''}`.includes(keyword)));
-  const countries = Array.from(new Set<string>((state.data?.items || []).map((r: any) => r.country).filter(Boolean))).sort();
-  const { ref, pagination } = useCalendarPagination(JSON.stringify([date, days, category, country, keyword]));
+export function eventMaterial(event: any): CalendarMaterial {
+  const key = JSON.stringify([event.date, event.time, event.source, event.country, event.title]);
+  let hash = 2166136261;
+  for (let i = 0; i < key.length; i += 1) hash = Math.imul(hash ^ key.charCodeAt(i), 16777619);
+  return {
+    id: String(hash >>> 0),
+    date: event.date,
+    title: event.title,
+    detail: [event.time, event.country, event.category, event.issuingOrg,
+      event.sectors?.length ? `关联板块：${event.sectors.join('、')}` : '',
+      ...['previous', 'forecast', 'actual'].map((k, i) => (event[k] == null ? '' : `${['前值', '预测值', '公布值'][i]}：${event[k]}`)),
+    ].filter(Boolean).join('；'),
+    source: /^https?:\/\//.test(event.url || '') ? event.url : 'https://stock.10jqka.com.cn/fincalendar.shtml',
+  };
+}
+export default function InvestmentCalendar({
+  date, onDate, selected, onSelect,
+}: {
+  date: string; onDate: (value: string) => void; selected?: CalendarMaterial[]; onSelect?: (value: CalendarMaterial[]) => void;
+}) {
+  const [visible, setVisible] = useState(true);
+  const [keyword, setKeyword] = useState('');
+  const [trade, setTrade] = useState<any[]>([]);
+  const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
+  const monthStart = dayjs(date).startOf('month').format('YYYY-MM-DD');
+  const year = date.slice(0, 4);
+  const state = useWorkbench('market-events', { date: monthStart, days: '31' }, visible);
+  useEffect(() => {
+    let active = true; setError(''); setTrade([]);
+    getBasicTradeCalList({ year }, { autoShowError: false }).then((r) => { if (active) setTrade(r.data); }).catch((e) => { if (active) setError(errorMessage(e)); });
+    return () => { active = false; };
+  }, [year, attempt]);
+  const items = visible ? (state.data?.items || []).filter((r: any) => r.date.startsWith(date.slice(0, 7)) && (!keyword.trim() || `${r.title} ${(r.sectors || []).join(' ')}`.includes(keyword.trim()))) : [];
+  const counts: Record<string, number> = {};
+  items.forEach((item: any) => { counts[item.date] = (counts[item.date] || 0) + 1; });
+  const daily = items.filter((item: any) => item.date === date);
   return (
-    <section className="calendar-events">
-      <Space className="calendar-filters" wrap>
-        <DatePicker aria-label="投资日历起始日期" value={dayjs(date)} allowClear={false} onChange={(v) => { if (v) onDate(v.format('YYYY-MM-DD')); }} />
-        <Select value={days} onChange={setDays} options={[{ value: '7', label: '未来7天' }, { value: '30', label: '未来30天' }]} />
-        <Select aria-label="事件分类" placeholder="全部分类" style={{ width: 150 }} allowClear value={category} onChange={setCategory} options={['科技与展会', '政策与会议', '经济数据', '其他事件'].map((v) => ({ value: v, label: v }))} />
-        <Select aria-label="国家或地区" placeholder="国家／地区" style={{ width: 140 }} allowClear value={country} onChange={setCountry} options={countries.map((v) => ({ value: v, label: v }))} />
-        <Input.Search placeholder="搜索事件／板块" allowClear onSearch={setKeyword} />
+    <section className="investment-calendar">
+      <Space wrap size={12}>
+        <DatePicker aria-label="日历日期" value={dayjs(date)} allowClear={false} onChange={(value) => { if (value) onDate(value.format('YYYY-MM-DD')); }} />
+        {!onSelect && <Checkbox checked={visible} onChange={(e) => setVisible(e.target.checked)}>显示投资事件</Checkbox>}
+        {visible && <Input.Search aria-label="搜索日历事件" placeholder="搜索事件或板块" allowClear value={keyword} onChange={(e) => setKeyword(e.target.value)} />}
       </Space>
-      <SourceState data={state.data} error={state.error} retry={state.retry} pollingStopped={state.pollingStopped} />
-      <div className="calendar-meta">
-        <span>
-          全球财经、政策会议与科技展会 ·
-          {date}
-          {' '}
-          至
-          {state.data?.end || dayjs(date).add(Number(days) - 1, 'day').format('YYYY-MM-DD')}
-        </span>
-        <Popover trigger="click" content={<p className="calendar-note">仅列出来源已发布的日程，后续可能调整。投资事件分类依据标题关键词；关联板块和重要性采用原始资料，未标注时显示“—”。经济数据保留来源时间，未提供时区时不换算。未公布的两会或展会日期不会推测补齐。</p>}><Button size="small" type="link">日程说明</Button></Popover>
-      </div>
-      <p className="basic-muted calendar-attribution">
-        投资事件来源：
-        <a href="https://stock.10jqka.com.cn/fincalendar.shtml" target="_blank" rel="noreferrer">同花顺投资日历</a>
-        。经济数据的发布机构见详情，来源未提供时不推测。
-      </p>
-      <div ref={ref}>
-        <Table
-          loading={state.loading}
-          autoHeight
-          scroll={{ x: undefined }}
-          tableLayout="fixed"
-          pagination={pagination}
-          locale={{ emptyText: state.data?.sources?.some((r: any) => r.state !== 'ready' && r.state !== 'unpublished') ? '资料尚未就绪，可稍后检查更新' : '所选范围暂无已公布的匹配日程' }}
-          dataSource={items}
-          rowKey={(r: any) => `${r.date}-${r.time}-${r.country}-${r.title}`}
-          columns={[
-            {
-              title: '日期',
-              dataIndex: 'date',
-              width: 112,
-              render: (v, r: any) => (
-                <div>
-                  {v}
-                  {r.time && <small className="calendar-secondary">{r.time}</small>}
-                </div>
-              ),
-            },
-            {
-              title: '事件',
-              dataIndex: 'title',
-              render: (v, r: any) => (
-                <div>
-                  <span className="calendar-summary" title={v}>{v}</span>
-                  <small className="calendar-secondary">
-                    {r.category}
-                    {r.country ? ` · ${r.country}` : ''}
-                  </small>
-                </div>
-              ),
-            },
-            {
-              title: '关联板块', key: 'sectors', width: 185, render: (_, r: any) => <span className="calendar-summary" title={r.sectors.join('、')}>{r.sectors.join('、') || '—'}</span>,
-            },
-            {
-              title: '重要性', dataIndex: 'importance', width: 75, render: (v) => (v ? <span title="来源标注的重要性">{'★'.repeat(v)}</span> : '—'),
-            },
-            {
-              title: '', key: 'detail', width: 75, render: (_, r) => <Button type="link" size="small" onClick={() => setDetail(r)}>详情</Button>,
-            },
-          ]}
-        />
-      </div>
-      <Modal className="calendar-modal" centered title="投资事件详情" open={!!detail} onCancel={() => setDetail(null)} footer={null}>
-        {detail && (
-        <div className="calendar-detail">
-          <h3>{detail.title}</h3>
-          <p>
-            {detail.date}
-            {' '}
-            {detail.time || ''}
-            {' '}
-            {detail.country || ''}
-          </p>
-          <p>
-            <Tag>{detail.category}</Tag>
-            {detail.issuingOrg || ''}
-          </p>
-          <p>
-            关联板块：
-            {detail.sectors.join('、') || '来源未标注'}
-          </p>
-          {detail.category === '经济数据' && (
-          <p>
-            前值：
-            {detail.previous ?? '—'}
-            {' '}
-            · 预测值：
-            {detail.forecast ?? '—'}
-            {' '}
-            · 公布值：
-            {detail.actual ?? '—'}
-          </p>
-          )}
-          {detail.source === 'investment_calendar' ? (
-            <p>
-              来源：
-              <a href={detail.url} target="_blank" rel="noreferrer">同花顺投资日历 · 查看原始日程</a>
-            </p>
-          ) : <p>{`发布机构：${detail.issuingOrg || '来源未标注'}`}</p>}
+      {error && <Alert type="warning" message={`交易日状态暂缺：${error}`} action={<Button onClick={() => setAttempt((v) => v + 1)}>重试</Button>} />}
+      {visible && <SourceState data={state.data} error={state.error} retry={state.retry} pollingStopped={state.pollingStopped} />}
+      <TradeCalendarGrid items={trade} year={year} initialMonth={dayjs(date).month()} selected={date} events={counts} onSelect={onDate} />
+      {visible && (
+        <div className="investment-day">
+          <h3>{`${date} 投资事件`}</h3>
+          {state.loading && <Spin aria-label="正在读取投资日历" />}
+          {!state.loading && !daily.length && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={state.error || state.data?.sources?.some((s: any) => !['ready', 'unpublished'].includes(s.state)) ? '日程资料尚未完整取得，可重试' : '当天没有匹配的已公布日程'} />}
+          <Collapse items={daily.map((event: any) => {
+            const material = eventMaterial(event);
+            const included = selected?.some((s) => s.id === material.id);
+            return {
+              key: material.id,
+              label: <span>
+                {event.time ? `${event.time} ` : ''}
+                {event.title}
+              </span>,
+              children: <div className="investment-detail">
+                <p>{material.detail || '来源未提供补充说明'}</p>
+                <a href={material.source} target="_blank" rel="noreferrer">查看原始日程</a>
+                {onSelect && <Checkbox checked={included} disabled={!included && (selected?.length || 0) >= 40} onChange={(e) => onSelect(e.target.checked ? [...(selected || []), material] : (selected || []).filter((s) => s.id !== material.id))}>纳入复盘素材</Checkbox>}
+              </div>,
+            };
+          })}
+          />
         </div>
-        )}
-      </Modal>
+      )}
     </section>
   );
 }

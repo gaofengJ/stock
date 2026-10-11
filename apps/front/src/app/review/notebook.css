@@ -79,3 +79,12 @@ body:has(.notebook-preview-modal) .platform-content:has(.review-page) { overflow
   .notebook-preview-modal.ant-modal { top: 16px; padding-bottom: 16px; }
   .notebook-preview-modal.ant-modal .ant-modal-content { padding: 16px; }
 }
+
+.notebook-material-links, .notebook-handoff { display: grid; gap: 16px; min-width: 0; }
+.notebook-material-links h2, .notebook-panel-intro h2 { font-size: 16px; margin: 0; }
+.notebook-handoff { border-top: 1px solid var(--color-border); padding-top: 24px; }
+.notebook-source-row { display: flex; align-items: flex-start; gap: 16px; justify-content: space-between; padding: 12px 0; }
+.notebook-source-row > div { min-width: 0; overflow-wrap: anywhere; }
+.notebook-source-row > .ant-btn { flex-shrink: 0; }
+.notebook-field:has(#note-lesson) { border-top: 1px solid var(--color-border); padding-top: 24px; }
+.notebook-detail-fields > .ant-btn { justify-self: start; }

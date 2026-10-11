@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { Materials, validateMaterials } from './materials-contract';
 import {
   Article,
   Research,
@@ -36,6 +37,7 @@ export interface NotebookContent {
   public: Record<string, string>;
   article?: Article;
   research?: Research;
+  materials?: Materials;
 }
 
 export function parseNotebook(raw: string): NotebookContent {
@@ -44,7 +46,10 @@ export function parseNotebook(raw: string): NotebookContent {
     if (
       !value ||
       Object.keys(value).some(
-        (k) => !['private', 'public', 'article', 'research'].includes(k),
+        (k) =>
+          !['private', 'public', 'article', 'research', 'materials'].includes(
+            k,
+          ),
       )
     )
       throw new Error();
@@ -59,7 +64,12 @@ export function parseNotebook(raw: string): NotebookContent {
           if (
             typeof text !== 'string' ||
             text.length >
-              (['toolEvidence', 'holdingEvidence'].includes(k) ? 12000 : 4000)
+              ((
+                { toolEvidence: 24000, holdingEvidence: 12000 } as Record<
+                  string,
+                  number
+                >
+              )[k] || 4000)
           )
             throw new Error();
           return [k, text];
@@ -68,6 +78,9 @@ export function parseNotebook(raw: string): NotebookContent {
     };
     return {
       private: section(value.private, privateFields),
+      ...(value.materials
+        ? { materials: validateMaterials(value.materials) }
+        : {}),
       public: section(value.public, publicFields),
       ...(value.article ? { article: validateArticle(value.article) } : {}),
       ...(value.research ? { research: validateResearch(value.research) } : {}),

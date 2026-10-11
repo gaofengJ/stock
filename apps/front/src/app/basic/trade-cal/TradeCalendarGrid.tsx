@@ -9,10 +9,12 @@ import { Lunar } from 'lunar-typescript';
 import { NSGetBasicTradeCalList } from '@/api/services.types';
 import { monthDates } from './calendar-display';
 
-export default function TradeCalendarGrid({ items, year, onSelect }: {
-  items: NSGetBasicTradeCalList.IRes; year: string; onSelect: (date: string) => void;
+export default function TradeCalendarGrid({
+  items, year, onSelect, selected, events, initialMonth,
+}: {
+  items: NSGetBasicTradeCalList.IRes; year: string; onSelect: (date: string) => void; selected?: string; events?: Record<string, number>; initialMonth?: number;
 }) {
-  const [month, setMonth] = useState(dayjs().month());
+  const [month, setMonth] = useState(initialMonth ?? dayjs().month());
   const [wide, setWide] = useState(false);
   const [mode, setMode] = useState('year');
   useEffect(() => {
@@ -22,18 +24,19 @@ export default function TradeCalendarGrid({ items, year, onSelect }: {
     return () => query.removeEventListener('change', update);
   }, []);
   const statuses = useMemo(() => new Map(items.map((r) => [r.calDate, Number(r.isOpen) === 1])), [items]);
-  const annual = wide && mode === 'year';
+  useEffect(() => { if (initialMonth !== undefined) setMonth(initialMonth); }, [initialMonth]);
+  const annual = !events && wide && mode === 'year';
   const months = annual ? Array.from({ length: 12 }, (_, i) => i) : [month];
   return (
     <div>
       <div className="calendar-view-tools">
         <Space wrap>
-          <Segmented aria-label="交易日历视图" value={annual ? 'year' : 'month'} onChange={(v) => setMode(String(v))} options={[{ value: 'year', label: '全年', disabled: !wide }, { value: 'month', label: '按月' }]} />
+          {!events && <Segmented aria-label="交易日历视图" value={annual ? 'year' : 'month'} onChange={(v) => setMode(String(v))} options={[{ value: 'year', label: '全年', disabled: !wide || !!events }, { value: 'month', label: '按月' }]} />}
           {!annual && (
           <Space>
-            <Button aria-label="上一个月" disabled={month === 0} onClick={() => setMonth((v) => v - 1)}>‹</Button>
-            <Select aria-label="选择月份" value={month} onChange={setMonth} options={Array.from({ length: 12 }, (_, i) => ({ value: i, label: `${i + 1}月` }))} />
-            <Button aria-label="下一个月" disabled={month === 11} onClick={() => setMonth((v) => v + 1)}>›</Button>
+            <Button aria-label="上一个月" disabled={month === 0} onClick={() => { setMonth((v) => v - 1); if (events) onSelect(`${year}-${String(month).padStart(2, '0')}-01`); }}>‹</Button>
+            <Select aria-label="选择月份" value={month} onChange={(v) => { setMonth(v); if (events) onSelect(`${year}-${String(v + 1).padStart(2, '0')}-01`); }} options={Array.from({ length: 12 }, (_, i) => ({ value: i, label: `${i + 1}月` }))} />
+            <Button aria-label="下一个月" disabled={month === 11} onClick={() => { setMonth((v) => v + 1); if (events) onSelect(`${year}-${String(month + 2).padStart(2, '0')}-01`); }}>›</Button>
           </Space>
           )}
         </Space>
@@ -72,9 +75,9 @@ export default function TradeCalendarGrid({ items, year, onSelect }: {
                 let style = 'unknown';
                 if (status !== undefined) { state = status ? '交易日' : '休市'; style = status ? 'open' : 'closed'; }
                 return (
-                  <button type="button" key={value} className={`trading-day ${style} ${value === dayjs().format('YYYY-MM-DD') ? 'today' : ''}`} title={`${value} · ${state} · 农历${label}；查看当日事件`} aria-label={`${value} ${state}`} onClick={() => onSelect(value)}>
+                  <button type="button" key={value} className={`trading-day ${style} ${value === dayjs().format('YYYY-MM-DD') ? 'today' : ''}`} title={`${value} ${state} 农历${label}；查看当日事件`} aria-pressed={selected === value} aria-label={`${value} ${state}`} onClick={() => onSelect(value)}>
                     <span>{dayjs(value).date()}</span>
-                    {!annual && <small>{label}</small>}
+                    {!annual && <small>{events?.[value] ? `${events[value]} 项事件` : label}</small>}
                   </button>
                 );
               })}
