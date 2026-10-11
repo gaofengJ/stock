@@ -235,7 +235,11 @@ export class SyncWriteService {
         await manager.update(
           SyncRunEntity,
           { task: 'market-breadth', tradeDate: date },
-          { status: 'pending', error: '当日交易样本更新，等待重算' },
+          {
+            status: 'pending',
+            error: '当日交易样本更新，等待重算',
+            updatedAt: new Date(),
+          },
         );
       }
       if (manager.connection.hasMetadata(MarketDailyEntity)) {

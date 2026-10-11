@@ -11,6 +11,7 @@ import {
   normalizeDate,
   automaticSyncRetryBlocked,
   permanentSyncError,
+  sourceThrottleDelay,
 } from '@/modules/daily-task/sync.utils';
 import { DailyEntity } from '@/modules/source/daily/daily.entity';
 import { StockEntity } from '@/modules/source/stock/stock.entity';
@@ -47,7 +48,7 @@ export class MarketBreadthService {
     });
     await this.sync.stage(manager, 'market-breadth', date, async () => {
       // 同步锁与持久化阶段时间共同限流，重启/多进程仍遵守30次/分钟。
-      const wait = (last?.updatedAt.getTime() || 0) + 2100 - Date.now();
+      const wait = sourceThrottleDelay(last?.updatedAt, 2100);
       if (wait > 0)
         await new Promise((resolve) => {
           setTimeout(resolve, wait);

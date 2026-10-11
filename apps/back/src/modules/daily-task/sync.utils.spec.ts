@@ -3,9 +3,20 @@ import {
   latestSyncDate,
   normalizeDate,
   shanghaiDate,
+  sourceThrottleDelay,
 } from './sync.utils';
 
 describe('同步日期与情绪计算', () => {
+  it('未来或无效阶段时间最多等待一个限流周期，正常时间仍遵守请求间隔', () => {
+    const now = Date.parse('2026-10-11T00:00:00Z');
+    expect(sourceThrottleDelay(new Date(now + 8 * 3600000), 2100, now)).toBe(
+      2100,
+    );
+    expect(sourceThrottleDelay(new Date(NaN), 2100, now)).toBe(2100);
+    expect(sourceThrottleDelay(new Date(now - 1000), 2100, now)).toBe(1100);
+    expect(sourceThrottleDelay(new Date(now - 3000), 2100, now)).toBe(0);
+    expect(sourceThrottleDelay(undefined, 2100, now)).toBe(0);
+  });
   it('北京时间 20:30 才纳入当日，时区与宿主系统无关', () => {
     expect(latestSyncDate(new Date('2024-07-01T12:29:59Z'))).toBe('2024-06-30');
     expect(latestSyncDate(new Date('2024-07-01T12:30:00Z'))).toBe('2024-07-01');

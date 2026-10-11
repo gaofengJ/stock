@@ -271,14 +271,22 @@ export class MarketSyncService implements OnModuleInit {
         await manager.update(
           SyncRunEntity,
           { task: 'market-breadth', tradeDate: day },
-          { status: 'pending', error: '当日交易样本更新，等待重算' },
+          {
+            status: 'pending',
+            error: '当日交易样本更新，等待重算',
+            updatedAt: new Date(),
+          },
         );
       }
       await manager.delete(MarketDailyEntity, { tradeDate: day });
       await manager.update(
         SyncRunEntity,
         { task: 'market', tradeDate: day },
-        { status: 'pending', error: '原始数据更新，等待重算' },
+        {
+          status: 'pending',
+          error: '原始数据更新，等待重算',
+          updatedAt: new Date(),
+        },
       );
     }
   }

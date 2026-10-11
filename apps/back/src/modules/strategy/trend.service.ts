@@ -21,6 +21,7 @@ import {
   latestSyncDate,
   permanentSyncError,
   shanghaiDate,
+  sourceThrottleDelay,
 } from '@/modules/daily-task/sync.utils';
 import { BseMappingEntity } from '@/modules/analysis/market/market.entity';
 import {
@@ -28,6 +29,7 @@ import {
   meetsCommonStrategyConditions,
 } from '@/modules/source/daily/strategy-validation';
 import { TrendFactor, TrendFactorEntity } from './trend.entity';
+import { IncompleteFactorSnapshotError } from './trend-errors';
 import { StockHistoryEntity } from '../source/stock/stock-history.entity';
 import { StrategySnapshotReader, SnapshotVersion } from './snapshot-reader';
 import {
@@ -499,7 +501,7 @@ export class TrendService {
       where: { task: 'strategy-factor' },
       order: { updatedAt: 'DESC' },
     });
-    const wait = (oldRun?.updatedAt.getTime() || 0) + 2200 - Date.now();
+    const wait = sourceThrottleDelay(oldRun?.updatedAt, 2200);
     if (wait > 0)
       await new Promise((resolve) => {
         setTimeout(resolve, wait);
@@ -607,6 +609,26 @@ export class TrendService {
       const previous = await manager.findOneBy(TrendFactorEntity, {
         tradeDate: date,
       });
+      // A near-complete source response must not permanently publish a snapshot
+      // missing stocks that actually traded. Explicit source nulls remain unknown.
+      const traded = await manager.find(DailyEntity, {
+        where: { tradeDate: date },
+        select: ['tsCode', 'open', 'close', 'vol'],
+      });
+      const absent = traded.filter(
+        (row) =>
+          Number(row.vol) > 0 &&
+          Number(row.open) > 0 &&
+          Number(row.close) > 0 &&
+          !data.has(mapping.get(row.tsCode) || row.tsCode),
+      );
+      if (absent.length)
+        throw new IncompleteFactorSnapshotError(
+          absent.map((row) => ({
+            code: mapping.get(row.tsCode) || row.tsCode,
+            date,
+          })),
+        );
       if (
         !data.size ||
         data.size < rows.length * 0.95 ||
@@ -1022,7 +1044,7 @@ export class TrendService {
           continue;
         }
         const selected: (DailyEntity & { trendEvidence: any })[] = [];
-        let missing = 0;
+        const missing: { code: string; date: string }[] = [];
         for (const code of candidateCodes) {
           const today = rawMap.get(code)!.get(date);
           if (
@@ -1037,7 +1059,11 @@ export class TrendService {
             .slice(0, index + 1)
             .map((d) => points.get(code)?.get(d));
           if (series.slice(-required).some((p) => !p)) {
-            missing += 1;
+            missing.push(
+              ...window
+                .filter((day) => !points.get(code)?.has(day))
+                .map((day) => ({ code, date: day })),
+            );
             continue;
           }
           const normalized = normalizeTrendSeries(series, code, required);
@@ -1051,11 +1077,8 @@ export class TrendService {
             );
         }
         // Missing known-listed candidates must not silently masquerade as no hits.
-        if (missing) {
-          if (strict)
-            throw new ConflictException(
-              `策略所需复权行情缺失：${missing}只股票，请补同步后重试`,
-            );
+        if (missing.length) {
+          if (strict) throw new IncompleteFactorSnapshotError(missing);
           continue;
         }
         readyByStrategy[key].push(date);

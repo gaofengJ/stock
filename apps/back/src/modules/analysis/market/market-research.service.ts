@@ -123,7 +123,7 @@ export class MarketResearchService {
     };
   }
 
-  async signals(q: MarketQueryDto) {
+  async signals(q: MarketQueryDto, strict = false) {
     const count = q.trajectoryDays || 1;
     const calendar = await this.calendar(q, count + 3);
     const dates = calendar
@@ -201,7 +201,7 @@ export class MarketResearchService {
               });
               codes = [...new Set(events.map((r) => r.tsCode))];
             }
-            return trendService.history(dates, TREND_KEYS, {}, codes);
+            return trendService.history(dates, TREND_KEYS, {}, codes, strict);
           })()
         : Promise.resolve(null),
     ]);

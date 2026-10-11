@@ -34,6 +34,7 @@ import { inScope, MarketScope } from '../analysis/market/market.constants';
 import { TrendFactorEntity, TrendFactor } from './trend.entity';
 import { StockInsightEntity, ThsHotEntity, HotStock } from './insight.entity';
 import { StrategySnapshotReader } from './snapshot-reader';
+import { IncompleteFactorSnapshotError } from './trend-errors';
 import { TrendPoint, TREND_DEFAULTS } from './trend-rules';
 import {
   HORIZONS,
@@ -322,13 +323,16 @@ export class InsightService {
         ),
       );
       const summary = rankInsights(rows);
-      const signals = await this.research.signals({
-        date,
-        scope: 'all',
-        trajectoryDays: 1,
-        days: 20,
-        type: 'U',
-      });
+      const signals = await this.research.signals(
+        {
+          date,
+          scope: 'all',
+          trajectoryDays: 1,
+          days: 20,
+          type: 'U',
+        },
+        true,
+      );
       const keys = Object.keys(signals.readyByStrategy);
       if (
         !keys.length ||
@@ -471,6 +475,14 @@ export class InsightService {
               new Date(new Date(r.updatedAt).getTime() + 24 * 60 * 60 * 1000),
             ]),
         );
+        // Today's closing popularity snapshot is published later than market data.
+        // Scheduling before publication is a wait, not a failed collection attempt.
+        const publication = new Date(`${shanghaiDate()}T22:40:00+08:00`);
+        const awaitingPublication =
+          hot &&
+          pending.includes(shanghaiDate()) &&
+          Date.now() < publication.getTime();
+        if (awaitingPublication) deferred.set(shanghaiDate(), publication);
         const actionable = pending.filter((d) => !deferred.has(d));
         const completed: string[] = [];
         const failures: string[] = [];
@@ -480,6 +492,25 @@ export class InsightService {
             else await this.buildDay(manager, date, revisions);
             completed.push(date);
           } catch (e) {
+            if (!hot && e instanceof IncompleteFactorSnapshotError) {
+              // Preserve existing prices, invalidate only confirmed incomplete
+              // factor stages, then let the shared queue repair those dates.
+              await manager.transaction(async (tx) => {
+                await tx.update(
+                  SyncRunEntity,
+                  {
+                    task: 'strategy-factor',
+                    tradeDate: In(e.dates),
+                    status: 'success',
+                  },
+                  { status: 'failed', error: e.message, updatedAt: new Date() },
+                );
+                await tx.query(
+                  "INSERT INTO t_admin_job(actor_id,actor_name,start_date,end_date,status,active_key,mode,stage) VALUES(NULL,'策略复权缺口修复',?,?,'queued','strategy-factor-history','technical','策略统计发现复权缺口，等待补齐') ON DUPLICATE KEY UPDATE start_date=LEAST(start_date,VALUES(start_date)),end_date=GREATEST(end_date,VALUES(end_date))",
+                  [e.dates[0], e.dates.at(-1)],
+                );
+              });
+            }
             failures.push(`${date}: ${e.message}`);
             if (permanentSyncError(e)) break;
           }
@@ -504,9 +535,11 @@ export class InsightService {
               )
             : undefined,
           waitingReason: waiting
-            ? `日终人气数据待源端补齐，按源端冷却时间重试：${[
-                ...deferred.keys(),
-              ].join('、')}`
+            ? `日终人气数据待源端补齐，${
+                awaitingPublication
+                  ? '等待北京时间22:40发布'
+                  : '按源端冷却时间重试'
+              }：${[...deferred.keys()].join('、')}`
             : undefined,
           remaining: pending.length - completed.length,
           protectedDates,

@@ -93,6 +93,28 @@ describe('均线广度独立同步', () => {
     );
   });
 
+  it('数据库阶段时间超前八小时不会占用同步锁数小时', async () => {
+    jest.useFakeTimers();
+    try {
+      const test = make([
+        ['920001.BJ', '20260930', 10, 9, 11],
+        ['600000.SH', '20260930', 10, 9, 11],
+      ]);
+      test.manager.findOne.mockResolvedValue({
+        updatedAt: new Date(Date.now() + 8 * 3600000),
+      } as never);
+      const work = test.service.syncDay(test.manager as any, date);
+      await jest.advanceTimersByTimeAsync(2099);
+      expect(test.source.queryData).not.toHaveBeenCalled();
+      await jest.advanceTimersByTimeAsync(1);
+      await work;
+      expect(test.source.queryData).toHaveBeenCalledTimes(1);
+      expect(test.tx.insert).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it.each([
     [['600000.SH', '20260929', 10, 9, 11]],
     [['600000.SH', '20260930', 10, 9, 11]],

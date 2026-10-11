@@ -4,6 +4,7 @@ import { INSIGHT_VERSION } from './insight.utils';
 import { InsightService } from './insight.service';
 import { StockInsightEntity, ThsHotEntity } from './insight.entity';
 import { SyncRunEntity } from '../daily-task/sync-run.entity';
+import { IncompleteFactorSnapshotError } from './trend-errors';
 
 describe('InsightService observation boundaries', () => {
   const days = ['2026-09-30', '2026-09-29', '2026-09-28', '2026-09-25'];
@@ -372,6 +373,54 @@ describe('historical hot-rank source gaps', () => {
     const sync = jest.spyOn(service, 'syncHot').mockResolvedValue(undefined);
     return { service, sync, manager };
   }
+  it('具体复权缺口自动交给技术数据队列，保留快照且只标记有缺口日期', async () => {
+    const { service, manager } = setup('', 0, [dates[0]]);
+    const tx = { update: jest.fn(), query: jest.fn() };
+    manager.transaction = jest.fn((action) => action(tx));
+    const error = new IncompleteFactorSnapshotError([
+      { code: '002142.SZ', date: dates[1] },
+    ]);
+    jest.spyOn(service, 'buildDay').mockRejectedValue(error);
+    const result = await service.batch(dates[0], dates[0]);
+    expect(result?.completed).toEqual([]);
+    expect(result?.failures[0]).toContain(`${dates[1]} 002142.SZ`);
+    expect(tx.update).toHaveBeenCalledWith(
+      SyncRunEntity,
+      expect.objectContaining({ task: 'strategy-factor', status: 'success' }),
+      expect.objectContaining({ status: 'failed', error: error.message }),
+    );
+    expect(tx.update.mock.calls[0][1].tradeDate.value).toEqual([dates[1]]);
+    expect(tx.query).toHaveBeenCalledWith(
+      expect.stringContaining('ON DUPLICATE KEY UPDATE'),
+      [dates[1], dates[1]],
+    );
+  });
+  it('盘后发布前继续补历史日期，当日等待22:40且不消耗失败次数', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-10-09T12:30:00Z'));
+    try {
+      const { service, sync } = setup('', 0, ['2026-10-09', '2026-10-08']);
+      const result = await service.batch('2026-10-08', '2026-10-09', true);
+      expect(sync.mock.calls.map((call) => call[1])).toEqual(['2026-10-08']);
+      expect(result).toMatchObject({
+        completed: ['2026-10-08'],
+        remaining: 1,
+        failures: [],
+        retryAt: new Date('2026-10-09T14:40:00Z'),
+      });
+      expect(result?.waitingReason).toContain('等待北京时间22:40发布');
+      jest.setSystemTime(new Date('2026-10-09T14:40:00Z'));
+      sync.mockClear();
+      const ready = await service.batch('2026-10-08', '2026-10-09', true);
+      expect(sync.mock.calls.map((call) => call[1])).toEqual([
+        '2026-10-09',
+        '2026-10-08',
+      ]);
+      expect(ready?.remaining).toBe(0);
+      expect(ready?.retryAt).toBeUndefined();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
   it('skips only the waived popularity date and continues the other dates', async () => {
     const { service, sync } = setup('用户确认无需补齐', 0, dates, true);
     const result = await service.batch(dates[2], dates[0], true);

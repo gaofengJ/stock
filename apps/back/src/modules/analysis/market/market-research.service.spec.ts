@@ -176,6 +176,23 @@ describe('策略关联范围和就绪状态', () => {
       ['volumeBreakout', 'breakoutPullback', 'fiveMaUp'],
       {},
       undefined,
+      false,
+    );
+  });
+  test('后台统计保留具体缺口错误，前台默认仍返回各策略就绪状态', async () => {
+    const { service } = setup(true);
+    const error = new Error('策略所需复权行情缺失：2026-10-08 002142.SZ');
+    const history = jest.fn().mockRejectedValue(error);
+    (service as any).trends = { history };
+    await expect(
+      service.signals({ date: dates[0], scope: 'all' } as any, true),
+    ).rejects.toBe(error);
+    expect(history).toHaveBeenCalledWith(
+      [dates[0]],
+      ['volumeBreakout', 'breakoutPullback', 'fiveMaUp'],
+      {},
+      undefined,
+      true,
     );
   });
   test('新旧策略共同命中同一股票合并显示，趋势标记保持默认参数', async () => {

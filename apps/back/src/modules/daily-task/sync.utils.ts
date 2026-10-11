@@ -12,6 +12,18 @@ export interface SyncBatchResult {
   waitingReason?: string;
 }
 
+/** A persisted clock may be ahead after a timezone change; wait at most one interval. */
+export function sourceThrottleDelay(
+  last: Date | undefined,
+  interval: number,
+  now = Date.now(),
+) {
+  if (!last) return 0;
+  const previous = last.getTime();
+  if (!Number.isFinite(previous)) return interval;
+  return Math.max(0, Math.min(interval, previous + interval - now));
+}
+
 // 不依赖服务器操作系统时区。
 export function shanghaiDate(now = new Date()): string {
   const parts = new Intl.DateTimeFormat('en-CA', {

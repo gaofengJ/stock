@@ -700,6 +700,59 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
     ).toMatchObject({ status: 'success' });
     expect(await service.list(latest, 'volumeBreakout')).toHaveLength(1);
   });
+  test('超过95%的复权覆盖率仍不能漏掉正常交易股票，补齐后同一快照恢复成功', async () => {
+    const base = await db.manager.findOneByOrFail(DailyEntity, {
+      tradeDate: latest,
+      tsCode: '000001.SZ',
+    });
+    const codes = Array.from(
+      { length: 22 },
+      (_, i) => `${String(i + 1).padStart(6, '0')}.SZ`,
+    );
+    await db.manager.insert(
+      DailyEntity,
+      codes.slice(1).map((tsCode) => ({ ...base, id: undefined, tsCode })),
+    );
+    const snapshot = response();
+    snapshot.data.items = codes
+      .slice(0, -1)
+      .map((code) => [code, '20260121', 10, 11, 12, 10] as any);
+    source.queryData.mockResolvedValue(snapshot);
+    await expect(service.syncDay(db.manager, latest, true)).rejects.toThrow(
+      '000022.SZ',
+    );
+    expect(
+      (
+        await db.manager.findOneByOrFail(TrendFactorEntity, {
+          tradeDate: latest,
+        })
+      ).data,
+    ).toHaveLength(1);
+    expect(
+      await db.manager.findOneBy(SyncRunEntity, {
+        task: 'strategy-factor',
+        tradeDate: latest,
+      }),
+    ).toMatchObject({ status: 'failed' });
+    snapshot.data.items.push(['000022.SZ', '20260121', 10, 11, 12, 10] as any);
+    await service.syncDay(db.manager, latest);
+    expect(
+      (
+        await db.manager.findOneByOrFail(TrendFactorEntity, {
+          tradeDate: latest,
+        })
+      ).data,
+    ).toHaveLength(22);
+    expect(
+      await db.manager.countBy(TrendFactorEntity, { tradeDate: latest }),
+    ).toBe(1);
+    expect(
+      await db.manager.findOneBy(SyncRunEntity, {
+        task: 'strategy-factor',
+        tradeDate: latest,
+      }),
+    ).toMatchObject({ status: 'success' });
+  });
   test('北交所新旧代码行情冲突拒绝覆盖', async () => {
     await db.manager.insert(BseMappingEntity, {
       oldCode: '830001.BJ',
