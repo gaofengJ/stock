@@ -4,14 +4,16 @@
 /* eslint jsx-a11y/label-has-associated-control: ["error", { "assert": "htmlFor" }] */
 import { useRef, useState } from 'react';
 import {
-  Alert, Button, Checkbox, Collapse, Dropdown, Input, Select, Space,
+  Alert, Button, Checkbox, Collapse, Dropdown, Input, Modal, Space,
 } from 'antd';
 import { copyText } from '@/utils/clipboard';
 import {
-  Article, ArticleImage, emptyArticle, validateArticle,
+  Article, ArticleImage, emptyArticle, illustratedText, validateArticle,
 } from './article-contract';
-import { NotebookContent, noteHtml, publicText } from './notebook-model';
-import { readImage, evidenceImage } from './article-media';
+import {
+  documentTemplate, NotebookContent, noteHtml, publicText,
+} from './notebook-model';
+import { readImage } from './article-media';
 import { materialSources, readResult, reviewPacket } from './article-handoff';
 import { Materials, emptyMaterials, materialUrl } from './materials-contract';
 
@@ -21,12 +23,12 @@ function download(name: string, text: string, type: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export default function ArticleEditor({
-  date, revision, content, disabled, dirty, onChange, onMaterials, onStatus: reportStatus,
+  date, revision, content, disabled, dirty, generation = 0, onChange, onMaterials, onStatus: reportStatus,
 }: {
-  date: string; revision: number; content: NotebookContent; disabled: boolean; dirty: boolean;
+  date: string; revision: number; generation?: number; content: NotebookContent; disabled: boolean; dirty: boolean;
   onMaterials: (materials: Materials) => void; onChange: (article: Article) => void; onStatus: (text: string) => void;
 }) {
-  const legacy = Object.values(content.public).some((v) => v.trim());
+  const legacy = Object.entries(content.public).some(([key, value]) => key !== 'title' && value.trim());
   const article = content.article || { ...emptyArticle(), body: legacy ? publicText(date, content, 'wechat') : '' };
   const current = useRef(article); current.current = article;
   const context = useRef({
@@ -34,6 +36,7 @@ export default function ArticleEditor({
   }); context.current = {
     date, revision, dirty, disabled,
   };
+  const [preview, setPreview] = useState(false);
   const [notice, setNotice] = useState('');
   const onStatus = (message: string) => { setNotice(message); reportStatus(message); };
   const [pending, setPending] = useState(false);
@@ -41,7 +44,7 @@ export default function ArticleEditor({
   const [linkUrl, setLinkUrl] = useState(''); const [linkTitle, setLinkTitle] = useState(''); const [linkNote, setLinkNote] = useState('');
   const [error, setError] = useState('');
   const upload = useRef<HTMLInputElement>(null); const importFile = useRef<HTMLInputElement>(null);
-  const text = publicText(date, { ...content, article }, 'wechat');
+  const text = article.body.trim() ? publicText(date, { ...content, article }, 'wechat') : illustratedText(documentTemplate(date, content), article.images);
   const html = noteHtml(text, article.images);
   const update = (next: Article) => { try { onChange(validateArticle(next)); setError(''); } catch (e) { setError((e as Error).message); } };
   const add = (images: ArticleImage[]) => update({ ...current.current, images: [...current.current.images, ...images] });
@@ -62,20 +65,23 @@ export default function ArticleEditor({
   const importResult = (raw: string) => {
     try {
       if (context.current.dirty || context.current.disabled || context.current.date !== date || context.current.revision !== revision) throw new Error('当前版本已变动，请先保存后重新导入');
-      update(readResult(raw, date, revision, content)); onStatus('成稿与图片已回填，请检查并保存新版本。');
+      update(readResult(raw, date, revision, content, generation)); onStatus('成稿与图片已回填，请检查并保存新版本。');
     } catch (e) { setError((e as Error).message); }
   };
   return (
     <div className="notebook-panel">
       <div className="notebook-panel-intro">
-        <h2>准备素材，交给 Skill 生成飞书图文</h2>
-        <p>你的判断和经验会按原文交接，留空也会有 AI 的独立分析。这里收集图片与链接，不需要再写一遍文章。</p>
+        <p>{`文档已收录 ${article.images.length} 张图片。预览后保存，交给 Skill 补充分析并生成飞书文档。`}</p>
+        <Space wrap>
+          <Button onClick={() => setPreview(true)}>预览复盘文档</Button>
+          {article.body.trim() && <Button onClick={copy}>复制完整文章</Button>}
+        </Space>
       </div>
       {error && <Alert type="error" message={error} />}
       {notice && <Alert type="info" message={notice} />}
       <section className="notebook-material-links">
         <h2>取图来源</h2>
-        <p className="review-caption">可以直接交给 Skill 按这些链接取图；也可以在下方生成或上传图片。</p>
+        <p className="review-caption">可以直接交给 Skill 按这些链接取图；也可以补充上传图片。</p>
         <Space wrap size={12}>{materialSources(date, content).map((item) => <a key={item.url} href={item.url} target="_blank" rel="noreferrer">{item.title}</a>)}</Space>
         {materials.links.map((item) => (
           <div className="notebook-source-row" key={item.id}>
@@ -133,15 +139,14 @@ export default function ArticleEditor({
       </section>
       <section className="notebook-media" aria-label="文章配图">
         <h2>图片素材</h2>
-        <p>上传或粘贴截图，也可一键生成题材图表。最多 20 张，图片、图注和来源一起保存。</p>
+        <p>平台图片已自动加入；需要时补充截图。最多 20 张。</p>
         <Space wrap size={12}>
           <Button disabled={disabled} loading={pending} onClick={() => upload.current?.click()}>上传配图</Button>
-          <Select aria-label="生成题材图表" placeholder="生成题材图表" value={null} disabled={disabled} options={(content.research?.sections || []).filter((s) => ['sectors', 'themes'].includes(s.key) && s.state === 'ready' && s.points.length).map((s) => ({ value: s.key, label: s.title }))} onChange={(key) => { const s = content.research?.sections.find((v) => v.key === key); if (s) { try { add([evidenceImage(date, { ...s, source: new URL(s.source, window.location.origin).href })]); } catch (e) { setError((e as Error).message); } } }} />
         </Space>
         <input hidden ref={upload} type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={(e) => { addFiles(Array.from(e.target.files || [])); e.target.value = ''; }} />
         <Input.TextArea aria-label="粘贴配图" disabled={disabled || pending} placeholder="在这里按 Ctrl+V 粘贴截图。图片将交给 Skill 生成飞书图文。" rows={2} value="" onChange={() => {}} onPaste={(e) => { const files = Array.from(e.clipboardData.files).filter((f) => f.type.startsWith('image/')); if (files.length) { e.preventDefault(); addFiles(files); } }} />
         <div className="notebook-media-grid">
-          {article.images.map((image, index) => (
+          {article.images.map((image, index) => (image.id.startsWith('platform-') ? null : (
             <div className="notebook-media-card" key={image.id}>
               <img src={image.data} alt={image.caption || `配图 ${index + 1}`} />
               <Input aria-label={`配图 ${index + 1} 图注`} disabled={disabled} placeholder="图注" value={image.caption} maxLength={300} onChange={(e) => replaceImage(image.id, { caption: e.target.value })} />
@@ -152,7 +157,7 @@ export default function ArticleEditor({
                 <Button disabled={disabled} onClick={() => update({ ...article, images: article.images.filter((i) => i.id !== image.id) })}>移除</Button>
               </Space>
             </div>
-          ))}
+          )))}
         </div>
       </section>
       <section className="notebook-handoff">
@@ -162,8 +167,8 @@ export default function ArticleEditor({
             type="primary"
             disabled={disabled || dirty || !revision || pending}
             onClick={async () => {
-              const packet = reviewPacket(date, revision, { ...content, article }, window.location.origin);
-              const prompt = `使用 $stock-review-feishu 生成 ${date} 的飞书图文复盘。网站：${window.location.origin}/review/?date=${date}，保存版本 ${revision}。进入“图文素材”，在“更多”下载“图文资料包”，使用 stock-review/v2。保留资料包 userNotes 的非空原文，并另外写 AI 独立分析，空白不能当作空仓或无交易。通用大盘与指数只供背景分析，不进入文档固定章节；无需单列明日计划。已有 ${article.images.length} 张图片，其他图按 materials.links 取图，最终必须嵌入真实图片。完成后用同日期和版本的结果包通过“更多”导入成稿，再保存记录。不得覆盖用户原文。执行记录授权：${materials.includeExecution ? '仅限私人飞书文档' : '未包含，不读取'}。网站没有自动运行 Skill，请在 Codex 执行此任务。\n\n用户记录：\n${JSON.stringify(packet.userNotes)}\n\n图片来源：\n${JSON.stringify(packet.materials.links)}`;
+              const packet = reviewPacket(date, revision, { ...content, article }, window.location.origin, generation);
+              const prompt = `使用 $stock-review-feishu 生成 ${date} 的飞书图文复盘。网站：${window.location.origin}/review/?date=${date}，保存版本 ${revision}。在页面底部“复盘文档”的“更多”下载“图文资料包”，使用 stock-review/v2。保留资料包 userNotes 的非空原文，并另外写 AI 独立分析，空白不能当作空仓或无交易。标题默认 ${content.public.title || `${date}复盘`}；保留模板中的平台原图，不重新简化绘制，也不重复罗列图中数字；无需单列明日计划。已有 ${article.images.length} 张图片，其他图按 materials.links 取图，最终必须嵌入真实图片。完成后用同日期和版本的结果包通过“更多”导入成稿，再保存记录。不得覆盖用户原文。执行记录授权：${materials.includeExecution ? '仅限私人飞书文档' : '未包含，不读取'}。网站没有自动运行 Skill，请在 Codex 执行此任务。\n\n用户记录：\n${JSON.stringify(packet.userNotes)}\n\n图片来源：\n${JSON.stringify(packet.materials.links)}`;
               onStatus(await copyText(prompt) ? '任务已复制，在 Codex 中发送即可继续。' : '复制失败，可通过更多下载图文资料包。');
             }}
           >
@@ -173,13 +178,13 @@ export default function ArticleEditor({
             menu={{
               items: [
                 {
-                  key: 'packet', label: '下载图文资料包', disabled: disabled || dirty || !revision || pending, onClick: () => download(`${date}-review-v${revision}.json`, JSON.stringify(reviewPacket(date, revision, { ...content, article }, window.location.origin), null, 2), 'application/json'),
+                  key: 'packet', label: '下载图文资料包', disabled: disabled || dirty || !revision || pending, onClick: () => download(`${date}-review-v${revision}.json`, JSON.stringify(reviewPacket(date, revision, { ...content, article }, window.location.origin, generation), null, 2), 'application/json'),
                 },
                 {
                   key: 'import', label: '导入 Skill 成稿', disabled: disabled || dirty || !revision || pending, onClick: () => importFile.current?.click(),
                 },
                 {
-                  key: 'html', label: '导出完整图文', disabled: !article.body.trim(), onClick: () => download(`${date}-复盘图文.html`, `<!doctype html><meta charset="utf-8"><title>${date} 复盘</title>${html}`, 'text/html;charset=utf-8'),
+                  key: 'html', label: '导出完整图文', disabled: !article.body.trim() && !article.images.length, onClick: () => download(`${date}-复盘图文.html`, `<!doctype html><meta charset="utf-8"><title>${date} 复盘</title>${html}`, 'text/html;charset=utf-8'),
                 },
               ],
             }}
@@ -192,20 +197,9 @@ export default function ArticleEditor({
         <p className="review-caption">{dirty ? '请先保存顶部的记录，再交给 Skill。' : `当前交接保存版本 ${revision}，原文与图片一并保留。`}</p>
         <input hidden ref={importFile} type="file" accept="application/json,.json" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { if (f.size > 7000000) setError('结果文件过大'); else importResult(await f.text()); } }} />
       </section>
-      {article.body.trim() && (
-      <Collapse
-        defaultActiveKey={['article']}
-        items={[{
-          key: 'article',
-          label: '已保存的图文预览',
-          children: <div className="notebook-detail-fields">
-            <p className="review-caption">来自此前保存或导入的正文。修改素材后，需要重新交给 Skill 生成。</p>
-            <Button onClick={copy}>复制完整文章</Button>
-            <div className="notebook-article-preview" dangerouslySetInnerHTML={{ __html: html }} />
-          </div>,
-        }]}
-      />
-      )}
+      <Modal className="notebook-preview-modal" open={preview} title={content.public.title || `${date}复盘`} width={1000} onCancel={() => setPreview(false)} footer={<Button onClick={() => setPreview(false)}>关闭</Button>}>
+        <div className="notebook-article-preview" dangerouslySetInnerHTML={{ __html: html }} />
+      </Modal>
     </div>
   );
 }

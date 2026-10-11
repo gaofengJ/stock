@@ -188,7 +188,7 @@ export default function ThemeReview({ keyword, height, sector }: { keyword: stri
     },
   ];
   return (
-    <div className="theme-review">
+    <div className="theme-review" data-review-capture="themes" data-review-date={data?.date} data-review-ready={!result.loading && !result.error && !!data?.ready && !!groups.length}>
       <div className="limits-table-toolbar">
         <div className="theme-review-overview">
           <span>

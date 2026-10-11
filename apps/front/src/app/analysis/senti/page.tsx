@@ -85,6 +85,9 @@ function SentimentPage() {
               <DataState loading={loading} error={error} retry={retry} empty={!s}>
                 {s && (
                 <Card
+                  data-review-capture="sentiment"
+                  data-review-date={data?.date}
+                  data-review-ready={!loading && !error && !!s}
                   title={(
                     <span className="market-section-title">
                       当日涨跌分布
@@ -97,7 +100,7 @@ function SentimentPage() {
                     <div>
                       {scopes.find((option) => option.value === scope)?.label}
                       {' '}
-                      ·
+                      /
                       {' '}
                       {date}
                     </div>

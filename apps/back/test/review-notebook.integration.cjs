@@ -1,9 +1,10 @@
 const assert = require('node:assert/strict');
 const { ReviewNotebook1792195200000 } = require('../dist/migrations/1792195200000-ReviewNotebook');
+const { ReviewGeneration1792281600000 } = require('../dist/migrations/1792281600000-ReviewNotebookGeneration');
 const { NotebookService } = require('../dist/modules/review/notebook.service');
 module.exports = async ({ db, inject, admin, user }) => {
   const q = db.createQueryRunner();
-  try { await new ReviewNotebook1792195200000().up(q); await new ReviewNotebook1792195200000().up(q); } finally { await q.release(); }
+  try { await new ReviewNotebook1792195200000().up(q); await new ReviewNotebook1792195200000().up(q); await new ReviewGeneration1792281600000().up(q); await new ReviewGeneration1792281600000().up(q); } finally { await q.release(); }
   const date = '2026-09-28';
   const content = { private: { execution: 'PRIVATE_SENTINEL', normalPlan: 'PRIVATE_PLAN' }, public: { summary: 'Public thesis', sources: 'Public source at close' } };
   const post = (revision, value = content) => inject('POST', '/review/notebook', { date, revision, content: JSON.stringify(value) }, admin);
@@ -37,6 +38,16 @@ module.exports = async ({ db, inject, admin, user }) => {
   const newContent = { ...content, public: { ...content.public, summary: 'Edited thesis' } };
   assert.equal((await post(2, newContent)).statusCode, 201);
   assert.ok((await service.read(admin.user.id, date)).publications[0].body.includes('Public thesis'));
+  const removed = await service.clear(admin.user.id);
+  assert.equal(removed.t_review_notebook,1);
+  assert.equal(removed.t_review_notebook_version,3);
+  assert.equal(removed.t_review_publication,1);
+  const cleared = await service.read(admin.user.id,date);
+  assert.equal(cleared.revision,0);assert.equal(cleared.generation,1);assert.equal(cleared.versions.length,0);assert.equal(cleared.publications.length,0);assert.equal(cleared.previous,null);
+  assert.deepEqual(await service.list(admin.user.id),[]);
+  assert.equal((await service.read(user.user.id,'2026-09-27')).content.private.execution,'OTHER_OWNER');
+  assert.equal((await post(0)).statusCode,409,'stale browser cannot restore cleared history');
+  assert.equal((await inject('POST','/review/notebook',{date,revision:0,generation:1,content:JSON.stringify(content)},admin)).statusCode,201);
   await db.query('DELETE FROM t_review_publication');
   await db.query('DELETE FROM t_review_notebook_version');
   await db.query('DELETE FROM t_review_notebook');

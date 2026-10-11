@@ -4,6 +4,7 @@ interface TableSize {
 }
 
 const migrationTables: Record<string, readonly string[]> = {
+  ReviewGeneration1792281600000: ['t_review_notebook_state'],
   ReviewNotebook1792195200000: [
     't_review_notebook',
     't_review_notebook_version',
@@ -78,6 +79,7 @@ const migrationOperations: Record<
   string,
   'create' | 'data' | 'schema' | 'full-database'
 > = {
+  ReviewGeneration1792281600000: 'create',
   ReviewNotebook1792195200000: 'create',
   RecoverSectorCatalog1792108800000: 'data',
   PrivateFeedback1791849600000: 'create',

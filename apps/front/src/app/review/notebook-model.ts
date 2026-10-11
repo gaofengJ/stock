@@ -35,10 +35,21 @@ export function internalText(date: string, value: NotebookContent) {
   const fields = [...main.map((key) => internalFields.find(([k]) => k === key)!), ...internalFields.filter(([key]) => !main.includes(key) && value.private[key]?.trim())];
   return [`# ${date} 每日复盘记录`, '私人笔记，仅供内部使用。', ...fields.map(([key, label]) => `## ${label}\n${value.private[key] || '未填写'}`)].join('\n\n');
 }
+export function documentTemplate(date: string, value: NotebookContent) {
+  const parts = [
+    ['市场观察', value.private.marketJudgment],
+    ['题材梳理', value.private.themes],
+    ['个股筛选', value.private.toolEvidence || value.private.candidates],
+    ...(value.materials?.includeExecution ? [['操作回顾', value.private.execution]] : []),
+    ['经验与反思', value.private.lesson],
+  ];
+  return [`# ${value.public.title || `${date}复盘`}`, ...parts.map(([title, text]) => `## ${title}${text?.trim() ? `\n\n${text}` : ''}`)].join('\n\n');
+}
 // Both destinations use the same Feishu article; retain the channel argument for callers.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function publicText(date: string, value: NotebookContent, _channel: 'wechat' | 'xueqiu') {
   if (value.article?.body.trim()) return illustratedText(value.article.body, value.article.images);
+  if (value.article?.images.length) return illustratedText(documentTemplate(date, value), value.article.images);
   const p = value.public;
   const entries = [
     ['市场与主线', [p.market, p.themes].filter(Boolean).join('\n\n')],
@@ -47,7 +58,7 @@ export function publicText(date: string, value: NotebookContent, _channel: 'wech
     ['一条总结', p.lesson],
     ['资料来源与时间', p.sources],
   ];
-  return [`# ${p.title || `${date} 市场复盘`}`, `复盘日期：${date}`, ...entries.filter(([, v]) => v?.trim()).map(([label, text]) => `## ${label}\n${text}`)].join('\n\n');
+  return [`# ${p.title || `${date}复盘`}`, `复盘日期：${date}`, ...entries.filter(([, v]) => v?.trim()).map(([label, text]) => `## ${label}\n${text}`)].join('\n\n');
 }
 export const escapeHtml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
   .replace(/'/g, '&#39;');

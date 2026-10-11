@@ -119,3 +119,44 @@ describe('illustrated notebook', () => {
     }
   });
 });
+
+describe('notebook history reset', () => {
+  it('deletes only the selected owner in one transaction and advances draft generation', async () => {
+    const query = jest.fn(async (sql: string, params: number[]) => {
+      expect(params).toEqual([17]);
+      return sql.startsWith('DELETE') ? { affectedRows: 3 } : [];
+    });
+    const transaction = jest.fn((run) => run({ query }));
+    const service = new NotebookService({ transaction } as any);
+    expect(await service.clear(17)).toEqual({
+      t_review_publication: 3,
+      t_review_notebook_version: 3,
+      t_review_notebook: 3,
+    });
+    expect(transaction).toHaveBeenCalledTimes(1);
+    query.mock.calls.forEach((call) => {
+      expect(call[1]).toEqual([17]);
+      if (call[0].startsWith('DELETE'))
+        expect(call[0]).toMatch(/WHERE user_id=\?$/);
+    });
+    expect(query.mock.calls.at(-1)![0]).toContain('generation=generation+1');
+  });
+  it('rejects a stale browser after a clear before inserting any notebook content', async () => {
+    const query = jest
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ generation: 1 }]);
+    const service = new NotebookService({
+      transaction: (run: (manager: any) => Promise<unknown>) => run({ query }),
+    } as any);
+    await expect(
+      service.save(17, {
+        date: '2026-10-12',
+        revision: 0,
+        generation: 0,
+        content: JSON.stringify(content()),
+      }),
+    ).rejects.toThrow('已清空');
+    expect(query).toHaveBeenCalledTimes(2);
+  });
+});

@@ -30,6 +30,7 @@
     "dayjs": "^1.11.11",
     "echarts": "^5.3.2",
     "echarts-for-react": "^3.0.2",
+    "html-to-image": "1.11.13",
     "immer": "^10.1.1",
     "lodash-es": "^4.17.21",
     "lunar-typescript": "^1.7.5",
