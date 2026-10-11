@@ -6,11 +6,14 @@ import re
 import subprocess
 import tempfile
 
-RULE = """
+OLD_RULE = """
                     # Illustrated review uploads: inherit this API location's proxy and headers.
                     location = /api/review/notebook { client_max_body_size 8m; }
                     location = /api/review/notebook/ { client_max_body_size 8m; }
 """
+# Old host nginx versions do not inherit the parent's proxy content handler.
+# Retain inherited headers/auth but explicitly name the existing upstream.
+RULE = OLD_RULE.replace('client_max_body_size 8m; }', 'client_max_body_size 8m; proxy_pass http://127.0.0.1:3000; }')
 
 
 def masked(text):
@@ -47,6 +50,11 @@ def render(text):
     block = text[server_start:server_end]
     if RULE in block:
         return text
+    api_end = end_block(structure, insert - 1)
+    if not re.search(r'\bproxy_pass\s+http://127\.0\.0\.1:3000\s*;', structure[insert:api_end]):
+        raise ValueError('Unexpected API upstream; refusing to reroute notebook saves')
+    if OLD_RULE in block:
+        return text[:server_start] + block.replace(OLD_RULE, RULE, 1) + text[server_end:]
     if re.search(r'\blocation[^\n{]*/api/review/notebook', structure[server_start:server_end]):
         raise ValueError('An existing notebook location needs manual review')
     return text[:insert] + RULE + text[insert:]
