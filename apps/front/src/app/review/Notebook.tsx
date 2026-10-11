@@ -37,7 +37,7 @@ async function richCopy(text: string) {
   } catch { return copyText(text); }
 }
 
-export default function Notebook({ date, renderTools, onDirty }: { date: string; renderTools: (capture: (text: string) => void) => ReactNode; onDirty: (value: boolean) => void }) {
+export default function Notebook({ date, renderTools, onDirty }: { date: string; renderTools: (capture: (text: string) => void, onSelection: (items: string[]) => void) => ReactNode; onDirty: (value: boolean) => void }) {
   const [content, setContent] = useState<NotebookContent>(emptyNotebook);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -49,6 +49,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
   const [previewImages, setPreviewImages] = useState<ArticleImage[]>([]);
   const [previewRich, setPreviewRich] = useState(false);
   const [holdings, setHoldings] = useState<any>(null);
+  const [candidateNames, setCandidateNames] = useState<string[]>([]);
   const [researchBusy, setResearchBusy] = useState(false);
   const [channel, setChannel] = useState<'wechat' | 'xueqiu'>('wechat');
   const [url, setUrl] = useState('');
@@ -188,7 +189,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
 ))}
 </div>
                     )}
-                    {stage.id === 'candidates' && <div className="notebook-tools">{renderTools((text) => { change('private', 'toolEvidence', text.slice(0, 12000)); setStatus('候选研究已带入当天笔记，请保存版本。'); })}</div>}
+                    {stage.id === 'candidates' && <div className="notebook-tools">{renderTools((text) => { change('private', 'toolEvidence', text.slice(0, 12000)); setStatus('候选研究已带入当天笔记，请保存版本。'); }, setCandidateNames)}</div>}
                     {stage.id === 'execution' && (
 <>
               {snapshot?.previous && (
@@ -213,7 +214,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
   key: 'holdings',
   label: '检查已有持仓（可选）',
   children: <div className="notebook-detail-fields">
-<Holdings date={date} candidates={[]} onResult={setHoldings} />
+<Holdings date={date} candidates={candidateNames} onResult={setHoldings} />
 <Button disabled={!snapshot || !holdings} onClick={() => { change('private', 'holdingEvidence', holdings.items.map((r: any) => `${r.name} ${r.code}：持有 ${r.heldDays ?? '未知'} 个交易日；收盘 ${numberText(r.close)} 元；成本价格差 ${numberText(r.profitPct)}%；${r.ma5.label}。原理由：${r.rationale || '未提供'}。${r.timeReview || ''}`).join('\n')); setStatus('持仓分析已带入私人记录，请保存。'); }}>将分析结果记入私人笔记</Button>
 </div>,
 }]}

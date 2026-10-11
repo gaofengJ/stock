@@ -30,7 +30,9 @@ import { ReviewDocument, reviewMarkdown } from './review-document';
 import '../strategy/strategy.sass';
 import './review.css';
 
-function Report({ date, account, capture }: { date: string; account: number; capture?: (text: string) => void }) {
+function Report({
+  date, account, capture, onSelection,
+}: { date: string; account: number; capture?: (text: string) => void; onSelection?: (items: string[]) => void }) {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -52,6 +54,7 @@ function Report({ date, account, capture }: { date: string; account: number; cap
   const {
     draft, update, ready, status,
   } = useReviewDraft(account, date);
+  useEffect(() => { onSelection?.(draft.selected.map((pick) => `${pick.name} ${pick.tsCode}`)); }, [draft.selected, onSelection]);
   const risk = useWorkbench('risk', { date }, !!data);
   useEffect(() => {
     const abort = new AbortController(); let active = true;
@@ -514,7 +517,7 @@ export default function Page() {
         </Space>
         {fallback.error && <Alert type="error" message={fallback.error} action={<Button onClick={fallback.retry}>重试</Button>} />}
         {date && user && (user.roles.some((r) => r.code === 'admin') && !user.guest
-          ? <Notebook key={`${user.id}:${date}`} date={date} onDirty={setNotebookDirty} renderTools={(capture) => <Report date={date} account={user.id} capture={capture} />} />
+          ? <Notebook key={`${user.id}:${date}`} date={date} onDirty={setNotebookDirty} renderTools={(capture, onSelection) => <Report date={date} account={user.id} capture={capture} onSelection={onSelection} />} />
           : <Report key={`${user.id}:${date}`} date={date} account={user.id} />)}
       </main>
     </Layout>
