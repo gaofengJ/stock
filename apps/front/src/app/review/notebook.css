@@ -10,3 +10,10 @@
 .notebook-publish { margin-top: 24px; }
 .notebook-history { display: flex; flex-direction: column; gap: 12px; margin-top: 24px; }
 @media (max-width: 768px) { .notebook-public-grid { grid-template-columns: 1fr; } .notebook-toolbar { flex-direction: column; } }
+
+.notebook-start { padding: 16px; background: var(--color-surface-muted); border-radius: 6px; line-height: 1.8; }
+.notebook-start h2 { font-size: 18px; margin: 0 0 8px; }
+.notebook-flow { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.notebook-questions { padding-left: 20px; line-height: 1.8; }
+.notebook-outcome { line-height: 1.8; font-weight: 500; }
+.notebook-stages > .ant-card { scroll-margin-top: 16px; }

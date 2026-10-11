@@ -216,7 +216,8 @@ export default function Page() {
             TRADING PLAYBOOK
           </span>
           <h1>交易与学习体系</h1>
-          <p>交易、复盘、学习与经验，按同一套决策规则执行。</p>
+          <p>这里查交易规则与复盘方法；每天的判断、执行核对和明日计划统一记录在每日复盘。</p>
+          <NavigationLink href="/review/">开始今晚复盘：市场 → 持仓与执行 → 候选 → 明日计划</NavigationLink>
         </div>
         <Tag icon={<SafetyCertificateOutlined />}>仅管理员</Tag>
       </div>
