@@ -7,7 +7,7 @@ on:
         type: choice
         required: true
         default: inspect
-        options: [inspect, clean-build-cache, clean-release-images, clean-release-backups]
+        options: [inspect, inspect-review-proxy, clean-build-cache, clean-release-images, clean-release-backups]
 permissions:
   contents: read
 concurrency:
@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   maintenance:
-    if: github.ref == 'refs/heads/master' || inputs.operation == 'inspect' || inputs.operation == 'clean-release-images' || inputs.operation == 'clean-release-backups'
+    if: github.ref == 'refs/heads/master' || inputs.operation == 'inspect-review-proxy' || inputs.operation == 'inspect' || inputs.operation == 'clean-release-images' || inputs.operation == 'clean-release-backups'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,6 +52,16 @@ jobs:
             set -eu
             exec 9>/var/lock/stock-back-release.lock
             flock -n 9 || { echo 'Another release is running'; exit 1; }
+            if [ "$OPERATION" = inspect-review-proxy ]; then
+              python3 - <<'PY'
+            import re, subprocess
+            raw = subprocess.check_output(['nginx', '-T'], stderr=subprocess.DEVNULL).decode('utf-8')
+            for line in raw.splitlines():
+                if re.match(r'\s*(# configuration file|server_name |listen |location |client_max_body_size |proxy_pass |include |[{}])', line):
+                    print(re.sub(r'(https?://)[^/@\s]+@', r'\1[redacted]@', line))
+            PY
+              exit 0
+            fi
             case "$OPERATION" in
               inspect) ;;
               clean-release-backups)
