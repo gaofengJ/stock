@@ -13,6 +13,28 @@ function load(file, imports = {}) {
   return exports;
 }
 const format = load('utils/format.ts');
+const rotationTooltip = load('app/analysis/sectors/rotation-tooltip.ts', { '@/utils/format': format }).default;
+
+test('rotation hover keeps edge cells reachable and formats the selected day and sector safely', () => {
+  const rotation = [{ date: '2026-10-08', total: 90, values: [
+    { code: 'a', rank: 1, value: 4.12 }, { code: 'b', rank: 25, value: -1.03 },
+  ] }];
+  const rows = [{ code: 'b', name: '电池' }, { code: 'a', name: '<img src=x onerror=alert(1)>' }];
+  const tooltip = rotationTooltip(rotation, rows, 5);
+  assert.equal(tooltip.renderMode, 'html');
+  assert.equal(tooltip.enterable, false);
+  assert.match(tooltip.extraCssText, /pointer-events:\s*none/);
+  assert.equal(tooltip.transitionDuration, 0);
+  assert.equal(tooltip.formatter({ value: [0, 0, .7] }), '2026-10-08<br/>电池<br/>5日涨跌幅 -1.03%<br/>排名 25／90');
+  assert.match(tooltip.formatter({ value: [0, 1, 1] }), /&lt;img.*&gt;<br\/.*\+4\.12%/);
+  assert.equal(tooltip.formatter({ value: [20, 0, 1] }), '');
+  assert.equal(tooltip.formatter({ value: [0, 12, 1] }), '');
+  assert.equal(tooltip.formatter({}), '');
+  rotation[0].values[0].value = null;
+  const missing = rotationTooltip(rotation, rows, 20).formatter({ value: [0, 1, 1] });
+  assert.match(missing, /20日涨跌幅 —<br\//);
+  assert.doesNotMatch(missing, /—%/);
+});
 const candleExtremaMarks = load('components/CChart/candle-extrema.ts', { '@/utils/format': format }).default;
 
 test('candle extrema use wick prices in the visible zoom window and update on zoom/reset', () => {

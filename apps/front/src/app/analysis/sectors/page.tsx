@@ -32,6 +32,7 @@ import ChartRange from '../components/ChartRange';
 import { ChartWindow } from '../components/market-display';
 import { marketHref } from '../components/market-navigation';
 import './sectors.sass';
+import rotationTooltip from './rotation-tooltip';
 
 export default function Page() {
   const { date } = useMarket(); const params = useSearchParams(); const router = useRouter(); const { user } = useAccount();
@@ -80,7 +81,7 @@ export default function Page() {
   const jump = (path: string, sector: string, extra: Record<string, string> = {}) => marketHref(path, { date, scope: 'all' }, { sector, ...extra });
   const detail = code && data?.detail?.code === code ? data.detail : null;
   const rotationOptions = {
-    tooltip: { position: 'top', renderMode: 'richText', formatter: (p:any) => { const cell = data!.rotation[p.value[0]]; const row = rotationRows[p.value[1]]; const value = cell.values.find((v) => v.code === row.code); return `${cell.date}\n${row.name}\n${period === 1 ? '当日' : `${period}日`}涨跌幅 ${numberText(value?.value, 2, true)}%\n排名 ${value?.rank ?? '—'}／${cell.total}`; } },
+    tooltip: rotationTooltip(rotation, rotationRows, period),
     grid: {
       top: 16, left: 130, right: 36, bottom: 85,
     },
@@ -236,7 +237,7 @@ export default function Page() {
             <Card title={(
               <Space>
                 {`${kindLabel}轮动`}
-                <HelpTooltip label={`${kindLabel}轮动`} title={`展示当前排行前12个${kindLabel}近20个交易日的排名，颜色越深排名越靠前。`} />
+                <HelpTooltip label={`${kindLabel}轮动`} title={`展示当前筛选结果中排行前12个${kindLabel}近20个交易日的排名。每格按该列日期截至当日、近5日或近20个交易日的涨跌幅，在全部有效${kindLabel}中排名；1为第一名。切换周期会重新计算排名和展示名单，颜色越红排名越靠前。`} />
               </Space>
 )}
             >
