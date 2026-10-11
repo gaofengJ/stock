@@ -6,7 +6,7 @@ import {
   ReactNode, useEffect, useRef, useState,
 } from 'react';
 import {
-  Alert, Button, Card, Checkbox, Collapse, Input, Modal, Select, Space, Tabs, Tag,
+  Alert, Button, Card, Checkbox, Collapse, Empty, Input, Modal, Select, Space, Tabs, Tag,
 } from 'antd';
 import Link from 'next/link';
 import request from '@/api/request';
@@ -118,12 +118,12 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
   return (
     <div className="review-notebook">
       <div className="notebook-toolbar">
-        <Space wrap>
+        <Space wrap size={12}>
           <Tag>私人复盘</Tag>
           <span role="status">{dirty ? '有未保存修改' : status}</span>
           <Button type="primary" loading={busy} disabled={!snapshot || !dirty} onClick={save}>保存复盘版本</Button>
         </Space>
-        <Space wrap>
+        <Space wrap size={8}>
           <Button onClick={() => download(`私人复盘-${date}.md`, internalText(date, content))}>导出内部笔记</Button>
           <Button onClick={async () => setStatus(await richCopy(templateText()) ? '模板已复制，可粘贴到飞书。' : '复制失败，请下载模板。')}>复制私人复盘模板</Button>
           <Button onClick={() => download('私人每日复盘模板.html', `<!doctype html><meta charset="utf-8">${noteHtml(templateText())}`, 'text/html;charset=utf-8')}>下载模板</Button>
@@ -131,18 +131,24 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
       </div>
       {error && <Alert type="error" message={error} action={<Button onClick={() => { if (!dirty || window.confirm('请先导出本地笔记。重新加载将放弃未保存修改，是否继续？')) setAttempt((x) => x + 1); }}>重新加载</Button>} />}
       <Tabs
+        className="notebook-tabs"
         activeKey={tab}
         onChange={setTab}
         items={[
           {
             key: 'write',
             label: '完成今日复盘',
-            children: <>
+            children: <div className="notebook-panel">
               <div className="notebook-start">
                 <h2>今晚按这四步完成，约 60 分钟</h2>
                 <p>每天在这里做复盘；交易体系用于查规则，复盘导图用于查方法。判断与计划只记在当天笔记中。</p>
                 <nav className="notebook-flow" aria-label="晚间复盘四步">
-                  {eveningFlow.map((stage) => <Button key={stage.id} onClick={() => document.getElementById(`evening-${stage.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{`${stage.title} · ${stage.time}`}</Button>)}
+                  {eveningFlow.map((stage) => (
+                    <Button key={stage.id} onClick={() => document.getElementById(`evening-${stage.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+                      <span>{stage.title}</span>
+                      <span className="review-caption">{stage.time}</span>
+                    </Button>
+                  ))}
                 </nav>
                 <Link href="/trading-system/" target="_blank" rel="noopener noreferrer">查看交易规则与复盘方法</Link>
               </div>
@@ -151,15 +157,18 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
                   <Card id={`evening-${stage.id}`} key={stage.id} title={stage.title} extra={stage.time}>
                     <ul className="notebook-questions">{stage.questions.map((question) => <li key={question}>{question}</li>)}</ul>
                     <p className="notebook-outcome">{stage.outcome}</p>
-                    <Space wrap className="notebook-links">
+                    {(stage.links.length > 0 || stage.id === 'execution') && (
+                    <Space wrap size={12} className="notebook-links">
                       {stage.links.map(([path, label]) => <Link key={path} href={`${path}?date=${date}`} target="_blank" rel="noopener noreferrer">{label}</Link>)}
                       {(stage.id === 'execution' || stage.id === 'candidates') && <Button type="link" onClick={() => setTab('tools')}>使用候选与持仓工具</Button>}
+                      {stage.keys.includes('marketJudgment') && <Button disabled={!snapshot} loading={busy} onClick={importMarket}>带入所选日期的市场事实</Button>}
                     </Space>
-                    {stage.keys.includes('marketJudgment') && <Button disabled={!snapshot} loading={busy} onClick={importMarket}>带入所选日期的市场事实</Button>}
+                    )}
                     {stage.id === 'execution' && (
 <>
               {snapshot?.previous && (
               <Collapse
+                className="notebook-previous"
                 defaultActiveKey={['previous']}
                 items={[{
                   key: 'previous',
@@ -175,33 +184,39 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
                     </>
                     )}
                     {stage.keys.map(renderField)}
-                    {stage.optional.length > 0 && <Collapse ghost items={[{ key: 'detail', label: '补充细节（可选）', children: stage.optional.map(renderField) }]} />}
+                    {stage.optional.length > 0 && <Collapse className="notebook-details" ghost items={[{ key: 'detail', label: '补充细节（可选）', children: <div className="notebook-detail-fields">{stage.optional.map(renderField)}</div> }]} />}
                   </Card>
                 ))}
               </div>
-              <Space wrap>
+              <Space wrap size={12} className="notebook-actions">
                 <Button type="primary" disabled={!snapshot || !dirty} loading={busy} onClick={save}>保存复盘版本</Button>
                 <Button onClick={() => setPreview(internalText(date, content))}>预览内部笔记</Button>
                 <Button onClick={() => setTab('public')}>整理公开笔记</Button>
               </Space>
-                      </>,
+                      </div>,
           },
           {
             key: 'tools',
             label: '辅助工具',
             forceRender: true,
-            children: <>
+            children: <div className="notebook-panel">
+              <div className="notebook-panel-intro">
               <p>看图、核验风险或分析持仓后，将快照带回今日笔记。这里的观察名单不等于明日买入计划。</p>
               <Button onClick={() => setTab('write')}>返回晚间四步</Button>
+              </div>
+              <div className="notebook-tools">
               {renderTools((text) => { if (!snapshot) { setError('请先加载私人复盘记录，再带入工具快照。'); return; } change('private', 'toolEvidence', text.slice(0, 12000)); setTab('write'); setStatus('工具快照已带入内部记录，请保存。'); })}
-</>,
+              </div>
+</div>,
           },
           {
             key: 'public',
             label: '复盘后整理文章',
-            children: <>
+            children: <div className="notebook-panel">
+              <div className="notebook-panel-intro">
               <p>先保存私人复盘，再整理下方可公开内容。网站负责记录与导出；调用 stock-review-feishu Skill 后才会创建飞书文档，公众号与雪球由你手动发布。</p>
               <Button onClick={async () => setStatus(await copyText(`使用 $stock-review-feishu 生成 ${date} 的复盘文章。读取网站当天公开字段及已核实的市场数据，按已配置的飞书模板保存至复盘目录；不要读取或转写私人操作、持仓和盈亏。`) ? '调用说明已复制，请在 Codex 中发送；尚未创建飞书文档。' : '复制失败，请手动输入：用复盘 Skill 生成指定日期的文章。')}>复制 Skill 调用说明</Button>
+              </div>
               <Alert type="info" message="公开稿单独编辑，只使用下方字段。内部持仓、成交、盈亏和执行记录不会自动带入。" />
               <div className="notebook-public-grid">
                 {publicFields.map(([key, label, hint]) => (
@@ -211,18 +226,20 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
                   </div>
                 ))}
               </div>
-              <Space wrap>
+              <div className="notebook-public-actions">
+              <Space wrap size={12}>
                 <Select aria-label="公开稿渠道" value={channel} onChange={(v) => { setChannel(v); setConfirmed(false); }} options={[{ value: 'wechat', label: '公众号' }, { value: 'xueqiu', label: '雪球' }]} />
                 <Button disabled={!publicReady} onClick={() => setPreview(article)}>预览公开稿</Button>
               </Space>
-              <div className="notebook-field"><Checkbox checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)}>已检查公开稿，确认没有个人信息或私人交易记录</Checkbox></div>
-              <Space wrap>
+              <Checkbox checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)}>已检查公开稿，确认没有个人信息或私人交易记录</Checkbox>
+              <Space wrap size={12}>
                 <Button disabled={!confirmed || !publicReady} onClick={async () => setStatus(await richCopy(article) ? '公开稿已复制，可粘贴到飞书云文档，再由你手动发布。' : '复制失败，请下载排版稿。')}>复制公开稿到飞书</Button>
                 <a href="https://www.feishu.cn/drive/" target="_blank" rel="noopener noreferrer">打开飞书云文档</a>
                 <Button disabled={!confirmed || !publicReady} onClick={() => download(`${date}-${channel}.html`, `<!doctype html><meta charset="utf-8">${noteHtml(article)}`, 'text/html;charset=utf-8')}>下载排版稿</Button>
                 <Button disabled={!confirmed || !publicReady} onClick={() => download(`${date}-${channel}.md`, article)}>下载 Markdown</Button>
                 <a href={channel === 'wechat' ? 'https://mp.weixin.qq.com/' : 'https://xueqiu.com/'} target="_blank" rel="noopener noreferrer">打开发布平台</a>
               </Space>
+              </div>
               <Card title="发布后记录" className="notebook-publish">
                 <p>在对应平台完成发布后，粘贴文章链接。保存的记录包含当前版本公开稿，不包含内部笔记。</p>
                 <Space.Compact block>
@@ -241,20 +258,35 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
                   </p>
                 ))}
               </Card>
-                      </>,
+                      </div>,
           },
           {
             key: 'history',
             label: '历史记录',
-            children: <>
+            children: <div className="notebook-panel">
               <p>版本只读，保留当时计划；修改后保存会产生新版本。</p>
-              <Space wrap>{snapshot?.versions.map((v) => <Button key={v.revision} onClick={() => inspectVersion(v.revision)}>{`查看版本 ${v.revision}`}</Button>)}</Space>
-              <div className="notebook-history">{dates.map((d) => <Link key={d.date} href={`/review?date=${d.date}`} target="_blank" rel="noopener noreferrer">{`${d.date}，版本 ${d.revision}`}</Link>)}</div>
-                      </>,
+              <section className="notebook-history-section">
+                <h2>当前日期的版本</h2>
+                {snapshot?.versions.length ? <Space wrap size={12}>{snapshot.versions.map((v) => <Button key={v.revision} onClick={() => inspectVersion(v.revision)}>{`查看版本 ${v.revision}`}</Button>)}</Space> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="当前日期尚无保存版本" />}
+              </section>
+              <section className="notebook-history-section">
+                <h2>已保存的复盘日期</h2>
+                {dates.length ? (
+                  <div className="notebook-history">
+                    {dates.map((d) => (
+                      <Link key={d.date} href={`/review?date=${d.date}`} target="_blank" rel="noopener noreferrer">
+                        <span>{d.date}</span>
+                        <span className="review-caption">{`版本 ${d.revision}`}</span>
+                      </Link>
+                    ))}
+                  </div>
+                ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="尚无历史复盘记录" />}
+              </section>
+                      </div>,
           },
         ]}
       />
-      <Modal open={!!preview} title="笔记预览" width={850} onCancel={() => setPreview('')} footer={<Button onClick={() => setPreview('')}>关闭</Button>}><pre className="notebook-text">{preview}</pre></Modal>
+      <Modal className="notebook-preview-modal" open={!!preview} title="笔记预览" width={850} destroyOnClose onCancel={() => setPreview('')} footer={<Button onClick={() => setPreview('')}>关闭</Button>}><pre className="notebook-text">{preview}</pre></Modal>
     </div>
   );
 }
