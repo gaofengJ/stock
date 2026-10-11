@@ -71,6 +71,8 @@ chmod 600 "$ENV_FILE"
 command -v systemctl >/dev/null || { echo 'systemd is required for independent backups'; false; }
 python3 --version
 systemctl --version | head -n 1
+start_phase review-proxy-limit
+python3 "$PACKAGE/release/review-proxy.py" --backup "$RUN/nginx-before-review.conf"
 start_phase private-network-verify
 # Preserve the host reverse proxy and the existing article authorization proxy.
 # Verify the private gateway before stopping any working service.
