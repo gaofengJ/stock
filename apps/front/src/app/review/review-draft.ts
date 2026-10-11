@@ -26,7 +26,7 @@ export function parseDraft(raw: string | null): ReviewDraft {
   );
   const selected: ReviewPick[] = [];
   (Array.isArray(value.selected) ? value.selected : []).forEach((pick: ReviewPick) => {
-    if (pick && /^\d{6}\.(SH|SZ|BJ)$/.test(pick.tsCode) && !selected.some((r) => r.tsCode === pick.tsCode) && selected.length < 3) {
+    if (pick && /^\d{6}\.(SH|SZ|BJ)$/.test(pick.tsCode) && !selected.some((r) => r.tsCode === pick.tsCode)) {
       selected.push({ tsCode: pick.tsCode, name: text(pick.name) || pick.tsCode });
     }
   });

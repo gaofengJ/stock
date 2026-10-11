@@ -88,7 +88,6 @@ function Report({
     if (loading) return '候选更新中，请稍候';
     if (blocked(row)) return '已知风险事项排除，不能加入观察名单';
     if (row.capState !== 'within') return '总市值需小于200亿元且资料完整';
-    if (selected.length >= 3) return '最多选择3只，请先移出一只';
     return '';
   };
   const remove = (code: string) => update({ selected: draft.selected.filter((r) => r.tsCode !== code) });
@@ -189,7 +188,7 @@ function Report({
         <div className="review-steps" aria-label={capture ? '辅助工具导航' : '复盘操作流程'}>
           {[
             ['review-market', '看市场背景', '查看涨跌、均线与成交情况'],
-            ['review-candidates', '筛选观察股票', '看K线和风险资料，选择0–3只股票'],
+            ['review-candidates', '筛选观察股票', '看K线和风险资料，按需加入观察名单'],
             ['review-plan', '填写并预览计划', '记录下一交易日计划，预览复盘结果'],
           ].map(([id, title, description], i) => (
             <button type="button" className="review-step" key={id} aria-label={`第${i + 1}步：${title}`} aria-controls={id} onClick={() => goToStep(id)}>
@@ -230,7 +229,7 @@ function Report({
           </div>
           <div className="review-candidate-help">
             <p className="review-caption">
-              查看K线和风险资料后，勾选0–3只股票。
+              查看K线和风险资料后，按需勾选股票，观察数量不限。
               {sortCaption}
               。
             </p>
@@ -242,7 +241,7 @@ function Report({
             <Button disabled={filter === 'within' && strategy === 'all' && !keyword} onClick={() => { setFilter('within'); setStrategy('all'); setKeyword(''); }}>重置筛选</Button>
           </div>
           <div className="review-selection" role="status">
-            <span>{`已选 ${selected.length}/3${selected.length === 3 ? '，已达上限，请移出后再选择' : '，勾选可加入观察的股票'}`}</span>
+            <span>{`已选 ${selected.length} 只，勾选可加入观察的股票`}</span>
             {chosen.map(({ name, tsCode }) => <Tag key={tsCode}>{name}</Tag>)}
           </div>
           <div id="review-candidate-table" data-review-date={date} data-review-ready={!loading && !!data}>
@@ -318,7 +317,7 @@ function Report({
                   {!capture && <span className="review-step-number">3</span>}
                   {capture ? '候选观察记录' : '填写并预览计划'}
                 </h2>
-                <span className="review-caption">{`${selected.length}/3只`}</span>
+                <span className="review-caption">{`${selected.length} 只`}</span>
               </div>
             )}
           >
@@ -479,7 +478,7 @@ function Report({
       </Modal>
       <Modal title="复盘说明" open={helpOpen} onCancel={() => setHelpOpen(false)} footer={<Button onClick={() => setHelpOpen(false)}>知道了</Button>}>
         <div className="review-help-content">
-          <p>候选使用全部策略默认参数，合并重复股票。观察名单最多3只，限定总市值小于200亿元，排除已知ST、停牌和进行中的已核实减持计划。</p>
+          <p>候选使用全部策略默认参数，合并重复股票。观察数量不限，限定总市值小于200亿元，排除已知ST、停牌和进行中的已核实减持计划。</p>
           <p>行情截至所选交易日收盘，公告按当日已披露信息筛选。历史日期使用当前可用资料回看；人工核验记录不会改变系统风险资料状态。</p>
           <p>草稿按账号和交易日期保存在当前浏览器。刷新或切换日期可恢复；更换浏览器或设备时，请使用导出文件。</p>
           <p>策略命中数量可能重叠，可使用候选表上方的策略筛选。</p>

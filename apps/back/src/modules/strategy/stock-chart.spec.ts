@@ -21,6 +21,7 @@ describe('stock chart quote contract', () => {
           pctChg: '10',
           amount: '500',
           turnoverRateF: '2.5',
+          totalShare: '10000',
         },
         {
           date: '2026-09-09',
@@ -51,6 +52,7 @@ describe('stock chart quote contract', () => {
       preClose: 10,
       amount: 500,
       turnoverRateF: 2.5,
+      turnoverRateTotal: 0.01,
       pctChg: 10,
     });
     expect(result.series[1]).toMatchObject({
@@ -59,5 +61,52 @@ describe('stock chart quote contract', () => {
     });
     expect(result.series[2]).toMatchObject({ close: null, quote: null });
     expect(db.query.mock.calls[0][1][0]).toEqual(['920001.BJ', '830001.BJ']);
+    expect(db.query.mock.calls[0][0]).toContain('d.total_share totalShare');
   });
+
+  it.each([
+    ['20000', '10000', 2],
+    ['0', '10000', 0],
+    ['20000', null, null],
+    ['20000', '', null],
+    ['20000', '0', null],
+    ['20000', '-1', null],
+    ['20000', 'invalid', null],
+    [null, '10000', null],
+    ['invalid', '10000', null],
+    ['-1', '10000', null],
+  ])(
+    'uses the daily total capital and handles missing values: %s / %s',
+    async (vol, totalShare, expected) => {
+      const db: any = {
+        manager: { find: jest.fn().mockResolvedValue([]) },
+        query: jest.fn().mockResolvedValue([
+          {
+            date: '2026-09-08',
+            code: '000001.SZ',
+            open: 10,
+            close: 10,
+            high: 10,
+            low: 10,
+            vol,
+            totalShare,
+            turnoverRateF: 88,
+          },
+        ]),
+      };
+      const service = new TrendService(
+        db,
+        null as any,
+        null as any,
+        null as any,
+      );
+      jest.spyOn(service as any, 'calendar').mockResolvedValue(['2026-09-08']);
+      const result = await service.chart({
+        date: '2026-09-08',
+        code: '000001.SZ',
+        strategyType: 'threeDaysHighVol',
+      } as any);
+      expect(result.series[0].quote?.turnoverRateTotal).toBe(expected);
+    },
+  );
 });

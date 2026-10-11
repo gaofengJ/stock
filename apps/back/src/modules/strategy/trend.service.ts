@@ -233,7 +233,7 @@ export class TrendService {
       : [];
     const dates = [...new Set([...displayDates, ...signalDates])].sort();
     const rows: any[] = await this.db.query(
-      `SELECT DATE_FORMAT(d.trade_date,'%Y-%m-%d') date,d.ts_code code,d.open,d.close,d.high,d.low,d.vol,d.pre_close preClose,d.pct_chg pctChg,d.amount,d.up_limit upLimit,d.turnover_rate_f turnoverRateF
+      `SELECT DATE_FORMAT(d.trade_date,'%Y-%m-%d') date,d.ts_code code,d.open,d.close,d.high,d.low,d.vol,d.pre_close preClose,d.pct_chg pctChg,d.amount,d.up_limit upLimit,d.turnover_rate_f turnoverRateF,d.total_share totalShare
        FROM t_source_daily d JOIN t_sync_run r ON r.trade_date=d.trade_date AND r.task='daily' AND r.status='success'
        LEFT JOIN t_sync_day_policy p ON p.trade_date=d.trade_date
        WHERE d.ts_code IN (?) AND d.trade_date IN (?) AND p.trade_date IS NULL ORDER BY d.trade_date`,
@@ -290,6 +290,18 @@ export class TrendService {
     const series = displayDates.map((date) => {
       const point = pointByDate.get(date);
       const volume = raw.get(date)?.vol;
+      const totalShare = Number(raw.get(date)?.totalShare);
+      // Volume is in lots (100 shares), total_share in 10,000 shares.
+      // Their quotient is the percentage based on that day's entire share capital.
+      const turnoverRateTotal =
+        volume != null &&
+        volume !== '' &&
+        Number.isFinite(Number(volume)) &&
+        Number(volume) >= 0 &&
+        Number.isFinite(totalShare) &&
+        totalShare > 0
+          ? Number(volume) / totalShare
+          : null;
       const valid =
         point &&
         (['open', 'close', 'high', 'low'] as const).every(
@@ -305,22 +317,27 @@ export class TrendService {
         low: valid ? Number(point.low) : null,
         vol: valid ? Number(volume) : null,
         quote: raw.has(date)
-          ? Object.fromEntries(
-              [
-                'open',
-                'close',
-                'high',
-                'low',
-                'preClose',
-                'pctChg',
-                'vol',
-                'amount',
-                'turnoverRateF',
-              ].map((key) => [
-                key,
-                raw.get(date)[key] == null ? null : Number(raw.get(date)[key]),
-              ]),
-            )
+          ? {
+              ...Object.fromEntries(
+                [
+                  'open',
+                  'close',
+                  'high',
+                  'low',
+                  'preClose',
+                  'pctChg',
+                  'vol',
+                  'amount',
+                  'turnoverRateF',
+                ].map((key) => [
+                  key,
+                  raw.get(date)[key] == null
+                    ? null
+                    : Number(raw.get(date)[key]),
+                ]),
+              ),
+              turnoverRateTotal,
+            }
           : null,
       };
     });
