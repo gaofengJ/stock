@@ -7,7 +7,7 @@ on:
         type: choice
         required: true
         default: inspect
-        options: [inspect, inspect-review-proxy, clean-build-cache, clean-release-images, clean-release-backups]
+        options: [inspect, inspect-review-proxy, repair-review-proxy, clean-build-cache, clean-release-images, clean-release-backups]
 permissions:
   contents: read
 concurrency:
@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   maintenance:
-    if: github.ref == 'refs/heads/master' || inputs.operation == 'inspect-review-proxy' || inputs.operation == 'inspect' || inputs.operation == 'clean-release-images' || inputs.operation == 'clean-release-backups'
+    if: github.ref == 'refs/heads/master' || inputs.operation == 'repair-review-proxy' || inputs.operation == 'inspect-review-proxy' || inputs.operation == 'inspect' || inputs.operation == 'clean-release-images' || inputs.operation == 'clean-release-backups'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +35,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
-          source: apps/back/ops/release/maintenance.py
+          source: apps/back/ops/release/maintenance.py,apps/back/ops/release/review-proxy.py
           target: /opt/stock-release/inspections/${{ github.sha }}
           strip_components: 3
       - name: Inspect release storage and optionally reclaim build cache
@@ -52,6 +52,10 @@ jobs:
             set -eu
             exec 9>/var/lock/stock-back-release.lock
             flock -n 9 || { echo 'Another release is running'; exit 1; }
+            if [ "$OPERATION" = repair-review-proxy ]; then
+              python3 /opt/stock-release/inspections/${{ github.sha }}/release/review-proxy.py --backup "/opt/stock-release/inspections/${{ github.sha }}/nginx-before-repair-$(date +%s).conf"
+              exit 0
+            fi
             if [ "$OPERATION" = inspect-review-proxy ]; then
               python3 - <<'PY'
             import re, subprocess

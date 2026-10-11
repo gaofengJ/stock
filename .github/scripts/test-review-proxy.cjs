@@ -7,10 +7,10 @@ const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'review-proxy-'));
 const name = `stock-review-proxy-${process.pid}`;
 const configuration = `events {} http {
   access_log off;
-  server { listen 8081; client_max_body_size 8m; add_header X-Inherited $http_x_original always; return 401; }
+  server { listen 3000; client_max_body_size 8m; add_header X-Inherited $http_x_original always; return 401; }
   server { listen 8080; server_name stock.mufengtongxue.com;
     location /health { return 200; }
-    location /api { proxy_set_header X-Original preserved; proxy_pass http://127.0.0.1:8081; }
+    location /api { proxy_set_header X-Original preserved; proxy_pass http://127.0.0.1:3000; }
   }
 }`;
 (async () => {

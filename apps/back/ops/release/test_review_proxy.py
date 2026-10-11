@@ -26,6 +26,13 @@ class ReviewProxyTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 proxy.render(text)
 
+    def test_upgrades_legacy_nested_locations_and_requires_known_upstream(self):
+        old = proxy.render(FIXTURE).replace(proxy.RULE, proxy.OLD_RULE)
+        self.assertEqual(proxy.render(old), proxy.render(FIXTURE))
+        self.assertEqual(proxy.render(old).count('proxy_pass http://127.0.0.1:3000;'), 3)
+        with self.assertRaises(ValueError):
+            proxy.render(FIXTURE.replace('http://127.0.0.1:3000;', 'http://127.0.0.1:9999;'))
+
     def test_failed_validation_restores_original_and_keeps_backup(self):
         with tempfile.TemporaryDirectory() as directory:
             config = pathlib.Path(directory)/'nginx.conf'
