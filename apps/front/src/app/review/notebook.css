@@ -1,19 +1,65 @@
 .review-notebook { min-width: 0; }
-.notebook-toolbar { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; margin: 8px 0 20px; }
-.notebook-stages { display: grid; gap: 16px; margin: 16px 0; }
-.notebook-field { margin: 16px 0 24px; min-width: 0; }
-.notebook-field label { display: block; font-size: 14px; margin-bottom: 8px; }
-.notebook-links { margin-bottom: 4px; }
-.notebook-text { white-space: pre-wrap; overflow-wrap: anywhere; font-family: inherit; font-size: 14px; line-height: 1.8; }
-.notebook-public-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+.notebook-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 16px 24px; justify-content: space-between; margin: 0 0 24px; }
+.notebook-toolbar .ant-tag { margin: 0; }
+.notebook-toolbar [role="status"] { line-height: 1.6; }
+.review-notebook > .ant-alert { margin-bottom: 24px; }
+.review-notebook .notebook-tabs > .ant-tabs-nav { margin-bottom: 24px; }
+.notebook-panel { display: grid; gap: 24px; min-width: 0; }
+.notebook-panel p, .notebook-panel ul { margin: 0; line-height: 1.8; }
+.notebook-panel-intro { display: grid; justify-items: start; gap: 12px; }
+.notebook-start { display: grid; gap: 12px; padding: 16px; background: var(--color-surface-muted); border-radius: 6px; line-height: 1.8; }
+.notebook-start h2 { font-size: 16px; line-height: 1.5; margin: 0; }
+.notebook-flow { display: flex; flex-wrap: wrap; gap: 12px; }
+.notebook-flow .ant-btn { display: inline-flex; align-items: center; gap: 12px; }
+.notebook-stages { display: grid; gap: 16px; min-width: 0; }
+.notebook-stages > .ant-card { scroll-margin-top: 16px; min-width: 0; }
+.review-notebook .notebook-stages > .ant-card > .ant-card-body,
+.review-notebook .notebook-publish > .ant-card-body { display: grid; gap: 16px; padding: 16px; }
+.review-notebook .notebook-stages > .ant-card > .ant-card-body::before,
+.review-notebook .notebook-stages > .ant-card > .ant-card-body::after,
+.review-notebook .notebook-publish > .ant-card-body::before,
+.review-notebook .notebook-publish > .ant-card-body::after { display: none; }
+.review-notebook .notebook-stages > .ant-card > .ant-card-head,
+.review-notebook .notebook-publish > .ant-card-head { padding-inline: 16px; }
+.notebook-stages .ant-card-head-title { white-space: normal; }
+.notebook-stages .ant-card-extra { flex-shrink: 0; padding-left: 12px; color: var(--text-secondary); }
+.notebook-questions { padding-left: 20px; }
+.notebook-outcome { font-weight: 500; }
+.notebook-links.ant-space { display: flex; }
+.notebook-links .ant-btn-link { padding-inline: 0; }
+.notebook-field { min-width: 0; margin: 0; }
+.notebook-field > label { display: block; font-size: 14px; line-height: 1.5; margin-bottom: 8px; }
+.notebook-detail-fields { display: grid; gap: 16px; }
+.notebook-previous .ant-collapse-content-box { display: grid; gap: 12px; }
+.review-notebook .notebook-details > .ant-collapse-item > .ant-collapse-header { padding: 12px 0; }
+.review-notebook .notebook-details > .ant-collapse-item > .ant-collapse-content > .ant-collapse-content-box { padding: 4px 0 0; }
+.notebook-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: inherit; font-size: 14px; line-height: 1.8; }
+.notebook-actions { padding-top: 24px; border-top: 1px solid var(--color-border); }
+.notebook-public-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
 .notebook-public-grid > :first-child { grid-column: 1 / -1; }
-.notebook-publish { margin-top: 24px; }
-.notebook-history { display: flex; flex-direction: column; gap: 12px; margin-top: 24px; }
-@media (max-width: 768px) { .notebook-public-grid { grid-template-columns: 1fr; } .notebook-toolbar { flex-direction: column; } }
-
-.notebook-start { padding: 16px; background: var(--color-surface-muted); border-radius: 6px; line-height: 1.8; }
-.notebook-start h2 { font-size: 18px; margin: 0 0 8px; }
-.notebook-flow { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
-.notebook-questions { padding-left: 20px; line-height: 1.8; }
-.notebook-outcome { line-height: 1.8; font-weight: 500; }
-.notebook-stages > .ant-card { scroll-margin-top: 16px; }
+/* Ant's count is absolutely positioned below the input; reserve its line in the grid item. */
+.notebook-public-grid .notebook-field { padding-bottom: 24px; }
+.notebook-public-grid .ant-input-data-count { bottom: -24px; line-height: 20px; }
+.notebook-public-actions { display: grid; justify-items: start; gap: 16px; padding-top: 24px; border-top: 1px solid var(--color-border); }
+.notebook-public-actions .ant-select { min-width: 120px; }
+.notebook-public-actions > .ant-checkbox-wrapper { align-items: flex-start; line-height: 1.6; }
+.notebook-public-actions > .ant-checkbox-wrapper > .ant-checkbox { align-self: flex-start; margin-top: 3px; }
+.notebook-history-section { display: grid; gap: 16px; padding: 16px; border: 1px solid var(--color-border); border-radius: 6px; }
+.notebook-history-section h2 { margin: 0; font-size: 16px; line-height: 1.5; }
+.notebook-history-section .ant-empty { margin: 16px 0; }
+.notebook-history { display: grid; gap: 12px; }
+.notebook-history > a { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; padding: 12px; background: var(--color-surface-muted); border-radius: 6px; }
+.notebook-preview-modal.ant-modal { top: 24px; padding-bottom: 24px; }
+.notebook-preview-modal .ant-modal-body { max-height: calc(100dvh - 200px); overflow-y: auto; overscroll-behavior: contain; padding-right: 12px; }
+body:has(.notebook-preview-modal) .platform-content:has(.review-page) { overflow: hidden; }
+@media (max-width: 767px) {
+  .notebook-toolbar { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .notebook-public-grid { grid-template-columns: minmax(0, 1fr); }
+  .notebook-flow { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .notebook-flow .ant-btn { justify-content: space-between; width: 100%; }
+  .notebook-publish .ant-space-compact { display: flex; flex-direction: column; gap: 12px; }
+  .notebook-publish .ant-space-compact > .ant-input,
+  .notebook-publish .ant-space-compact > .ant-btn { width: 100%; border-radius: 6px !important; }
+  .notebook-preview-modal.ant-modal { top: 16px; padding-bottom: 16px; }
+  .notebook-preview-modal.ant-modal .ant-modal-content { padding: 16px; }
+}
