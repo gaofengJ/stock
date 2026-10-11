@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {
-  Alert, Button, Empty, Input, Modal, Result, Segmented, Skeleton, Tabs, Tag,
+  Alert, Button, Empty, Input, Result, Segmented, Skeleton, Tabs, Tag,
 } from 'antd';
 import {
   ApartmentOutlined, DownloadOutlined, FullscreenExitOutlined, FullscreenOutlined, MinusOutlined, PlusOutlined, ReloadOutlined, SafetyCertificateOutlined,
@@ -50,22 +50,29 @@ function MapViewer({ map, version }: { map: GuideMap; version: string }) {
   const [mode, setMode] = useState('思维导图');
   const [query, setQuery] = useState('');
   const [fullscreen, setFullscreen] = useState(false);
+  const [fullscreenError, setFullscreenError] = useState('');
+  const frame = useRef<HTMLDivElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const fullscreenButton = useRef<HTMLButtonElement>(null);
-  const hasExpanded = useRef(false);
-  const scrollPosition = useRef({ left: 0, top: 0 });
-  const setExpandedView = (expanded: boolean) => {
-    scrollPosition.current = { left: viewport.current?.scrollLeft || 0, top: viewport.current?.scrollTop || 0 };
-    setFullscreen(expanded);
+  const toggleFullscreen = async () => {
+    setFullscreenError('');
+    try {
+      if (document.fullscreenElement === frame.current) await document.exitFullscreen();
+      else if (frame.current?.requestFullscreen) await frame.current.requestFullscreen();
+      else setFullscreenError('当前浏览器不支持原生全屏，请使用 Chrome 或 Edge 打开。');
+    } catch {
+      setFullscreenError('浏览器未允许进入全屏，请重试或在 Chrome、Edge 中打开。');
+    }
   };
   useEffect(() => {
-    if (fullscreen) hasExpanded.current = true;
-    const frame = window.requestAnimationFrame(() => {
-      viewport.current?.scrollTo(scrollPosition.current);
-      if (!fullscreen && hasExpanded.current) fullscreenButton.current?.focus({ preventScroll: true });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [fullscreen]);
+    const onFullscreenChange = () => {
+      const expanded = document.fullscreenElement === frame.current;
+      setFullscreen(expanded);
+      if (!expanded) fullscreenButton.current?.focus({ preventScroll: true });
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
   const nodes = flattenNodes(map.root);
   const active = nodes.find((node) => node.id === selected) || map.root;
   const matches = searchNodes(map.root, query);
@@ -105,8 +112,23 @@ function MapViewer({ map, version }: { map: GuideMap; version: string }) {
     anchor.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  const viewer = (
-    <section aria-label={map.title} className={fullscreen ? 'guide-fullscreen-viewer' : undefined}>
+  const mapControls = (
+    <div className="guide-canvas-toolbar" role="group" aria-label="导图操作">
+      <div className="guide-zoom-tools">
+        <Button aria-label="缩小导图" disabled={zoom <= 0.5} icon={<MinusOutlined />} onClick={() => setZoom((value) => Math.max(0.5, +(value - 0.1).toFixed(2)))} />
+        <span className="guide-zoom">{`${Math.round(zoom * 100)}%`}</span>
+        <Button aria-label="放大导图" disabled={zoom >= 1.5} icon={<PlusOutlined />} onClick={() => setZoom((value) => Math.min(1.5, +(value + 0.1).toFixed(2)))} />
+      </div>
+      <div className="guide-branch-tools">
+        <Button icon={<ReloadOutlined />} onClick={() => { setZoom(0.85); viewport.current?.scrollTo({ left: 0, top: 0 }); }}>复位</Button>
+        <Button onClick={() => setCollapsed(new Set())}>全部展开</Button>
+        <Button onClick={() => setCollapsed(new Set((map.root.children || []).map((node) => node.id)))}>收起分支</Button>
+      </div>
+      <Button className="guide-fullscreen-toggle" ref={fullscreenButton} aria-label={fullscreen ? '退出全屏' : '全屏查看思维导图'} icon={fullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />} onClick={toggleFullscreen}>{fullscreen ? '退出全屏' : '全屏'}</Button>
+    </div>
+  );
+  return (
+    <section aria-label={map.title}>
       <div className="guide-map-heading">
         <div>
           <h2>{map.title}</h2>
@@ -114,73 +136,43 @@ function MapViewer({ map, version }: { map: GuideMap; version: string }) {
         </div>
         <Button icon={<DownloadOutlined />} onClick={download}>下载 XMind</Button>
       </div>
-      {!fullscreen && <div className="guide-executive-summary" aria-label="执行结论"><NodeDetails node={map.root} /></div>}
-      <div className="guide-toolbar">
-        <Segmented aria-label="内容显示方式" options={['思维导图', '体系正文']} value={mode} onChange={(value) => setMode(String(value))} />
-        {mode === '思维导图' && (
-        <div className="guide-map-tools">
-          <Button size="small" aria-label="缩小导图" disabled={zoom <= 0.5} icon={<MinusOutlined />} onClick={() => setZoom((value) => Math.max(0.5, +(value - 0.1).toFixed(2)))} />
-          <span className="guide-zoom">
-            {Math.round(zoom * 100)}
-            %
-          </span>
-          <Button size="small" aria-label="放大导图" disabled={zoom >= 1.5} icon={<PlusOutlined />} onClick={() => setZoom((value) => Math.min(1.5, +(value + 0.1).toFixed(2)))} />
-          <Button size="small" icon={<ReloadOutlined />} onClick={() => { setZoom(0.85); viewport.current?.scrollTo({ left: 0, top: 0 }); }}>复位</Button>
-          <Button size="small" onClick={() => setCollapsed(new Set())}>全部展开</Button>
-          <Button size="small" onClick={() => setCollapsed(new Set((map.root.children || []).map((node) => node.id)))}>收起分支</Button>
+      <div className="guide-executive-summary" aria-label="执行结论"><NodeDetails node={map.root} /></div>
+      <div ref={frame} className={`guide-viewer-frame${fullscreen ? ' is-fullscreen' : ''}`}>
+        <div className="guide-toolbar">
+          <Segmented aria-label="内容显示方式" options={['思维导图', '体系正文']} value={mode} onChange={(value) => setMode(String(value))} />
+          {fullscreen && mode === '体系正文' && <Button onClick={toggleFullscreen} icon={<FullscreenExitOutlined />}>退出全屏</Button>}
+          <Input.Search aria-label="搜索当前体系" placeholder="搜索规则、书名或关键词" allowClear value={query} onChange={(event) => setQuery(event.target.value)} className="guide-search" />
+        </div>
+        {fullscreenError && <Alert type="warning" showIcon message={fullscreenError} />}
+        {query.trim() && (
+        <div className="guide-search-results" aria-live="polite">
+          <span>{`找到 ${matches.length} 个节点`}</span>
+          {matches.map((node) => <InteractionButton key={node.id} intent="select" selected={selected === node.id} onClick={() => { setMode('思维导图'); focusNode(node.id); }}>{node.title}</InteractionButton>)}
+          {!matches.length && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有匹配内容，试试其他关键词" />}
         </div>
         )}
-        {(mode === '思维导图' || fullscreen) && <Button ref={fullscreenButton} aria-label={fullscreen ? '退出全屏' : '全屏查看思维导图'} icon={fullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />} onClick={() => setExpandedView(!fullscreen)}>{fullscreen ? '退出全屏' : '全屏'}</Button>}
-        <Input.Search aria-label="搜索当前体系" placeholder="搜索规则、书名或关键词" allowClear value={query} onChange={(event) => setQuery(event.target.value)} className="guide-search" />
-      </div>
-      {query.trim() && (
-      <div className="guide-search-results" aria-live="polite">
-        <span>{`找到 ${matches.length} 个节点`}</span>
-        {matches.map((node) => <InteractionButton key={node.id} intent="select" selected={selected === node.id} onClick={() => { setMode('思维导图'); focusNode(node.id); }}>{node.title}</InteractionButton>)}
-        {!matches.length && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有匹配内容，试试其他关键词" />}
-      </div>
-      )}
-      {mode === '体系正文' ? <div className="guide-outline"><Outline node={map.root} /></div> : (
-        <div className="guide-workspace">
-          {/* Keyboard focus enables native arrow-key scrolling of the map viewport. */}
-          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
-          <div className="guide-map-viewport" ref={viewport} tabIndex={0} role="region" aria-label="思维导图画布，可滚动浏览">
-            <div className="guide-map-canvas" style={{ zoom }}><ul className="guide-root-list">{renderBranch(map.root)}</ul></div>
+        {mode === '体系正文' ? <div className="guide-outline"><Outline node={map.root} /></div> : (
+          <div className="guide-workspace">
+            <div className="guide-canvas-panel">
+              {mapControls}
+              {/* Keyboard focus enables native arrow-key scrolling of the map viewport. */}
+              {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+              <div className="guide-map-viewport" ref={viewport} tabIndex={0} role="region" aria-label="思维导图画布，可滚动浏览">
+                <div className="guide-map-canvas" style={{ zoom }}><ul className="guide-root-list">{renderBranch(map.root)}</ul></div>
+              </div>
+            </div>
+            <aside id="guide-inspector" className="guide-inspector" aria-label="节点详情">
+              <span className="guide-eyebrow">节点详情</span>
+              <h3>{active.title}</h3>
+              <NodeDetails node={active} />
+              {!!active.children?.length && <div className="guide-child-links">{active.children.map((node) => <InteractionButton intent="select" key={node.id} onClick={() => focusNode(node.id)}>{node.title}</InteractionButton>)}</div>}
+              {!active.points?.length && <p className="guide-muted">选择分支查看执行规则与学习任务。</p>}
+            </aside>
           </div>
-          <aside id="guide-inspector" className="guide-inspector" aria-label="节点详情">
-            <span className="guide-eyebrow">节点详情</span>
-            <h3>{active.title}</h3>
-            <NodeDetails node={active} />
-            {!!active.children?.length && <div className="guide-child-links">{active.children.map((node) => <InteractionButton intent="select" key={node.id} onClick={() => focusNode(node.id)}>{node.title}</InteractionButton>)}</div>}
-            {!active.points?.length && <p className="guide-muted">选择分支查看执行规则与学习任务。</p>}
-          </aside>
-        </div>
-      )}
+        )}
+      </div>
       <p className="guide-footnote">点击节点阅读详情，使用节点旁的箭头展开分支。切换体系正文可连续阅读全部规则；下载文件的节点备注包含完整说明。</p>
     </section>
-  );
-  if (!fullscreen) return viewer;
-  return (
-    <Modal
-      open
-      title="思维导图全屏"
-      width="100vw"
-      style={{
-        top: 0, maxWidth: '100vw', paddingBottom: 0, margin: 0,
-      }}
-      styles={{
-        content: {
-          height: '100dvh', borderRadius: 0, display: 'flex', flexDirection: 'column', padding: 16,
-        },
-        body: { flex: 1, minHeight: 0 },
-      }}
-      className="guide-fullscreen-modal"
-      footer={null}
-      closable={false}
-      onCancel={() => setExpandedView(false)}
-    >
-      {viewer}
-    </Modal>
   );
 }
 
