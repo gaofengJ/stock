@@ -12,13 +12,17 @@ import Link from 'next/link';
 import request from '@/api/request';
 import { errorMessage } from '@/api/errors';
 import { copyText } from '@/utils/clipboard';
-import { marketRequest, MarketStats, MarketBreadth } from '@/api/market';
-import { numberText, beijingTime } from '@/utils/format';
+import { numberText } from '@/utils/format';
+import ArticleEditor from './ArticleEditor';
+import Holdings from './Holdings';
+import { loadResearch } from './research';
 import {
-  emptyNotebook, internalFields, internalText, NotebookContent, noteHtml, publicFields, publicText, templateText,
+  emptyNotebook, internalFields, internalText, NotebookContent, noteHtml, templateText,
+  publicText,
 } from './notebook-model';
 import './notebook.css';
 import { eveningFlow } from './evening-flow';
+import { ArticleImage } from './article-contract';
 
 interface Snapshot { date: string; revision: number; content: NotebookContent | null; updatedAt?: string; previous: { date: string; revision: number; content: NotebookContent } | null; versions: { revision: number; createdAt: string }[]; publications: { id: number; revision: number; channel: string; url: string; body: string }[] }
 function download(name: string, text: string, type = 'text/markdown;charset=utf-8') {
@@ -42,6 +46,10 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
   const [status, setStatus] = useState('正在读取私人复盘');
   const [tab, setTab] = useState('write');
   const [preview, setPreview] = useState('');
+  const [previewImages, setPreviewImages] = useState<ArticleImage[]>([]);
+  const [previewRich, setPreviewRich] = useState(false);
+  const [holdings, setHoldings] = useState<any>(null);
+  const [researchBusy, setResearchBusy] = useState(false);
   const [channel, setChannel] = useState<'wechat' | 'xueqiu'>('wechat');
   const [url, setUrl] = useState('');
   const [confirmed, setConfirmed] = useState(false);
@@ -74,13 +82,16 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
     setBusy(true); setError(''); const edit = editCounter.current;
     try {
       const r = await request.post<{ revision: number }>('/review/notebook', { date, revision: snapshot.revision, content: JSON.stringify(content) }, { autoShowError: false });
-      setSnapshot((old) => old && ({ ...old, revision: r.data.revision, versions: [{ revision: r.data.revision, createdAt: new Date().toISOString() }, ...old.versions] }));
+      setSnapshot((old) => old && ({
+        ...old, revision: r.data.revision, content, versions: [{ revision: r.data.revision, createdAt: new Date().toISOString() }, ...old.versions],
+      }));
       if (editCounter.current === edit) setDirty(false);
+      setDates((old) => [{ date, revision: r.data.revision }, ...old.filter((item) => item.date !== date)].sort((a, b) => b.date.localeCompare(a.date)));
       setStatus(`已保存服务端版本 ${r.data.revision}`);
     } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   };
-  const inspectVersion = async (revision: number) => {
-    try { const r = await request.get<Snapshot>('/review/notebook', { params: { date, revision }, autoShowError: false }); setPreview(internalText(date, r.data.content!)); } catch (e) { setError(errorMessage(e)); }
+  const inspectVersion = async (revision: number, illustrated = false) => {
+    try { const r = await request.get<Snapshot>('/review/notebook', { params: { date, revision }, autoShowError: false }); setPreviewRich(illustrated); setPreviewImages(r.data.content?.article?.images || []); setPreview(illustrated ? publicText(date, r.data.content!, 'wechat') : internalText(date, r.data.content!)); } catch (e) { setError(errorMessage(e)); }
   };
   const record = async () => {
     if (!snapshot || dirty || !confirmed) return;
@@ -92,34 +103,32 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
       const r = await request.get<Snapshot>('/review/notebook', { params: { date }, autoShowError: false }); setSnapshot(r.data); setUrl(''); setStatus('已记录文章链接与对应版本；此操作不会代替平台发布。');
     } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   };
-  const publicReady = !!content.public.summary.trim() && !!content.public.sources.trim();
+  const publicSource: Record<string, string> = { market: 'marketJudgment', themes: 'themes', plan: 'lesson' };
+  const publicReady = !!content.article?.body.trim() || (!!content.public.summary.trim() && !!content.public.sources.trim());
   const importMarket = async () => {
     if (!snapshot) return;
-    setBusy(true);
+    setResearchBusy(true);
     try {
-      const r = await marketRequest<{ date: string; market: MarketStats | null; breadth: MarketBreadth | null }>('candidate-environment', { date }, { autoShowError: false });
-      if (r.data.date !== date || !r.data.market) throw new Error('所选日期的市场数据尚未就绪，不带入其他日期。');
-      const m = r.data.market;
-      const evidence = `交易日期：${date}；查询时间：${beijingTime(new Date().toISOString())}。\n来源：大盘环境，全市场口径。\n上涨 ${m.up} 家，下跌 ${m.down} 家，平盘 ${m.flat} 家；成交额 ${numberText(m.amount)} 亿元。\n涨停 ${m.limitUp} 家，跌停 ${m.limitDown} 家；最高连板 ${m.maxHeight}。\nMA20上方占比 ${numberText(r.data.breadth?.ma20.ratio)}%；MA60上方占比 ${numberText(r.data.breadth?.ma60.ratio)}%。\n缺失值显示为“—”，查询时间不代表源数据更新时间。`;
-      change('private', 'marketFacts', `${content.private.marketFacts}${content.private.marketFacts ? '\n\n' : ''}${evidence}`.slice(0, 4000));
-      setStatus('市场数据已带入事实栏，请补充变化与判断后保存。');
-    } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+      const research = await loadResearch(date);
+      editCounter.current += 1; setContent((old) => ({ ...old, research })); setDirty(true);
+      setStatus(`已读取 ${research.sections.filter((item) => item.state === 'ready').length}/${research.sections.length} 类当日资料；缺失项可重试，判断仍由你填写。`);
+    } catch (e) { setError(errorMessage(e)); } finally { setResearchBusy(false); }
   };
   const renderField = (key: string) => {
     const field = internalFields.find(([k]) => k === key)!;
     return (
       <div className="notebook-field" key={key}>
         <label htmlFor={`note-${key}`}>{field[1]}</label>
-        <Input.TextArea id={`note-${key}`} disabled={!snapshot} value={content.private[key]} placeholder={field[2]} rows={3} maxLength={key === 'toolEvidence' ? 12000 : 4000} onChange={(e) => change('private', key, e.target.value)} />
+        <Input.TextArea id={`note-${key}`} disabled={!snapshot} value={content.private[key]} placeholder={field[2]} rows={3} maxLength={['toolEvidence', 'holdingEvidence'].includes(key) ? 12000 : 4000} onChange={(e) => change('private', key, e.target.value)} />
       </div>
     );
   };
-  const article = publicText(date, content, channel);
   return (
     <div className="review-notebook">
       <div className="notebook-toolbar">
         <Space wrap size={12}>
           <Tag>私人复盘</Tag>
+          {!!snapshot?.revision && <Tag>{`版本 ${snapshot.revision}`}</Tag>}
           <span role="status">{dirty ? '有未保存修改' : status}</span>
           <Button type="primary" loading={busy} disabled={!snapshot || !dirty} onClick={save}>保存复盘版本</Button>
         </Space>
@@ -140,9 +149,9 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
             label: '完成今日复盘',
             children: <div className="notebook-panel">
               <div className="notebook-start">
-                <h2>今晚按这四步完成，约 60 分钟</h2>
-                <p>每天在这里做复盘；交易体系用于查规则，复盘导图用于查方法。判断与计划只记在当天笔记中。</p>
-                <nav className="notebook-flow" aria-label="晚间复盘四步">
+                <h2>从当日资料到下一交易日计划</h2>
+                <p>按下面五步完成研究与记录。市场资料可以统一读取，候选和持仓工具就在对应步骤中。</p>
+                <nav className="notebook-flow" aria-label="每日复盘五步">
                   {eveningFlow.map((stage) => (
                     <Button key={stage.id} onClick={() => document.getElementById(`evening-${stage.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
                       <span>{stage.title}</span>
@@ -150,7 +159,11 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
                     </Button>
                   ))}
                 </nav>
-                <Link href="/trading-system/" target="_blank" rel="noopener noreferrer">查看交易规则与复盘方法</Link>
+                <Space wrap size={12}>
+<Button disabled={!snapshot} loading={researchBusy} onClick={importMarket}>{content.research ? '更新当日资料' : '读取当日资料'}</Button>
+<Link href="/trading-system/" target="_blank" rel="noopener noreferrer">查看交易规则与复盘方法</Link>
+</Space>
+                {content.research && <p className="review-caption">{`资料日期 ${content.research.date}；读取时间 ${content.research.fetchedAt}。缺失项不会用其他日期替代。`}</p>}
               </div>
               <div className="notebook-stages">
                 {eveningFlow.map((stage) => (
@@ -160,10 +173,22 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
                     {(stage.links.length > 0 || stage.id === 'execution') && (
                     <Space wrap size={12} className="notebook-links">
                       {stage.links.map(([path, label]) => <Link key={path} href={`${path}?date=${date}`} target="_blank" rel="noopener noreferrer">{label}</Link>)}
-                      {(stage.id === 'execution' || stage.id === 'candidates') && <Button type="link" onClick={() => setTab('tools')}>使用候选与持仓工具</Button>}
-                      {stage.keys.includes('marketJudgment') && <Button disabled={!snapshot} loading={busy} onClick={importMarket}>带入所选日期的市场事实</Button>}
+
                     </Space>
                     )}
+                    {content.research && stage.evidence.length > 0 && (
+<div className="notebook-evidence-grid">
+{content.research.sections.filter((item) => stage.evidence.includes(item.key)).map((item) => (
+<section key={item.key} className="notebook-evidence">
+<strong>{item.title}</strong>
+<Tag color={item.state === 'ready' ? 'green' : 'orange'}>{item.state === 'ready' ? '已取得' : '暂缺'}</Tag>
+<pre className="notebook-text">{item.text}</pre>
+<Link href={item.source} target="_blank" rel="noopener noreferrer">打开完整资料</Link>
+</section>
+))}
+</div>
+                    )}
+                    {stage.id === 'candidates' && <div className="notebook-tools">{renderTools((text) => { change('private', 'toolEvidence', text.slice(0, 12000)); setStatus('候选研究已带入当天笔记，请保存版本。'); })}</div>}
                     {stage.id === 'execution' && (
 <>
               {snapshot?.previous && (
@@ -183,65 +208,48 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
                       {snapshot && !snapshot.previous && <p className="review-caption">尚无此前保存的计划。从今晚开始记录，不事后补写昨日预期。</p>}
                     </>
                     )}
+                    {stage.id === 'execution' && (
+<Collapse items={[{
+  key: 'holdings',
+  label: '检查已有持仓（可选）',
+  children: <div className="notebook-detail-fields">
+<Holdings date={date} candidates={[]} onResult={setHoldings} />
+<Button disabled={!snapshot || !holdings} onClick={() => { change('private', 'holdingEvidence', holdings.items.map((r: any) => `${r.name} ${r.code}：持有 ${r.heldDays ?? '未知'} 个交易日；收盘 ${numberText(r.close)} 元；成本价格差 ${numberText(r.profitPct)}%；${r.ma5.label}。原理由：${r.rationale || '未提供'}。${r.timeReview || ''}`).join('\n')); setStatus('持仓分析已带入私人记录，请保存。'); }}>将分析结果记入私人笔记</Button>
+</div>,
+}]}
+/>
+                    )}
                     {stage.keys.map(renderField)}
+                    {['market', 'themes', 'plan'].includes(stage.id) && (
+<Button disabled={!snapshot || !content.private[publicSource[stage.id]]?.trim()} onClick={() => { const key = publicSource[stage.id]; const publicKey = stage.id === 'market' ? 'summary' : key; if (window.confirm('这段文字将作为公开文章素材。请确认不含个人操作、持仓或盈亏。继续？')) { change('public', publicKey, content.private[key]); setStatus('已选为公开素材。进入图文成稿，生成初稿时会一并带入。'); } }}>
+将
+{stage.id === 'plan' ? '经验总结' : '研究结论'}
+选为公开素材
+</Button>
+                    )}
                     {stage.optional.length > 0 && <Collapse className="notebook-details" ghost items={[{ key: 'detail', label: '补充细节（可选）', children: <div className="notebook-detail-fields">{stage.optional.map(renderField)}</div> }]} />}
                   </Card>
                 ))}
               </div>
               <Space wrap size={12} className="notebook-actions">
                 <Button type="primary" disabled={!snapshot || !dirty} loading={busy} onClick={save}>保存复盘版本</Button>
-                <Button onClick={() => setPreview(internalText(date, content))}>预览内部笔记</Button>
-                <Button onClick={() => setTab('public')}>整理公开笔记</Button>
+                <Button onClick={() => { setPreviewRich(false); setPreview(internalText(date, content)); }}>预览内部笔记</Button>
+                <Button onClick={() => setTab('public')}>整理图文成稿</Button>
               </Space>
                       </div>,
           },
           {
-            key: 'tools',
-            label: '辅助工具',
-            forceRender: true,
-            children: <div className="notebook-panel">
-              <div className="notebook-panel-intro">
-              <p>看图、核验风险或分析持仓后，将快照带回今日笔记。这里的观察名单不等于明日买入计划。</p>
-              <Button onClick={() => setTab('write')}>返回晚间四步</Button>
-              </div>
-              <div className="notebook-tools">
-              {renderTools((text) => { if (!snapshot) { setError('请先加载私人复盘记录，再带入工具快照。'); return; } change('private', 'toolEvidence', text.slice(0, 12000)); setTab('write'); setStatus('工具快照已带入内部记录，请保存。'); })}
-              </div>
-</div>,
-          },
-          {
             key: 'public',
-            label: '复盘后整理文章',
+            label: '图文成稿',
             children: <div className="notebook-panel">
-              <div className="notebook-panel-intro">
-              <p>先保存私人复盘，再整理下方可公开内容。网站负责记录与导出；调用 stock-review-feishu Skill 后才会创建飞书文档，公众号与雪球由你手动发布。</p>
-              <Button onClick={async () => setStatus(await copyText(`使用 $stock-review-feishu 生成 ${date} 的复盘文章。读取网站当天公开字段及已核实的市场数据，按已配置的飞书模板保存至复盘目录；不要读取或转写私人操作、持仓和盈亏。`) ? '调用说明已复制，请在 Codex 中发送；尚未创建飞书文档。' : '复制失败，请手动输入：用复盘 Skill 生成指定日期的文章。')}>复制 Skill 调用说明</Button>
-              </div>
-              <Alert type="info" message="公开稿单独编辑，只使用下方字段。内部持仓、成交、盈亏和执行记录不会自动带入。" />
-              <div className="notebook-public-grid">
-                {publicFields.map(([key, label, hint]) => (
-                  <div className="notebook-field" key={key}>
-                    <label htmlFor={`public-${key}`}>{label}</label>
-                    <Input.TextArea id={`public-${key}`} disabled={!snapshot} value={content.public[key]} placeholder={hint} rows={key === 'title' ? 1 : 4} maxLength={4000} showCount onChange={(e) => change('public', key, e.target.value)} />
-                  </div>
-                ))}
-              </div>
-              <div className="notebook-public-actions">
-              <Space wrap size={12}>
-                <Select aria-label="公开稿渠道" value={channel} onChange={(v) => { setChannel(v); setConfirmed(false); }} options={[{ value: 'wechat', label: '公众号' }, { value: 'xueqiu', label: '雪球' }]} />
-                <Button disabled={!publicReady} onClick={() => setPreview(article)}>预览公开稿</Button>
-              </Space>
-              <Checkbox checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)}>已检查公开稿，确认没有个人信息或私人交易记录</Checkbox>
-              <Space wrap size={12}>
-                <Button disabled={!confirmed || !publicReady} onClick={async () => setStatus(await richCopy(article) ? '公开稿已复制，可粘贴到飞书云文档，再由你手动发布。' : '复制失败，请下载排版稿。')}>复制公开稿到飞书</Button>
-                <a href="https://www.feishu.cn/drive/" target="_blank" rel="noopener noreferrer">打开飞书云文档</a>
-                <Button disabled={!confirmed || !publicReady} onClick={() => download(`${date}-${channel}.html`, `<!doctype html><meta charset="utf-8">${noteHtml(article)}`, 'text/html;charset=utf-8')}>下载排版稿</Button>
-                <Button disabled={!confirmed || !publicReady} onClick={() => download(`${date}-${channel}.md`, article)}>下载 Markdown</Button>
-                <a href={channel === 'wechat' ? 'https://mp.weixin.qq.com/' : 'https://xueqiu.com/'} target="_blank" rel="noopener noreferrer">打开发布平台</a>
-              </Space>
-              </div>
+              <ArticleEditor date={date} revision={snapshot?.revision || 0} content={content} disabled={!snapshot} dirty={dirty} onStatus={setStatus} onChange={(article) => { editCounter.current += 1; setContent((old) => ({ ...old, article })); setDirty(true); setConfirmed(false); }} />
+              <Space wrap size={12}><Button type="primary" disabled={!snapshot || !dirty} loading={busy} onClick={save}>保存图文版本</Button></Space>
               <Card title="发布后记录" className="notebook-publish">
                 <p>在对应平台完成发布后，粘贴文章链接。保存的记录包含当前版本公开稿，不包含内部笔记。</p>
+                <Space wrap size={12}>
+<Select aria-label="已发布渠道" value={channel} onChange={setChannel} options={[{ value: 'wechat', label: '公众号' }, { value: 'xueqiu', label: '雪球' }]} />
+<Checkbox checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)}>已核对文章与公开范围</Checkbox>
+</Space>
                 <Space.Compact block>
                   <Input aria-label="已发布文章链接" placeholder="https://…" value={url} maxLength={1500} onChange={(e) => setUrl(e.target.value)} />
                   <Button disabled={!confirmed || !publicReady || dirty || !snapshot?.revision || !url} loading={busy} onClick={record}>记录发布链接</Button>
@@ -254,7 +262,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
                       文章
             </a>
                     {`，复盘版本 ${p.revision} `}
-                    <Button type="link" onClick={() => setPreview(p.body)}>查看发布快照</Button>
+                    <Button type="link" onClick={() => { setPreviewRich(true); setPreviewImages([]); setPreview(p.body); }}>查看发布快照</Button>
                   </p>
                 ))}
               </Card>
@@ -267,7 +275,16 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
               <p>版本只读，保留当时计划；修改后保存会产生新版本。</p>
               <section className="notebook-history-section">
                 <h2>当前日期的版本</h2>
-                {snapshot?.versions.length ? <Space wrap size={12}>{snapshot.versions.map((v) => <Button key={v.revision} onClick={() => inspectVersion(v.revision)}>{`查看版本 ${v.revision}`}</Button>)}</Space> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="当前日期尚无保存版本" />}
+                {snapshot?.versions.length ? (
+<Space wrap size={12}>
+{snapshot.versions.map((v) => (
+<Space key={v.revision}>
+<Button onClick={() => inspectVersion(v.revision)}>{`版本 ${v.revision} 私人笔记`}</Button>
+<Button onClick={() => inspectVersion(v.revision, true)}>{`版本 ${v.revision} 图文`}</Button>
+</Space>
+))}
+</Space>
+                ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="当前日期尚无保存版本" />}
               </section>
               <section className="notebook-history-section">
                 <h2>已保存的复盘日期</h2>
@@ -286,7 +303,9 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
           },
         ]}
       />
-      <Modal className="notebook-preview-modal" open={!!preview} title="笔记预览" width={850} destroyOnClose onCancel={() => setPreview('')} footer={<Button onClick={() => setPreview('')}>关闭</Button>}><pre className="notebook-text">{preview}</pre></Modal>
+      <Modal className="notebook-preview-modal" open={!!preview} title="笔记预览" width={850} destroyOnClose onCancel={() => setPreview('')} footer={<Button onClick={() => setPreview('')}>关闭</Button>}>
+        {previewRich ? <div className="notebook-article-preview" dangerouslySetInnerHTML={{ __html: noteHtml(preview, previewImages) }} /> : <pre className="notebook-text">{preview}</pre>}
+      </Modal>
     </div>
   );
 }

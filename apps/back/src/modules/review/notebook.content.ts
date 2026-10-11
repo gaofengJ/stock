@@ -1,4 +1,11 @@
 import { BadRequestException } from '@nestjs/common';
+import {
+  Article,
+  Research,
+  validateArticle,
+  validateResearch,
+  illustratedText,
+} from './article-contract';
 
 export const privateFields = [
   'dataState',
@@ -13,6 +20,7 @@ export const privateFields = [
   'weakPlan',
   'lesson',
   'toolEvidence',
+  'holdingEvidence',
 ] as const;
 export const publicFields = [
   'title',
@@ -26,6 +34,8 @@ export const publicFields = [
 export interface NotebookContent {
   private: Record<string, string>;
   public: Record<string, string>;
+  article?: Article;
+  research?: Research;
 }
 
 export function parseNotebook(raw: string): NotebookContent {
@@ -33,7 +43,9 @@ export function parseNotebook(raw: string): NotebookContent {
     const value = JSON.parse(raw);
     if (
       !value ||
-      Object.keys(value).some((k) => !['private', 'public'].includes(k))
+      Object.keys(value).some(
+        (k) => !['private', 'public', 'article', 'research'].includes(k),
+      )
     )
       throw new Error();
     const section = (data: unknown, allowed: readonly string[]) => {
@@ -46,7 +58,8 @@ export function parseNotebook(raw: string): NotebookContent {
           const text = (data as Record<string, unknown>)[k] ?? '';
           if (
             typeof text !== 'string' ||
-            text.length > (k === 'toolEvidence' ? 12000 : 4000)
+            text.length >
+              (['toolEvidence', 'holdingEvidence'].includes(k) ? 12000 : 4000)
           )
             throw new Error();
           return [k, text];
@@ -56,6 +69,8 @@ export function parseNotebook(raw: string): NotebookContent {
     return {
       private: section(value.private, privateFields),
       public: section(value.public, publicFields),
+      ...(value.article ? { article: validateArticle(value.article) } : {}),
+      ...(value.research ? { research: validateResearch(value.research) } : {}),
     };
   } catch {
     throw new BadRequestException('复盘字段格式或长度不符合要求');
@@ -69,6 +84,8 @@ export function publicationText(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Both channels retain the same article format.
   _channel: 'wechat' | 'xueqiu',
 ) {
+  if (content.article?.body.trim())
+    return illustratedText(content.article.body, content.article.images);
   const p = content.public;
   const entries = [
     ['市场与主线', [p.market, p.themes].filter(Boolean).join('\n\n')],
