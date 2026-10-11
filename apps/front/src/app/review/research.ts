@@ -1,4 +1,3 @@
-import request from '@/api/request';
 import { marketRequest } from '@/api/market';
 import { numberText } from '@/utils/format';
 import { Evidence, Research } from './article-contract';
@@ -78,26 +77,14 @@ export async function loadResearch(date: string): Promise<Research> {
         return { text: `涨停 ${d.total} 家，已分类 ${d.classified} 家。题材解析需结合原文核验。\n${d.groups.slice(0, 8).map((g: any) => `${g.name}：${g.count} 家，最高 ${g.maxHeight} 板；${g.items.slice(0, 3).map((s: any) => `${s.name} ${s.tsCode}：${s.reason || '原因待核验'}`).join('；')}`).join('\n')}`, points: points(d.groups.slice(0, 8).map((g: any) => ({ label: g.name, value: g.count }))) };
       },
     },
-    {
-      key: 'dragon', title: '龙虎榜资金线索', path: '/analysis/dragon', endpoint: 'dragon-board', unit: '', read: (d: any) => ({ text: d.items.length ? d.items.slice(0, 10).map((i: any) => `${i.name} ${i.tsCode}：${i.reason}；净买入 ${n(i.netAmount)} 万元。`).join('\n') : '本次查询无龙虎榜记录，请到详情页核对资料状态。', points: [] }),
-    },
-    {
-      key: 'news', title: '当日资讯', path: '/news', endpoint: 'news', unit: '', read: (d: any) => ({ text: d.items.length ? d.items.slice(0, 10).map((i: any) => `${i.publishedAt} ${i.title}\n来源：${i.sourceName}${i.originalUrl ? ` ${i.originalUrl}` : '，原文链接未提供'}`).join('\n\n') : '本次查询无资讯记录。', points: [] }),
-    },
+
   ];
   const sections: Evidence[] = await Promise.all(definitions.map(async (def) => {
     const source = `${def.path}?date=${date}`;
     try {
-      const response = def.endpoint === 'news'
-        ? await request.get<any>('/news', {
-          params: {
-            range: 'date', date, page: 1, pageSize: 10,
-          },
-          autoShowError: false,
-        })
-        : await marketRequest<any>(def.endpoint, { date, ...(def.endpoint === 'sectors' ? { kind: 'N', period: 1 } : {}) }, { autoShowError: false });
+      const response = await marketRequest<any>(def.endpoint, { date, ...(def.endpoint === 'sectors' ? { kind: 'N', period: 1 } : {}) }, { autoShowError: false });
       const { data } = response;
-      if (def.key !== 'dragon' && data.date !== date) throw new Error('返回日期与所选日期不一致');
+      if (data.date !== date) throw new Error('返回日期与所选日期不一致');
       return {
         key: def.key, title: def.title, source, unit: def.unit, state: 'ready' as const, ...def.read(data),
       };
@@ -108,10 +95,4 @@ export async function loadResearch(date: string): Promise<Research> {
     }
   }));
   return { date, fetchedAt: new Date().toISOString(), sections };
-}
-
-export function researchDraft(research: Research, notes: Record<string, string> = {}, origin = '') {
-  const ready = research.sections.filter((s) => s.state === 'ready');
-  const missing = research.sections.filter((s) => s.state === 'missing');
-  return [`# ${research.date} 市场复盘`, `复盘日期：${research.date}`, '## 市场与主线', ...ready.filter((s) => ['market', 'breadth', 'sentiment', 'feedback'].includes(s.key)).map((s) => `### ${s.title}\n${s.text}`), '## 题材与资金线索', ...ready.filter((s) => !['market', 'breadth', 'sentiment', 'feedback'].includes(s.key)).map((s) => `### ${s.title}\n${s.text}`), notes.themes || '', '## 今日观察与应对', notes.summary || '', '## 明日观察计划', notes.watch || '', '## 一条总结', notes.lesson || '', '## 资料来源与时间', `数据日期：${research.date}。资料读取时间：${research.fetchedAt}（不代表源数据更新时间）。`, ...research.sections.map((s) => `${s.title}：${origin ? new URL(s.source, origin).href : s.source}${s.state === 'missing' ? `；未取得：${s.text}` : ''}`), ...(missing.length ? ['部分资料缺失，以上为已取得事实；主线判断和后续观察需补充核验。'] : [])].join('\n\n');
 }

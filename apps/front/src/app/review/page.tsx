@@ -2,7 +2,7 @@
 
 /* eslint jsx-a11y/label-has-associated-control: ["error", { "assert": "htmlFor" }] */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert, Button, Card, Checkbox, Collapse, DatePicker, Input, Modal, Select, Space, Tag, Tooltip,
 } from 'antd';
@@ -52,8 +52,10 @@ function Report({
   useEffect(() => { setScrollContainer(document.querySelector<HTMLElement>('.platform-content') || undefined); }, []);
   useEffect(() => { setPage(1); }, [filter, keyword, strategy]);
   const {
-    draft, update, ready, status,
+    draft, update: updateDraft, ready, status,
   } = useReviewDraft(account, date);
+  const interacted = useRef(false);
+  const update: typeof updateDraft = (patch) => { interacted.current = true; updateDraft(patch); };
   useEffect(() => { onSelection?.(draft.selected.map((pick) => `${pick.name} ${pick.tsCode}`)); }, [draft.selected, onSelection]);
   const risk = useWorkbench('risk', { date }, !!data);
   useEffect(() => {
@@ -101,6 +103,8 @@ function Report({
     if (row.capState !== 'within') return '市值条件不符，请重新确认';
     return '风险资料待核验';
   };
+  const candidateRecord = [`研究日期：${date}`, ...chosen.map(({ name, tsCode, row }) => `${name} ${tsCode}\n策略：${row?.strategies?.map((v: any) => v.label).join('、') || '待确认'}\n观察与触发：${draft.notes[tsCode] || '未填写'}\n风险核验：${draft.riskNotes[tsCode] || '未记录'}；${riskLabel(row)}`), ...(!chosen.length ? ['当前未选观察股票。'] : []), ...([draft.focus, draft.exit, draft.reason].some(Boolean) ? [`此前浏览器计划（供核对）：\n${[draft.focus, draft.exit, draft.reason].filter(Boolean).join('\n')}`] : [])].join('\n\n');
+  useEffect(() => { if (capture && ready && interacted.current) capture(candidateRecord); }, [capture, ready, candidateRecord]);
   let sortCaption = '当前使用候选原始顺序';
   if (sortOrder === 'ascend') sortCaption = '当前按流通市值从小到大排列';
   if (sortOrder === 'descend') sortCaption = '当前按流通市值从大到小排列';
@@ -363,7 +367,7 @@ function Report({
                 label: '此前保存在浏览器的计划',
                 children: (
                   <div className="notebook-detail-fields">
-                    <p>旧内容保留供核对，可随候选研究带入当天私人笔记；新计划在第五步填写。</p>
+                    <p>旧内容保留供核对，可随候选研究带入当天私人笔记；后续条件写在对应股票的观察记录中。</p>
                     <pre className="notebook-text">{[draft.focus, draft.exit, draft.reason].filter(Boolean).join('\n\n')}</pre>
                   </div>
                 ),
@@ -403,7 +407,7 @@ function Report({
             </div>
             <div className="review-plan-footer">
               <div className="review-plan-actions">
-                {capture ? <Button disabled={!ready} onClick={() => capture([`研究日期：${date}`, ...chosen.map(({ name, tsCode, row }) => `${name} ${tsCode}\n策略：${row?.strategies?.map((v: any) => v.label).join('、') || '待确认'}\n观察与触发：${draft.notes[tsCode] || '未填写'}\n风险核验：${draft.riskNotes[tsCode] || '未记录'}；${riskLabel(row)}`), ...(!chosen.length ? ['当前未选观察股票。'] : []), ...([draft.focus, draft.exit, draft.reason].some(Boolean) ? [`此前浏览器计划（供核对）：\n${[draft.focus, draft.exit, draft.reason].filter(Boolean).join('\n')}`] : [])].join('\n\n'))}>将候选研究记入当天笔记</Button> : (
+                {capture ? <Button disabled={!ready || interacted.current} onClick={() => capture(candidateRecord)}>{interacted.current ? '候选记录已同步到本页' : '带入此前浏览器记录'}</Button> : (
                   <>
                     <Button type="primary" disabled={!ready} onClick={openPreview}>预览复盘与计划</Button>
                     <span className="review-caption">预览中可导出 Markdown 文件</span>
@@ -411,7 +415,7 @@ function Report({
                 )}
               </div>
               <p role="status" className="review-caption">
-                {status}
+                {capture && interacted.current ? '选股与文字改动会同步到本页，请保存顶部记录。' : status}
               </p>
             </div>
           </Card>
@@ -483,7 +487,7 @@ function Report({
           <SourceState data={risk.data || data} error={risk.error} loading={risk.loading} pollingStopped={risk.pollingStopped} retry={risk.retry} />
         </div>
       </Modal>
-      <StockChart stock={stock} date={date} strategy={stock?.strategies?.[0]?.key || 'fiveMaUp'} options={trendDefaults} onClose={() => setStock(null)} />
+      <StockChart navigation={[...(filtered.some((r) => r.tsCode === stock?.tsCode) ? filtered : rows)].sort((a, b) => (sortOrder ? (sortOrder === 'ascend' ? 1 : -1) * compareCap(a.circMv, b.circMv) : 0))} onNavigate={setStock} stock={stock} date={date} strategy={stock?.strategies?.[0]?.key || 'fiveMaUp'} options={trendDefaults} onClose={() => setStock(null)} />
     </>
   );
 }
@@ -509,7 +513,7 @@ export default function Page() {
     <Layout showAsideMenu={false} headerMenuActive={EHeaderMenuKey.review}>
       <main className="review-page rounded-[6px] bg-bg-white">
         <h1 className="page-heading">每日复盘</h1>
-        <p className="review-intro">依次查看市场与情绪、主线与催化、候选与风险、持仓与执行，保存明日计划后整理图文。</p>
+        <p className="review-intro">网站记录复盘与图文素材，Skill 补充分析并生成飞书文档。</p>
         <Space className="mb-16" wrap>
           <span>复盘交易日期</span>
           <DatePicker aria-label="复盘交易日期" value={date ? dayjs(date) : null} allowClear={false} onChange={(v) => { if (v) changeDate(v.format('YYYY-MM-DD')); }} />

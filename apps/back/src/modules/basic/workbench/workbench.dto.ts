@@ -21,7 +21,7 @@ export class WorkbenchQuery {
 
   @IsOptional() @IsString() @MaxLength(256) org?: string;
 
-  @IsOptional() @IsIn(['7', '30']) days?: string;
+  @IsOptional() @IsIn(['7', '30', '31']) days?: string;
 
   @IsOptional() @IsString() @MaxLength(64) keyword?: string;
 
