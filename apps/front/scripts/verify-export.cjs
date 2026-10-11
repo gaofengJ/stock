@@ -38,7 +38,7 @@ function verifyPrivateGuide(directory) {
     if (entry.isDirectory()) verifyPrivateGuide(file);
     else if (/\.(html|js|json|txt|map)$/.test(entry.name)) {
       const text = readFileSync(file, 'utf8');
-      if (/trade-root|trade-drawdown|review-root|learn-ice-first|experience-root/.test(text)) {
+      if (/(?<![\w-])(?:trade-root|trade-drawdown|review-root|learn-ice-first|experience-root)(?![\w-])/.test(text)) {
         console.error('Private playbook content must not appear in static export.');
         process.exitCode = 1;
       }

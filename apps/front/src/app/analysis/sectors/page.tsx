@@ -232,7 +232,7 @@ export default function Page() {
         <SectionTitle title="强弱排行" description="成分统计基于已取得的快照，覆盖范围与日期见成分日期列。" />
         <p className="interaction-hint">{`选择${kindLabel}查看下方走势与成分股。`}</p>
         <Table<SectorRow> rowKey="code" size="small" pagination={false} bordered maxBodyHeight={480} minBodyHeight={280} scroll={{ x: 1730 }} dataSource={rows} columns={tableColumns} rowClassName={(r) => (r.code === code ? 'interaction-selected-row' : '')} locale={{ emptyText: keyword ? `没有符合条件的${kindLabel}` : `${kindLabel}目录正在补齐` }} />
-        <Row gutter={[16, 16]} className="sector-rotation-row">
+        <Row gutter={[16, 16]} className="sector-rotation-row" data-review-capture="sectors" data-review-date={data?.date} data-review-ready={!request.loading && !request.error && !!rotation.length && !!rotationRows.length}>
           <Col xs={24} xl={24}>
             <Card title={(
               <Space>

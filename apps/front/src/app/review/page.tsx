@@ -31,8 +31,8 @@ import '../strategy/strategy.sass';
 import './review.css';
 
 function Report({
-  date, account, capture, onSelection,
-}: { date: string; account: number; capture?: (text: string) => void; onSelection?: (items: string[]) => void }) {
+  date, account, capture, onSelection, generation = 0, refresh = 0,
+}: { date: string; account: number; generation?: number; refresh?: number; capture?: (text: string) => void; onSelection?: (items: string[]) => void }) {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -53,7 +53,7 @@ function Report({
   useEffect(() => { setPage(1); }, [filter, keyword, strategy]);
   const {
     draft, update: updateDraft, ready, status,
-  } = useReviewDraft(account, date);
+  } = useReviewDraft(account, date, generation);
   const interacted = useRef(false);
   const update: typeof updateDraft = (patch) => { interacted.current = true; updateDraft(patch); };
   useEffect(() => { onSelection?.(draft.selected.map((pick) => `${pick.name} ${pick.tsCode}`)); }, [draft.selected, onSelection]);
@@ -68,7 +68,7 @@ function Report({
       .catch((e) => { if (active) setError(errorMessage(e, '候选加载失败，请重试')); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; abort.abort(); };
-  }, [date, attempt]);
+  }, [date, attempt, refresh]);
   const blocked = (row: any) => row.risk?.state === 'excluded' || risk.data?.items?.some((r: any) => r.tsCode === row.tsCode && (['ST', '停牌'].includes(r.type) || currentReduction(r, date)));
   const rows: any[] = data?.items || [];
   const eligible = rows.filter((r) => r.capState === 'within' && !blocked(r));
@@ -245,7 +245,7 @@ function Report({
             <span>{`已选 ${selected.length}/3${selected.length === 3 ? '，已达上限，请移出后再选择' : '，勾选可加入观察的股票'}`}</span>
             {chosen.map(({ name, tsCode }) => <Tag key={tsCode}>{name}</Tag>)}
           </div>
-          <div id="review-candidate-table">
+          <div id="review-candidate-table" data-review-date={date} data-review-ready={!loading && !!data}>
             <Table
               loading={loading}
               rowKey="tsCode"
@@ -521,7 +521,7 @@ export default function Page() {
         </Space>
         {fallback.error && <Alert type="error" message={fallback.error} action={<Button onClick={fallback.retry}>重试</Button>} />}
         {date && user && (user.roles.some((r) => r.code === 'admin') && !user.guest
-          ? <Notebook key={`${user.id}:${date}`} date={date} onDirty={setNotebookDirty} renderTools={(capture, onSelection) => <Report date={date} account={user.id} capture={capture} onSelection={onSelection} />} />
+          ? <Notebook key={`${user.id}:${date}`} date={date} onDirty={setNotebookDirty} renderTools={(capture, onSelection, generation, refresh) => <Report key={generation} date={date} account={user.id} capture={capture} onSelection={onSelection} generation={generation} refresh={refresh} />} />
           : <Report key={`${user.id}:${date}`} date={date} account={user.id} />)}
       </main>
     </Layout>

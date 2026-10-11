@@ -34,6 +34,9 @@ export default function MarketBreadthChart({ range }: { range: string }) {
   const mean = seriesAverage(rows.map((r) => r.data?.[period].ratio));
   return (
     <Card
+      data-review-capture="breadth"
+      data-review-date={data?.date}
+      data-review-ready={!loading && !error && !!data?.snapshot && anyData}
       className="market-chart market-environment-card"
       title={(
         <span className="market-section-title">

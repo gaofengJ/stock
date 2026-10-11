@@ -2,17 +2,17 @@
 export const eveningFlow = [
   {
     id: 'market',
-    title: '1 市场环境',
+    title: '1 观察市场',
     time: '建立背景',
     keys: ['marketJudgment'],
     optional: ['marketFacts', 'dataState'],
     evidence: ['market', 'breadth', 'sentiment', 'feedback'],
     links: [['/analysis/overview', '大盘与指数'], ['/analysis/senti', '情绪与强势股反馈'], ['/analysis/chains', '连板梯队与晋级']],
-    guidance: '看量能、涨跌与强势股反馈，形成参与态度。这里的通用数据只用于研究背景，不作为文章固定章节。',
+    guidance: '看量能、涨跌与强势股反馈，形成参与态度。更新资料后，平台图表会自动加入下方文档模板。',
   },
   {
     id: 'themes',
-    title: '2 主线与题材',
+    title: '2 梳理题材',
     time: '梳理方向',
     keys: ['themes'],
     optional: [],
@@ -22,7 +22,7 @@ export const eveningFlow = [
   },
   {
     id: 'candidates',
-    title: '3 策略选股',
+    title: '3 筛选个股',
     time: '看图与记录',
     keys: [],
     optional: [],
@@ -32,7 +32,7 @@ export const eveningFlow = [
   },
   {
     id: 'execution',
-    title: '4 操作与经验',
+    title: '4 总结与反思',
     time: '回顾与反思',
     keys: ['execution', 'lesson'],
     optional: [],

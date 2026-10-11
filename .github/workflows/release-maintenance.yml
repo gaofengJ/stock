@@ -7,7 +7,11 @@ on:
         type: choice
         required: true
         default: inspect
-        options: [inspect, inspect-review-proxy, repair-review-proxy, clean-build-cache, clean-release-images, clean-release-backups]
+        options: [inspect-review-records, clear-review-records, inspect, inspect-review-proxy, repair-review-proxy, clean-build-cache, clean-release-images, clean-release-backups]
+      review_owner_id:
+        description: '仅清空指定管理员的复盘记录，先用 inspect-review-records 核对'
+        type: string
+        required: false
 permissions:
   contents: read
 concurrency:
@@ -35,23 +39,28 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
-          source: apps/back/ops/release/maintenance.py,apps/back/ops/release/review-proxy.py
+          source: apps/back/ops/release/maintenance.py,apps/back/ops/release/review-proxy.py,apps/back/ops/release/review-records.cjs
           target: /opt/stock-release/inspections/${{ github.sha }}
           strip_components: 3
       - name: Inspect release storage and optionally reclaim build cache
         uses: appleboy/ssh-action@v1.2.0
         env:
           OPERATION: ${{ inputs.operation }}
+          REVIEW_OWNER_ID: ${{ inputs.review_owner_id }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
           command_timeout: 10m
-          envs: OPERATION
+          envs: OPERATION,REVIEW_OWNER_ID
           script: |
             set -eu
             exec 9>/var/lock/stock-back-release.lock
             flock -n 9 || { echo 'Another release is running'; exit 1; }
+            if [ "$OPERATION" = inspect-review-records ] || [ "$OPERATION" = clear-review-records ]; then
+              docker exec -i -e OPERATION="$OPERATION" -e REVIEW_OWNER_ID="$REVIEW_OWNER_ID" stock-back node < /opt/stock-release/inspections/${{ github.sha }}/release/review-records.cjs
+              exit 0
+            fi
             if [ "$OPERATION" = repair-review-proxy ]; then
               python3 /opt/stock-release/inspections/${{ github.sha }}/release/review-proxy.py --backup "/opt/stock-release/inspections/${{ github.sha }}/nginx-before-repair-$(date +%s).conf"
               exit 0

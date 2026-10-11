@@ -22,6 +22,9 @@ function MarketAmountChart({
   const references = amountReferenceLevels(rows.map((r) => r.value));
   return (
     <Card
+      data-review-capture="market"
+      data-review-date={data.date}
+      data-review-ready={!!data.snapshot}
       title={(
         <span className="market-section-title">
           {title}

@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax, no-await-in-loop -- Owner-scoped table deletes share one ordered transaction. */
 import {
   BadRequestException,
   ConflictException,
@@ -20,6 +21,10 @@ export class NotebookService {
   }
 
   async read(owner: number, date: string, revision?: number) {
+    const [state] = await this.db.query(
+      'SELECT generation FROM t_review_notebook_state WHERE user_id=?',
+      [owner],
+    );
     const [item] = revision
       ? await this.db.query(
           'SELECT revision,content,created_at updatedAt FROM t_review_notebook_version WHERE user_id=? AND trade_date=? AND revision=?',
@@ -44,6 +49,7 @@ export class NotebookService {
     );
     return {
       date,
+      generation: Number(state?.generation || 0),
       revision: Number(item?.revision || 0),
       content: item ? parseNotebook(item.content) : null,
       updatedAt: item?.updatedAt,
@@ -62,6 +68,16 @@ export class NotebookService {
     if (research && research.date !== dto.date)
       throw new BadRequestException('资料日期与复盘日期不一致');
     return this.db.transaction(async (m) => {
+      await m.query(
+        'INSERT INTO t_review_notebook_state(user_id,generation) VALUES(?,0) ON DUPLICATE KEY UPDATE user_id=VALUES(user_id)',
+        [owner],
+      );
+      const [state] = await m.query(
+        'SELECT generation FROM t_review_notebook_state WHERE user_id=? FOR UPDATE',
+        [owner],
+      );
+      if (Number(state.generation) !== (dto.generation || 0))
+        throw new ConflictException('复盘记录已清空，请刷新页面后开始新记录');
       await m.query(
         'INSERT INTO t_review_notebook(user_id,trade_date,revision,content) VALUES(?,?,0,?) ON DUPLICATE KEY UPDATE user_id=VALUES(user_id)',
         [owner, dto.date, '{}'],
@@ -84,6 +100,35 @@ export class NotebookService {
         [owner, dto.date, revision, content],
       );
       return { revision };
+    });
+  }
+
+  async clear(owner: number) {
+    return this.db.transaction(async (m) => {
+      await m.query(
+        'INSERT INTO t_review_notebook_state(user_id,generation) VALUES(?,0) ON DUPLICATE KEY UPDATE user_id=VALUES(user_id)',
+        [owner],
+      );
+      await m.query(
+        'SELECT generation FROM t_review_notebook_state WHERE user_id=? FOR UPDATE',
+        [owner],
+      );
+      const removed: Record<string, number> = {};
+      for (const table of [
+        't_review_publication',
+        't_review_notebook_version',
+        't_review_notebook',
+      ]) {
+        const result = await m.query(`DELETE FROM ${table} WHERE user_id=?`, [
+          owner,
+        ]);
+        removed[table] = Number(result.affectedRows);
+      }
+      await m.query(
+        'UPDATE t_review_notebook_state SET generation=generation+1 WHERE user_id=?',
+        [owner],
+      );
+      return removed;
     });
   }
 

@@ -65,7 +65,7 @@ test('v2 preserves user words, separates context, and includes execution only by
  c.materials={links:[{id:'link1',title:'自选图',url:'https://example.com/chart',note:'取日线图'}],calendar:[{id:'event1',date:'2026-10-12',title:'展会',detail:'相关题材',source:'https://example.com/event'}],showCalendar:false,includeExecution:false};
  c.research={date:'2026-09-30',fetchedAt:'2026-09-30T12:00:00Z',sections:[{key:'market',title:'大盘',source:'/analysis/overview?date=2026-09-30',text:'GENERIC_MARKET',state:'ready',points:[],unit:''},{key:'themes',title:'题材',source:'/analysis/limits?date=2026-09-30',text:'THEME',state:'ready',points:[],unit:''},{key:'news',title:'新闻',source:'/news?date=2026-09-30',text:'OLD_NEWS',state:'ready',points:[],unit:''}]};
  let p=handoff.reviewPacket('2026-09-30',1,c,'https://stock.example.com');
- assert.equal(p.schema,'stock-review/v2');assert.equal(p.article.body,'');assert.equal(p.userNotes.find(n=>n.key==='marketJudgment').text,c.private.marketJudgment);
+ assert.equal(p.schema,'stock-review/v2');assert.ok(p.article.body.startsWith('# 2026-09-30复盘'));assert.equal(p.userNotes.find(n=>n.key==='marketJudgment').text,c.private.marketJudgment);
  assert.ok(!p.userNotes.some(n=>n.key==='themes'));assert.ok(!JSON.stringify(p).includes('PRIVATE_TRADE'));assert.ok(!JSON.stringify(p.research).includes('GENERIC_MARKET'));assert.ok(JSON.stringify(p.context).includes('GENERIC_MARKET'));assert.ok(!JSON.stringify(p).includes('OLD_NEWS'));
  assert.equal(p.materials.calendar.length,1,'hiding the calendar preserves selected events');assert.ok(p.materials.links.some(l=>l.url==='https://stock.example.com/basic/stock/detail/?code=000001.SZ&date=2026-09-30'));
  c.materials.includeExecution=true;p=handoff.reviewPacket('2026-09-30',1,c);assert.equal(p.userNotes.find(n=>n.key==='execution').text,'PRIVATE_TRADE');
@@ -101,4 +101,24 @@ test('v2 result import preserves original notes and images and requires independ
  assert.throws(()=>handoff.readResult(JSON.stringify({...valid,article:{...valid.article,body:'## AI 分析\n只有分析。'}}),p.date,4,c),/原文/);
  assert.throws(()=>handoff.readResult(JSON.stringify({...valid,article:{...valid.article,body:'我的经验，原样保留'}}),p.date,4,c),/AI 分析/);
  assert.throws(()=>handoff.readResult(JSON.stringify({...valid,article:{...valid.article,images:[]}}),p.date,4,c),/配图/);
+});
+
+const platformImages = load('../src/app/review/platform-images.ts');
+test('platform refresh replaces a complete image group without accumulating old slices or losing uploads', () => {
+ const old = illustrated().article;
+ old.images = [{...old.images[0], id:'platform-themes-0'}, {...old.images[0],id:'platform-themes-1'}, {...old.images[0],id:'upload-1'}];
+ const next=platformImages.mergePlatformImages(old,[{...old.images[0],id:'platform-themes-0',caption:'updated'}]);
+ assert.deepEqual(next.images.map(i=>i.id),['upload-1','platform-themes-0']);
+ assert.equal(next.images[1].caption,'updated');
+});
+test('template places platform images at their steps and preserves the exact date title and user notes',()=>{
+ const c=exp.emptyNotebook();c.private.marketJudgment='用户原文';c.private.execution='PRIVATE';c.article={body:'',feishuUrl:'',images:[{id:'platform-market-0',data:png,caption:'平台原图',source:'url',after:'市场观察'}]};
+ const text=exp.publicText('2026-10-12',c,'wechat');assert.ok(text.startsWith('# 2026-10-12复盘'));assert.ok(text.includes('用户原文'));assert.ok(!text.includes('PRIVATE'));
+ assert.ok(text.indexOf('review-image:platform-market-0')<text.indexOf('## 题材梳理'));
+ const p=handoff.reviewPacket('2026-10-12',1,c);assert.equal(p.title,'2026-10-12复盘');assert.equal(p.article.images[0].data,png);assert.ok(p.article.body.includes('用户原文'));
+});
+
+test('a result from before history reset cannot be imported into the same date and revision',()=>{
+ const c=illustrated(), p=handoff.reviewPacket('2026-09-30',1,c,'',0);
+ assert.throws(()=>handoff.readResult(JSON.stringify(p),p.date,1,undefined,1),/清空前/);
 });

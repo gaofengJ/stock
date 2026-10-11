@@ -108,7 +108,7 @@ export function publicationText(
     ['资料来源与时间', p.sources],
   ];
   return [
-    `# ${p.title || `${date} 市场复盘`}`,
+    `# ${p.title || `${date}复盘`}`,
     `复盘日期：${date}`,
     ...entries
       .filter(([, v]) => v?.trim())
