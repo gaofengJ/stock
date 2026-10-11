@@ -407,7 +407,7 @@ function Report({
             </div>
             <div className="review-plan-footer">
               <div className="review-plan-actions">
-                {capture ? <Button disabled={!ready || interacted.current} onClick={() => capture(candidateRecord)}>{interacted.current ? '候选记录已同步到本页' : '带入此前浏览器记录'}</Button> : (
+                {capture ? (!interacted.current && draft.selected.length > 0 && <Button disabled={!ready} onClick={() => capture(candidateRecord)}>带入此前浏览器记录</Button>) : (
                   <>
                     <Button type="primary" disabled={!ready} onClick={openPreview}>预览复盘与计划</Button>
                     <span className="review-caption">预览中可导出 Markdown 文件</span>

@@ -43,7 +43,6 @@ export default function ArticleEditor({
   const upload = useRef<HTMLInputElement>(null); const importFile = useRef<HTMLInputElement>(null);
   const text = publicText(date, { ...content, article }, 'wechat');
   const html = noteHtml(text, article.images);
-  const headings = Array.from(new Set(Array.from(article.body.matchAll(/^## (.+)$/gm), (m) => m[1].trim())));
   const update = (next: Article) => { try { onChange(validateArticle(next)); setError(''); } catch (e) { setError((e as Error).message); } };
   const add = (images: ArticleImage[]) => update({ ...current.current, images: [...current.current.images, ...images] });
   const addFiles = async (files: File[]) => {
@@ -147,10 +146,9 @@ export default function ArticleEditor({
               <img src={image.data} alt={image.caption || `配图 ${index + 1}`} />
               <Input aria-label={`配图 ${index + 1} 图注`} disabled={disabled} placeholder="图注" value={image.caption} maxLength={300} onChange={(e) => replaceImage(image.id, { caption: e.target.value })} />
               <Input aria-label={`配图 ${index + 1} 来源`} disabled={disabled} placeholder="来源、日期或原文链接" value={image.source} maxLength={1500} onChange={(e) => replaceImage(image.id, { source: e.target.value })} />
-              {headings.length > 0 && <Select aria-label={`配图 ${index + 1} 位置`} disabled={disabled} value={image.after} options={[{ value: '', label: '由 Skill 安排位置' }, ...headings.map((h) => ({ value: h, label: `${h}之后` }))]} onChange={(after) => replaceImage(image.id, { after })} />}
               <Space wrap size={8}>
-                <Button disabled={disabled || index === 0} onClick={() => move(index, -1)}>上移</Button>
-                <Button disabled={disabled || index === article.images.length - 1} onClick={() => move(index, 1)}>下移</Button>
+                {article.images.length > 1 && <Button disabled={disabled || index === 0} onClick={() => move(index, -1)}>上移</Button>}
+                {article.images.length > 1 && <Button disabled={disabled || index === article.images.length - 1} onClick={() => move(index, 1)}>下移</Button>}
                 <Button disabled={disabled} onClick={() => update({ ...article, images: article.images.filter((i) => i.id !== image.id) })}>移除</Button>
               </Space>
             </div>

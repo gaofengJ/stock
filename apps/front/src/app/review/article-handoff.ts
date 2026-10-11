@@ -43,6 +43,7 @@ export function readResult(raw: string, date: string, revision: number, content?
   if (!['stock-review/v1', 'stock-review/v2'].includes(String(value.schema)) || value.date !== date || value.revision !== revision) throw new Error('返回结果的日期或版本不匹配，请以当前已保存版本重新交接');
   const article = validateArticle(value.article);
   if (value.schema === 'stock-review/v2' && content) {
+    if (!article.images.length) throw new Error('最终成稿需要实际配图，不能只提供取图链接');
     const original = reviewPacket(date, revision, content);
     if (original.userNotes.some((note) => !article.body.includes(note.text))) throw new Error('成稿缺少用户原文，请让 Skill 保留原始记录后重新导入');
     if (!/^#{2,3} AI\s*分析[^\n]*\n+[^#\s]/m.test(article.body)) throw new Error('成稿需要独立的 AI 分析章节');
