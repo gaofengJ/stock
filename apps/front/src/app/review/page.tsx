@@ -30,7 +30,9 @@ import { ReviewDocument, reviewMarkdown } from './review-document';
 import '../strategy/strategy.sass';
 import './review.css';
 
-function Report({ date, account, capture }: { date: string; account: number; capture?: (text: string) => void }) {
+function Report({
+  date, account, capture, onSelection,
+}: { date: string; account: number; capture?: (text: string) => void; onSelection?: (items: string[]) => void }) {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -52,6 +54,7 @@ function Report({ date, account, capture }: { date: string; account: number; cap
   const {
     draft, update, ready, status,
   } = useReviewDraft(account, date);
+  useEffect(() => { onSelection?.(draft.selected.map((pick) => `${pick.name} ${pick.tsCode}`)); }, [draft.selected, onSelection]);
   const risk = useWorkbench('risk', { date }, !!data);
   useEffect(() => {
     const abort = new AbortController(); let active = true;
@@ -177,35 +180,39 @@ function Report({ date, account, capture }: { date: string; account: number; cap
           <Button loading={loading} onClick={() => setAttempt((v) => v + 1)}>更新候选数据</Button>
         </Space>
       </div>
-      <div className="review-steps" aria-label={capture ? '辅助工具导航' : '复盘操作流程'}>
-        {[
-          ['review-market', '看市场背景', '查看涨跌、均线与成交情况'],
-          ['review-candidates', '筛选观察股票', '看K线和风险资料，选择0–3只股票'],
-          ['review-plan', '填写并预览计划', '记录下一交易日计划，预览复盘结果'],
-        ].map(([id, title, description], i) => (
-          <button type="button" className="review-step" key={id} aria-label={`第${i + 1}步：${title}`} aria-controls={id} onClick={() => goToStep(id)}>
-            <span className="review-step-number">{i + 1}</span>
-            <div>
-              <strong>{title}</strong>
-              <span className="review-caption">{description}</span>
-            </div>
-          </button>
-        ))}
-      </div>
-      <section id="review-market" className="review-market" aria-labelledby="review-market-title">
-        <div className="review-section-heading">
-          <h2 id="review-market-title" tabIndex={-1} className="review-step-title">
-            <span className="review-step-number">1</span>
-            看市场背景
-          </h2>
+      {!capture && (
+      <>
+        <div className="review-steps" aria-label={capture ? '辅助工具导航' : '复盘操作流程'}>
+          {[
+            ['review-market', '看市场背景', '查看涨跌、均线与成交情况'],
+            ['review-candidates', '筛选观察股票', '看K线和风险资料，选择0–3只股票'],
+            ['review-plan', '填写并预览计划', '记录下一交易日计划，预览复盘结果'],
+          ].map(([id, title, description], i) => (
+            <button type="button" className="review-step" key={id} aria-label={`第${i + 1}步：${title}`} aria-controls={id} onClick={() => goToStep(id)}>
+              <span className="review-step-number">{i + 1}</span>
+              <div>
+                <strong>{title}</strong>
+                <span className="review-caption">{description}</span>
+              </div>
+            </button>
+          ))}
         </div>
-        <CandidateEnvironment date={date} />
-      </section>
+        <section id="review-market" className="review-market" aria-labelledby="review-market-title">
+          <div className="review-section-heading">
+            <h2 id="review-market-title" tabIndex={-1} className="review-step-title">
+              <span className="review-step-number">1</span>
+              看市场背景
+            </h2>
+          </div>
+          <CandidateEnvironment date={date} />
+        </section>
+      </>
+      )}
       <div className="review-workspace">
         <section id="review-candidates" className="review-candidates" aria-labelledby="review-candidates-title">
           <div className="review-section-heading">
             <h2 id="review-candidates-title" tabIndex={-1} className="review-step-title">
-              <span className="review-step-number">2</span>
+              {!capture && <span className="review-step-number">2</span>}
               筛选观察股票
             </h2>
           </div>
@@ -304,20 +311,20 @@ function Report({ date, account, capture }: { date: string; account: number; cap
             title={(
               <div className="review-plan-title">
                 <h2 id="review-plan-title" tabIndex={-1} className="review-step-title">
-                  <span className="review-step-number">3</span>
-                  填写并预览计划
+                  {!capture && <span className="review-step-number">3</span>}
+                  {capture ? '候选观察记录' : '填写并预览计划'}
                 </h2>
                 <span className="review-caption">{`${selected.length}/3只`}</span>
               </div>
             )}
           >
             <div className="review-plan-content">
-              <p className="review-caption">为选中的股票记录观察条件，再整理下一交易日计划。</p>
+              <p className="review-caption">为选中的股票记录观察条件和风险核验结论。</p>
               {!chosen.length && (
               <div className="review-empty">
                 还没有选观察股票。
                 <br />
-                在候选表勾选股票后，会在这里出现；也可只填写市场计划，保持空名单。
+                在候选表勾选股票后，会在这里出现；也可以保持空名单。
               </div>
               )}
               <div className="review-picks" data-count={chosen.length}>
@@ -350,37 +357,58 @@ function Report({ date, account, capture }: { date: string; account: number; cap
                   </div>
                 ))}
               </div>
-              <Collapse
-                className="review-details"
-                items={[{
-                  key: 'holdings',
-                  label: '分析已有持仓（可选）',
-                  forceRender: true,
-                  children: <Holdings date={date} candidates={chosen.map((r) => `${r.name} ${r.tsCode}`)} onResult={setHoldingsResult} />,
-                }]}
+              {capture && (draft.focus || draft.exit || draft.reason) && (
+              <Collapse items={[{
+                key: 'legacy-plan',
+                label: '此前保存在浏览器的计划',
+                children: (
+                  <div className="notebook-detail-fields">
+                    <p>旧内容保留供核对，可随候选研究带入当天私人笔记；新计划在第五步填写。</p>
+                    <pre className="notebook-text">{[draft.focus, draft.exit, draft.reason].filter(Boolean).join('\n\n')}</pre>
+                  </div>
+                ),
+              }]}
               />
-              <div className="review-day-plan">
-                <h3>下一交易日计划</h3>
-                <div className="review-day-fields">
-                  <label className="review-field" htmlFor="review-focus">
-                    <span>下一交易日重点观察</span>
-                    <Input.TextArea id="review-focus" aria-label="下一交易日重点观察" disabled={!ready} value={draft.focus} onChange={(e) => update({ focus: e.target.value })} maxLength={2000} rows={3} placeholder="例如：关注哪些方向、市场量能和候选走势" />
-                  </label>
-                  <label className="review-field" htmlFor="review-exit">
-                    <span>放弃或退出条件</span>
-                    <Input.TextArea id="review-exit" aria-label="放弃或退出条件" disabled={!ready} value={draft.exit} onChange={(e) => update({ exit: e.target.value })} maxLength={2000} rows={3} placeholder="例如：走势未兑现、出现新风险时如何处理" />
-                  </label>
-                  <label className="review-field" htmlFor="review-reason">
-                    <span>新机会与持仓比较（可选）</span>
-                    <Input.TextArea id="review-reason" aria-label="新机会理由" disabled={!ready} value={draft.reason} onChange={(e) => update({ reason: e.target.value })} maxLength={2000} rows={3} placeholder="比较走势、风险和原持仓理由，记录是否调整观察计划" />
-                  </label>
+              )}
+              {!capture && (
+              <>
+                <Collapse
+                  className="review-details"
+                  items={[{
+                    key: 'holdings',
+                    label: '分析已有持仓（可选）',
+                    forceRender: true,
+                    children: <Holdings date={date} candidates={chosen.map((r) => `${r.name} ${r.tsCode}`)} onResult={setHoldingsResult} />,
+                  }]}
+                />
+                <div className="review-day-plan">
+                  <h3>下一交易日计划</h3>
+                  <div className="review-day-fields">
+                    <label className="review-field" htmlFor="review-focus">
+                      <span>下一交易日重点观察</span>
+                      <Input.TextArea id="review-focus" aria-label="下一交易日重点观察" disabled={!ready} value={draft.focus} onChange={(e) => update({ focus: e.target.value })} maxLength={2000} rows={3} placeholder="例如：关注哪些方向、市场量能和候选走势" />
+                    </label>
+                    <label className="review-field" htmlFor="review-exit">
+                      <span>放弃或退出条件</span>
+                      <Input.TextArea id="review-exit" aria-label="放弃或退出条件" disabled={!ready} value={draft.exit} onChange={(e) => update({ exit: e.target.value })} maxLength={2000} rows={3} placeholder="例如：走势未兑现、出现新风险时如何处理" />
+                    </label>
+                    <label className="review-field" htmlFor="review-reason">
+                      <span>新机会与持仓比较（可选）</span>
+                      <Input.TextArea id="review-reason" aria-label="新机会理由" disabled={!ready} value={draft.reason} onChange={(e) => update({ reason: e.target.value })} maxLength={2000} rows={3} placeholder="比较走势、风险和原持仓理由，记录是否调整观察计划" />
+                    </label>
+                  </div>
                 </div>
-              </div>
+              </>
+              )}
             </div>
             <div className="review-plan-footer">
               <div className="review-plan-actions">
-                <Button type="primary" disabled={!ready} onClick={openPreview}>预览复盘与计划</Button>
-                <span className="review-caption">预览中可导出 Markdown 文件</span>
+                {capture ? <Button disabled={!ready} onClick={() => capture([`研究日期：${date}`, ...chosen.map(({ name, tsCode, row }) => `${name} ${tsCode}\n策略：${row?.strategies?.map((v: any) => v.label).join('、') || '待确认'}\n观察与触发：${draft.notes[tsCode] || '未填写'}\n风险核验：${draft.riskNotes[tsCode] || '未记录'}；${riskLabel(row)}`), ...(!chosen.length ? ['当前未选观察股票。'] : []), ...([draft.focus, draft.exit, draft.reason].some(Boolean) ? [`此前浏览器计划（供核对）：\n${[draft.focus, draft.exit, draft.reason].filter(Boolean).join('\n')}`] : [])].join('\n\n'))}>将候选研究记入当天笔记</Button> : (
+                  <>
+                    <Button type="primary" disabled={!ready} onClick={openPreview}>预览复盘与计划</Button>
+                    <span className="review-caption">预览中可导出 Markdown 文件</span>
+                  </>
+                )}
               </div>
               <p role="status" className="review-caption">
                 {status}
@@ -481,7 +509,7 @@ export default function Page() {
     <Layout showAsideMenu={false} headerMenuActive={EHeaderMenuKey.review}>
       <main className="review-page rounded-[6px] bg-bg-white">
         <h1 className="page-heading">每日复盘</h1>
-        <p className="review-intro">晚间按市场、持仓与执行、候选、明日计划四步完成。先保存计划，再整理文章。</p>
+        <p className="review-intro">依次查看市场与情绪、主线与催化、候选与风险、持仓与执行，保存明日计划后整理图文。</p>
         <Space className="mb-16" wrap>
           <span>复盘交易日期</span>
           <DatePicker aria-label="复盘交易日期" value={date ? dayjs(date) : null} allowClear={false} onChange={(v) => { if (v) changeDate(v.format('YYYY-MM-DD')); }} />
@@ -489,7 +517,7 @@ export default function Page() {
         </Space>
         {fallback.error && <Alert type="error" message={fallback.error} action={<Button onClick={fallback.retry}>重试</Button>} />}
         {date && user && (user.roles.some((r) => r.code === 'admin') && !user.guest
-          ? <Notebook key={`${user.id}:${date}`} date={date} onDirty={setNotebookDirty} renderTools={(capture) => <Report date={date} account={user.id} capture={capture} />} />
+          ? <Notebook key={`${user.id}:${date}`} date={date} onDirty={setNotebookDirty} renderTools={(capture, onSelection) => <Report date={date} account={user.id} capture={capture} onSelection={onSelection} />} />
           : <Report key={`${user.id}:${date}`} date={date} account={user.id} />)}
       </main>
     </Layout>

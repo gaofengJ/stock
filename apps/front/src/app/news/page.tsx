@@ -70,6 +70,10 @@ export default function Page() {
   const detailRequest = useRef(0);
   const pending = useRef(false);
   const listRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const selected = new URLSearchParams(window.location.search).get('date');
+    if (selected && /^\d{4}-\d{2}-\d{2}$/.test(selected) && dayjs(selected).format('YYYY-MM-DD') === selected) { setDate(selected); setRange('date'); setAuto(false); }
+  }, []);
 
   const loadSources = useCallback(async () => {
     try { setSources(await api<SourceState>('/news/sources')); setSourceError(''); } catch (e) { setSourceError(errorMessage(e)); }

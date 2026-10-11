@@ -13,7 +13,7 @@ import { ReviewDateDto } from './review.dto';
 export class NotebookSaveDto extends ReviewDateDto {
   @IsInt() @Min(0) @Max(1000000) revision: number;
 
-  @IsString() @MaxLength(100000) content: string;
+  @IsString() @MaxLength(6500000) content: string;
 }
 export class NotebookVersionDto extends ReviewDateDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) revision?: number;

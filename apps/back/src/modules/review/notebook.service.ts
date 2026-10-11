@@ -56,7 +56,11 @@ export class NotebookService {
   }
 
   async save(owner: number, dto: NotebookSaveDto) {
-    const content = JSON.stringify(parseNotebook(dto.content));
+    const parsed = parseNotebook(dto.content);
+    const content = JSON.stringify(parsed);
+    const { research } = parsed;
+    if (research && research.date !== dto.date)
+      throw new BadRequestException('资料日期与复盘日期不一致');
     return this.db.transaction(async (m) => {
       await m.query(
         'INSERT INTO t_review_notebook(user_id,trade_date,revision,content) VALUES(?,?,0,?) ON DUPLICATE KEY UPDATE user_id=VALUES(user_id)',
@@ -106,9 +110,15 @@ export class NotebookService {
     );
     if (!row) throw new NotFoundException('请先保存要发布的版本');
     const content = parseNotebook(row.content);
-    if (!content.public.summary.trim() || !content.public.sources.trim())
+    if (
+      !content.article?.body.trim() &&
+      (!content.public.summary.trim() || !content.public.sources.trim())
+    )
       throw new BadRequestException('公开稿须填写核心结论及资料来源与时间');
-    const body = publicationText(dto.date, content, dto.channel);
+    const body = (content.article?.images || []).reduce(
+      (text, image) => text.replace(`review-image:${image.id}`, image.data),
+      publicationText(dto.date, content, dto.channel),
+    );
     await this.db.query(
       'INSERT INTO t_review_publication(user_id,trade_date,revision,channel,url,body) VALUES(?,?,?,?,?,?)',
       [owner, dto.date, dto.revision, dto.channel, url.href, body],

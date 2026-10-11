@@ -12,6 +12,13 @@ export const fastifyApp: FastifyAdapter = new FastifyAdapter({
   requestTimeout: 1000 * 60 * 60, // 设置接口超时时间，表示在等待客户端请求的超时时间，防止导入数据时超时
 });
 
+// Illustrated notebooks remain authenticated administrator records. Other routes
+// keep Fastify's default request limit.
+fastifyApp.getInstance().addHook('onRoute', (route) => {
+  if (route.method === 'POST' && /\/review\/notebook\/?$/.test(route.url))
+    Object.assign(route, { bodyLimit: 8 * 1024 * 1024 });
+});
+
 // 注册 FastifyMultipart 插件，并设置文件上传的限制
 fastifyApp.register(FastifyMultipart, {
   limits: {
