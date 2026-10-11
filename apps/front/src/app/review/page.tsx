@@ -425,7 +425,7 @@ function Report({
         open={!!preview}
         onCancel={() => setPreview(null)}
         width={860}
-        className="review-preview-modal"
+        className={`review-preview-modal${preview ? ' review-preview-open' : ''}`}
         destroyOnClose
         footer={(
           <div className="review-preview-footer">

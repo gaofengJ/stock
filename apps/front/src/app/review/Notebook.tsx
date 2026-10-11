@@ -18,7 +18,9 @@ import { loadResearch } from './research';
 import { emptyNotebook, internalFields, NotebookContent } from './notebook-model';
 import { eveningFlow } from './evening-flow';
 import { emptyArticle } from './article-contract';
-import { captureElement, capturePlatform, mergePlatformImages } from './platform-images';
+import {
+  captureElement, capturePlatform, captureSources, mergePlatformImages, missingPlatformImages,
+} from './platform-images';
 import './notebook.css';
 
 interface Snapshot { date: string; revision: number; generation?: number; content: NotebookContent | null }
@@ -36,6 +38,8 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
   const [attempt, setAttempt] = useState(0);
   const editCounter = useRef(0);
   const captureAbort = useRef<AbortController>();
+  const captureTask = useRef<Promise<string> | null>(null);
+  const autoPrepared = useRef(false);
   useEffect(() => { onDirty(dirty); }, [dirty, onDirty]);
   useEffect(() => () => captureAbort.current?.abort(), []);
   useEffect(() => {
@@ -55,7 +59,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
     window.addEventListener('beforeunload', leave); document.addEventListener('click', block, true);
     return () => { window.removeEventListener('beforeunload', leave); document.removeEventListener('click', block, true); };
   }, [dirty]);
-  const changed = (next: NotebookContent) => { editCounter.current += 1; current.current = next; setContent(next); setDirty(true); };
+  const changed = useCallback((next: NotebookContent) => { editCounter.current += 1; current.current = next; setContent(next); setDirty(true); }, []);
   const change = (key: string, value: string) => changed({ ...current.current, private: { ...current.current.private, [key]: value } });
   const save = async () => {
     if (!snapshot || busy || researchBusy) return;
@@ -80,24 +84,46 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
   const changeMaterials = (value: Materials) => {
     try { changed({ ...current.current, materials: validateMaterials(value) }); } catch (e) { setError((e as Error).message); }
   };
-  const importMarket = async () => {
-    if (!snapshot || researchBusy) return;
+  const importMarket = useCallback((onlyMissing = false): Promise<string> => {
+    if (captureTask.current) return captureTask.current;
+    if (!snapshot) return Promise.resolve('复盘记录尚未读取完成，请稍后重试。');
+    const keys = onlyMissing ? missingPlatformImages(current.current.article?.images || []) : [...captureSources.map((item) => item.key), 'candidates'];
+    if (!keys.length) return Promise.resolve('');
     const abort = new AbortController(); captureAbort.current = abort;
-    setSourceRefresh((value) => value + 1);
+    if (!onlyMissing) setSourceRefresh((value) => value + 1);
     setResearchBusy(true); setError(''); setStatus('正在读取当日资料并生成平台图片');
-    try {
-      const [research, captured] = await Promise.all([loadResearch(date), capturePlatform(date, abort.signal, setStatus)]);
-      if (abort.signal.aborted) return;
-      const candidate = document.getElementById('review-candidate-table');
-      if (candidate?.dataset.reviewReady === 'true' && candidate.dataset.reviewDate === date) {
-        try { captured.images.push(...await captureElement(candidate, 'platform-candidates', `${date} 策略候选（当前筛选页）`, `${window.location.origin}/strategy/?date=${date}`, '个股筛选')); } catch { captured.failures.push('策略候选'); }
-      } else captured.failures.push('策略候选');
-      if (abort.signal.aborted) return;
-      changed({ ...current.current, research, article: mergePlatformImages(current.current.article || emptyArticle(), captured.images) });
-      setStatus(`已将 ${captured.images.length} 张平台图片加入文档模板，请保存记录。`);
-      if (captured.failures.length) setError(`以下图片暂未取得：${captured.failures.join('、')}。已保留成功图片与原有记录，可再次更新重试。`);
-    } catch (e) { if (!abort.signal.aborted) setError(errorMessage(e)); } finally { if (!abort.signal.aborted) setResearchBusy(false); }
-  };
+    const task = (async () => {
+      try {
+        const [research, captured] = await Promise.all([onlyMissing && current.current.research ? Promise.resolve(current.current.research) : loadResearch(date), capturePlatform(date, abort.signal, setStatus, keys)]);
+        if (abort.signal.aborted) return '';
+        if (keys.includes('candidates')) {
+          let candidate = document.getElementById('review-candidate-table');
+          const deadline = Date.now() + 30000;
+          while (!abort.signal.aborted && Date.now() < deadline && (candidate?.dataset.reviewReady !== 'true' || candidate.dataset.reviewDate !== date)) {
+            // eslint-disable-next-line no-await-in-loop -- Wait for the existing candidate request without starting another request.
+            await new Promise((resolve) => { setTimeout(resolve, 250); });
+            candidate = document.getElementById('review-candidate-table');
+          }
+          if (abort.signal.aborted) return '';
+          if (candidate?.dataset.reviewReady === 'true' && candidate.dataset.reviewDate === date) {
+            try { captured.images.push(...await captureElement(candidate, 'platform-candidates', `${date} 策略候选（当前筛选页）`, `${window.location.origin}/strategy/?date=${date}`, '个股筛选')); } catch { captured.failures.push('策略候选'); }
+          } else captured.failures.push('策略候选');
+        }
+        if (abort.signal.aborted) return '';
+        changed({ ...current.current, research, article: mergePlatformImages(current.current.article || emptyArticle(), captured.images) });
+        setStatus(`已将 ${captured.images.length} 张平台图片加入文档模板，请保存记录。`);
+        const warning = captured.failures.length ? `以下图片暂未取得：${captured.failures.join('、')}。已保留成功图片与原有记录，可再次更新重试。` : '';
+        setError(warning); return warning;
+      } catch (e) { const warning = abort.signal.aborted ? '' : errorMessage(e); if (warning) setError(warning); return warning; } finally { captureTask.current = null; if (!abort.signal.aborted) setResearchBusy(false); }
+    })();
+    captureTask.current = task;
+    return task;
+  }, [snapshot, date, changed]);
+  useEffect(() => {
+    if (!snapshot || autoPrepared.current) return;
+    autoPrepared.current = true;
+    importMarket(true);
+  }, [snapshot, importMarket]);
   const renderField = (key: string) => {
     const field = internalFields.find(([k]) => k === key)!;
     return (
@@ -121,7 +147,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
           {eveningFlow.map((stage) => <Button key={stage.id} onClick={() => document.getElementById(`evening-${stage.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{stage.title}</Button>)}
         </nav>
         <Space wrap size={12}>
-          <Button disabled={!snapshot} loading={researchBusy} onClick={importMarket}>更新当日资料</Button>
+          <Button disabled={!snapshot} loading={researchBusy} onClick={() => importMarket()}>更新当日资料</Button>
           <span className="review-caption">自动把平台图表加入复盘文档，文字记录可留空。</span>
           <Link href="/trading-system/" target="_blank" rel="noopener noreferrer">复盘方法</Link>
         </Space>
@@ -164,7 +190,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
           <label htmlFor="review-document-title">文章名称</label>
           <Input id="review-document-title" value={content.public.title || `${date}复盘`} disabled={!snapshot} maxLength={200} onChange={(e) => changed({ ...current.current, public: { ...current.current.public, title: e.target.value }, ...(current.current.article?.body ? { article: { ...current.current.article, body: current.current.article.body.replace(/^# [^\n]+/, `# ${e.target.value || `${date}复盘`}`) } } : {}) })} />
         </div>
-        <ArticleEditor date={date} generation={snapshot?.generation || 0} revision={snapshot?.revision || 0} content={content} disabled={!snapshot || researchBusy} dirty={dirty} onStatus={setStatus} onMaterials={changeMaterials} onChange={(article) => changed({ ...current.current, article })} />
+        <ArticleEditor date={date} generation={snapshot?.generation || 0} revision={snapshot?.revision || 0} content={content} disabled={!snapshot || researchBusy} previewDisabled={!snapshot} onPreparePreview={() => importMarket(true)} dirty={dirty} onStatus={setStatus} onMaterials={changeMaterials} onChange={(article) => changed({ ...current.current, article })} />
         <Button type="primary" className="notebook-save-bottom" disabled={!snapshot || !dirty || researchBusy} loading={busy} onClick={save}>保存复盘</Button>
       </Card>
     </div>

@@ -23,9 +23,10 @@ function download(name: string, text: string, type: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export default function ArticleEditor({
-  date, revision, content, disabled, dirty, generation = 0, onChange, onMaterials, onStatus: reportStatus,
+  date, revision, content, disabled, dirty, generation = 0, previewDisabled = false, onPreparePreview, onChange, onMaterials, onStatus: reportStatus,
 }: {
   date: string; revision: number; generation?: number; content: NotebookContent; disabled: boolean; dirty: boolean;
+  previewDisabled?: boolean; onPreparePreview: () => Promise<string>;
   onMaterials: (materials: Materials) => void; onChange: (article: Article) => void; onStatus: (text: string) => void;
 }) {
   const legacy = Object.entries(content.public).some(([key, value]) => key !== 'title' && value.trim());
@@ -37,6 +38,13 @@ export default function ArticleEditor({
     date, revision, dirty, disabled,
   };
   const [preview, setPreview] = useState(false);
+  const [preparingPreview, setPreparingPreview] = useState(false);
+  const [previewWarning, setPreviewWarning] = useState('');
+  const openPreview = async () => {
+    if (preparingPreview || previewDisabled) return;
+    setPreview(true); setPreparingPreview(true); setPreviewWarning('');
+    try { setPreviewWarning(await onPreparePreview()); } catch (e) { setPreviewWarning((e as Error).message); } finally { setPreparingPreview(false); }
+  };
   const [notice, setNotice] = useState('');
   const onStatus = (message: string) => { setNotice(message); reportStatus(message); };
   const [pending, setPending] = useState(false);
@@ -73,7 +81,7 @@ export default function ArticleEditor({
       <div className="notebook-panel-intro">
         <p>{`文档已收录 ${article.images.length} 张图片。预览后保存，交给 Skill 补充分析并生成飞书文档。`}</p>
         <Space wrap>
-          <Button onClick={() => setPreview(true)}>预览复盘文档</Button>
+          <Button disabled={previewDisabled} loading={preparingPreview} onClick={openPreview}>预览复盘文档</Button>
           {article.body.trim() && <Button onClick={copy}>复制完整文章</Button>}
         </Space>
       </div>
@@ -197,8 +205,10 @@ export default function ArticleEditor({
         <p className="review-caption">{dirty ? '请先保存顶部的记录，再交给 Skill。' : `当前交接保存版本 ${revision}，原文与图片一并保留。`}</p>
         <input hidden ref={importFile} type="file" accept="application/json,.json" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { if (f.size > 7000000) setError('结果文件过大'); else importResult(await f.text()); } }} />
       </section>
-      <Modal className="notebook-preview-modal" open={preview} title={content.public.title || `${date}复盘`} width={1000} onCancel={() => setPreview(false)} footer={<Button onClick={() => setPreview(false)}>关闭</Button>}>
-        <div className="notebook-article-preview" dangerouslySetInnerHTML={{ __html: html }} />
+      <Modal className={`notebook-preview-modal${preview ? ' notebook-preview-open' : ''}`} open={preview} destroyOnClose title={content.public.title || `${date}复盘`} width={1000} onCancel={() => setPreview(false)} footer={<Button onClick={() => setPreview(false)}>关闭</Button>}>
+        {preparingPreview && <Alert type="info" showIcon message="正在加入当日平台图片，完成后会自动显示。" />}
+        {previewWarning && <Alert type="warning" showIcon message={previewWarning} />}
+        {(!preparingPreview || article.images.length > 0) && <div className="notebook-article-preview" dangerouslySetInnerHTML={{ __html: html }} />}
       </Modal>
     </div>
   );
