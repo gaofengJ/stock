@@ -177,7 +177,7 @@ function Report({ date, account, capture }: { date: string; account: number; cap
           <Button loading={loading} onClick={() => setAttempt((v) => v + 1)}>更新候选数据</Button>
         </Space>
       </div>
-      <div className="review-steps" aria-label="复盘操作流程">
+      <div className="review-steps" aria-label={capture ? '辅助工具导航' : '复盘操作流程'}>
         {[
           ['review-market', '看市场背景', '查看涨跌、均线与成交情况'],
           ['review-candidates', '筛选观察股票', '看K线和风险资料，选择0–3只股票'],
@@ -481,7 +481,7 @@ export default function Page() {
     <Layout showAsideMenu={false} headerMenuActive={EHeaderMenuKey.review}>
       <main className="review-page rounded-[6px] bg-bg-white">
         <h1 className="page-heading">每日复盘</h1>
-        <p className="review-intro">验证昨日判断，研究市场与方向，复核执行，形成下一交易日计划与复盘笔记。</p>
+        <p className="review-intro">晚间按市场、持仓与执行、候选、明日计划四步完成。先保存计划，再整理文章。</p>
         <Space className="mb-16" wrap>
           <span>复盘交易日期</span>
           <DatePicker aria-label="复盘交易日期" value={date ? dayjs(date) : null} allowClear={false} onChange={(v) => { if (v) changeDate(v.format('YYYY-MM-DD')); }} />

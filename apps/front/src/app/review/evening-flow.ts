@@ -1,0 +1,43 @@
+// Daily work order. Trading thresholds remain in the administrator playbook.
+export const eveningFlow = [
+  {
+    id: 'market',
+    title: '1 看市场',
+    time: '10 分钟',
+    keys: ['marketJudgment'],
+    optional: ['marketFacts', 'themes', 'dataState'],
+    links: [['/analysis/overview', '大盘概览'], ['/analysis/sectors', '板块分析'], ['/analysis/limits', '涨停复盘']],
+    questions: ['赚钱方向比昨天更集中还是更分散？昨日强势股今天是否延续？', '关注题材正在增强还是走弱？用一两条事实说明，不确定就如实记录。'],
+    outcome: '留下一句：明天寻找机会、谨慎观察，还是不新开仓？写清理由。',
+  },
+  {
+    id: 'execution',
+    title: '2 检查持仓与执行',
+    time: '15 分钟',
+    keys: ['execution'],
+    optional: ['yesterday', 'toolEvidence'],
+    links: [],
+    questions: ['先对照下方上次计划：原来预期什么，今天实际如何？', '逐只检查买入理由和失效条件；是否拖延退出，或只为回本再次买入？'],
+    outcome: '记录实际动作、预期是否兑现和执行偏差；无交易也要检查持仓，无持仓则记空仓观察。',
+  },
+  {
+    id: 'candidates',
+    title: '3 筛选明日候选',
+    time: '20 分钟',
+    keys: ['candidates'],
+    optional: [],
+    links: [['/strategy', '策略选股'], ['/basic/stock/risk', '风险核验']],
+    questions: ['从策略命中中检查位置、量价、题材持续性和已知风险；顺势整理与下跌反弹分开记录。', '观察名单可以较宽，明日待触发通常只留 0–2 只。写不清触发和取消条件的，只观察。'],
+    outcome: '每只写：为什么关注、什么情况才考虑、什么情况放弃。没有合格机会就明确写无。',
+  },
+  {
+    id: 'plan',
+    title: '4 确定明日计划',
+    time: '15 分钟',
+    keys: ['normalPlan', 'lesson'],
+    optional: ['strongPlan', 'weakPlan'],
+    links: [],
+    questions: ['汇总参与态度、持仓处理和候选触发；退出条件、风险预算按交易体系复核。', '只留一个明天最需要改正的问题，保存版本，下一晚先核对这份计划。'],
+    outcome: '保存一份能执行的计划即完成复盘。文章整理在复盘之后，可另行安排时间。',
+  },
+];

@@ -11,6 +11,7 @@ jobs:
         with:
           sparse-checkout: |-
             apps/front
+            apps/back/src/modules/review
             .github
       - uses: pnpm/action-setup@v4
         with:
