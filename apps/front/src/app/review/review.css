@@ -67,7 +67,7 @@
 .review-plan-footer .review-plan-actions { justify-content: flex-start; margin: 0; }
 .review-plan-footer p { margin: 0; }
 .review-preview-modal.ant-modal { top: 24px; padding-bottom: 24px; }
-body:has(.review-preview-modal) .platform-content:has(.review-page) { overflow: hidden; scrollbar-gutter: stable; }
+body:has(.review-preview-open) .platform-content:has(.review-page) { overflow: hidden; scrollbar-gutter: stable; }
 .review-preview-modal .ant-modal-body { max-height: calc(100dvh - 200px); overflow-y: auto; overscroll-behavior: contain; }
 .review-preview-document { display: grid; gap: 24px; padding-right: 12px; overflow-wrap: anywhere; }
 .review-preview-document h2 { margin: 0 0 12px; font-size: 20px; line-height: 1.5; }

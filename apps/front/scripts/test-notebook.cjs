@@ -104,6 +104,14 @@ test('v2 result import preserves original notes and images and requires independ
 });
 
 const platformImages = load('../src/app/review/platform-images.ts');
+test('automatic preparation only requests missing platform groups and reuses saved images', () => {
+ const keys = [...platformImages.captureSources.map(source => source.key), 'candidates'];
+ const images = keys.map(key => ({ id: `platform-${key}-0` }));
+ assert.deepEqual(platformImages.missingPlatformImages([]), keys);
+ assert.deepEqual(platformImages.missingPlatformImages(images), []);
+ assert.deepEqual(platformImages.missingPlatformImages(images.filter(image => image.id !== 'platform-themes-0')), ['themes']);
+ assert.deepEqual(platformImages.missingPlatformImages([{id:'uploaded-user-image'}]), keys);
+});
 test('platform refresh replaces a complete image group without accumulating old slices or losing uploads', () => {
  const old = illustrated().article;
  old.images = [{...old.images[0], id:'platform-themes-0'}, {...old.images[0],id:'platform-themes-1'}, {...old.images[0],id:'upload-1'}];

@@ -6,7 +6,7 @@ import { changeClass, numberText, scaledNumber } from '@/utils/format';
 export interface StockQuote {
   open: number | null; close: number | null; high: number | null; low: number | null;
   preClose: number | null; pctChg: number | null; vol: number | null;
-  amount: number | null; turnoverRateF: number | null;
+  amount: number | null; turnoverRateTotal: number | null;
 }
 export interface StockPoint {
   date: string; open: number | null; close: number | null; high: number | null; low: number | null;
@@ -30,7 +30,7 @@ const StockQuotePanel = forwardRef<StockQuoteHandle, { series: StockPoint[]; bas
     ['振幅', amplitude == null ? '未提供' : `${numberText(amplitude)}%`],
     ['成交量', q?.vol == null ? '未提供' : `${scaledNumber(q.vol, 10000)}万手`],
     ['成交额', q?.amount == null ? '未提供' : `${scaledNumber(q.amount, 100000)}亿元`],
-    ['自由流通换手', q?.turnoverRateF == null ? '未提供' : `${numberText(q.turnoverRateF)}%`],
+    ['换手率（总股本）', q?.turnoverRateTotal == null ? '未提供' : `${numberText(q.turnoverRateTotal)}%`],
   ] : [];
   return (
     <div className="strategy-stock-quote" onMouseLeave={() => setDate(null)}>

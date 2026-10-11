@@ -65,12 +65,24 @@ test('draft keys separate accounts and trading dates', () => {
   assert.notEqual(draft.draftKey(1, '2026-09-30'), draft.draftKey(2, '2026-09-30'));
   assert.notEqual(draft.draftKey(1, '2026-09-30'), draft.draftKey(1, '2026-09-29'));
 });
-test('parsing preserves valid notes, deduplicates picks, rejects invalid codes and caps at three', () => {
+test('parsing preserves every selected stock, deduplicates picks and rejects invalid codes', () => {
   const value = draft.parseDraft(JSON.stringify({ selected: [pick(1), pick(1), null, { tsCode: 'invalid' }, pick(2), pick(3), pick(4)], focus: '市场观察', notes: { '000001.SZ': '观察条件', invalid: '无效' }, riskNotes: { '000001.SZ': '公告核验记录' } }));
-  assert.deepEqual(value.selected, [pick(1), pick(2), pick(3)]);
+  assert.deepEqual(value.selected, [pick(1), pick(2), pick(3), pick(4)]);
   assert.deepEqual(value.notes, { '000001.SZ': '观察条件' });
   assert.equal(value.riskNotes['000001.SZ'], '公告核验记录');
   assert.equal(value.focus, '市场观察');
+});
+
+test('a watchlist above three keeps all stocks and their notes after saving and remounting', () => {
+  const memory = new Map();
+  const storage = { getItem: key => memory.get(key), setItem: (key, value) => memory.set(key, value) };
+  const selected = Array.from({length: 50}, (_, i) => pick(i + 1));
+  const notes = Object.fromEntries(selected.map(stock => [stock.tsCode, stock.name + '观察记录']));
+  const render = mount(storage);
+  render().update({ selected, notes });
+  const restored = mount(storage)().draft;
+  assert.deepEqual(restored.selected, selected);
+  assert.deepEqual(restored.notes, notes);
 });
 test('missing drafts use defaults, corrupt drafts fail explicitly, long notes are bounded', () => {
   assert.deepEqual(draft.parseDraft(null), draft.emptyDraft());

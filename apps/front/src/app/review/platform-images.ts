@@ -27,6 +27,10 @@ export function mergePlatformImages(article: Article, images: ArticleImage[]) {
   return validateArticle({ ...article, images: [...article.images.filter((image) => !ids.has(image.id.replace(/-\d+$/, ''))), ...images] });
 }
 
+export function missingPlatformImages(images: ArticleImage[]) {
+  return [...captureSources.map((item) => item.key), 'candidates'].filter((key) => !images.some((item) => item.id.startsWith(`platform-${key}-`)));
+}
+
 export async function captureElement(node: HTMLElement, id: string, caption: string, source: string, after: string): Promise<ArticleImage[]> {
   const { toCanvas } = await import('html-to-image');
   const view = node.ownerDocument.defaultView!;
@@ -57,10 +61,11 @@ export async function captureElement(node: HTMLElement, id: string, caption: str
   return images;
 }
 
-export async function capturePlatform(date: string, signal: AbortSignal, progress: (message: string) => void) {
+export async function capturePlatform(date: string, signal: AbortSignal, progress: (message: string) => void, keys = captureSources.map((item) => item.key)) {
   const images: ArticleImage[] = []; const failures: string[] = [];
+  const sources = captureSources.filter((item) => keys.includes(item.key));
   // Reuse one actual platform page per route. No duplicate chart implementation or remote screenshot service.
-  for (const path of Array.from(new Set(captureSources.map((item) => item.path)))) {
+  for (const path of Array.from(new Set(sources.map((item) => item.path)))) {
     if (signal.aborted) throw new DOMException('已取消', 'AbortError');
     const frame = document.createElement('iframe');
     frame.title = '生成复盘配图'; frame.setAttribute('aria-hidden', 'true'); frame.tabIndex = -1;
@@ -71,7 +76,7 @@ export async function capturePlatform(date: string, signal: AbortSignal, progres
     document.body.appendChild(frame);
     const remove = () => frame.remove(); signal.addEventListener('abort', remove, { once: true });
     try {
-      const pending = captureSources.filter((item) => item.path === path);
+      const pending = sources.filter((item) => item.path === path);
       const deadline = Date.now() + 45000;
       while (pending.length && Date.now() < deadline) {
         if (signal.aborted) throw new DOMException('已取消', 'AbortError');
