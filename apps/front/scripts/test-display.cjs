@@ -14,6 +14,24 @@ function load(file, imports = {}) {
 }
 const format = load('utils/format.ts');
 const rotationTooltip = load('app/analysis/sectors/rotation-tooltip.ts', { '@/utils/format': format }).default;
+const { heatmapRowTargets } = load('components/CChart/heatmap-row-hover.ts');
+
+test('row hover highlights only matching heatmap cells, including sparse data and reordered names', () => {
+  const option = {
+    yAxis: [{ data: ['电池', '银行'] }, { data: ['电池'] }],
+    series: [
+      { type: 'heatmap', data: [[0, 1, .2], [0, 0, .5], { value: [2, 0, .8] }] },
+      { type: 'line', data: [2, 4] },
+      { type: 'heatmap', yAxisIndex: 1, data: [[0, 0, .9]] },
+    ],
+  };
+  assert.deepEqual(heatmapRowTargets(option, 0, '电池'), [{ seriesIndex: 0, dataIndex: [1, 2] }]);
+  assert.deepEqual(heatmapRowTargets(option, 0, '银行'), [{ seriesIndex: 0, dataIndex: [0] }]);
+  assert.deepEqual(heatmapRowTargets(option, 1, '电池'), [{ seriesIndex: 2, dataIndex: [0] }]);
+  assert.deepEqual(heatmapRowTargets(option, 0, '已筛除'), []);
+  assert.deepEqual(heatmapRowTargets({}, 0, '电池'), []);
+  assert.deepEqual(heatmapRowTargets({ yAxis: { data: [{ value: '电池' }] }, series: option.series[0] }, 0, '电池'), [{ seriesIndex: 0, dataIndex: [1, 2] }]);
+});
 
 test('rotation hover keeps edge cells reachable and formats the selected day and sector safely', () => {
   const rotation = [{ date: '2026-10-08', total: 90, values: [

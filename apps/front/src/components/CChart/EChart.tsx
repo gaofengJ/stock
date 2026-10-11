@@ -26,6 +26,7 @@ import {
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 import type { EChartsOption } from 'echarts-for-react/lib/types';
+import { heatmapRowTargets } from './heatmap-row-hover';
 
 echarts.use([
   LineChart,
@@ -96,25 +97,31 @@ interface IEchartsProps {
   onDateClick?: (date: string) => void;
   onZoomChange?: (start: number, end: number) => void;
   formatHoverLegend?: (name: string, date: string | null) => string;
+  highlightHeatmapRows?: boolean;
 }
 
 const EChart = ({
-  genOptions, appearance, height = 360, onLegendChange, onAxisHover, onDateClick, onZoomChange, formatHoverLegend,
+  genOptions, appearance, height = 360, onLegendChange, onAxisHover, onDateClick, onZoomChange, formatHoverLegend, highlightHeatmapRows,
 }: IEchartsProps) => {
   const { mode } = useSiteTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<ReactEChartsCore>(null);
   const zoomRef = useRef<{ start: number; end: number }[]>([]);
   const hoverDateRef = useRef<string | null>();
+  const rowTargetsRef = useRef<ReturnType<typeof heatmapRowTargets>>([]);
   const callbacks = useRef({
-    onLegendChange, onAxisHover, onDateClick, onZoomChange, formatHoverLegend,
+    onLegendChange, onAxisHover, onDateClick, onZoomChange, formatHoverLegend, highlightHeatmapRows,
   });
   callbacks.current = {
-    onLegendChange, onAxisHover, onDateClick, onZoomChange, formatHoverLegend,
+    onLegendChange, onAxisHover, onDateClick, onZoomChange, formatHoverLegend, highlightHeatmapRows,
   };
   // echarts-for-react rebuilds the chart whenever onEvents changes. Keep the
   // handlers stable while reading the latest callbacks, including on zoom.
   const events = useMemo(() => {
+    const clearRow = (instance: echarts.ECharts) => {
+      rowTargetsRef.current.forEach((target) => instance.dispatchAction({ type: 'downplay', ...target }));
+      rowTargetsRef.current = [];
+    };
     const hover = (date: string | null, instance: echarts.ECharts) => {
       if (hoverDateRef.current === date) return;
       hoverDateRef.current = date;
@@ -122,6 +129,15 @@ const EChart = ({
       if (callbacks.current.formatHoverLegend) instance.setOption({ legend: { formatter: (name: string) => callbacks.current.formatHoverLegend?.(name, date) || name } });
     };
     return {
+      mouseover: (event: { componentType: string; componentIndex: number; value?: string }, instance: echarts.ECharts) => {
+        if (!callbacks.current.highlightHeatmapRows || event.componentType !== 'yAxis' || typeof event.value !== 'string') return;
+        clearRow(instance);
+        rowTargetsRef.current = heatmapRowTargets(instance.getOption() as EChartsOption, event.componentIndex, event.value);
+        rowTargetsRef.current.forEach((target) => instance.dispatchAction({ type: 'highlight', ...target }));
+      },
+      mouseout: (event: { componentType: string }, instance: echarts.ECharts) => {
+        if (event.componentType === 'yAxis') clearRow(instance);
+      },
       click: (event: { componentType: string; name?: string; value?: unknown }) => {
         const date = event.componentType === 'xAxis' ? event.value : event.name;
         if (['series', 'xAxis'].includes(event.componentType) && typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) callbacks.current.onDateClick?.(date);
@@ -134,7 +150,7 @@ const EChart = ({
         const date = typeof axis?.value === 'number' ? categories?.[axis.value] : axis?.value;
         hover(date || null, instance);
       },
-      globalout: (_event: unknown, instance: echarts.ECharts) => hover(null, instance),
+      globalout: (_event: unknown, instance: echarts.ECharts) => { clearRow(instance); hover(null, instance); },
       datazoom: (_event: unknown, instance: echarts.ECharts) => {
         const zoom = (instance.getOption().dataZoom || []) as { start: number; end: number }[];
         zoomRef.current = zoom.map(({ start, end }) => ({ start, end }));
@@ -165,6 +181,7 @@ const EChart = ({
         theme={(appearance || mode) === 'dark' ? 'stock-dark' : 'stock'}
         onEvents={events}
         onChartReady={(instance: echarts.ECharts) => {
+          rowTargetsRef.current = [];
           hoverDateRef.current = undefined;
           onAxisHover?.(null);
           zoomRef.current.forEach((zoom, dataZoomIndex) => instance.dispatchAction({ type: 'dataZoom', dataZoomIndex, ...zoom }, { silent: true }));

@@ -70,7 +70,7 @@ export default function Page() {
   const ranked = useMemo(() => [...(data?.items || [])].sort((a, b) => (b[periodField] ?? -Infinity) - (a[periodField] ?? -Infinity) || a.code.localeCompare(b.code)), [data?.items, periodField]);
   const rows = ranked.filter((r) => `${r.name} ${r.code}`.includes(keyword.trim()));
   const rotation = data?.rotation || [];
-  const rotationRows = rows.slice(0, 12);
+  const rotationRows = rows.slice(0, 20);
   const metric = (v: number | null) => (
     <span className={changeClass(v)}>
       {numberText(v, 2, true)}
@@ -89,7 +89,7 @@ export default function Page() {
       type: 'category', data: rotation.map((r) => r.date), splitArea: { show: true }, axisLabel: { formatter: (v:string) => v.slice(5), rotate: 35 }, axisTick: { alignWithLabel: true },
     },
     yAxis: {
-      type: 'category', data: rotationRows.map((r) => r.name), inverse: true, splitArea: { show: true }, axisTick: { show: false },
+      type: 'category', data: rotationRows.map((r) => r.name), inverse: true, triggerEvent: true, splitArea: { show: true }, axisTick: { show: false },
     },
     visualMap: {
       textStyle: { color: colors.secondary },
@@ -237,13 +237,14 @@ export default function Page() {
             <Card title={(
               <Space>
                 {`${kindLabel}轮动`}
-                <HelpTooltip label={`${kindLabel}轮动`} title={`展示当前筛选结果中排行前12个${kindLabel}近20个交易日的排名。每格按该列日期截至当日、近5日或近20个交易日的涨跌幅，在全部有效${kindLabel}中排名；1为第一名。切换周期会重新计算排名和展示名单，颜色越红排名越靠前。`} />
+                <HelpTooltip label={`${kindLabel}轮动`} title={`展示当前排行前20个${kindLabel}。数字为所选周期涨跌幅排名，1为第一；每列按对应日期计算。悬停左侧名称可高亮整行。`} />
               </Space>
 )}
             >
               {!rotationRows.length ? <Empty description="暂无轮动数据" /> : (
                 <CChart
-                  height={430}
+                  height={Math.max(430, rotationRows.length * 24 + 104)}
+                  highlightHeatmapRows
                   genOptions={() => rotationOptions}
                 />
               )}

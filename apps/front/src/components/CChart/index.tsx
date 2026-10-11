@@ -13,6 +13,7 @@ interface IEchartsProps {
   onDateClick?: (date: string) => void;
   onZoomChange?: (start: number, end: number) => void;
   formatHoverLegend?: (name: string, date: string | null) => string;
+  highlightHeatmapRows?: boolean;
 }
 
 const EChart = dynamic(() => import('./EChart'), {
@@ -21,9 +22,9 @@ const EChart = dynamic(() => import('./EChart'), {
 });
 
 const CChart = ({
-  genOptions, appearance, height, onLegendChange, onAxisHover, onDateClick, onZoomChange, formatHoverLegend,
+  genOptions, appearance, height, onLegendChange, onAxisHover, onDateClick, onZoomChange, formatHoverLegend, highlightHeatmapRows,
 }: IEchartsProps) => (
-  <EChart genOptions={genOptions} appearance={appearance} height={height} onLegendChange={onLegendChange} onAxisHover={onAxisHover} onDateClick={onDateClick} onZoomChange={onZoomChange} formatHoverLegend={formatHoverLegend} />
+  <EChart genOptions={genOptions} appearance={appearance} height={height} onLegendChange={onLegendChange} onAxisHover={onAxisHover} onDateClick={onDateClick} onZoomChange={onZoomChange} formatHoverLegend={formatHoverLegend} highlightHeatmapRows={highlightHeatmapRows} />
 );
 
 export default CChart;
