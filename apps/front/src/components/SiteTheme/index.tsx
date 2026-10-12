@@ -25,9 +25,13 @@ export default function SiteTheme({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let saved: Mode = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
     try { saved = localStorage.getItem(storageKey) === 'dark' ? 'dark' : 'light'; } catch { /* Keep the current theme if storage is unavailable. */ }
+    const capture = new URLSearchParams(window.location.search).get('reviewCapture') === '1';
+    if (capture) saved = 'dark';
+    document.documentElement.dataset.reviewCapture = capture ? 'true' : 'false';
     document.documentElement.dataset.theme = saved;
     setMode(saved);
     const sync = (event: StorageEvent) => {
+      if (capture) return;
       if (event.key === storageKey || event.key === null) {
         const next = event.newValue === 'dark' ? 'dark' : 'light';
         document.documentElement.dataset.theme = next;

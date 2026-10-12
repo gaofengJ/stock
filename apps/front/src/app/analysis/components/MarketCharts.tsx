@@ -112,6 +112,9 @@ function TrendChart({
           {description && <HelpTooltip label={title} title={description} />}
         </span>
 )}
+      data-review-capture={title}
+      data-review-date={data.date}
+      data-review-ready={!!data.snapshot}
       extra={controls && <TrendRange />}
       className="market-chart"
     >

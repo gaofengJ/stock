@@ -150,6 +150,9 @@ export function RiskTags({
     issues.push('该股减持计划期间待核实');
     briefIssues.push('该股减持期间待核实');
   }
+  const reductionReady = riskSourcesReady(sources, ['reduction_plans']) && !stockReductionUnknown(data, code);
+  let reduction = reductionReady ? '暂无已核实的当前减持计划' : '减持资料待核验';
+  if (labels.includes('减持')) reduction = '减持计划进行中';
   const acquired = statuses.filter((row) => row.available).map((row) => row.label);
   const completedCount = statuses.filter((row) => row.complete && row.available).length;
   let summary = '资料尚未取得';
@@ -166,6 +169,7 @@ export function RiskTags({
   return (
     <Space size={2} wrap>
       {prefix}
+      {showSourceState && <span className="basic-muted">{reduction}</span>}
       {labels.map((label) => (canLink ? <Link key={label} href={`/basic/stock/risk/?code=${code}&date=${date || ''}`}><Tag color={label === '复牌' ? 'blue' : 'orange'}>{riskTypeLabel(label)}</Tag></Link> : <Tag color="orange" key={label}>{riskTypeLabel(label)}</Tag>))}
       {showSourceState && <Tooltip title={sourceTip}><span className="basic-muted">{summary}</span></Tooltip>}
     </Space>

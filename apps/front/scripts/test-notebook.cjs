@@ -105,28 +105,70 @@ test('v2 result import preserves original notes and images and requires independ
 
 const platformImages = load('../src/app/review/platform-images.ts');
 test('automatic preparation only requests missing platform groups and reuses saved images', () => {
- const keys = [...platformImages.captureSources.map(source => source.key), 'candidates'];
- const images = keys.map(key => ({ id: `platform-${key}-0` }));
+ const keys = platformImages.captureSources.map(source => source.key);
+ const images = keys.map(key => ({ id: platformImages.imageId(key) }));
  assert.deepEqual(platformImages.missingPlatformImages([]), keys);
  assert.deepEqual(platformImages.missingPlatformImages(images), []);
- assert.deepEqual(platformImages.missingPlatformImages(images.filter(image => image.id !== 'platform-themes-0')), ['themes']);
+ assert.deepEqual(platformImages.missingPlatformImages(images.filter(image => image.id !== platformImages.imageId('limits'))), ['limits']);
  assert.deepEqual(platformImages.missingPlatformImages([{id:'uploaded-user-image'}]), keys);
 });
-test('platform refresh replaces a complete image group without accumulating old slices or losing uploads', () => {
- const old = illustrated().article;
- old.images = [{...old.images[0], id:'platform-themes-0'}, {...old.images[0],id:'platform-themes-1'}, {...old.images[0],id:'upload-1'}];
- const next=platformImages.mergePlatformImages(old,[{...old.images[0],id:'platform-themes-0',caption:'updated'}]);
- assert.deepEqual(next.images.map(i=>i.id),['upload-1','platform-themes-0']);
- assert.equal(next.images[1].caption,'updated');
+test('complete dark groups replace legacy platform slices but partial capture and uploads survive', () => {
+ const old=illustrated().article;
+ old.images=[{...old.images[0],id:'platform-themes-0'}, {...old.images[0],id:'platform-themes-1'}, {...old.images[0],id:'upload-1'}];
+ const fresh=platformImages.captureSources.map(item=>({...old.images[0], id:platformImages.imageId(item.key)}));
+ const partial=platformImages.mergePlatformImages(old,fresh.slice(0,1));
+ assert.equal(partial.images.length,4);
+ const complete=platformImages.mergePlatformImages(partial,fresh.slice(1));
+ assert.equal(complete.images.length,5);
+ assert.ok(complete.images.some(i=>i.id==='upload-1'));
+ assert.ok(!complete.images.some(i=>i.id==='platform-themes-1'));
+ assert.deepEqual(platformImages.missingPlatformImages(complete.images),[]);
 });
+
 test('template places platform images at their steps and preserves the exact date title and user notes',()=>{
- const c=exp.emptyNotebook();c.private.marketJudgment='用户原文';c.private.execution='PRIVATE';c.article={body:'',feishuUrl:'',images:[{id:'platform-market-0',data:png,caption:'平台原图',source:'url',after:'市场观察'}]};
+ const c=exp.emptyNotebook();c.private.marketJudgment='用户原文';c.private.execution='PRIVATE';c.article={body:'',feishuUrl:'',images:[{id:'platform-market-0',data:png,caption:'平台原图',source:'url',after:'市场概览'}]};
  const text=exp.publicText('2026-10-12',c,'wechat');assert.ok(text.startsWith('# 2026-10-12复盘'));assert.ok(text.includes('用户原文'));assert.ok(!text.includes('PRIVATE'));
- assert.ok(text.indexOf('review-image:platform-market-0')<text.indexOf('## 题材梳理'));
+ assert.ok(text.indexOf('review-image:platform-market-0')<text.indexOf('## 涨停板复盘'));
  const p=handoff.reviewPacket('2026-10-12',1,c);assert.equal(p.title,'2026-10-12复盘');assert.equal(p.article.images[0].data,png);assert.ok(p.article.body.includes('用户原文'));
 });
 
 test('a result from before history reset cannot be imported into the same date and revision',()=>{
  const c=illustrated(), p=handoff.reviewPacket('2026-09-30',1,c,'',0);
  assert.throws(()=>handoff.readResult(JSON.stringify(p),p.date,1,undefined,1),/清空前/);
+});
+
+test('compact template has declaration, three fixed chart groups, simple candidates and empty chat',()=>{
+ const c=exp.emptyNotebook();c.private.toolEvidence='研究日期：2026-10-13\n\n测试股份 001206.SZ\n策略：连续三日收阳\n观察与触发：未填写';
+ const body=exp.documentTemplate('2026-10-13',c);
+ assert.ok(body.includes('本文由 AI 生成，仅供参考'));assert.ok(body.includes('测试股份｜连续三日收阳'));
+ assert.ok(!body.includes('未填写'));assert.ok(body.endsWith('## 闲聊\n\n'));
+ assert.deepEqual(platformImages.captureSources.map(s=>s.charts.length),[4,8,4,1]);
+ const image={id:'overview',data:png,caption:'概览',source:'',after:'市场概览'};
+ const text=contract.illustratedText('# 复盘\n\n## 市场数据\n\n### 市场概览\n\n简要解读\n\n独立解读。',[image]);
+ assert.ok(text.indexOf('review-image:overview')<text.indexOf('简要解读'));
+ assert.equal(text,serverContract.illustratedText('# 复盘\n\n## 市场数据\n\n### 市场概览\n\n简要解读\n\n独立解读。',[image]));
+ const p=handoff.reviewPacket('2026-10-13',1,exp.emptyNotebook());p.article={body:'简要解读\n\n独立解读。',images:[image],feishuUrl:''};
+ assert.equal(handoff.readResult(JSON.stringify(p),p.date,1,exp.emptyNotebook()).body,p.article.body);
+});
+test('large unsliced images share the same client/server limits without relaxing total cap',()=>{
+ const value=illustrated().article;value.images[0].data=png.replace(/=+$/,'')+'A'.repeat(600000);
+ assert.deepEqual(contract.validateArticle(value),serverContract.validateArticle(value));
+ value.images=Array.from({length:11},(_,i)=>({...value.images[0],id:'p'+i}));
+ assert.throws(()=>contract.validateArticle(value));assert.throws(()=>serverContract.validateArticle(value));
+});
+const {selectWatchRows}=load('../src/app/review/watch-selection.ts');
+test('watch selections survive page and filter changes and removal preserves unrelated picks',()=>{
+ const a={tsCode:'001206.SZ',name:'A'},b={tsCode:'300637.SZ',name:'B'},c={tsCode:'301608.SZ',name:'C'};
+ assert.deepEqual(selectWatchRows([a],[b,c],true),[a,b,c]);
+ assert.deepEqual(selectWatchRows([a,b,c],[b,c],false),[a]);
+ assert.deepEqual(selectWatchRows([a,b],[a,b],true),[a,b]);
+});
+const {themeRequest}=load('../src/app/analysis/limits/theme-request.ts');
+test('theme transport retries once, respects cancellation, and never retries rejected permissions',async()=>{
+ for(const status of [401,403,422,500,502,503,504]){let calls=0;const signal=new AbortController().signal;
+  await assert.rejects(themeRequest(async()=>{calls++;throw {response:{status}}},signal));
+  assert.equal(calls,[502,503,504].includes(status)?2:1);
+ }
+ let calls=0;const abort=new AbortController();abort.abort();
+ await assert.rejects(themeRequest(async()=>{calls++;throw Error('cancel')},abort.signal));assert.equal(calls,1);
 });

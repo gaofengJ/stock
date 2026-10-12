@@ -47,12 +47,13 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   }, [attempt]);
   const value = useMemo(() => ({
     ...selection,
+    ...(new URLSearchParams(query).get('reviewCapture') === '1' ? { days: 60 } : {}),
     date: selection.date || status?.latestDate || '',
     status,
     error,
     retry: () => setAttempt((v) => v + 1),
     select: (change: Partial<Selection>) => setSelections((old) => ({ ...old, [path]: { ...selection, ...change } })),
-  }), [selection, status, error, path]);
+  }), [selection, status, error, path, query]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 export function useMarket() {

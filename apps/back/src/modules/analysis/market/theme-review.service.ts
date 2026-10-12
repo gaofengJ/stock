@@ -25,6 +25,26 @@ export class ThemeReviewService {
     private cache: BasicSnapshotService,
   ) {}
 
+  // An unavailable enrichment source must not turn a valid limit-up list into 500.
+  private async readSource(
+    source: string,
+    params: Record<string, unknown>,
+    fields: string,
+  ): Promise<SourceSnapshot> {
+    try {
+      return await this.cache.read(source, params, fields);
+    } catch {
+      return {
+        key: '',
+        source,
+        rows: [],
+        fetchedAt: null,
+        state: 'error',
+        message: '资料源暂时不可用，请稍后重试；已保留当日涨停名单',
+      };
+    }
+  }
+
   async board(q: MarketQueryDto) {
     const list = await this.market.limits({ ...q, type: 'U' });
     if (!list.ready)
@@ -47,7 +67,7 @@ export class ThemeReviewService {
         explained: 0,
         sources: [],
       };
-    const source = await this.cache.read(
+    const source = await this.readSource(
       'ths_hot_review',
       { trade_date: compact(q.date!) },
       'ts_code,name,trade_date,theme,lu_desc,detail_reason',
@@ -83,12 +103,12 @@ export class ThemeReviewService {
     const date = q.date!;
     const start = dayjs(date).subtract(29, 'day').format('YYYY-MM-DD');
     const [announcements, financial] = await Promise.all([
-      this.cache.read(
+      this.readSource(
         'eastmoney_ann',
         { ts_code: code, start_date: compact(start), end_date: compact(date) },
         'ts_code,ann_date,title,url,rec_time',
       ),
-      this.cache.read(
+      this.readSource(
         'fina_indicator',
         {
           ts_code: code,

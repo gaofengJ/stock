@@ -18,10 +18,13 @@ import { chartColors, quoteColors } from '@/colors';
 import {
   intradayCloses, intradayDistribution, intradayMean, intradayPhase, intradayPlot,
 } from './intraday-counts-plot';
+import { useMarket } from './MarketContext';
 import './intraday-counts.css';
 
 export default function IntradayCountsChart() {
-  const [date, setDate] = useState('');
+  const { date: reviewDate } = useMarket();
+  const [date, setDate] = useState(reviewDate);
+  useEffect(() => { setDate(reviewDate); }, [reviewDate]);
   const { colors } = useSiteTheme();
   const [days, setDays] = useState(10);
   const [attempt, setAttempt] = useState(0);
@@ -59,6 +62,9 @@ export default function IntradayCountsChart() {
   const singleDay = new Set(rows.map((row) => row.date)).size <= 1;
   return (
     <Card
+      data-review-capture="intraday"
+      data-review-date={date}
+      data-review-ready={!loading && !error && !!rows.length && visible?.dates?.at(-1) === date}
       title={(
         <span className="market-section-title">
           全市场盘中上涨家数

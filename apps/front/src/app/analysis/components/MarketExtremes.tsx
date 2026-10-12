@@ -3,6 +3,7 @@
 import { InteractionButton } from '@/components/Interaction';
 import { StockLink } from '@/components/StockActions';
 
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
   Alert, Button, Card, Drawer, Empty, Segmented, Space,
@@ -50,7 +51,8 @@ function ExtremeDetails({
 }
 
 export default function MarketExtremes({ range }: { range: string }) {
-  const [period, setPeriod] = useState(20);
+  const capture = useSearchParams().get('reviewCapture') === '1';
+  const [period, setPeriod] = useState(capture ? 60 : 20);
   const [metric, setMetric] = useState<ExtremeMetric>('count');
   const [detail, setDetail] = useState<{ date: string; scope: string; period: number; kind: ExtremeKey } | null>(null);
   const [legendSelected, setLegendSelected] = useState<Record<string, boolean>>({});
@@ -79,6 +81,9 @@ export default function MarketExtremes({ range }: { range: string }) {
   };
   return (
     <Card
+      data-review-capture="extremes"
+      data-review-date={data?.date}
+      data-review-ready={!loading && !error && !!data?.snapshot}
       className="market-chart market-environment-card"
       title={(
         <Space>

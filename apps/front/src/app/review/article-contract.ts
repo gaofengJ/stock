@@ -27,7 +27,7 @@ export function validateArticle(input: unknown): Article {
     const id = bounded(image.id, 80);
     if (!/^[a-zA-Z0-9_-]+$/.test(id) || ids.has(id)) throw new Error('图片标识重复或无效');
     ids.add(id);
-    const data = bounded(image.data, 500000);
+    const data = bounded(image.data, 3000000);
     if (!/^data:image\/(png|jpeg);base64,[a-zA-Z0-9+/]+={0,2}$/.test(data)
       || !(data.startsWith('data:image/png;base64,iVBORw0KGgo') || data.startsWith('data:image/jpeg;base64,/9j/'))) throw new Error('仅支持有效的 PNG、JPEG 图片');
     size += data.length;
@@ -60,12 +60,15 @@ export function validateResearch(input: unknown): Research {
   return { date, fetchedAt, sections };
 }
 export function illustratedText(body: string, images: ArticleImage[]) {
-  const blocks = body.split(/\n(?=## )/); const inserted = new Set<string>();
+  const blocks = body.split(/\n(?=#{2,3} )/); const inserted = new Set<string>();
   const result = blocks.map((block) => {
-    const heading = block.match(/^## (.+)/)?.[1]?.trim() || '';
+    const heading = block.match(/^#{2,3} (.+)/)?.[1]?.trim() || '';
     const placed = images.filter((image) => image.after === heading && !inserted.has(image.id));
     placed.forEach((image) => inserted.add(image.id));
-    return [block, ...placed.map((image) => `![${image.caption.replace(/[[\]\n]/g, ' ')}](review-image:${image.id})`)].join('\n\n');
+    const newline = block.indexOf('\n');
+    const head = newline < 0 ? block : block.slice(0, newline);
+    const tail = newline < 0 ? '' : block.slice(newline).trimStart();
+    return [head, ...placed.map((image) => `![${image.caption.replace(/[[\]\n]/g, ' ')}](review-image:${image.id})`), tail].filter(Boolean).join('\n\n');
   });
   return [...result, ...images.filter((image) => !inserted.has(image.id)).map((image) => `![${image.caption.replace(/[[\]\n]/g, ' ')}](review-image:${image.id})`)].join('\n\n');
 }

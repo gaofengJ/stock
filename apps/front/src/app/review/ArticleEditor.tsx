@@ -15,6 +15,7 @@ import {
 } from './notebook-model';
 import { readImage } from './article-media';
 import { materialSources, readResult, reviewPacket } from './article-handoff';
+import { missingPlatformImages } from './platform-images';
 import { Materials, emptyMaterials, materialUrl } from './materials-contract';
 
 function download(name: string, text: string, type: string) {
@@ -31,6 +32,7 @@ export default function ArticleEditor({
 }) {
   const legacy = Object.entries(content.public).some(([key, value]) => key !== 'title' && value.trim());
   const article = content.article || { ...emptyArticle(), body: legacy ? publicText(date, content, 'wechat') : '' };
+  const missingImages = missingPlatformImages(article.images);
   const current = useRef(article); current.current = article;
   const context = useRef({
     date, revision, dirty, disabled,
@@ -79,7 +81,7 @@ export default function ArticleEditor({
   return (
     <div className="notebook-panel">
       <div className="notebook-panel-intro">
-        <p>{`文档已收录 ${article.images.length} 张图片。预览后保存，交给 Skill 补充分析并生成飞书文档。`}</p>
+        <p>{`文档已收录 ${article.images.length} 张图片。保存后复制 Skill 任务，交给 Codex 解读并写入飞书。`}</p>
         <Space wrap>
           <Button disabled={previewDisabled} loading={preparingPreview} onClick={openPreview}>预览复盘文档</Button>
           {article.body.trim() && <Button onClick={copy}>复制完整文章</Button>}
@@ -169,14 +171,15 @@ export default function ArticleEditor({
         </div>
       </section>
       <section className="notebook-handoff">
+        {!!missingImages.length && <Alert type="info" message="先点击准备图文资料，生成市场概览、情绪指标、连板分析和全部涨停长图，再保存并交接。" />}
         <Checkbox disabled={disabled} checked={materials.includeExecution} onChange={(e) => onMaterials({ ...materials, includeExecution: e.target.checked })}>交接持仓与操作记录，仅用于私人飞书复盘</Checkbox>
         <Space wrap size={12}>
           <Button
             type="primary"
-            disabled={disabled || dirty || !revision || pending}
+            disabled={disabled || dirty || !revision || pending || !!missingImages.length}
             onClick={async () => {
               const packet = reviewPacket(date, revision, { ...content, article }, window.location.origin, generation);
-              const prompt = `使用 $stock-review-feishu 生成 ${date} 的飞书图文复盘。网站：${window.location.origin}/review/?date=${date}，保存版本 ${revision}。在页面底部“复盘文档”的“更多”下载“图文资料包”，使用 stock-review/v2。保留资料包 userNotes 的非空原文，并另外写 AI 独立分析，空白不能当作空仓或无交易。标题默认 ${content.public.title || `${date}复盘`}；保留模板中的平台原图，不重新简化绘制，也不重复罗列图中数字；无需单列明日计划。已有 ${article.images.length} 张图片，其他图按 materials.links 取图，最终必须嵌入真实图片。完成后用同日期和版本的结果包通过“更多”导入成稿，再保存记录。不得覆盖用户原文。执行记录授权：${materials.includeExecution ? '仅限私人飞书文档' : '未包含，不读取'}。网站没有自动运行 Skill，请在 Codex 执行此任务。\n\n用户记录：\n${JSON.stringify(packet.userNotes)}\n\n图片来源：\n${JSON.stringify(packet.materials.links)}`;
+              const prompt = `使用 $stock-review-feishu 生成 ${date} 的飞书图文复盘。网站：${window.location.origin}/review/?date=${date}，保存版本 ${revision}。在页面底部“复盘文档”的“更多”下载“图文资料包”，使用 stock-review/v2。保留资料包 userNotes 的非空原文，并另外写 AI 独立分析，空白不能当作空仓或无交易。标题默认 ${content.public.title || `${date}复盘`}；使用现成四张暗色长图，不重复取图或绘图。开头声明本文由AI生成，仅供参考。市场概览、情绪指标、连板分析各写简要解读，策略选股只列股票名和策略标签；闲聊默认空白；二级标题之间留空行；不单列明日计划。正常目标10分钟，20分钟硬停止并保留可续接进度。已有 ${article.images.length} 张图片，仅在缺少必需图片时按 materials.links 补取，最终必须嵌入真实图片。完成后用同日期和版本的结果包通过“更多”导入成稿，再保存记录。不得覆盖用户原文。执行记录授权：${materials.includeExecution ? '仅限私人飞书文档' : '未包含，不读取'}。网站没有自动运行 Skill，请在 Codex 执行此任务。\n\n用户记录：\n${JSON.stringify(packet.userNotes)}\n\n图片来源：\n${JSON.stringify(packet.materials.links)}`;
               onStatus(await copyText(prompt) ? '任务已复制，在 Codex 中发送即可继续。' : '复制失败，可通过更多下载图文资料包。');
             }}
           >

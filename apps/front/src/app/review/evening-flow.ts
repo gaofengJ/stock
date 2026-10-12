@@ -2,7 +2,7 @@
 export const eveningFlow = [
   {
     id: 'market',
-    title: '1 观察市场',
+    title: '1 市场数据',
     time: '建立背景',
     keys: ['marketJudgment'],
     optional: ['marketFacts', 'dataState'],
@@ -12,7 +12,7 @@ export const eveningFlow = [
   },
   {
     id: 'themes',
-    title: '2 梳理题材',
+    title: '2 涨停复盘',
     time: '梳理方向',
     keys: ['themes'],
     optional: [],
@@ -22,7 +22,7 @@ export const eveningFlow = [
   },
   {
     id: 'candidates',
-    title: '3 筛选个股',
+    title: '3 策略选股',
     time: '看图与记录',
     keys: [],
     optional: [],
@@ -32,12 +32,12 @@ export const eveningFlow = [
   },
   {
     id: 'execution',
-    title: '4 总结与反思',
+    title: '4 闲聊',
     time: '回顾与反思',
-    keys: ['execution', 'lesson'],
-    optional: [],
+    keys: ['lesson'],
+    optional: ['execution'],
     evidence: [],
     links: [],
-    guidance: '简要记录今天做了什么、哪里偏离预期，以及一条值得保留的经验。没有记录可留空，Skill 不会据此推断空仓或无交易。',
+    guidance: '默认留空，需要时自己填写。持仓与操作保留在可选补充中，未授权不交接给 Skill。',
   },
 ];

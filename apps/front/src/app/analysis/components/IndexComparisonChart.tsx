@@ -22,6 +22,9 @@ export default function IndexComparisonChart({ indexes, dates }: { indexes: Mark
   const valid = comparison.indexes.filter((i) => i.values.some((v) => v != null));
   return (
     <Card
+      data-review-capture="comparison"
+      data-review-date={comparison.end}
+      data-review-ready={!!valid.length}
       className="market-chart market-comparison"
       title={(
         <span className="market-section-title">

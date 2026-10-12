@@ -59,6 +59,35 @@ const snapshot = (source: string, data: any[] = [], state = 'ready') => ({
 });
 
 describe('theme review provenance and membership', () => {
+  it('keeps the full limit-up list when the enrichment cache rejects', async () => {
+    const market = {
+      limits: jest.fn().mockResolvedValue({ ready: true, items: stocks }),
+    };
+    const cache = {
+      read: jest.fn().mockRejectedValue(new Error('upstream unavailable')),
+    };
+    const service = new ThemeReviewService(market as any, cache as any);
+    const result = await service.board({ date, scope: 'all' } as any);
+    expect(result.total).toBe(stocks.length);
+    expect(result.classified).toBe(0);
+    expect(result.sources[0].state).toBe('error');
+    expect(
+      result.groups
+        .flatMap((group) => group.items)
+        .map((row) => row.tsCode)
+        .sort(),
+    ).toEqual(stocks.map((row: { tsCode: string }) => row.tsCode).sort());
+    const detail = await service.detail(
+      { date, scope: 'all' } as any,
+      stocks[0].tsCode,
+    );
+    expect(detail.stock.tsCode).toBe(stocks[0].tsCode);
+    expect(detail.financial).toBeNull();
+    expect(detail.announcements).toEqual([]);
+    expect(detail.sources.every((source) => source.state === 'error')).toBe(
+      true,
+    );
+  });
   it('preserves combined official groups and never derives a group from the reason or legacy industry', () => {
     const result = buildThemeReview(
       stocks,

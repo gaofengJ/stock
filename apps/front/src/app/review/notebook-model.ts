@@ -14,7 +14,7 @@ export const internalFields = [
   ['normalPlan', '明日计划', '持仓怎么处理？关注哪只票，什么条件买、什么情况放弃？未触发就等待。'],
   ['strongPlan', '明日计划：转强或高开', '什么证据确认转强？超出计划区间如何取消？'],
   ['weakPlan', '明日计划：转弱或低开', '何时停止新增？持仓失效如何处置？无法成交如何跟踪？'],
-  ['lesson', '经验与反思', '今天哪件事值得记住？做对或做错的原因是什么，下次如何验证？可留空，由 Skill 补充独立分析。'],
+  ['lesson', '闲聊', '想写什么就写什么。默认留空，AI 不代填。'],
   ['toolEvidence', '候选与持仓工具记录', '从研究工具带入的快照，仅用于内部记录。'],
   ['holdingEvidence', '持仓分析记录', '从持仓检查工具带入的结果，仅保存在私人记录。'],
 ] as const;
@@ -36,14 +36,20 @@ export function internalText(date: string, value: NotebookContent) {
   return [`# ${date} 每日复盘记录`, '私人笔记，仅供内部使用。', ...fields.map(([key, label]) => `## ${label}\n${value.private[key] || '未填写'}`)].join('\n\n');
 }
 export function documentTemplate(date: string, value: NotebookContent) {
-  const parts = [
-    ['市场观察', value.private.marketJudgment],
-    ['题材梳理', value.private.themes],
-    ['个股筛选', value.private.toolEvidence || value.private.candidates],
-    ...(value.materials?.includeExecution ? [['操作回顾', value.private.execution]] : []),
-    ['经验与反思', value.private.lesson],
-  ];
-  return [`# ${value.public.title || `${date}复盘`}`, ...parts.map(([title, text]) => `## ${title}${text?.trim() ? `\n\n${text}` : ''}`)].join('\n\n');
+  const evidence = value.private.toolEvidence || '';
+  const picks = evidence.split(/\n\n+/).flatMap((block) => {
+    const match = block.match(/^(.+?) \d{6}\.(?:SH|SZ|BJ)\n策略：([^\n]+)/m);
+    return match ? [`${match[1]}｜${match[2]}`] : [];
+  });
+  const notes = ['marketJudgment', 'themes', 'candidates', 'normalPlan', 'strongPlan', 'weakPlan', ...(value.materials?.includeExecution ? ['execution', 'holdingEvidence', 'yesterday'] : [])]
+    .filter((key) => value.private[key]?.trim()).map((key) => `### 用户记录：${internalFields.find(([name]) => name === key)?.[1] || key}\n\n${value.private[key]}`);
+  return [
+    `# ${value.public.title || `${date}复盘`}`, '> 本文由 AI 生成，仅供参考。',
+    '## 市场数据', '### 市场概览', '### 情绪指标', '### 连板分析',
+    '## 涨停板复盘', '## 策略选股', ...picks,
+    ...(notes.length ? ['## 用户记录', ...notes] : []),
+    '## 闲聊', value.private.lesson || '',
+  ].join('\n\n');
 }
 // Both destinations use the same Feishu article; retain the channel argument for callers.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -69,7 +75,7 @@ export function noteHtml(text: string, images: ArticleImage[] = []) {
     const media = images.find((item) => item.id === imageId) || (embedded ? { data: embedded[2], caption: embedded[1], source: '' } : null);
     if (media && /^data:image\/(png|jpeg);base64,[a-zA-Z0-9+/]+={0,2}$/.test(media.data)) return `<figure style="margin:24px 0"><img src="${media.data}" alt="${escapeHtml(media.caption)}" style="max-width:100%;height:auto"/><figcaption>${escapeHtml(media.caption)}${media.source ? `<br/>来源：${escapeHtml(media.source)}` : ''}</figcaption></figure>`;
     if (line.startsWith('# ')) return `<h1 style="font-size:24px">${escapeHtml(line.slice(2))}</h1>`;
-    if (line.startsWith('## ')) return `<h2 style="font-size:18px;margin-top:24px">${escapeHtml(line.slice(3))}</h2>`;
+    if (line.startsWith('## ')) return `<h2 style="font-size:18px;margin-top:40px">${escapeHtml(line.slice(3))}</h2>`;
     if (line.startsWith('### ')) return `<h3>${escapeHtml(line.slice(4))}</h3>`;
     return line ? `<p style="margin:8px 0">${escapeHtml(line)}</p>` : '';
   }).join('')}</article>`;

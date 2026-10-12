@@ -7,8 +7,7 @@ const widths = [180, 120, 140, 140, 140, 700];
 const font = '"Microsoft YaHei", "PingFang SC", sans-serif';
 
 /** Real canvas text avoids remote fonts, cross-origin images and clipped scrolling tables. */
-export async function exportThemeReview(groups: ThemeGroup[], date: string, scope: string, colors: Palette, fetchedAt?: string | null) {
-  if (!groups.length) throw new Error('当前筛选结果为空');
+export async function themeReviewCanvas(groups: ThemeGroup[], date: string, scope: string, colors: Palette, fetchedAt?: string | null) {
   await document.fonts.ready;
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
@@ -67,6 +66,11 @@ export async function exportThemeReview(groups: ThemeGroup[], date: string, scop
   });
   ctx.fillStyle = colors.secondary; ctx.font = `18px ${font}`;
   ctx.fillText(`木风同学    数据获取时间：${beijingTime(fetchedAt || undefined)}    资料解析及来源链接可在站内查看`, 30, y + 22);
+  return canvas;
+}
+
+export async function exportThemeReview(groups: ThemeGroup[], date: string, scope: string, colors: Palette, fetchedAt?: string | null) {
+  const canvas = await themeReviewCanvas(groups, date, scope, colors, fetchedAt);
   const blob = await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((value) => (value ? resolve(value) : reject(new Error('图片生成失败，请缩小范围后重试'))), 'image/png');
   });

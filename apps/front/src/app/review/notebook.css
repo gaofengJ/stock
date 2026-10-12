@@ -98,3 +98,8 @@ body:has(.notebook-preview-open) .platform-content:has(.review-page) { overflow:
 .notebook-document > .ant-card-body { display:grid; gap:24px; }
 .notebook-save-bottom { justify-self:start; }
 @media(max-width:767px) { .notebook-platform-images { grid-template-columns:minmax(0,1fr); } }
+
+.notebook-article-preview h2 { margin-top: 40px; }
+.notebook-platform-images { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.notebook-platform-images img { max-height: 260px; object-fit: contain; object-position: top; }
+@media(max-width: 700px) { .notebook-platform-images { grid-template-columns: 1fr; } }

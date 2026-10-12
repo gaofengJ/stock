@@ -19,7 +19,7 @@ import { emptyNotebook, internalFields, NotebookContent } from './notebook-model
 import { eveningFlow } from './evening-flow';
 import { emptyArticle } from './article-contract';
 import {
-  captureElement, capturePlatform, captureSources, mergePlatformImages, missingPlatformImages,
+  capturePlatform, captureSources, mergePlatformImages, missingPlatformImages,
 } from './platform-images';
 import './notebook.css';
 
@@ -39,7 +39,6 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
   const editCounter = useRef(0);
   const captureAbort = useRef<AbortController>();
   const captureTask = useRef<Promise<string> | null>(null);
-  const autoPrepared = useRef(false);
   useEffect(() => { onDirty(dirty); }, [dirty, onDirty]);
   useEffect(() => () => captureAbort.current?.abort(), []);
   useEffect(() => {
@@ -87,7 +86,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
   const importMarket = useCallback((onlyMissing = false): Promise<string> => {
     if (captureTask.current) return captureTask.current;
     if (!snapshot) return Promise.resolve('复盘记录尚未读取完成，请稍后重试。');
-    const keys = onlyMissing ? missingPlatformImages(current.current.article?.images || []) : [...captureSources.map((item) => item.key), 'candidates'];
+    const keys = onlyMissing ? missingPlatformImages(current.current.article?.images || []) : captureSources.map((item) => item.key);
     if (!keys.length) return Promise.resolve('');
     const abort = new AbortController(); captureAbort.current = abort;
     if (!onlyMissing) setSourceRefresh((value) => value + 1);
@@ -95,35 +94,16 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
     const task = (async () => {
       try {
         const [research, captured] = await Promise.all([onlyMissing && current.current.research ? Promise.resolve(current.current.research) : loadResearch(date), capturePlatform(date, abort.signal, setStatus, keys)]);
-        if (abort.signal.aborted) return '';
-        if (keys.includes('candidates')) {
-          let candidate = document.getElementById('review-candidate-table');
-          const deadline = Date.now() + 30000;
-          while (!abort.signal.aborted && Date.now() < deadline && (candidate?.dataset.reviewReady !== 'true' || candidate.dataset.reviewDate !== date)) {
-            // eslint-disable-next-line no-await-in-loop -- Wait for the existing candidate request without starting another request.
-            await new Promise((resolve) => { setTimeout(resolve, 250); });
-            candidate = document.getElementById('review-candidate-table');
-          }
-          if (abort.signal.aborted) return '';
-          if (candidate?.dataset.reviewReady === 'true' && candidate.dataset.reviewDate === date) {
-            try { captured.images.push(...await captureElement(candidate, 'platform-candidates', `${date} 策略候选（当前筛选页）`, `${window.location.origin}/strategy/?date=${date}`, '个股筛选')); } catch { captured.failures.push('策略候选'); }
-          } else captured.failures.push('策略候选');
-        }
-        if (abort.signal.aborted) return '';
-        changed({ ...current.current, research, article: mergePlatformImages(current.current.article || emptyArticle(), captured.images) });
+        if (abort.signal.aborted && !captured.images.length) { setStatus('已停止，原有记录保留'); return ''; }
+        changed({ ...current.current, research: abort.signal.aborted ? current.current.research : research, article: mergePlatformImages(current.current.article || emptyArticle(), captured.images) });
         setStatus(`已将 ${captured.images.length} 张平台图片加入文档模板，请保存记录。`);
         const warning = captured.failures.length ? `以下图片暂未取得：${captured.failures.join('、')}。已保留成功图片与原有记录，可再次更新重试。` : '';
         setError(warning); return warning;
-      } catch (e) { const warning = abort.signal.aborted ? '' : errorMessage(e); if (warning) setError(warning); return warning; } finally { captureTask.current = null; if (!abort.signal.aborted) setResearchBusy(false); }
+      } catch (e) { const warning = abort.signal.aborted ? '' : errorMessage(e); if (warning) setError(warning); return warning; } finally { captureTask.current = null; setResearchBusy(false); }
     })();
     captureTask.current = task;
     return task;
   }, [snapshot, date, changed]);
-  useEffect(() => {
-    if (!snapshot || autoPrepared.current) return;
-    autoPrepared.current = true;
-    importMarket(true);
-  }, [snapshot, importMarket]);
   const renderField = (key: string) => {
     const field = internalFields.find(([k]) => k === key)!;
     return (
@@ -147,15 +127,17 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
           {eveningFlow.map((stage) => <Button key={stage.id} onClick={() => document.getElementById(`evening-${stage.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{stage.title}</Button>)}
         </nav>
         <Space wrap size={12}>
-          <Button disabled={!snapshot} loading={researchBusy} onClick={() => importMarket()}>更新当日资料</Button>
-          <span className="review-caption">自动把平台图表加入复盘文档，文字记录可留空。</span>
+          <Button disabled={!snapshot} loading={researchBusy} onClick={() => importMarket(true)}>准备图文资料</Button>
+          {researchBusy && <Button onClick={() => captureAbort.current?.abort()}>停止准备</Button>}
+          <Button disabled={!snapshot || researchBusy} onClick={() => importMarket()}>重新生成全部图片</Button>
+          <span className="review-caption">准备四张暗色长图，保存后交给 Skill。文字记录可留空。</span>
           <Link href="/trading-system/" target="_blank" rel="noopener noreferrer">复盘方法</Link>
         </Space>
       </div>
       <div className="notebook-stages">
         {eveningFlow.map((stage) => {
-          const prefix = ({ market: '市场观察', themes: '题材梳理', candidates: '个股筛选' } as Record<string, string>)[stage.id];
-          const images = (content.article?.images || []).filter((item) => item.id.startsWith('platform-') && item.after === prefix);
+          const prefix = ({ market: '市场数据', themes: '涨停板复盘', candidates: '策略选股' } as Record<string, string>)[stage.id];
+          const images = (content.article?.images || []).filter((item) => item.id.startsWith('platform-') && (item.after === prefix || (stage.id === 'market' && ['市场概览', '情绪指标', '连板分析'].includes(item.after))));
           return (
             <Card id={`evening-${stage.id}`} key={stage.id} title={stage.title}>
               <p className="review-caption">{stage.guidance}</p>

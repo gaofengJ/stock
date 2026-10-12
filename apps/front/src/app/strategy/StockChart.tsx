@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  useCallback, useEffect, useMemo, useRef, useState,
+  ReactNode, useCallback, useEffect, useMemo, useRef, useState,
 } from 'react';
 import {
   Alert, Button, Empty, Modal,
@@ -35,8 +35,9 @@ interface StockChartData {
 const periods = [5, 10, 20, 60, 120];
 
 export default function StockChart({
-  stock, date, strategy, options, onClose, neutral = false, navigation = [], onNavigate,
+  stock, date, strategy, options, onClose, neutral = false, navigation = [], onNavigate, headerAction, stockInfo,
 }: {
+  headerAction?: ReactNode; stockInfo?: ReactNode;
   stock: any; date: string; strategy: string; options: TrendOptions; onClose: () => void; neutral?: boolean; navigation?: any[]; onNavigate?: (stock: any) => void;
 }) {
   const [data, setData] = useState<StockChartData | null>(null);
@@ -163,6 +164,7 @@ export default function StockChart({
       open={!!stock}
       title={(
         <div className="strategy-chart-title">
+          {headerAction}
           <span className="strategy-chart-stock-title" title={chartTitle}>{chartTitle}</span>
           {onNavigate && navigation.length > 1 && (
             <span className="strategy-chart-stock-navigation">
@@ -208,6 +210,7 @@ export default function StockChart({
         </span>
         <span>两侧箭头每次移动1个交易日，拖动下方滑块缩放；高低点随范围更新，悬停查看行情</span>
       </div>
+      {stockInfo}
       <div className="strategy-chart-stage has-navigation">
         <Button className="strategy-chart-nav strategy-chart-prev" aria-label="查看更早K线" title="查看更早K线" icon={<LeftOutlined />} disabled={loading || !data || (!range.start && !data.hasEarlier)} onClick={() => moveTime(-1)} />
         <Button className="strategy-chart-nav strategy-chart-next" aria-label="查看更新K线" title="查看更新K线" icon={<RightOutlined />} disabled={loading || !data || (range.end === data.series.length - 1 && !data.hasLater)} onClick={() => moveTime(1)} />

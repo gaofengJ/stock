@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import {
-  Button, Collapse, Descriptions, Drawer, Empty, Select, Space, Tabs, message,
+  Alert, Button, Collapse, Descriptions, Drawer, Empty, Select, Space, Tabs, message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { DownloadOutlined } from '@ant-design/icons';
@@ -17,7 +18,7 @@ import { useMarket } from '../components/MarketContext';
 import { scopes } from '../components/market-display';
 import { ThemeBoard, ThemeDetail, ThemeStock } from './theme-review.types';
 import useThemeReview from './useThemeReview';
-import { exportThemeReview } from './theme-review-export';
+import { exportThemeReview, themeReviewCanvas } from './theme-review-export';
 import { reviewContent, reviewPoint, reviewSummary } from './theme-review-content';
 import './theme-review.css';
 
@@ -140,6 +141,9 @@ export default function ThemeReview({ keyword, height, sector }: { keyword: stri
   const { date, scope } = useMarket();
   const { colors } = useSiteTheme();
   const result = useThemeReview<ThemeBoard>('theme-review', { keyword, height, sector });
+  const capture = useSearchParams().get('reviewCapture') === '1';
+  const captureNode = useRef<HTMLDivElement>(null);
+  const [captureReady, setCaptureReady] = useState('');
   const [theme, setTheme] = useState<string>();
   const [stock, setStock] = useState<ThemeStock | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -147,6 +151,14 @@ export default function ThemeReview({ keyword, height, sector }: { keyword: stri
   const groups = (data?.groups || []).filter((group) => !theme || group.name === theme);
   const visibleStocks = groups.flatMap((group) => group.items);
   const pending = data?.sources.some((source) => source.state !== 'ready');
+  useEffect(() => {
+    if (!capture || !data?.ready || pending || !captureNode.current) return undefined;
+    let active = true; setCaptureReady('');
+    themeReviewCanvas(data.groups, date, '全市场', colors, data.sources[0]?.fetchedAt).then((canvas) => {
+      if (active && captureNode.current) { canvas.dataset.reviewLongImage = 'true'; captureNode.current.replaceChildren(canvas); setCaptureReady(date); }
+    }).catch(() => { if (active) setCaptureReady(''); });
+    return () => { active = false; };
+  }, [capture, data, date, colors, pending]);
   const download = async () => {
     setExporting(true);
     try { await exportThemeReview(groups, date, scopes.find((item) => item.value === scope)?.label || scope, colors, data?.sources[0]?.fetchedAt); } catch (error) { message.error(errorMessage(error, '图片导出失败')); } finally { setExporting(false); }
@@ -188,7 +200,8 @@ export default function ThemeReview({ keyword, height, sector }: { keyword: stri
     },
   ];
   return (
-    <div className="theme-review" data-review-capture="themes" data-review-date={data?.date} data-review-ready={!result.loading && !result.error && !!data?.ready && !!groups.length}>
+    <div className="theme-review" data-review-capture="themes" data-review-date={data?.date} data-review-ready={!result.loading && !result.error && !!data?.ready && (capture ? captureReady === date : !!groups.length)}>
+      {capture && <div ref={captureNode} />}
       <div className="limits-table-toolbar">
         <div className="theme-review-overview">
           <span>
@@ -212,7 +225,8 @@ export default function ThemeReview({ keyword, height, sector }: { keyword: stri
           <Button icon={<DownloadOutlined />} loading={exporting} disabled={result.loading || !!result.error || !groups.length || !!pending} onClick={download}>导出长图</Button>
         </Space>
       </div>
-      <DataState loading={result.loading} error={result.error} retry={result.retry} empty={!data?.ready}>
+      {result.error && data?.ready && <Alert type="warning" message="涨停复盘更新失败，保留上次成功数据" description={result.error} action={<Button onClick={result.retry}>重试</Button>} />}
+      <DataState loading={result.loading && !data?.ready} error={data?.ready ? '' : result.error} retry={result.retry} empty={!data?.ready}>
         {data && pending && <SourceState data={data} error="" retry={result.retry} pollingStopped={result.pollingStopped} loading={result.loading} />}
         {!groups.length && <Empty description="没有符合筛选条件的涨停股票" />}
         {groups.map((group) => (

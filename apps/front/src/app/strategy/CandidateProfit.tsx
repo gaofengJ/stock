@@ -96,7 +96,7 @@ export default function CandidateProfit({
             业绩预告：
             {forecast.reportDate}
             {' '}
-            ·
+            /
             {forecast.type}
             （公告
             {forecast.announcedAt}
@@ -135,7 +135,7 @@ export default function CandidateProfit({
           <span className="quote-muted">扣非 </span>
           {row?.history?.length ? row.history.map((report, i) => (
             <span key={report.reportDate}>
-              {i > 0 && ' · '}
+              {i > 0 && ' / '}
               <span style={{ color: report.status === 'loss' ? '#faad14' : undefined }}>
                 {reportLabel(report.reportDate)}
                 {profitLabels[report.status]}

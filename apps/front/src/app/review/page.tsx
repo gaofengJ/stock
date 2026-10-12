@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import {
-  Alert, Button, Card, Checkbox, Collapse, DatePicker, Input, Modal, Select, Space, Tag, Tooltip,
+  Alert, Button, Card, Collapse, DatePicker, Input, Modal, Select, Space, Tag, Tooltip,
 } from 'antd';
 import dayjs from 'dayjs';
 import Layout from '@/components/Layout';
@@ -25,6 +25,8 @@ import { currentReduction } from '../basic/components/risk-display';
 import Holdings from './Holdings';
 import Notebook from './Notebook';
 import useReviewDraft from './useReviewDraft';
+import CandidateProfit, { useCandidateProfit } from '../strategy/CandidateProfit';
+import { selectWatchRows } from './watch-selection';
 import { compareCap, validDate } from './review-interactions';
 import { ReviewDocument, reviewMarkdown } from './review-document';
 import '../strategy/strategy.sass';
@@ -78,7 +80,20 @@ function Report({
   const chosen = draft.selected.map((pick) => ({ ...pick, row: rows.find((r) => r.tsCode === pick.tsCode) }));
   const filtered = rows.filter((r) => (!keyword.trim() || `${r.tsCode} ${r.name}`.toLowerCase().includes(keyword.trim().toLowerCase()))
     && (strategy === 'all' || r.strategies.some((s: any) => s.key === strategy))
-    && (filter === 'all' || (filter === 'within' && r.capState === 'within' && !blocked(r)) || (filter === 'excluded' && blocked(r)) || (filter === 'missing' && r.capState === 'missing')));
+    && (filter === 'all' || (filter === 'selected' && selected.includes(r.tsCode)) || (filter === 'within' && r.capState === 'within' && !blocked(r)) || (filter === 'excluded' && blocked(r)) || (filter === 'missing' && r.capState === 'missing')));
+  const financials = useCandidateProfit(date, rows.map((row) => row.tsCode), !!data && !loading);
+  const ordered = [...filtered].sort((a, b) => (sortOrder ? (sortOrder === 'ascend' ? 1 : -1) * compareCap(a.circMv, b.circMv) : 0));
+  const chartRows = useRef<any[]>([]);
+  const openStock = (row: any) => { chartRows.current = ordered.some((r) => r.tsCode === row.tsCode) ? ordered : rows; setStock(row); };
+  const closeStock = () => {
+    const index = ordered.findIndex((row) => row.tsCode === stock?.tsCode);
+    if (index >= 0) {
+      setPage(Math.floor(index / pageSize) + 1);
+      const code = stock.tsCode;
+      requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector(`[data-row-key="${code}"]`)?.scrollIntoView({ block: 'nearest' })));
+    }
+    setStock(null);
+  };
   const lastPage = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, lastPage);
   useEffect(() => { setPage((value) => Math.min(value, lastPage)); }, [lastPage]);
@@ -91,6 +106,9 @@ function Report({
     return '';
   };
   const remove = (code: string) => update({ selected: draft.selected.filter((r) => r.tsCode !== code) });
+  const toggle = (row: any) => {
+    if (!selectionReason(row)) update({ selected: selectWatchRows(draft.selected, [row], !selected.includes(row.tsCode)) });
+  };
   const goToStep = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ block: 'start' });
     document.getElementById(`${id}-title`)?.focus({ preventScroll: true });
@@ -235,23 +253,33 @@ function Report({
             </p>
           </div>
           <div className="review-filters">
-            <Select aria-label="候选范围" value={filter} onChange={setFilter} options={[{ value: 'within', label: '可加入观察的股票' }, { value: 'all', label: '全部策略命中' }, { value: 'excluded', label: '已知风险排除' }, { value: 'missing', label: '市值资料缺失' }]} />
+            <Select aria-label="候选范围" value={filter} onChange={setFilter} options={[{ value: 'selected', label: `已加入观察（${selected.length}）` }, { value: 'within', label: '可加入观察的股票' }, { value: 'all', label: '全部策略命中' }, { value: 'excluded', label: '已知风险排除' }, { value: 'missing', label: '市值资料缺失' }]} />
             <Input allowClear aria-label="搜索候选股票" placeholder="输入股票名称或代码" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
             <Select aria-label="筛选策略" value={strategy} onChange={setStrategy} options={[{ value: 'all', label: '全部策略' }, ...(data?.strategies || []).map((s: any) => ({ value: s.key, label: s.label, disabled: s.state !== 'ready' }))]} />
             <Button disabled={filter === 'within' && strategy === 'all' && !keyword} onClick={() => { setFilter('within'); setStrategy('all'); setKeyword(''); }}>重置筛选</Button>
           </div>
           <div className="review-selection" role="status">
-            <span>{`已选 ${selected.length} 只，勾选可加入观察的股票`}</span>
-            {chosen.map(({ name, tsCode }) => <Tag key={tsCode}>{name}</Tag>)}
+            <span>{`已加入观察 ${selected.length} 只，翻页和筛选不影响名单`}</span>
+            {chosen.map(({ name, tsCode }) => <Tag key={tsCode} closable onClose={() => remove(tsCode)}>{name}</Tag>)}
           </div>
           <div id="review-candidate-table" data-review-date={date} data-review-ready={!loading && !!data}>
             <Table
               loading={loading}
               rowKey="tsCode"
               dataSource={filtered}
+              rowSelection={{
+                selectedRowKeys: selected,
+                preserveSelectedRowKeys: true,
+                fixed: true,
+                columnWidth: 48,
+                getCheckboxProps: (row: any) => ({ disabled: !!selectionReason(row), 'aria-label': `观察${row.name}` }),
+                onSelect: (row: any) => toggle(row),
+                onSelectAll: (checked, _rows, changedRows) => update({ selected: selectWatchRows(draft.selected, changedRows.filter((row: any) => !selectionReason(row)), checked) }),
+                renderCell: (_checked, row: any, _index, node) => <Tooltip title={selectionReason(row) || '加入或移出观察名单'}>{node}</Tooltip>,
+              }}
               rowClassName={(r: any) => (selected.includes(r.tsCode) ? 'interaction-selected-row' : '')}
               autoHeight
-              sticky={scrollContainer ? { getContainer: () => scrollContainer, offsetHeader: 0 } : false}
+              sticky={scrollContainer ? { getContainer: () => scrollContainer, offsetHeader: 76 } : false}
               onChange={(pagination, _filters, sorter, extra) => {
                 setPage(extra.action === 'paginate' ? pagination.current || 1 : 1);
                 setPageSize(pagination.pageSize || 10);
@@ -261,12 +289,9 @@ function Report({
               pagination={{
                 current: currentPage, pageSize, showSizeChanger: true, pageSizeOptions: [10, 20, 50], showTotal: (total) => `当前范围 ${total} 只`,
               }}
-              scroll={{ x: 850 }}
+              scroll={{ x: 1180 }}
               locale={{ emptyText: error ? '候选数据未取得，请重试' : '当前范围没有股票，可调整筛选条件或保持空名单' }}
               columns={[
-                {
-                  title: '加入', key: 'select', width: 60, render: (_, r: any) => <Tooltip title={selectionReason(r) || (selected.includes(r.tsCode) ? '移出观察名单' : '加入观察名单')}><span><Checkbox aria-label={`选择${r.name}`} checked={selected.includes(r.tsCode)} disabled={!!selectionReason(r)} onChange={(e) => (e.target.checked ? update({ selected: [...draft.selected, { tsCode: r.tsCode, name: r.name }] }) : remove(r.tsCode))} /></span></Tooltip>,
-                },
                 {
                   title: '股票与操作',
                   key: 'stock',
@@ -274,7 +299,7 @@ function Report({
                   render: (_, r: any) => (
                     <div className="review-stock-cell">
                       <div className="review-stock-heading">
-                        <StockLink code={r.tsCode} name={r.name} date={date} onChart={() => setStock(r)} />
+                        <StockLink code={r.tsCode} name={r.name} date={date} onChart={() => openStock(r)} />
                         <span className="review-caption">{r.tsCode}</span>
                       </div>
                       <div className="review-stock-actions">
@@ -284,7 +309,7 @@ function Report({
                   ),
                 },
                 {
-                  title: '入选线索', key: 'signals', width: 200, render: (_, r: any) => <div className="review-signal-tags">{r.strategies.map((s: any) => <Tag key={s.key}>{s.label}</Tag>)}</div>,
+                  title: '策略标签', key: 'signals', width: 180, render: (_, r: any) => <div className="review-signal-tags">{r.strategies.map((s: any) => <Tag key={s.key}>{s.label}</Tag>)}</div>,
                 },
                 {
                   title: '收盘价／元', dataIndex: 'close', width: 100, align: 'right', render: (v) => numberText(v),
@@ -296,7 +321,10 @@ function Report({
                   title: '流通市值／亿', dataIndex: 'circMv', width: 115, align: 'right', sorter: (a: any, b: any) => compareCap(a.circMv, b.circMv), defaultSortOrder: 'ascend', render: (v) => scaledNumber(v, 10000),
                 },
                 {
-                  title: '风险资料状态',
+                  title: <Tooltip title="截至复盘日已披露的最近三个财报期，悬停查看金额与披露日期">近期业绩</Tooltip>, key: 'profit', width: 260, render: (_, r: any) => <CandidateProfit row={financials.rows.get(r.tsCode)} error={financials.error} stopped={financials.stopped} retry={financials.retry} />,
+                },
+                {
+                  title: '风险与减持',
                   key: 'risk',
                   width: 180,
                   render: (_, r: any) => (
@@ -335,7 +363,7 @@ function Report({
                   <div key={tsCode} className="review-pick">
                     <div className="review-pick-summary">
                       <div className="review-pick-heading">
-                        <StockLink code={tsCode} name={row?.name || name} date={date} onChart={row ? () => setStock(row) : undefined} />
+                        <StockLink code={tsCode} name={row?.name || name} date={date} onChart={row ? () => openStock(row) : undefined} />
                         <Button size="small" aria-label={`将${name}移出观察名单`} onClick={() => remove(tsCode)}>移出</Button>
                       </div>
                       <span className="review-caption">{tsCode}</span>
@@ -486,7 +514,23 @@ function Report({
           <SourceState data={risk.data || data} error={risk.error} loading={risk.loading} pollingStopped={risk.pollingStopped} retry={risk.retry} />
         </div>
       </Modal>
-      <StockChart navigation={[...(filtered.some((r) => r.tsCode === stock?.tsCode) ? filtered : rows)].sort((a, b) => (sortOrder ? (sortOrder === 'ascend' ? 1 : -1) * compareCap(a.circMv, b.circMv) : 0))} onNavigate={setStock} stock={stock} date={date} strategy={stock?.strategies?.[0]?.key || 'fiveMaUp'} options={trendDefaults} onClose={() => setStock(null)} />
+      <StockChart
+        navigation={chartRows.current}
+        onNavigate={setStock}
+        stock={stock}
+        date={date}
+        strategy={stock?.strategies?.[0]?.key || 'fiveMaUp'}
+        options={trendDefaults}
+        onClose={closeStock}
+        headerAction={stock && <Tooltip title={selectionReason(stock)}><Button type={selected.includes(stock.tsCode) ? 'default' : 'primary'} disabled={!!selectionReason(stock)} onClick={() => toggle(stock)}>{selected.includes(stock.tsCode) ? '已观察，点击移出' : '加入观察'}</Button></Tooltip>}
+        stockInfo={stock && (
+        <div className="review-chart-evidence">
+          <CandidateProfit row={financials.rows.get(stock.tsCode)} error={financials.error} stopped={financials.stopped} retry={financials.retry} />
+          <RiskTags data={risk.data} code={stock.tsCode} date={date} />
+          <RiskInspect code={stock.tsCode} name={stock.name} date={date} />
+        </div>
+        )}
+      />
     </>
   );
 }
