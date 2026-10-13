@@ -38,3 +38,25 @@ describe('strategy result cache', () => {
     expect(loader).toHaveBeenCalledTimes(3);
   });
 });
+
+describe('request-scoped revision snapshots', () => {
+  it('shares a version query inside one report but observes updates in the next report', async () => {
+    const query = jest.fn().mockResolvedValue([{ k: 'daily', v: '1' }]);
+    const cache = new StrategyCacheService({ query } as any);
+    const loader = jest.fn().mockResolvedValue([]);
+    await cache.withRevisionSnapshot(async () => {
+      await Promise.all([
+        cache.read('2026-10-12', { strategy: 'a' }, loader),
+        cache.read('2026-10-12', { strategy: 'b' }, loader),
+      ]);
+      await cache.read('2026-10-12', { strategy: 'c' }, loader);
+    });
+    expect(query).toHaveBeenCalledTimes(1);
+    query.mockResolvedValue([{ k: 'daily', v: '2' }]);
+    await cache.withRevisionSnapshot(() =>
+      cache.read('2026-10-12', { strategy: 'a' }, loader),
+    );
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(loader).toHaveBeenCalledTimes(4);
+  });
+});

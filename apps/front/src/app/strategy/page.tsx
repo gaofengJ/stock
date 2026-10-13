@@ -108,7 +108,7 @@ function StrategyPage() {
   const filtered = (listCurrent ? items : []).filter((row) => (!linkedCode || row.tsCode === linkedCode)
     && (!keyword || `${row.tsCode} ${row.name}`.toLowerCase().includes(keyword.trim().toLowerCase())));
   const riskState = useWorkbench('risk', { date }, !!date && view === 'candidates' && listCurrent && !tableLoading);
-  const financials = useCandidateProfit(date, filtered.map((row) => row.tsCode), view === 'candidates' && listCurrent && !tableLoading);
+  const financials = useCandidateProfit(date, items.map((row) => row.tsCode), view === 'candidates' && listCurrent && !tableLoading);
   const labels = useInsight<any[]>('candidate-labels', { date, codes: items.map((row) => row.tsCode).sort() }, needsCandidates && listCurrent && !tableLoading && items.length > 0);
   const labelsMap = new Map(labels.data?.map((row) => [row.tsCode, row]) || []);
   const context = useInsight<any[]>('candidate-context', { date, codes: items.map((row) => row.tsCode).sort() }, view === 'candidates' && visibleColumns.includes('context') && listCurrent && items.length > 0);

@@ -13,7 +13,7 @@ import React, {
 } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  Button, ConfigProvider, Result,
+  Alert, Button, ConfigProvider, Result,
 } from 'antd';
 import Loading from '@/components/Loading';
 import { useSiteTheme } from '@/components/SiteTheme';
@@ -48,14 +48,28 @@ export default function AccountBoundary({
   const [checkedPublicPage, setCheckedPublicPage] = useState<boolean | null>(null);
   const [error, setError] = useState('');
   const [loadError, setLoadError] = useState('');
+  const [refreshWarning, setRefreshWarning] = useState('');
   const [trialEnd, setTrialEnd] = useState(0);
   const [trialRemaining, setTrialRemaining] = useState(0);
   const [trialExpired, setTrialExpired] = useState(false);
   const authRequest = useRef(0);
+  const confirmedAccount = useRef<{ user: Account | null; trialEnd: number } | null>(null);
   const publicPage = ['/login', '/register'].includes(path);
   // Public pages do not start trials. Wait for the destination's access check
   // before redirecting a new visitor who follows the preview link.
   const ready = checkedPublicPage === publicPage;
+  const clear = useCallback(() => {
+    // Invalidate earlier responses before removing the confirmed identity.
+    authRequest.current += 1;
+    confirmedAccount.current = null;
+    setUser(null);
+    setTrialEnd(0);
+    setTrialRemaining(0);
+    setRefreshWarning('');
+    clearCredential();
+    clearTradeDateCache();
+    useOptionsState.setState({ allOptions: {} });
+  }, []);
   const refresh = useCallback(async () => {
     authRequest.current += 1;
     const request = authRequest.current;
@@ -66,26 +80,29 @@ export default function AccountBoundary({
       setUser(state.user);
       setTrialExpired(state.trial?.remainingMs === 0);
       const remaining = Math.max(0, (state.trial?.remainingMs || 0) - (Date.now() - requestedAt));
-      setTrialEnd(state.user?.guest ? Date.now() + remaining : 0);
+      const endsAt = state.user?.guest ? Date.now() + remaining : 0;
+      confirmedAccount.current = { user: state.user, trialEnd: endsAt };
+      setTrialEnd(endsAt);
       setTrialRemaining(Math.ceil(remaining / 1000));
       setError('');
       setLoadError('');
+      setRefreshWarning('');
     } catch (e) {
-      if (request === authRequest.current) setLoadError(errorMessage(e));
+      if (request !== authRequest.current) return;
+      const status = (e as { status?: number })?.status;
+      const confirmed = confirmedAccount.current;
+      if (status === 401 || status === 403) {
+        clear();
+        setLoadError(errorMessage(e));
+        if (status === 401) router.replace('/login');
+      } else if (confirmed?.user && (!confirmed.user.guest || confirmed.trialEnd > Date.now())) {
+        // A failed background read must not unmount forms with unsaved edits.
+        setRefreshWarning(errorMessage(e));
+      } else setLoadError(errorMessage(e));
     } finally {
       if (request === authRequest.current) setCheckedPublicPage(publicPage);
     }
-  }, [publicPage]);
-  const clear = useCallback(() => {
-    // 已退出或会话失效后，较早的登录态请求不能恢复旧用户。
-    authRequest.current += 1;
-    setUser(null);
-    setTrialEnd(0);
-    setTrialRemaining(0);
-    clearCredential();
-    clearTradeDateCache();
-    useOptionsState.setState({ allOptions: {} });
-  }, []);
+  }, [publicPage, clear, router]);
   const logout = useCallback(async () => {
     await api('/auth/logout', 'POST');
     clear();
@@ -206,7 +223,10 @@ export default function AccountBoundary({
       }}
     >
       <Context.Provider value={context}>
-        <FeedbackNotifications user={user}>{content}</FeedbackNotifications>
+        <FeedbackNotifications user={user}>
+          {refreshWarning && <Alert type="warning" showIcon message="访问状态暂时无法更新，当前编辑内容已保留" description={refreshWarning} action={<Button size="small" onClick={() => refresh()}>重试</Button>} />}
+          {content}
+        </FeedbackNotifications>
       </Context.Provider>
     </ConfigProvider>
   );

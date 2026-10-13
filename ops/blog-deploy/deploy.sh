@@ -2,6 +2,10 @@
 # Installed as /home/stock-blog-deploy.sh; called by the article release workflow.
 set -eu
 registry=registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-blog
+: "${RELEASE_SHA:?RELEASE_SHA is required}"
+[ "${#RELEASE_SHA}" = 40 ] || exit 2
+case "$RELEASE_SHA" in *[!0-9a-f]*) exit 2 ;; esac
+requested="$registry:$RELEASE_SHA"
 exec 9>"${BLOG_DEPLOY_LOCK:-/var/lock/stock-blog-full-release.lock}"
 flock -n 9 || { echo 'Another article deployment is running'; exit 1; }
 
@@ -12,8 +16,8 @@ status=$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:
 [ "$status" = 401 ] || [ "$status" = 403 ] || { echo 'Backend article access check is not ready'; exit 1; }
 
 # Downloads and validation must finish while the previous service is still running.
-docker pull "$registry:latest"
-image=$(docker image inspect --format '{{.Id}}' "$registry:latest")
+docker pull "$requested"
+image=$(docker image inspect --format '{{.Id}}' "$requested")
 docker run --rm "$image" nginx -t
 current=$(docker inspect --format '{{.Image}}' stock-blog 2>/dev/null || true)
 running=$(docker inspect --format '{{.State.Running}}' stock-blog 2>/dev/null || true)

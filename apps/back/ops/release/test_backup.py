@@ -2,11 +2,12 @@ import json
 import os
 import pathlib
 import subprocess
+import sys
 import tempfile
 import unittest
 
 
-@unittest.skipUnless(os.name == 'posix', 'Linux release backup execution')
+@unittest.skipUnless(sys.platform.startswith('linux'), 'Linux release backup execution')
 class BackupShellTests(unittest.TestCase):
     def run_backup(self, failure=''):
         temp = tempfile.TemporaryDirectory()

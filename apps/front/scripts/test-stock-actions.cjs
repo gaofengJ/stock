@@ -13,7 +13,7 @@ function load(file, imports = {}) {
   new Function('require', 'exports', code)((name) => Object.hasOwn(imports, name) ? imports[name] : require(name), exports);
   return exports;
 }
-const auth = load('auth/client.ts', { '@/api/errors': {}, '@/components/Layout/enum': load('components/Layout/enum.ts') });
+const auth = load('auth/client.ts', { '@/api/errors': {}, '@/components/Layout/enum': load('components/Layout/enum.ts'), './request-deadline': load('auth/request-deadline.ts') });
 const stock = load('utils/stock-interaction.ts');
 const account = (permissions) => ({
   permissions, catalog: [{ code: 'basic:stock', route: '/basic/stock' }],

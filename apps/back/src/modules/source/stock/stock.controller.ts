@@ -1,3 +1,4 @@
+import { DtoArrayPipe } from '@/pipes/dto-array.pipe';
 import { Permit } from '@/modules/auth/permissions';
 import {
   Body,
@@ -81,7 +82,7 @@ export class StockController {
   @Permit('data:write')
   @Post('/bulk-create')
   @ApiOperation({ summary: '批量创建Stock' })
-  async bulkCreate(@Body() dto: StockDto[]) {
+  async bulkCreate(@Body(new DtoArrayPipe(StockDto)) dto: StockDto[]) {
     await this.stockBasicService.bulkCreate(dto);
   }
 

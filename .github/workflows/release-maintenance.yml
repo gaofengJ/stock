@@ -31,7 +31,7 @@ jobs:
         run: |
           python3 -m unittest discover -s apps/back/ops/release -p 'test_*.py'
           docker run --rm --mount "type=bind,src=$PWD/apps/back/ops/release,dst=/work,readonly" --workdir /work python:3.5-slim python -m unittest discover -p 'test_*.py'
-          bash -n apps/back/ops/release/deploy.sh apps/back/ops/release/deploy-front.sh apps/back/ops/release/backup.sh apps/back/ops/release/daily-backup.sh
+          for script in apps/back/ops/release/*.sh; do bash -n "$script"; done
       - name: Upload retention maintenance tool
         if: inputs.operation != 'clean-build-cache'
         uses: appleboy/scp-action@v1
@@ -76,7 +76,9 @@ jobs:
               exit 0
             fi
             case "$OPERATION" in
-              inspect) ;;
+              inspect)
+                python3 /opt/stock-release/inspections/${{ github.sha }}/release/maintenance.py --root /opt/stock-release --backup-status
+                ;;
               clean-release-backups)
                 python3 - <<'PY'
             import json, os, pathlib

@@ -1,8 +1,9 @@
+import { Empty } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import dayjs from 'dayjs';
 import Loading from '@/components/Loading';
 import { numberText } from '@/utils/format';
-import React, { useState, useEffect, useCallback } from 'react';
 
-import dayjs from 'dayjs';
 import { getAnalysisSentiLimitUpDownCount } from '@/api/services';
 import { NSGetAnalysisSentiLimitUpDownCount } from '@/api/services.types';
 
@@ -11,6 +12,7 @@ import { useSiteTheme } from '@/components/SiteTheme';
 import { quoteColors } from '@/colors';
 import { getRoundedMax, getRoundedMin } from '@/utils';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
+import { hasAnalysisValues, NullableAnalysisSeries } from '../../components/legacy-series';
 
 interface IProps {
   dateRange: string[]; // 起止时间
@@ -19,7 +21,7 @@ interface IProps {
 const LimitUpDownCompare = ({ dateRange }: IProps) => {
   const { colors } = useSiteTheme();
   const [loading, setLoading] = useState<boolean>(false);
-  const [sourceData, setSourceData] = useState<NSGetAnalysisSentiLimitUpDownCount.IRes>([]);
+  const [sourceData, setSourceData] = useState<NullableAnalysisSeries<NSGetAnalysisSentiLimitUpDownCount.IRes>>([]);
   const { requestConfig, runLatestRequest } = useLatestRequest('senti-limit-up-down-count');
 
   /**
@@ -147,7 +149,8 @@ const LimitUpDownCompare = ({ dateRange }: IProps) => {
       ],
     };
   };
-  return loading ? <Loading /> : <CChart genOptions={genOptions} />;
+  if (loading) return <Loading />;
+  return hasAnalysisValues(sourceData) ? <CChart genOptions={genOptions} /> : <Empty description="该日期范围的数据尚未就绪" />;
 };
 
 export default LimitUpDownCompare;

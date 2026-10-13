@@ -4,6 +4,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  rmSync,
   writeFileSync,
 } from 'fs';
 import { tmpdir } from 'os';
@@ -47,16 +48,21 @@ shellDescribe('发布脚本故障恢复', () => {
         'DB_PASSWORD=test-only',
       );
     }
-    const script = readFileSync(
-      resolve(__dirname, '../../ops/release/deploy.sh'),
-      'utf8',
-    )
-      .replace('/opt/stock-release', `${unix}/runs`)
-      .replace(/\/etc\/systemd\/system/g, `${unix}/units`)
-      .replace(/\/opt\/stock-test/g, `${unix}/stock-test`)
-      .replace(/\/opt\/stock-news/g, `${unix}/stock-news`)
-      .replace(/\/var\/lock/g, `${unix}/locks`);
-    writeFileSync(join(dir, 'release', 'deploy.sh'), script);
+    const localize = (script: string) =>
+      script
+        .replace('/opt/stock-release', `${unix}/runs`)
+        .replace(/\/etc\/systemd\/system/g, `${unix}/units`)
+        .replace(/\/opt\/stock-test/g, `${unix}/stock-test`)
+        .replace(/\/opt\/stock-news/g, `${unix}/stock-news`)
+        .replace(/\/var\/lock/g, `${unix}/locks`);
+    ['deploy.sh', 'post-deploy.sh'].forEach((file) => {
+      writeFileSync(
+        join(dir, 'release', file),
+        localize(
+          readFileSync(resolve(__dirname, '../../ops/release', file), 'utf8'),
+        ),
+      );
+    });
     writeFileSync(
       join(dir, 'mocks.sh'),
       `
@@ -77,6 +83,7 @@ docker() {
 }
 python3() {
   case "$*" in
+    *'json.load(sys.stdin)'*) cat >/dev/null ;;
     *releaseMode*) if [[ "$FAIL" == app* ]]; then echo application; else echo migration; fi ;;
     *--check-backup*) [[ "$FAIL" != app-backup-missing ]] || return 1; echo '{"status":"verified"}' ;;
     *maintenance.py*) echo '{"applied":true}' ;;
@@ -86,7 +93,13 @@ python3() {
   esac
 }
 flock() { return 0; }
-systemctl() { echo "systemctl $*" >> "$TEST_LOG"; return 0; }
+systemctl() {
+  echo "systemctl $*" >> "$TEST_LOG"
+  if [[ "$*" == --version && "$FAIL" == app-version ]]; then
+    for number in $(seq 1 10000); do echo 'systemd fixture feature'; done
+  fi
+  return 0
+}
 install() {
   if [[ "$1" == -d ]]; then shift 3; mkdir -p "$@"; else shift 2; cp "$@"; fi
 }
@@ -96,10 +109,14 @@ df() {
   printf 'header\\nvolume 999999999999 0 %s 0 path\\n' "$available"
 }
 mysqldump() { echo 'backup'; touch "$TEST_BACKUP_DONE"; [[ "$FAIL" != backup && "$FAIL" != backup-timing ]]; }
+# GNU stat and sha256sum are absent on macOS/Git Bash; their behavior is not
+# under test here. Backup integrity is tested separately on the Linux runner.
+stat() { echo 7; }
+sha256sum() { printf 'fixture-checksum  %s\\n' "$1"; }
 tee() { if [[ "$FAIL" == backup-timing ]]; then cat; return 1; else command tee "$@"; fi; }
 sleep() { return 0; }
 curl() { echo "curl $*" >> "$TEST_LOG"; if [[ "$FAIL" == app-proxy ]]; then printf 502; else printf 401; fi; }
-export -f docker python3 flock df mysqldump sleep tee systemctl install curl
+export -f docker python3 flock df mysqldump sleep tee systemctl install curl stat sha256sum
 `,
     );
     const result = spawnSync(bash, [posix(join(dir, 'release', 'deploy.sh'))], {
@@ -118,11 +135,13 @@ export -f docker python3 flock df mysqldump sleep tee systemctl install curl
     const log = existsSync(join(dir, 'commands.log'))
       ? readFileSync(join(dir, 'commands.log'), 'utf8')
       : '';
-    return {
+    const output = {
       ...result,
       log,
       paused: existsSync(join(dir, 'stock-test', 'PAUSED')),
     };
+    rmSync(dir, { recursive: true, force: true });
+    return output;
   }
 
   it('拉取失败不停止生产容器', () => {
@@ -221,6 +240,13 @@ export -f docker python3 flock df mysqldump sleep tee systemctl install curl
     expect(result.log).toContain(
       'systemctl enable --now stock-release-backup.timer',
     );
+  });
+  it('版本输出完整消费，截取首行不引发 pipefail 或 SIGPIPE', () => {
+    const result = run('app-version');
+    expect(result.stderr).toBe('');
+    expect(result.status).toBe(0);
+    expect(result.stdout.match(/systemd fixture feature/g)).toHaveLength(1);
+    expect(result.stdout).toContain('Deployment verified');
   });
   it.each(['app-smoke', 'app-proxy'])(
     '无迁移发布启动后校验失败，保留新版现场并恢复旧服务 %s',

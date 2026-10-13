@@ -47,8 +47,8 @@ export function parseJSON<T = any>(blobData: Blob): Promise<T> {
 }
 
 // 获取尾数为 0 或 5 的最大值
-export const getRoundedMax = (arr: number[]) => {
-  const finiteValues = arr.filter(Number.isFinite);
+export const getRoundedMax = (arr: (number | null | undefined)[]) => {
+  const finiteValues = arr.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
   if (!finiteValues.length) return 5;
 
   const maxVal = Math.max(...finiteValues);
@@ -59,8 +59,8 @@ export const getRoundedMax = (arr: number[]) => {
 };
 
 // 获取尾数为 0 或 5 的最小值
-export const getRoundedMin = (arr: number[]) => {
-  const finiteValues = arr.filter(Number.isFinite);
+export const getRoundedMin = (arr: (number | null | undefined)[]) => {
+  const finiteValues = arr.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
   if (!finiteValues.length) return 0;
 
   const minVal = Math.min(...finiteValues);

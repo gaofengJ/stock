@@ -1,5 +1,6 @@
 import { readApiResponse, userError } from '@/api/errors';
 import { basicNavigationOrder } from '@/components/Layout/enum';
+import { RequestOptions, withRequestDeadline } from './request-deadline';
 
 export interface Permission {
   code: string;
@@ -23,30 +24,35 @@ let accessPending: Promise<AccessState> | undefined;
 let accessStartsTrial = false;
 let csrf: string | undefined;
 let pending: Promise<string> | undefined;
+let credentialGeneration = 0;
 export function clearCredential() {
+  credentialGeneration += 1;
   csrf = undefined;
   pending = undefined;
   accessPending = undefined;
 }
-export async function csrfToken(): Promise<string> {
+export async function csrfToken(options: RequestOptions = {}): Promise<string> {
   if (csrf) return csrf;
   if (!pending) {
-    pending = fetch('/api/auth/csrf', {
-      credentials: 'include',
-      cache: 'no-store',
+    const generation = credentialGeneration;
+    const request = withRequestDeadline(async (signal) => {
+      const r = await fetch('/api/auth/csrf', { credentials: 'include', cache: 'no-store', signal });
+      const b = await readApiResponse(r);
+      if (typeof b.data?.csrfToken !== 'string' || !b.data.csrfToken) throw new Error('无法建立安全会话，请刷新页面后重试');
+      signal.throwIfAborted();
+      if (generation !== credentialGeneration) throw new Error('登录状态已变更，请重试');
+      csrf = b.data.csrfToken;
+      return csrf!;
     })
-      .then(async (r) => {
-        const b = await readApiResponse(r);
-        if (typeof b.data?.csrfToken !== 'string' || !b.data.csrfToken) throw new Error('无法建立安全会话，请刷新页面后重试');
-        csrf = b.data.csrfToken;
-        return csrf!;
-      })
       .catch((error: unknown) => { throw userError(error); })
       .finally(() => {
-        pending = undefined;
+        if (pending === request) pending = undefined;
       });
+    pending = request;
   }
-  return pending;
+  // A cancelled caller must not cancel CSRF initialization used by other callers.
+  const shared = pending;
+  return withRequestDeadline(() => shared, options);
 }
 export function authFailure(status: number) {
   if (typeof window !== 'undefined' && (status === 401 || status === 403)) {
@@ -60,21 +66,27 @@ export async function api<T = any>(
   method = 'GET',
   body: unknown = undefined,
   notify = true,
+  options: RequestOptions = {},
 ): Promise<T> {
-  const headers: Record<string, string> = body === undefined ? {} : { 'Content-Type': 'application/json' };
-  if (!['GET', 'HEAD'].includes(method)) headers['X-CSRF-Token'] = await csrfToken();
   try {
-    const r = await fetch(`/api${url}`, {
-      method,
-      credentials: 'include',
-      cache: 'no-store',
-      headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-    if (notify && !r.ok) authFailure(r.status);
-    const b = await readApiResponse(r);
-    if (b.data?.csrfToken) { csrf = b.data.csrfToken; accessPending = undefined; }
-    return b.data;
+    return await withRequestDeadline(async (signal) => {
+      const headers: Record<string, string> = body === undefined ? {} : { 'Content-Type': 'application/json' };
+      if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) headers['X-CSRF-Token'] = await csrfToken({ signal });
+      signal.throwIfAborted();
+      const r = await fetch(`/api${url}`, {
+        method,
+        credentials: 'include',
+        cache: 'no-store',
+        headers,
+        signal,
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      if (notify && !r.ok) authFailure(r.status);
+      const b = await readApiResponse(r);
+      signal.throwIfAborted();
+      if (b.data?.csrfToken) { credentialGeneration += 1; csrf = b.data.csrfToken; accessPending = undefined; }
+      return b.data;
+    }, options);
   } catch (error) {
     throw userError(error);
   }

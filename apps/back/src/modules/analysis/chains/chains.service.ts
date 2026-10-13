@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { LimitService as SourceLimitService } from '@/modules/source/limit/limit.service';
 import { TradeCalService as SourceTradeCalService } from '@/modules/source/trade-cal/trade-cal.service';
 import { ELimit } from '@/modules/source/limit/limit.enum';
@@ -9,6 +10,8 @@ import {
   fillAmountSeries,
   fillCountSeries,
   sortTradeDays,
+  applySeriesStates,
+  readSeriesStates,
 } from '@/modules/analysis/series.utils';
 import { AsyncTtlCache } from '@/modules/analysis/async-ttl-cache';
 
@@ -25,6 +28,7 @@ export class ChainsService {
   constructor(
     private limitService: SourceLimitService,
     private tradeCalService: SourceTradeCalService,
+    private db: DataSource,
   ) {}
 
   private async getOpenTradeDays(startDate: string, endDate: string) {
@@ -67,7 +71,11 @@ export class ChainsService {
       }),
       this.getOpenTradeDays(dto.startDate, dto.endDate),
     ]);
-    return fillCountSeries(tradeDays, countList);
+    return applySeriesStates(
+      fillCountSeries(tradeDays, countList),
+      await readSeriesStates(this.db, tradeDays),
+      ['count'],
+    );
   }
 
   /**
@@ -85,7 +93,11 @@ export class ChainsService {
       }),
       this.getOpenTradeDays(dto.startDate, dto.endDate),
     ]);
-    return fillCountSeries(tradeDays, countList);
+    return applySeriesStates(
+      fillCountSeries(tradeDays, countList),
+      await readSeriesStates(this.db, tradeDays),
+      ['count'],
+    );
   }
 
   /**
@@ -107,7 +119,12 @@ export class ChainsService {
     if (!tradeDays.length) return [];
     const prevStartDate = tradeDays[0].preTradeDate;
     if (!prevStartDate) {
-      return calculateUpgradeRates(tradeDays, upgradeNumList, []);
+      return applySeriesStates(
+        calculateUpgradeRates(tradeDays, upgradeNumList, []),
+        await readSeriesStates(this.db, tradeDays),
+        ['rate'],
+        tradeDays,
+      );
     }
     // 获取每日 upgradeNum - 1 连板数量
     const upgradeNumMinusOneList = await this.getCountTimes({
@@ -118,10 +135,11 @@ export class ChainsService {
       limit: ELimit.U,
       limitTimes: dto.upgradeNum - 1,
     });
-    return calculateUpgradeRates(
+    return applySeriesStates(
+      calculateUpgradeRates(tradeDays, upgradeNumList, upgradeNumMinusOneList),
+      await readSeriesStates(this.db, tradeDays),
+      ['rate'],
       tradeDays,
-      upgradeNumList,
-      upgradeNumMinusOneList,
     );
   }
 
@@ -148,10 +166,10 @@ export class ChainsService {
       this.getOpenTradeDays(dto.startDate, dto.endDate),
     ]);
 
-    return calculateFirstUpgradeRates(
-      tradeDays,
-      upgradeNumUList,
-      upgradeNumZList,
+    return applySeriesStates(
+      calculateFirstUpgradeRates(tradeDays, upgradeNumUList, upgradeNumZList),
+      await readSeriesStates(this.db, tradeDays),
+      ['rate'],
     );
   }
 
@@ -169,7 +187,11 @@ export class ChainsService {
       }),
       this.getOpenTradeDays(dto.startDate, dto.endDate),
     ]);
-    return fillAmountSeries(tradeDays, limitUpAmountList);
+    return applySeriesStates(
+      fillAmountSeries(tradeDays, limitUpAmountList),
+      await readSeriesStates(this.db, tradeDays),
+      ['totalAmount'],
+    );
   }
 
   /**
@@ -186,6 +208,10 @@ export class ChainsService {
       }),
       this.getOpenTradeDays(dto.startDate, dto.endDate),
     ]);
-    return fillAmountSeries(tradeDays, upgradeLimitUpAmountList);
+    return applySeriesStates(
+      fillAmountSeries(tradeDays, upgradeLimitUpAmountList),
+      await readSeriesStates(this.db, tradeDays),
+      ['totalAmount'],
+    );
   }
 }

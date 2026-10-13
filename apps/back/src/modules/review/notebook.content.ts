@@ -65,7 +65,7 @@ export function parseNotebook(raw: string): NotebookContent {
             typeof text !== 'string' ||
             text.length >
               ((
-                { toolEvidence: 24000, holdingEvidence: 12000 } as Record<
+                { toolEvidence: 200000, holdingEvidence: 12000 } as Record<
                   string,
                   number
                 >

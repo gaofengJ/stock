@@ -18,6 +18,7 @@ import { loadResearch } from './research';
 import { emptyNotebook, internalFields, NotebookContent } from './notebook-model';
 import { eveningFlow } from './evening-flow';
 import { emptyArticle } from './article-contract';
+import { notebookPayload, toolEvidenceError } from './notebook-limits';
 import {
   capturePlatform, captureSources, mergePlatformImages, missingPlatformImages,
 } from './platform-images';
@@ -43,7 +44,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
   useEffect(() => () => captureAbort.current?.abort(), []);
   useEffect(() => {
     let active = true;
-    request.get<Snapshot>('/review/notebook', { params: { date }, autoShowError: false })
+    request.get<Snapshot>('/review/notebook', { params: { date, publicationBodies: 0 }, autoShowError: false })
       .then(({ data }) => { if (active) { setSnapshot(data); setContent(data.content || emptyNotebook()); setDirty(false); setError(''); setStatus(data.revision ? '已读取保存的记录' : '当天尚未保存'); } })
       .catch((e) => { if (active) { setError(errorMessage(e)); setStatus('读取失败，重试后可编辑'); } });
     return () => { active = false; };
@@ -65,9 +66,8 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
     setBusy(true); setError(''); const edit = editCounter.current;
     try {
       const saved = current.current;
-      const { data } = await request.post<{ revision: number }>('/review/notebook', {
-        date, revision: snapshot.revision, generation: snapshot.generation || 0, content: JSON.stringify(saved),
-      }, { autoShowError: false });
+      const payload = notebookPayload(date, snapshot.revision, snapshot.generation || 0, saved);
+      const { data } = await request.post<{ revision: number }>('/review/notebook', payload, { autoShowError: false });
       setSnapshot({ ...snapshot, revision: data.revision, content: saved });
       if (editCounter.current === edit) setDirty(false);
       setStatus('记录与图片已保存');
@@ -75,10 +75,11 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
   };
   const captureCandidates = useCallback((text: string) => {
     editCounter.current += 1;
-    const next = { ...current.current, private: { ...current.current.private, toolEvidence: text.slice(0, 24000) } };
+    const next = { ...current.current, private: { ...current.current.private, toolEvidence: text } };
     current.current = next; setContent(next); setDirty(true);
   }, []);
   const visibleStatus = dirty ? '有未保存的记录或图片' : status;
+  const evidenceError = toolEvidenceError(content.private.toolEvidence);
   const materials = content.materials || emptyMaterials();
   const changeMaterials = (value: Materials) => {
     try { changed({ ...current.current, materials: validateMaterials(value) }); } catch (e) { setError((e as Error).message); }
@@ -122,6 +123,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
         </Space>
       </div>
       {error && <Alert type="warning" message={error} action={!snapshot && <Button onClick={() => setAttempt((x) => x + 1)}>重新读取</Button>} />}
+      {evidenceError && evidenceError !== error && <Alert type="warning" message={evidenceError} />}
       <div className="notebook-start">
         <nav className="notebook-flow" aria-label="每日复盘四步">
           {eveningFlow.map((stage) => <Button key={stage.id} onClick={() => document.getElementById(`evening-${stage.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{stage.title}</Button>)}

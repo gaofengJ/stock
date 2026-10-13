@@ -1,8 +1,9 @@
-import Loading from '@/components/Loading';
-import { numberText } from '@/utils/format';
+import { Empty } from 'antd';
 import React, { useState, useEffect, useCallback } from 'react';
-
 import dayjs from 'dayjs';
+import Loading from '@/components/Loading';
+import { finiteNumber, numberText } from '@/utils/format';
+
 import { getAnalysisSentiList } from '@/api/services';
 import { NSGetAnalysisSentiList } from '@/api/services.types';
 
@@ -11,6 +12,7 @@ import { useSiteTheme } from '@/components/SiteTheme';
 import { quoteColors } from '@/colors';
 import { getRoundedMax, getRoundedMin } from '@/utils';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
+import { hasAnalysisValues, NullableAnalysisSeries } from '../../components/legacy-series';
 
 interface IProps {
   dateRange: string[]; // 起止时间
@@ -19,7 +21,7 @@ interface IProps {
 const LimitUpHighOpen = ({ dateRange }: IProps) => {
   const { colors } = useSiteTheme();
   const [loading, setLoading] = useState<boolean>(false);
-  const [sourceData, setSourceData] = useState<NSGetAnalysisSentiList.IRes>([]);
+  const [sourceData, setSourceData] = useState<NullableAnalysisSeries<NSGetAnalysisSentiList.IRes>>([]);
   const { requestConfig, runLatestRequest } = useLatestRequest('senti-limit-up-high-open');
 
   /**
@@ -50,8 +52,8 @@ const LimitUpHighOpen = ({ dateRange }: IProps) => {
    * 生成 echarts options
    */
   const genOptions = () => {
-    const min = getRoundedMin(sourceData.map((item) => +item.sentiB));
-    const max = getRoundedMax(sourceData.map((item) => +item.sentiB));
+    const min = getRoundedMin(sourceData.map((item) => finiteNumber(item.sentiB)));
+    const max = getRoundedMax(sourceData.map((item) => finiteNumber(item.sentiB)));
     const interval = (max - min) / 5;
     return {
       grid: {
@@ -134,7 +136,8 @@ const LimitUpHighOpen = ({ dateRange }: IProps) => {
       ],
     };
   };
-  return loading ? <Loading /> : <CChart genOptions={genOptions} />;
+  if (loading) return <Loading />;
+  return hasAnalysisValues(sourceData) ? <CChart genOptions={genOptions} /> : <Empty description="该日期范围的数据尚未就绪" />;
 };
 
 export default LimitUpHighOpen;

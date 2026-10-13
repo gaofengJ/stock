@@ -1,6 +1,7 @@
+import { Empty } from 'antd';
+import { useCallback, useEffect, useState } from 'react';
 import Loading from '@/components/Loading';
 import { numberText } from '@/utils/format';
-import { useCallback, useEffect, useState } from 'react';
 import { NSGetAnalysisSentiDistributionTatistics } from '@/api/services.types';
 import { getAnalysisSentiDistributionTatistics } from '@/api/services';
 import { quoteColors } from '@/colors';
@@ -8,52 +9,19 @@ import CChart from '@/components/CChart';
 import { useSiteTheme } from '@/components/SiteTheme';
 import { getRoundedMax, getRoundedMin } from '@/utils';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
+import { distributionTotals, hasAnalysisValues, NullableAnalysisSeries } from '../../components/legacy-series';
 
 interface IProps {
   tradeDate: string; // 交易时间
 }
 
-interface ITotalData {
-  countPositive: number;
-  countNegative: number;
-  countZero: number;
-}
-
 const DistributionTatistics = ({ tradeDate }: IProps) => {
   const { colors } = useSiteTheme();
   const [loading, setLoading] = useState<boolean>(false);
-  const [sourceData, setSourceData] = useState<NSGetAnalysisSentiDistributionTatistics.IRes>([]);
+  const [sourceData, setSourceData] = useState<NullableAnalysisSeries<NSGetAnalysisSentiDistributionTatistics.IRes>>([]);
   const { requestConfig, runLatestRequest } = useLatestRequest('senti-distribution-statistics');
 
-  const [totalData, setTotalData] = useState<ITotalData>({
-    countPositive: 0,
-    countNegative: 0,
-    countZero: 0,
-  });
-
-  /**
-   * 计算总数
-   */
-  const calcTotal = (data: NSGetAnalysisSentiDistributionTatistics.IRes) => {
-    // 计算count大于0、等于0和小于0的数量
-    let countPositive = 0;
-    let countZero = 0;
-    let countNegative = 0;
-    for (let i = 0; i < data.length; i += 1) {
-      if (i < 10) {
-        countPositive += data[i].count;
-      } else if (i > 10) {
-        countNegative += data[i].count;
-      } else {
-        countZero += data[i].count;
-      }
-    }
-    setTotalData({
-      countPositive,
-      countNegative,
-      countZero,
-    });
-  };
+  const totalData = distributionTotals(sourceData);
 
   /**
    * 获取数据
@@ -65,15 +33,9 @@ const DistributionTatistics = ({ tradeDate }: IProps) => {
     onStart: () => {
       setLoading(true);
       setSourceData([]);
-      setTotalData({
-        countPositive: 0,
-        countNegative: 0,
-        countZero: 0,
-      });
     },
     onSuccess: ({ data }) => {
       setSourceData(data);
-      calcTotal(data);
     },
     onError: (error) => console.info(error),
     onFinally: () => setLoading(false),
@@ -182,20 +144,21 @@ const DistributionTatistics = ({ tradeDate }: IProps) => {
     };
   };
 
+  const chart = hasAnalysisValues(sourceData) ? <CChart genOptions={genOptions} /> : <Empty description="该交易日的数据尚未就绪" />;
   return (
     <div className="relative">
       <div className="absolute flex items-center top-4 right-60">
         <span className="inline-block w-8 h-8 rounded-[4px] bg-quote-down" />
-        <span className="ml-8 text-16 text-text-black78">{totalData.countPositive}</span>
+        <span className="ml-8 text-16 text-text-black78">{numberText(totalData.countPositive, 0)}</span>
         <span className="inline-block ml-16 w-8 h-8 rounded-[4px] bg-quote-flat" />
-        <span className="ml-8 text-16 text-text-black78">{totalData.countZero}</span>
+        <span className="ml-8 text-16 text-text-black78">{numberText(totalData.countZero, 0)}</span>
         <span className="inline-block ml-16 w-8 h-8 rounded-[4px] bg-quote-up" />
-        <span className="ml-8 text-16 text-text-black78">{totalData.countNegative}</span>
+        <span className="ml-8 text-16 text-text-black78">{numberText(totalData.countNegative, 0)}</span>
       </div>
       {loading ? (
         <Loading />
       ) : (
-        <CChart genOptions={genOptions} />
+        chart
       )}
     </div>
   );

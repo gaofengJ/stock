@@ -185,6 +185,41 @@ export class SyncSourceService {
       throw new Error('沪深京交易所覆盖不完整，等待补齐');
     const rows = mixinDailyParams(daily, limits, basic);
     if (!rows.length) throw new Error('合并后的日线数据为空');
+    const dailyCodes = new Set(daily.map((row) => row.tsCode));
+    const missingQuotes = rows.filter((row) => !dailyCodes.has(row.tsCode));
+    if (missingQuotes.length) {
+      // daily omits suspended stocks, but an incomplete feed looks identical.
+      // Only affirmative full-day suspension evidence permits a missing quote.
+      // https://tushare.pro/document/2?doc_id=214
+      const response = await this.tushare.queryData(
+        'suspend_d',
+        { trade_date: apiDate },
+        'ts_code,trade_date,suspend_type,suspend_timing',
+        5000,
+      );
+      if (!response.data?.fields?.includes('suspend_timing'))
+        throw new Error('停牌来源缺少全天停牌核验字段，保留原行情');
+      const suspensions = readSnapshot(
+        response,
+        ['ts_code', 'trade_date', 'suspend_type'],
+        true,
+      );
+      dateRows(suspensions, date);
+      const fullDay = new Set<string>();
+      const intradayOrResumed = new Set<string>();
+      suspensions.forEach((row) => {
+        if (row.suspendType === 'S' && !String(row.suspendTiming ?? '').trim())
+          fullDay.add(row.tsCode);
+        else intradayOrResumed.add(row.tsCode);
+      });
+      const unexplained = missingQuotes.filter(
+        (row) => !fullDay.has(row.tsCode) || intradayOrResumed.has(row.tsCode),
+      );
+      if (unexplained.length)
+        throw new Error(
+          `日线缺少 ${unexplained.length} 只股票行情且未确认全天停牌，保留原数据并等待补齐`,
+        );
+    }
     const basicCodes = new Set(basic.map((row) => row.tsCode));
     const limitCodes = new Set(limits.map((row) => row.tsCode));
     if (
@@ -227,7 +262,7 @@ export class SyncSourceService {
         normalized[field] =
           row[field] == null || row[field] === '' ? null : row[field];
       });
-      // Limit/basic snapshots also contain suspended stocks without a daily row.
+      // Missing quotes have been verified as full-day suspensions above.
       requiredNumericFields.forEach((field) => {
         normalized[field] = row[field] ?? 0;
       });

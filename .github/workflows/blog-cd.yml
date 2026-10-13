@@ -15,6 +15,12 @@ on:
       - 'apps/blog/**'
       - '.github/scripts/*blog*'
       - '.github/workflows/blog-cd.yml'
+      - 'ops/blog-deploy/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.npmrc'
+      - '.dockerignore'
   # 监听 push 操作
   # 合并后部署；PR 仅构建与验证。
   push:
@@ -24,6 +30,12 @@ on:
       - 'apps/blog/**'
       - '.github/scripts/*blog*'
       - '.github/workflows/blog-cd.yml'
+      - 'ops/blog-deploy/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.npmrc'
+      - '.dockerignore'
 
 permissions:
   contents: read
@@ -42,18 +54,17 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 1
 
       - name: Select incremental release
         id: media
         env:
           FORCE_REUSE: ${{ inputs.reuse_media }}
-          EVENT_NAME: ${{ github.event_name }}
         run: |
           reuse=false
+          # Pushes build the full image: the previous Git commit need not be deployed.
+          # Explicit reuse still validates every media hash against the running image.
           if [ "$FORCE_REUSE" = true ]; then
-            reuse=true
-          elif [ "$EVENT_NAME" = push ] && ! git diff --name-only HEAD^ HEAD -- apps/blog/docs/src/public apps/blog/docs/public | grep -q .; then
             reuse=true
           fi
           echo "reuse=$reuse" >> "$GITHUB_OUTPUT"
@@ -78,6 +89,10 @@ jobs:
       - name: Test article metadata and content access
         run: |
           pnpm -C apps/blog run test
+          node --test .github/scripts/test-blog-overlay.cjs
+          python3 -B -m unittest discover -s ops/blog-deploy -p 'test_*.py'
+          for script in ops/blog-deploy/deploy.sh .github/scripts/clean-blog-overlay.sh; do sh -n "$script"; done
+          bash -n .github/scripts/deploy-blog-style.sh
           node .github/scripts/test-blog-server.cjs
 
       # 5. 打包项目 (生成静态文件)
@@ -120,7 +135,18 @@ jobs:
           context: apps/blog
           push: true
           # 保持使用 stock-blog 镜像名，与之前的修改保持一致
-          tags: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-blog:latest
+          tags: registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-blog:${{ github.sha }}
+          build-args: RELEASE_SHA=${{ github.sha }}
+
+      - name: Upload versioned article deployer
+        if: github.event_name != 'pull_request'
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          source: ops/blog-deploy/deploy.sh
+          target: /opt/stock-blog-style/${{ github.sha }}
 
       # 8. 远程部署 (使用环境变量传递 Secrets，更安全)
       - name: Deploy to Server
@@ -129,17 +155,18 @@ jobs:
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          RELEASE_SHA: ${{ github.sha }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
           # 将敏感信息注入环境变量
-          envs: DOCKER_USERNAME,DOCKER_PASSWORD
+          envs: DOCKER_USERNAME,DOCKER_PASSWORD,RELEASE_SHA
           # 脚本中不再显式传递参数，而是需要在脚本内读取环境变量
           script: |
-            status=$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/auth/blog-access)
+            status=$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/auth/blog-access)
             [ "$status" = 401 ] || [ "$status" = 403 ] || exit 1
-            cd /home && sh stock-blog-deploy.sh
+            sh /opt/stock-blog-style/${{ github.sha }}/ops/blog-deploy/deploy.sh
 
       - name: Package verified style overlay
         if: github.event_name != 'pull_request' && steps.media.outputs.reuse == 'true'

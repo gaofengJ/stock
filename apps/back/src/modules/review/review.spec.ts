@@ -9,6 +9,7 @@ import { StrategyController } from '@/modules/strategy/strategy.controller';
 import { MarketController } from '@/modules/analysis/market/market.controller';
 import { HoldingsDto } from './review.dto';
 import { capStatus, ma5Observation } from './review-rules';
+import { StrategyCacheService } from '../strategy/strategy-cache.service';
 import { ReviewService } from './review.service';
 import {
   announcementCategories,
@@ -105,6 +106,7 @@ describe('personal review', () => {
       strategies as any,
       {} as any,
       { risk: async () => ({ items: [], sources: [] }) } as any,
+      new StrategyCacheService({ query: async () => [] } as any),
     );
     const result = await service.report('2026-09-30');
     expect(strategies.list).toHaveBeenCalledTimes(3);
@@ -165,6 +167,7 @@ describe('personal review', () => {
       {} as any,
       trend as any,
       {} as any,
+      new StrategyCacheService({ query: async () => [] } as any),
     );
     const result = await service.holdings({
       date: '2026-09-28',

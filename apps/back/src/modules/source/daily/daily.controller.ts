@@ -1,3 +1,4 @@
+import { DtoArrayPipe } from '@/pipes/dto-array.pipe';
 import { Permit } from '@/modules/auth/permissions';
 import {
   Body,
@@ -69,7 +70,7 @@ export class DailyController {
   @Permit('data:write')
   @Post('/bulk-create')
   @ApiOperation({ summary: '批量创建Daily' })
-  async bulkCreate(@Body() dto: DailyDto[]) {
+  async bulkCreate(@Body(new DtoArrayPipe(DailyDto)) dto: DailyDto[]) {
     await this.tradeCalService.bulkCreate(dto);
   }
 

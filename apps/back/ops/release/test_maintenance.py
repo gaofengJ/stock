@@ -67,6 +67,18 @@ class MaintenanceTests(unittest.TestCase):
             m.recent_backup(self.root, {'migrationHistory': ['Fixture1']}, NOW)
         self.assertTrue(future.exists())
 
+    def test_backup_age_reports_fresh_stale_and_missing_without_deletion(self):
+        preflight = {'migrationHistory': ['Fixture1']}
+        self.assertEqual(m.backup_status(self.root, preflight, NOW)['status'], 'missing')
+        stale = self.backup('stale-age', 2)
+        status = m.backup_status(self.root, preflight, NOW)
+        self.assertEqual(status['status'], 'stale')
+        self.assertEqual(status['ageHours'], 48)
+        fresh = self.backup('fresh-age', 0.25)
+        self.assertEqual(m.backup_status(self.root, preflight, NOW)['status'], 'fresh')
+        self.assertTrue((stale/'stock.sql.gz').exists())
+        self.assertTrue((fresh/'stock.sql.gz').exists())
+
     def test_retention_keeps_three_latest_and_all_recent_or_failed_snapshots(self):
         for index, age in enumerate([1, 3, 8, 10, 12]):
             self.backup('success-'+str(index), age)

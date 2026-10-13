@@ -8,7 +8,7 @@ flock -n 9 || { echo 'Another article style release is running'; exit 1; }
 cd "$PACKAGE"
 tar -xzf blog-style.tgz
 # Do not enable the content gate until the backend permission endpoint exists.
-status=$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/auth/blog-access)
+status=$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/auth/blog-access)
 [[ "$status" == 401 || "$status" == 403 ]] || { echo 'Backend article access check is not ready'; exit 1; }
 base=$(docker inspect --format '{{.Image}}' stock-blog)
 docker image inspect "$base" > base-image.json
@@ -19,7 +19,7 @@ docker run --rm --entrypoint sh -v "$PACKAGE/media.sha256:/tmp/media.sha256:ro" 
   -c 'cd /usr/share/nginx/html && sha256sum -c /tmp/media.sha256 >/dev/null'
 echo 'Existing media hashes verified; no media needs uploading.'
 docker tag "$base" "stock-blog-style-base:${RELEASE_SHA:0:12}"
-printf 'FROM stock-blog-style-base:%s\nRUN rm -f /etc/nginx/conf.d/default.conf /etc/nginx/conf.d/stock-blog.nginx.conf\nCOPY nginx.conf /etc/nginx/conf.d/default.conf\nCOPY overlay/ /usr/share/nginx/html/\nLABEL stock.blog.release=%s\n' \
+printf 'FROM stock-blog-style-base:%s\nRUN rm -f /etc/nginx/conf.d/default.conf /etc/nginx/conf.d/stock-blog.nginx.conf\nCOPY nginx.conf /etc/nginx/conf.d/default.conf\nCOPY media-files.txt clean-blog-overlay.sh /tmp/\nRUN sh /tmp/clean-blog-overlay.sh /usr/share/nginx/html /tmp/media-files.txt && rm /tmp/clean-blog-overlay.sh /tmp/media-files.txt\nCOPY overlay/ /usr/share/nginx/html/\nLABEL stock.blog.release=%s\n' \
   "${RELEASE_SHA:0:12}" "$RELEASE_SHA" > Dockerfile
 printf 'blog-style.tgz\nmedia.sha256\n*.json\n' > .dockerignore
 docker build --pull=false -t "$REGISTRY:$RELEASE_SHA" .
@@ -27,24 +27,8 @@ docker build --pull=false -t "$REGISTRY:$RELEASE_SHA" .
 docker run --rm "$REGISTRY:$RELEASE_SHA" nginx -t
 printf '%s' "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin registry.cn-hangzhou.aliyuncs.com
 docker push "$REGISTRY:$RELEASE_SHA"
-docker tag "$REGISTRY:$RELEASE_SHA" "$REGISTRY:latest"
-deploy_started=0
-rollback() {
-  code=$?
-  trap - EXIT
-  if [[ "$code" != 0 && "$deploy_started" == 1 ]]; then
-    echo 'Article deployment failed; restoring the previous image.' >&2
-    docker tag "$base" "$REGISTRY:latest"
-    docker push "$REGISTRY:latest"
-    (cd /home && sh stock-blog-deploy.sh) || true
-  fi
-  exit "$code"
-}
-trap rollback EXIT
-docker push "$REGISTRY:latest"
-deploy_started=1
-cd /home
-sh stock-blog-deploy.sh
+# The versioned deployer performs container rollback on startup/access failures.
+sh "$PACKAGE/ops/blog-deploy/deploy.sh"
 [[ "$(docker inspect --format '{{.State.Running}}' stock-blog)" == true ]]
 [[ "$(docker inspect --format '{{index .Config.Labels "stock.blog.release"}}' stock-blog)" == "$RELEASE_SHA" ]]
 docker exec stock-blog nginx -t

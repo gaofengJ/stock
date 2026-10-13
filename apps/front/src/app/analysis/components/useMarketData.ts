@@ -1,5 +1,7 @@
+import {
+  useCallback, useEffect, useId, useState,
+} from 'react';
 import { errorMessage } from '@/api/errors';
-import { useCallback, useEffect, useState } from 'react';
 import { marketRequest } from '@/api/market';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { useMarket } from './MarketContext';
@@ -13,7 +15,8 @@ export default function useMarketData<T>(endpoint: string, extra: Record<string,
   const [attempt, setAttempt] = useState(0);
   const retry = useCallback(() => setAttempt((v) => v + 1), []);
   const [error, setError] = useState('');
-  const { requestConfig, runLatestRequest } = useLatestRequest(`market-${endpoint}`);
+  const instance = useId();
+  const { requestConfig, runLatestRequest } = useLatestRequest(`market-${endpoint}-${instance}`);
   const extraKey = JSON.stringify(extra);
   const defaultDays = ['limits', 'ladder'].includes(endpoint) ? 20 : selectedDays;
   const days = typeof extra.days === 'number' ? extra.days : defaultDays;

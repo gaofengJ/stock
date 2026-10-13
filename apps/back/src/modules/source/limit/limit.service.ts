@@ -1,3 +1,4 @@
+import { queryColumn } from '@/shared/database/query-column';
 import { withoutSectorClassification } from '@/modules/analysis/market/sector.utils';
 import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
 import { Injectable, NotFoundException, Optional } from '@nestjs/common';
@@ -49,7 +50,10 @@ export class LimitService {
       this.LimitRepository.createQueryBuilder('t_source_limit');
     if (fields?.length) {
       queryBuilder = queryBuilder.select(
-        fields.map((i: string) => `t_source_limit.${i}`),
+        fields.map(
+          (i: string) =>
+            `t_source_limit.${queryColumn(this.LimitRepository.metadata, i)}`,
+        ),
       );
     }
     queryBuilder = queryBuilder
@@ -61,7 +65,13 @@ export class LimitService {
         ...(tradeDate && { tradeDate }),
         ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
       })
-      .orderBy(orderField, order);
+      .orderBy(
+        `t_source_limit.${queryColumn(
+          this.LimitRepository.metadata,
+          orderField,
+        )}`,
+        order,
+      );
     const result = await paginate(queryBuilder, { pageNum, pageSize });
     return new Pagination(
       this.sectors
@@ -91,7 +101,13 @@ export class LimitService {
         ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
       })
       .groupBy('t_source_limit.tradeDate')
-      .orderBy(orderField, order)
+      .orderBy(
+        `t_source_limit.${queryColumn(
+          this.LimitRepository.metadata,
+          orderField,
+        )}`,
+        order,
+      )
       .getRawMany();
 
     ret = ret.map((i) => ({
@@ -121,7 +137,13 @@ export class LimitService {
         ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
       })
       .groupBy('t_source_limit.tradeDate')
-      .orderBy(orderField, order)
+      .orderBy(
+        `t_source_limit.${queryColumn(
+          this.LimitRepository.metadata,
+          orderField,
+        )}`,
+        order,
+      )
       .getRawMany();
 
     ret = ret.map((i) => ({
@@ -155,7 +177,13 @@ export class LimitService {
         ...(zeroOpenTimes && { openTimes: 0 }), // 打开次数为0，代表未开板
       })
       .groupBy('t_source_limit.tradeDate')
-      .orderBy(orderField, order)
+      .orderBy(
+        `t_source_limit.${queryColumn(
+          this.LimitRepository.metadata,
+          orderField,
+        )}`,
+        order,
+      )
       .getRawMany();
     ret = ret.map((i) => ({
       tradeDate: dayjs(i.tradeDate).format('YYYY-MM-DD'),
@@ -188,7 +216,13 @@ export class LimitService {
       })
       .andWhere('t_source_limit.limitTimes >= :limitTimes', { limitTimes })
       .groupBy('t_source_limit.tradeDate')
-      .orderBy(orderField, order)
+      .orderBy(
+        `t_source_limit.${queryColumn(
+          this.LimitRepository.metadata,
+          orderField,
+        )}`,
+        order,
+      )
       .getRawMany();
 
     ret = ret.map((i) => ({
@@ -219,7 +253,13 @@ export class LimitService {
         ...(startDate && endDate && { tradeDate: Between(startDate, endDate) }),
       })
       .groupBy('t_source_limit.tradeDate')
-      .orderBy(orderField, order)
+      .orderBy(
+        `t_source_limit.${queryColumn(
+          this.LimitRepository.metadata,
+          orderField,
+        )}`,
+        order,
+      )
       .getRawMany();
 
     ret = ret.map((i) => ({
@@ -251,7 +291,13 @@ export class LimitService {
       })
       .andWhere('t_source_limit.limitTimes > 1')
       .groupBy('t_source_limit.tradeDate')
-      .orderBy(orderField, order)
+      .orderBy(
+        `t_source_limit.${queryColumn(
+          this.LimitRepository.metadata,
+          orderField,
+        )}`,
+        order,
+      )
       .getRawMany();
 
     ret = ret.map((i) => ({

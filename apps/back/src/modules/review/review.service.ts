@@ -1,6 +1,7 @@
 /* eslint-disable no-await-in-loop, no-restricted-syntax */
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { StrategyCacheService } from '@/modules/strategy/strategy-cache.service';
 import { StrategyService } from '@/modules/strategy/strategy.service';
 import { TrendService } from '@/modules/strategy/trend.service';
 import { WorkbenchService } from '@/modules/basic/workbench/workbench.service';
@@ -16,6 +17,7 @@ export class ReviewService {
     private strategies: StrategyService,
     private trends: TrendService,
     private workbench: WorkbenchService,
+    private cache: StrategyCacheService,
   ) {}
 
   private async validateDate(date: string) {
@@ -33,6 +35,10 @@ export class ReviewService {
   }
 
   async report(date: string) {
+    return this.cache.withRevisionSnapshot(() => this.buildReport(date));
+  }
+
+  private async buildReport(date: string) {
     await this.validateDate(date);
     const tabs = await this.strategies.navList();
     const merged = new Map<string, any>();

@@ -1,3 +1,4 @@
+import { DtoArrayPipe } from '@/pipes/dto-array.pipe';
 import { Permit } from '@/modules/auth/permissions';
 import {
   Body,
@@ -69,7 +70,7 @@ export class SentiController {
   @Permit('data:write')
   @Post('/bulk-create')
   @ApiOperation({ summary: '批量创建Senti' })
-  async bulkCreate(@Body() dto: SentiDto[]) {
+  async bulkCreate(@Body(new DtoArrayPipe(SentiDto)) dto: SentiDto[]) {
     await this.sentiService.bulkCreate(dto);
   }
 

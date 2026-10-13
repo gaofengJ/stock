@@ -1,3 +1,5 @@
+import { createHash } from 'crypto';
+import { hydrateNotebookAssets } from './notebook-assets';
 import { parseNotebook } from './notebook.content';
 import { NotebookService } from './notebook.service';
 import { fastifyApp } from '../../adapters/fastify.adapters';
@@ -48,21 +50,41 @@ describe('illustrated notebook', () => {
     ).toThrow();
   });
 
-  it('records self-contained public image snapshots and preserves ownership filters', async () => {
+  it('stores deduplicated public images and hydrates owner-scoped snapshots', async () => {
     const query = jest
       .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ generation: 0 }])
       .mockResolvedValueOnce([{ content: JSON.stringify(content()) }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
-    const service = new NotebookService({ query } as any);
+    const service = new NotebookService({
+      transaction: (run: any) => run({ query }),
+    } as any);
     await service.recordPublication(17, {
       date: '2026-09-30',
       revision: 2,
       channel: 'xueqiu',
       url: 'https://xueqiu.com/123/456',
     });
-    expect(query.mock.calls[0][1]).toEqual([17, '2026-09-30', 2]);
-    const body = query.mock.calls[1][1][5];
-    expect(body).toContain(png);
+    expect(query.mock.calls[2][1]).toEqual([17, '2026-09-30', 2]);
+    const body = query.mock.calls[5][1][5];
+    const imageRefs = query.mock.calls[5][1][6];
+    const hash = createHash('sha256').update(png).digest('hex');
+    expect(imageRefs).toContain(`review-asset:${hash}`);
+    const imageQuery = jest.fn().mockResolvedValue([{ hash, data: png }]);
+    expect(
+      (
+        await hydrateNotebookAssets(
+          { query: imageQuery },
+          17,
+          [],
+          [{ body, imageRefs }],
+        )
+      ).bodies[0],
+    ).toContain(png);
+    expect(imageQuery.mock.calls[0][1]).toEqual([17, hash]);
     expect(body).not.toContain('PRIVATE_SENTINEL');
   });
 
@@ -132,6 +154,7 @@ describe('notebook history reset', () => {
       t_review_publication: 3,
       t_review_notebook_version: 3,
       t_review_notebook: 3,
+      t_review_image: 3,
     });
     expect(transaction).toHaveBeenCalledTimes(1);
     query.mock.calls.forEach((call) => {

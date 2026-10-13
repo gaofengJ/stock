@@ -1,8 +1,9 @@
+import { Empty } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import dayjs from 'dayjs';
 import Loading from '@/components/Loading';
 import { numberText } from '@/utils/format';
-import React, { useState, useEffect, useCallback } from 'react';
 
-import dayjs from 'dayjs';
 import { getAnalysisChainsCountLimitUpAboveTimes } from '@/api/services';
 import { NSGetAnalysisChainsCountLimitUpAboveTimes } from '@/api/services.types';
 
@@ -11,6 +12,7 @@ import { useSiteTheme } from '@/components/SiteTheme';
 import { quoteColors } from '@/colors';
 import { getRoundedMax, getRoundedMin } from '@/utils';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
+import { hasAnalysisValues, NullableAnalysisSeries } from '../../components/legacy-series';
 
 interface IProps {
   dateRange: string[]; // 起止时间
@@ -24,7 +26,7 @@ const LIMIT_ABOVE_TIMES = 4;
 const CountLimitUpAbove4 = ({ dateRange }: IProps) => {
   const { colors } = useSiteTheme();
   const [loading, setLoading] = useState<boolean>(false);
-  const [sourceData, setSourceData] = useState<NSGetAnalysisChainsCountLimitUpAboveTimes.IRes>([]);
+  const [sourceData, setSourceData] = useState<NullableAnalysisSeries<NSGetAnalysisChainsCountLimitUpAboveTimes.IRes>>([]);
   const { requestConfig, runLatestRequest } = useLatestRequest('chains-count-limit-up-above-4');
 
   /**
@@ -136,7 +138,8 @@ const CountLimitUpAbove4 = ({ dateRange }: IProps) => {
       ],
     };
   };
-  return loading ? <Loading /> : <CChart genOptions={genOptions} />;
+  if (loading) return <Loading />;
+  return hasAnalysisValues(sourceData) ? <CChart genOptions={genOptions} /> : <Empty description="该日期范围的数据尚未就绪" />;
 };
 
 export default CountLimitUpAbove4;
