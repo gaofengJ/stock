@@ -96,7 +96,6 @@ body:has(.notebook-preview-open) .platform-content:has(.review-page) { overflow:
 .notebook-platform-images .ant-image .ant-image-img { width:100%; height:220px; object-fit:contain; }
 .notebook-platform-images figcaption { margin-top:8px; color:var(--color-text-secondary); }
 .notebook-document > .ant-card-body { display:grid; gap:24px; }
-.notebook-save-bottom { justify-self:start; }
 @media(max-width:767px) { .notebook-platform-images { grid-template-columns:minmax(0,1fr); } }
 
 .notebook-article-preview h2 { margin-top: 40px; }

@@ -15,7 +15,10 @@ import ArticleEditor from './ArticleEditor';
 import InvestmentCalendar from '../basic/components/InvestmentCalendar';
 import { Materials, emptyMaterials, validateMaterials } from './materials-contract';
 import { loadResearch } from './research';
-import { emptyNotebook, internalFields, NotebookContent } from './notebook-model';
+import {
+  emptyNotebook, internalFields, NotebookContent, SavedNotebook,
+} from './notebook-model';
+import { leavesDocument } from './navigation-guard';
 import { eveningFlow } from './evening-flow';
 import { emptyArticle } from './article-contract';
 import { notebookPayload, toolEvidenceError } from './notebook-limits';
@@ -38,6 +41,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
   const [sourceRefresh, setSourceRefresh] = useState(0);
   const [attempt, setAttempt] = useState(0);
   const editCounter = useRef(0);
+  const saving = useRef(false);
   const captureAbort = useRef<AbortController>();
   const captureTask = useRef<Promise<string> | null>(null);
   useEffect(() => { onDirty(dirty); }, [dirty, onDirty]);
@@ -53,27 +57,33 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
     if (!dirty) return undefined;
     const leave = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
     const block = (e: MouseEvent) => {
-      const anchor = (e.target as HTMLElement)?.closest('a');
-      if (anchor && anchor.target !== '_blank' && !window.confirm('尚有未保存内容，确定离开？')) { e.preventDefault(); e.stopPropagation(); }
+      const anchor = e.target instanceof Element ? e.target.closest('a') : null;
+      if (anchor && leavesDocument(anchor, e, window.location.href) && !window.confirm('尚有未保存内容，确定离开？')) { e.preventDefault(); e.stopPropagation(); }
     };
     window.addEventListener('beforeunload', leave); document.addEventListener('click', block, true);
     return () => { window.removeEventListener('beforeunload', leave); document.removeEventListener('click', block, true); };
   }, [dirty]);
   const changed = useCallback((next: NotebookContent) => { editCounter.current += 1; current.current = next; setContent(next); setDirty(true); }, []);
   const change = (key: string, value: string) => changed({ ...current.current, private: { ...current.current.private, [key]: value } });
-  const save = async () => {
-    if (!snapshot || busy || researchBusy) return;
+  const save = async (): Promise<SavedNotebook | null> => {
+    if (!snapshot || saving.current || researchBusy) return null;
+    saving.current = true;
     setBusy(true); setError(''); const edit = editCounter.current;
     try {
       const saved = current.current;
       const payload = notebookPayload(date, snapshot.revision, snapshot.generation || 0, saved);
       const { data } = await request.post<{ revision: number }>('/review/notebook', payload, { autoShowError: false });
       setSnapshot({ ...snapshot, revision: data.revision, content: saved });
-      if (editCounter.current === edit) setDirty(false);
+      if (editCounter.current !== edit) { setStatus('已保存先前内容，新的修改仍需保存。'); return null; }
+      setDirty(false);
       setStatus('记录与图片已保存');
-    } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+      return {
+        date, revision: data.revision, generation: snapshot.generation || 0, content: saved,
+      };
+    } catch (e) { setError(errorMessage(e)); return null; } finally { saving.current = false; setBusy(false); }
   };
   const captureCandidates = useCallback((text: string) => {
+    if (current.current.private.toolEvidence === text) return;
     editCounter.current += 1;
     const next = { ...current.current, private: { ...current.current.private, toolEvidence: text } };
     current.current = next; setContent(next); setDirty(true);
@@ -132,7 +142,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
           <Button disabled={!snapshot} loading={researchBusy} onClick={() => importMarket(true)}>准备图文资料</Button>
           {researchBusy && <Button onClick={() => captureAbort.current?.abort()}>停止准备</Button>}
           <Button disabled={!snapshot || researchBusy} onClick={() => importMarket()}>重新生成全部图片</Button>
-          <span className="review-caption">准备四张暗色长图，保存后交给 Skill。文字记录可留空。</span>
+          <span className="review-caption">准备四张暗色长图后，可直接保存并复制 Skill 任务。文字记录可留空。</span>
           <Link href="/trading-system/" target="_blank" rel="noopener noreferrer">复盘方法</Link>
         </Space>
       </div>
@@ -174,8 +184,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
           <label htmlFor="review-document-title">文章名称</label>
           <Input id="review-document-title" value={content.public.title || `${date}复盘`} disabled={!snapshot} maxLength={200} onChange={(e) => changed({ ...current.current, public: { ...current.current.public, title: e.target.value }, ...(current.current.article?.body ? { article: { ...current.current.article, body: current.current.article.body.replace(/^# [^\n]+/, `# ${e.target.value || `${date}复盘`}`) } } : {}) })} />
         </div>
-        <ArticleEditor date={date} generation={snapshot?.generation || 0} revision={snapshot?.revision || 0} content={content} disabled={!snapshot || researchBusy} previewDisabled={!snapshot} onPreparePreview={() => importMarket(true)} dirty={dirty} onStatus={setStatus} onMaterials={changeMaterials} onChange={(article) => changed({ ...current.current, article })} />
-        <Button type="primary" className="notebook-save-bottom" disabled={!snapshot || !dirty || researchBusy} loading={busy} onClick={save}>保存复盘</Button>
+        <ArticleEditor date={date} generation={snapshot?.generation || 0} revision={snapshot?.revision || 0} content={content} disabled={!snapshot || researchBusy || busy} saving={busy} onSave={save} previewDisabled={!snapshot} onPreparePreview={() => importMarket(true)} dirty={dirty} onStatus={setStatus} onMaterials={changeMaterials} onChange={(article) => changed({ ...current.current, article })} />
       </Card>
     </div>
   );
