@@ -103,6 +103,29 @@ def recent_backup(root, preflight, now=None):
     raise ValueError('No verified backup of the current schema within 36 hours')
 
 
+def backup_status(root, preflight, now=None):
+    """Report the age of a verified current-schema backup, including stale ones."""
+    now = time.time() if now is None else now
+    for directory in backup_directories(root):
+        manifest = directory/'backup.json'
+        if not manifest.is_file() or manifest.is_symlink():
+            continue
+        try:
+            record = json.loads(manifest.read_text())
+            age = now - timestamp(record['completedAt'])
+            if record.get('version') != 1 or record.get('database') != 'stock' or age < 0:
+                continue
+            if sorted(record.get('migrationHistory', [])) != sorted(preflight['migrationHistory']):
+                continue
+            if record.get('sha256') != verified_backup(directory) or record.get('bytes') != (directory/'stock.sql.gz').stat().st_size:
+                continue
+            return dict(status='fresh' if age <= 36*3600 else 'stale', ageHours=round(age/3600, 2),
+                        completedAt=record['completedAt'], directory=str(directory))
+        except (OSError, ValueError, KeyError, EOFError):
+            continue
+    return dict(status='missing', ageHours=None)
+
+
 def backup_candidates(root, now=None):
     now = time.time() if now is None else now
     # Keep at least three newest snapshots AND all snapshots younger than a week.
@@ -375,9 +398,13 @@ def main():
     scope.add_argument('--images-only', action='store_true')
     scope.add_argument('--backups-only', action='store_true')
     parser.add_argument('--check-backup', metavar='PREFLIGHT_JSON')
+    parser.add_argument('--backup-status', action='store_true')
     args = parser.parse_args()
     root = pathlib.Path(args.root)
-    if args.check_backup:
+    if args.backup_status:
+        preflight = json.loads(subprocess.check_output(['docker', 'exec', 'stock-back', 'node', 'ops/release/database.cjs', 'backup-info'], universal_newlines=True))
+        result = backup_status(root, preflight)
+    elif args.check_backup:
         result = recent_backup(root, json.loads(pathlib.Path(args.check_backup).read_text()))
     else:
         result = maintenance(root, args.apply, args.images_only, args.backups_only)

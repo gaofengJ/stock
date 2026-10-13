@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { createHash } from 'crypto';
+import { AsyncLocalStorage } from 'async_hooks';
 
 /** Cache only undecorated candidates; sector membership is checked on every request. */
 @Injectable()
@@ -10,9 +11,26 @@ export class StrategyCacheService {
     { expires: number; promise: Promise<any[]> }
   >();
 
+  private readonly revisions = new AsyncLocalStorage<
+    Map<string, Promise<string>>
+  >();
+
   constructor(private db: DataSource) {}
 
-  async read(date: string, parameters: object, loader: () => Promise<any[]>) {
+  withRevisionSnapshot<T>(action: () => Promise<T>): Promise<T> {
+    return this.revisions.run(new Map(), action);
+  }
+
+  private revision(date: string): Promise<string> {
+    const snapshot = this.revisions.getStore();
+    const existing = snapshot?.get(date);
+    if (existing) return existing;
+    const revision = this.loadRevision(date);
+    snapshot?.set(date, revision);
+    return revision;
+  }
+
+  private async loadRevision(date: string) {
     // Read publication and deletion versions every time, including failed/running
     // sources. A repaired or protected day cannot reuse a previous result.
     const versions = await this.db.query(
@@ -24,9 +42,11 @@ export class StrategyCacheService {
        WHERE trade_date BETWEEN DATE_SUB(?, INTERVAL 18 MONTH) AND ? UNION ALL SELECT CAST(CONCAT('alias:',old_code) AS BINARY),CAST(CONCAT(new_code,':',updated_at) AS BINARY) FROM t_source_bse_mapping ORDER BY k`,
       [date, date, date, date, date],
     );
-    const revision = createHash('sha256')
-      .update(JSON.stringify(versions))
-      .digest('hex');
+    return createHash('sha256').update(JSON.stringify(versions)).digest('hex');
+  }
+
+  async read(date: string, parameters: object, loader: () => Promise<any[]>) {
+    const revision = await this.revision(date);
     const key = JSON.stringify([date, parameters, revision]);
     const now = Date.now();
     this.entries.forEach((entry, id) => {

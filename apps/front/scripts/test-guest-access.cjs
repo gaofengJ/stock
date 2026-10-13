@@ -10,11 +10,13 @@ function client() {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   new Function('exports', navigationCode)(navigation);
+  const deadline = {};
+  new Function('exports', ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/auth/request-deadline.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText)(deadline);
   const exports = {};
   const code = ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/auth/client.ts'), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
-  new Function('require', 'exports', code)((name) => name === '@/components/Layout/enum' ? navigation : ({ readApiResponse: async r => r.json(), userError: e => e }), exports);
+  new Function('require', 'exports', code)((name) => name === './request-deadline' ? deadline : name === '@/components/Layout/enum' ? navigation : ({ readApiResponse: async r => r.json(), userError: e => e }), exports);
   return exports;
 }
 

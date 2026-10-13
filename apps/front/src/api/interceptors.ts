@@ -13,7 +13,7 @@ import { errorMessage, userError } from './errors';
 const registerRequestInterceptor = (ctx: BaseAxios, axios: Axios) => {
   axios.interceptors.request.use(
     async (config) => {
-      if (!['get', 'head', 'options'].includes(config.method || 'get')) config.headers['X-CSRF-Token'] = await csrfToken();
+      if (!['get', 'head', 'options'].includes(config.method || 'get')) config.headers['X-CSRF-Token'] = await csrfToken({ signal: config.signal as AbortSignal | undefined, timeout: config.timeout });
       // 如果请求方法是 GET，设置参数序列化配置
       if (config.method === 'get') {
         config.paramsSerializer = {

@@ -1,3 +1,4 @@
+import { DtoArrayPipe } from '@/pipes/dto-array.pipe';
 import { Permit } from '@/modules/auth/permissions';
 import {
   Body,
@@ -69,7 +70,7 @@ export class LimitController {
   @Permit('data:write')
   @Post('/bulk-create')
   @ApiOperation({ summary: '批量创建Limit' })
-  async bulkCreate(@Body() dto: LimitDto[]) {
+  async bulkCreate(@Body(new DtoArrayPipe(LimitDto)) dto: LimitDto[]) {
     await this.tradeCalService.bulkCreate(dto);
   }
 

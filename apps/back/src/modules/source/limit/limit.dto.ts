@@ -1,5 +1,7 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import {
+  IsArray,
+  ArrayMaxSize,
   IsBoolean,
   IsDateString,
   IsEnum,
@@ -99,38 +101,49 @@ export class LimitDto {
 }
 
 export class LimitQueryDto extends PagerDto {
+  @IsOptional()
   @ApiProperty({ description: '股票代码（包含交易所）' })
   @IsString()
   tsCode?: string;
 
+  @IsOptional()
   @ApiProperty({ description: '股票名称' })
   @IsString()
   name?: string;
 
+  @IsOptional()
   @ApiProperty({ description: '交易日期' })
   @IsDateString()
   tradeDate?: string;
 
-  @ApiProperty({ description: '过滤字段' })
   @IsOptional()
+  @ApiProperty({ description: '过滤字段' })
+  @IsArray()
+  @ArrayMaxSize(100)
+  @IsString({ each: true })
   fields?: string[];
 
+  @IsOptional()
   @ApiProperty({ description: 'D跌停，U涨停，Z炸板' })
   @IsEnum(ELimit)
   limit?: string;
 
+  @IsOptional()
   @ApiProperty({ description: '连板数' })
   @IsNumber()
   limitTimes?: number;
 
+  @IsOptional()
   @ApiProperty({ description: '开始时间' })
   @IsDateString()
   startDate?: string;
 
+  @IsOptional()
   @ApiProperty({ description: '结束时间' })
   @IsDateString()
   endDate?: string;
 
+  @IsOptional()
   @ApiProperty({ description: '是否打开涨停' })
   @IsBoolean()
   zeroOpenTimes?: boolean;

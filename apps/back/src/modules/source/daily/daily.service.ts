@@ -1,3 +1,4 @@
+import { queryColumn } from '@/shared/database/query-column';
 import {
   withoutSectorClassification,
   sectorFilterCodes,
@@ -246,7 +247,13 @@ export class DailyService {
         amount: Not(0), // 排除成交量为 0 的股票，例如暂停交易的股票、各类ETF
       })
       .groupBy('t_source_daily.tradeDate')
-      .orderBy(orderField, order)
+      .orderBy(
+        `t_source_daily.${queryColumn(
+          this.DailyRepository.metadata,
+          orderField,
+        )}`,
+        order,
+      )
       .getRawMany();
 
     ret = ret.map((i) => ({

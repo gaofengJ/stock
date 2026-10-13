@@ -1,8 +1,9 @@
+import { Empty } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import dayjs from 'dayjs';
 import Loading from '@/components/Loading';
 import { numberText } from '@/utils/format';
-import React, { useState, useEffect, useCallback } from 'react';
 
-import dayjs from 'dayjs';
 import { getAnalysisChainsLimitUpAmount } from '@/api/services';
 import { NSGetAnalysisChainsLimitUpAmount } from '@/api/services.types';
 
@@ -11,6 +12,7 @@ import { useSiteTheme } from '@/components/SiteTheme';
 import { quoteColors } from '@/colors';
 import { getRoundedMax, getRoundedMin } from '@/utils';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
+import { hasAnalysisValues, NullableAnalysisSeries, analysisAmount } from '../../components/legacy-series';
 
 interface IProps {
   dateRange: string[]; // 起止时间
@@ -19,7 +21,7 @@ interface IProps {
 const AmountLimitUp = ({ dateRange }: IProps) => {
   const { colors } = useSiteTheme();
   const [loading, setLoading] = useState<boolean>(false);
-  const [sourceData, setSourceData] = useState<NSGetAnalysisChainsLimitUpAmount.IRes>([]);
+  const [sourceData, setSourceData] = useState<NullableAnalysisSeries<NSGetAnalysisChainsLimitUpAmount.IRes>>([]);
   const { requestConfig, runLatestRequest } = useLatestRequest('chains-amount-limit-up');
 
   /**
@@ -50,8 +52,8 @@ const AmountLimitUp = ({ dateRange }: IProps) => {
    * 生成 echarts options
    */
   const genOptions = () => {
-    const min = getRoundedMin(sourceData.map((item) => item.totalAmount / 100000000));
-    const max = getRoundedMax(sourceData.map((item) => item.totalAmount / 100000000));
+    const min = getRoundedMin(sourceData.map((item) => analysisAmount(item.totalAmount)));
+    const max = getRoundedMax(sourceData.map((item) => analysisAmount(item.totalAmount)));
     const interval = (max - min) / 5;
     return {
       grid: {
@@ -129,12 +131,13 @@ const AmountLimitUp = ({ dateRange }: IProps) => {
             formatter: (p: { value: unknown }) => `${numberText(p.value)}亿元`,
             color: quoteColors.up,
           },
-          data: sourceData.map((item) => item.totalAmount / 100000000),
+          data: sourceData.map((item) => analysisAmount(item.totalAmount)),
         },
       ],
     };
   };
-  return loading ? <Loading /> : <CChart genOptions={genOptions} />;
+  if (loading) return <Loading />;
+  return hasAnalysisValues(sourceData) ? <CChart genOptions={genOptions} /> : <Empty description="该日期范围的数据尚未就绪" />;
 };
 
 export default AmountLimitUp;

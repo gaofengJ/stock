@@ -168,9 +168,6 @@
     gap: 12px
   .market-heading
     flex-wrap: wrap
-  .market-data-state
-    position: relative
-    min-height: 120px
   .market-initial-loading
     position: relative
     min-height: max(360px, calc(100dvh - 240px))
@@ -345,6 +342,11 @@ a.market-ladder-stock:hover, a.market-ladder-stock:focus-visible
   &:focus-visible
     outline: 2px solid var(--color-primary)
     outline-offset: -2px
+
+// Detail dialogs render through a portal outside .market-page.
+.market-data-state
+  position: relative
+  min-height: 120px
 
 .sentiment-chart-pair
   margin-bottom: 20px

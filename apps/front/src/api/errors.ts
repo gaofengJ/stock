@@ -32,7 +32,11 @@ export function errorMessage(error: unknown, fallback = '操作失败，请稍�
 }
 
 export function userError(error: unknown, status?: number): Error {
-  return new Error(errorMessage(status ? { status, message: error } : error));
+  const source = error as { status?: number; response?: { status?: number }; code?: string } | null;
+  return Object.assign(new Error(errorMessage(status ? { status, message: error } : error)), {
+    status: status ?? source?.status ?? source?.response?.status,
+    code: source?.code,
+  });
 }
 
 /** 兼容网关返回纯文本、错误页、空响应和不符合统一响应结构的内容。 */

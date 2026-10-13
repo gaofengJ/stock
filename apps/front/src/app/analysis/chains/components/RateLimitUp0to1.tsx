@@ -1,8 +1,9 @@
+import { Empty } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import dayjs from 'dayjs';
 import Loading from '@/components/Loading';
 import { numberText } from '@/utils/format';
-import React, { useState, useEffect, useCallback } from 'react';
 
-import dayjs from 'dayjs';
 import { getAnalysisChainsUpgradeLimitUpRates } from '@/api/services';
 import { NSGetAnalysisChainsUpgradeLimitUpRates } from '@/api/services.types';
 
@@ -11,6 +12,7 @@ import { useSiteTheme } from '@/components/SiteTheme';
 import { quoteColors } from '@/colors';
 import { getRoundedMax, getRoundedMin } from '@/utils';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
+import { hasAnalysisValues, NullableAnalysisSeries } from '../../components/legacy-series';
 
 interface IProps {
   dateRange: string[]; // 起止时间
@@ -24,7 +26,7 @@ const UPGRADE_NUM = 1;
 const RateLimitUp0to1 = ({ dateRange }: IProps) => {
   const { colors } = useSiteTheme();
   const [loading, setLoading] = useState<boolean>(false);
-  const [sourceData, setSourceData] = useState<NSGetAnalysisChainsUpgradeLimitUpRates.IRes>([]);
+  const [sourceData, setSourceData] = useState<NullableAnalysisSeries<NSGetAnalysisChainsUpgradeLimitUpRates.IRes>>([]);
   const { requestConfig, runLatestRequest } = useLatestRequest('chains-rate-limit-up-0-to-1');
 
   /**
@@ -140,7 +142,8 @@ const RateLimitUp0to1 = ({ dateRange }: IProps) => {
       ],
     };
   };
-  return loading ? <Loading /> : <CChart genOptions={genOptions} />;
+  if (loading) return <Loading />;
+  return hasAnalysisValues(sourceData) ? <CChart genOptions={genOptions} /> : <Empty description="该日期范围的数据尚未就绪" />;
 };
 
 export default RateLimitUp0to1;

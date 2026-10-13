@@ -1,7 +1,7 @@
 // Manual, owner-scoped notebook maintenance. No content or credentials are logged.
 const db = require(process.cwd() + '/dist/migration-data-source').default;
 const { NotebookService } = require(process.cwd() + '/dist/modules/review/notebook.service');
-const tables = ['t_review_notebook', 't_review_notebook_version', 't_review_publication'];
+const tables = ['t_review_notebook', 't_review_notebook_version', 't_review_publication', 't_review_image'];
 (async () => {
   await db.initialize();
   try {

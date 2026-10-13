@@ -17,6 +17,7 @@ import { readImage } from './article-media';
 import { materialSources, readResult, reviewPacket } from './article-handoff';
 import { missingPlatformImages } from './platform-images';
 import { Materials, emptyMaterials, materialUrl } from './materials-contract';
+import { notebookPayload } from './notebook-limits';
 
 function download(name: string, text: string, type: string) {
   const url = URL.createObjectURL(new Blob([text], { type }));
@@ -75,7 +76,9 @@ export default function ArticleEditor({
   const importResult = (raw: string) => {
     try {
       if (context.current.dirty || context.current.disabled || context.current.date !== date || context.current.revision !== revision) throw new Error('当前版本已变动，请先保存后重新导入');
-      update(readResult(raw, date, revision, content, generation)); onStatus('成稿与图片已回填，请检查并保存新版本。');
+      const imported = readResult(raw, date, revision, content, generation);
+      notebookPayload(date, revision, generation, { ...content, article: imported });
+      onChange(imported); setError(''); onStatus('成稿与图片已回填，请检查并保存新版本。');
     } catch (e) { setError((e as Error).message); }
   };
   return (

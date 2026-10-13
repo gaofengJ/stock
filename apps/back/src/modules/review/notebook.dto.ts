@@ -18,9 +18,13 @@ export class NotebookSaveDto extends ReviewDateDto {
   @IsString() @MaxLength(6500000) content: string;
 }
 export class NotebookVersionDto extends ReviewDateDto {
+  @IsOptional() @Type(() => Number) @IsIn([0, 1]) publicationBodies?: number;
+
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) revision?: number;
 }
 export class NotebookPublishDto extends ReviewDateDto {
+  @IsOptional() @IsInt() @Min(0) generation?: number;
+
   @IsInt() @Min(1) revision: number;
 
   @IsIn(['wechat', 'xueqiu']) channel: 'wechat' | 'xueqiu';

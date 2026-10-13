@@ -46,7 +46,8 @@ test('browser and server reject duplicate, unsafe, oversize images and untrusted
   const a=illustrated().article;assert.deepEqual(validator(a),a);
   assert.throws(()=>validator({...a,images:[...a.images,...a.images]}));
   for(const data of ['https://evil.invalid/pixel','data:image/svg+xml;base64,PHN2Zz4=',png+'!'])assert.throws(()=>validator({...a,images:[{...a.images[0],data}]}));
-  assert.throws(()=>validator({...a,body:'x'.repeat(40001)}));
+  assert.equal(validator({...a,body:'原文'.repeat(100000)}).body.length, 200000);
+  assert.throws(()=>validator({...a,body:'x'.repeat(300001)}));
   assert.throws(()=>validator({...a,feishuUrl:'https://feishu.cn.evil.invalid/docx/abc'}));
   assert.throws(()=>validator({...a,images:Array.from({length:21},(_,i)=>({...a.images[0],id:String(i)}))}));
  }
@@ -101,6 +102,17 @@ test('v2 result import preserves original notes and images and requires independ
  assert.throws(()=>handoff.readResult(JSON.stringify({...valid,article:{...valid.article,body:'## AI 分析\n只有分析。'}}),p.date,4,c),/原文/);
  assert.throws(()=>handoff.readResult(JSON.stringify({...valid,article:{...valid.article,body:'我的经验，原样保留'}}),p.date,4,c),/AI 分析/);
  assert.throws(()=>handoff.readResult(JSON.stringify({...valid,article:{...valid.article,images:[]}}),p.date,4,c),/配图/);
+});
+test('long candidate evidence survives packet export, result import and rendered copy in full',()=>{
+ const c=illustrated(); c.private.toolEvidence='候选记录'.repeat(50000);
+ const packet=handoff.reviewPacket('2026-09-30',4,c);
+ assert.equal(packet.userNotes.find(note=>note.key==='toolEvidence').text,c.private.toolEvidence);
+ const body=`# 完整复盘\n\n## 用户原文\n${c.private.toolEvidence}\n\n## AI 分析\n完整保留后补充分析。`;
+ const result={...packet,article:{...packet.article,body}};
+ const imported=handoff.readResult(JSON.stringify(result),packet.date,4,c);
+ assert.equal(imported.body,body);
+ assert.ok(exp.publicText(packet.date,{...c,article:imported},'wechat').includes(c.private.toolEvidence));
+ assert.ok(exp.noteHtml(imported.body,imported.images).includes(c.private.toolEvidence));
 });
 
 const platformImages = load('../src/app/review/platform-images.ts');

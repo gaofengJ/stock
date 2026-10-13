@@ -5,6 +5,7 @@ import {
   documentTemplate, internalFields, NotebookContent, publicText,
 } from './notebook-model';
 import { emptyMaterials } from './materials-contract';
+import { toolEvidenceError } from './notebook-limits';
 
 export function materialSources(date: string, content: NotebookContent, origin = '') {
   const link = (path: string) => (origin ? new URL(path, origin).href : path);
@@ -18,6 +19,8 @@ export function materialSources(date: string, content: NotebookContent, origin =
 }
 // v2 sends explicit research notes, not the whole private notebook. Execution is opt-in.
 export function reviewPacket(date: string, revision: number, content: NotebookContent, origin = '', generation = 0) {
+  const limitError = toolEvidenceError(content.private.toolEvidence);
+  if (limitError) throw new Error(limitError);
   const materials = content.materials || emptyMaterials();
   const fallbackArticle = Object.entries(content.public).some(([key, value]) => key !== 'title' && value.trim()) ? { body: publicText(date, content, 'wechat'), images: [], feishuUrl: '' } : { ...emptyArticle(), body: documentTemplate(date, content) };
   const allowed = ['marketJudgment', 'themes', 'candidates', 'toolEvidence', 'lesson', 'normalPlan', 'strongPlan', 'weakPlan', ...(materials.includeExecution ? ['execution', 'holdingEvidence', 'yesterday'] : [])];

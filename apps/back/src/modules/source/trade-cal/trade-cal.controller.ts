@@ -1,3 +1,4 @@
+import { DtoArrayPipe } from '@/pipes/dto-array.pipe';
 import { Permit } from '@/modules/auth/permissions';
 import {
   Body,
@@ -76,7 +77,7 @@ export class TradeCalController {
   @Permit('data:write')
   @Post('/bulk-create')
   @ApiOperation({ summary: '批量创建TradeCal' })
-  async bulkCreate(@Body() dto: TradeCalDto[]) {
+  async bulkCreate(@Body(new DtoArrayPipe(TradeCalDto)) dto: TradeCalDto[]) {
     await this.tradeCalService.bulkCreate(dto);
   }
 

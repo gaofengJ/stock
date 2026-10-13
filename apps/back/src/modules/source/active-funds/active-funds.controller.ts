@@ -1,3 +1,4 @@
+import { DtoArrayPipe } from '@/pipes/dto-array.pipe';
 import { Permit } from '@/modules/auth/permissions';
 import { Body, Controller, Delete, Get, Post, Put } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -42,7 +43,9 @@ export class ActiveFundsController {
   @Permit('data:write')
   @Post('/bulk-create')
   @ApiOperation({ summary: '批量创建ActiveFunds' })
-  async bulkCreate(@Body() dto: ActiveFundsDto[]) {
+  async bulkCreate(
+    @Body(new DtoArrayPipe(ActiveFundsDto)) dto: ActiveFundsDto[],
+  ) {
     await this.activeFundsService.bulkCreate(dto);
   }
 

@@ -4,6 +4,8 @@ import {
   ForbiddenException,
   Get,
   Header,
+  Param,
+  ParseIntPipe,
   Post,
   Query,
   Req,
@@ -46,13 +48,24 @@ export class NotebookController {
   @Get()
   @Header('Cache-Control', 'no-store')
   read(@Req() req: AuthRequest, @Query() dto: NotebookVersionDto) {
-    return this.service.read(this.owner(req), dto.date, dto.revision);
+    return this.service.read(
+      this.owner(req),
+      dto.date,
+      dto.revision,
+      dto.publicationBodies !== 0,
+    );
   }
 
   @Post()
   @Header('Cache-Control', 'no-store')
   save(@Req() req: AuthRequest, @Body() dto: NotebookSaveDto) {
     return this.service.save(this.owner(req), dto);
+  }
+
+  @Get('publications/:id')
+  @Header('Cache-Control', 'no-store')
+  publication(@Req() req: AuthRequest, @Param('id', ParseIntPipe) id: number) {
+    return this.service.publication(this.owner(req), id);
   }
 
   @Post('publications')

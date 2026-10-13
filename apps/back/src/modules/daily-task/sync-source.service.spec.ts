@@ -114,6 +114,13 @@ describe('同步数据校验', () => {
           items: [['000001.SZ', '20240701', null]],
         },
       }),
+      queryData: jest.fn().mockResolvedValue({
+        code: 0,
+        data: {
+          fields: ['ts_code', 'trade_date', 'suspend_type', 'suspend_timing'],
+          items: [['000002.SZ', '20240701', 'S', null]],
+        },
+      }),
     };
     const service = new SyncSourceService(api as unknown as TushareService);
     const rows = await service.daily('2024-07-01', [
@@ -130,6 +137,126 @@ describe('同步数据校验', () => {
       volumeRatio: null,
     });
     expect(rows[1]).toMatchObject({ tsCode: '000002.SZ', open: 0, close: 0 });
+    expect(api.queryData).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { name: '空停牌来源', events: [] },
+    {
+      name: '日内停牌',
+      events: [['000002.SZ', '20240701', 'S', '09:30-10:00']],
+    },
+    { name: '当日复牌', events: [['000002.SZ', '20240701', 'R', null]] },
+    {
+      name: '停牌同时有复牌记录',
+      events: [
+        ['000002.SZ', '20240701', 'S', null],
+        ['000002.SZ', '20240701', 'R', null],
+      ],
+    },
+  ])('拒绝以 $name 推断缺失行情为全天停牌', async ({ events }) => {
+    const response = (fields: string[], items: unknown[][]) => ({
+      code: 0,
+      data: { fields, items },
+    });
+    const api = {
+      getDaily: jest
+        .fn()
+        .mockResolvedValue(
+          response(
+            [
+              'ts_code',
+              'trade_date',
+              'open',
+              'high',
+              'low',
+              'close',
+              'pre_close',
+              'change',
+              'pct_chg',
+              'vol',
+              'amount',
+            ],
+            [['000001.SZ', '20240701', 10, 11, 9, 11, 10, 1, 10, 100, 1000]],
+          ),
+        ),
+      getDailyLimit: jest.fn().mockResolvedValue(
+        response(
+          ['ts_code', 'trade_date', 'up_limit', 'down_limit'],
+          [
+            ['000001.SZ', '20240701', 11, 9],
+            ['000002.SZ', '20240701', 11, 9],
+          ],
+        ),
+      ),
+      getDailyBasic: jest.fn().mockResolvedValue(
+        response(
+          ['ts_code', 'trade_date'],
+          [
+            ['000001.SZ', '20240701'],
+            ['000002.SZ', '20240701'],
+          ],
+        ),
+      ),
+      queryData: jest
+        .fn()
+        .mockResolvedValue(
+          response(
+            ['ts_code', 'trade_date', 'suspend_type', 'suspend_timing'],
+            events,
+          ),
+        ),
+    };
+    await expect(
+      new SyncSourceService(api as any).daily('2024-07-01', []),
+    ).rejects.toThrow('未确认全天停牌');
+  });
+
+  it('所有股票都有行情时不增加停牌来源请求', async () => {
+    const response = (fields: string[], items: unknown[][]) => ({
+      code: 0,
+      data: { fields, items },
+    });
+    const api = {
+      getDaily: jest
+        .fn()
+        .mockResolvedValue(
+          response(
+            [
+              'ts_code',
+              'trade_date',
+              'open',
+              'high',
+              'low',
+              'close',
+              'pre_close',
+              'change',
+              'pct_chg',
+              'vol',
+              'amount',
+            ],
+            [['000001.SZ', '20240701', 10, 11, 9, 11, 10, 1, 10, 100, 1000]],
+          ),
+        ),
+      getDailyLimit: jest
+        .fn()
+        .mockResolvedValue(
+          response(
+            ['ts_code', 'trade_date', 'up_limit', 'down_limit'],
+            [['000001.SZ', '20240701', 11, 9]],
+          ),
+        ),
+      getDailyBasic: jest
+        .fn()
+        .mockResolvedValue(
+          response(['ts_code', 'trade_date'], [['000001.SZ', '20240701']]),
+        ),
+      queryData: jest.fn(),
+    };
+    await expect(
+      new SyncSourceService(api as any).daily('2024-07-01', []),
+    ).resolves.toHaveLength(1);
+    expect(api.queryData).not.toHaveBeenCalled();
   });
 
   it('拒绝错误日期与重复业务键的涨跌停快照，允许合法零条', async () => {

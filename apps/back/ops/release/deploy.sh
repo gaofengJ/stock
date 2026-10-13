@@ -18,6 +18,8 @@ paused_by_release=0
 old_name=stock-back
 old_id=stock-back
 new_started=0
+application_verified=0
+refresh_scripts_saved=0
 client="$RUN/client.cnf"
 ENV_FILE="$PACKAGE/release/runtime.env"
 phase_name=''
@@ -45,6 +47,11 @@ failure() {
   finish_phase failed
   rm -f "$client"
   printf 'FAILED phase=%s report=%s\n' "$migration_started" "$RUN" >&2
+  if [[ "$application_verified" == 1 ]]; then
+    printf 'post-deploy-pending\n' > "$RUN/phase" || true
+    echo "Application remains healthy; retry post-deployment steps with resume-post-deploy.sh $RUN" >&2
+    exit "$code"
+  fi
   if [[ "$new_started" == 1 ]]; then
     docker stop stock-back || true
     if [[ "$migration_started" == 0 ]]; then
@@ -55,6 +62,11 @@ failure() {
     if [[ "$stopped" == 1 ]]; then
       if [[ "$old_name" != stock-back ]]; then docker rename "$old_id" stock-back || true; fi
       docker start "$old_id" || true
+    fi
+    if [[ "$refresh_scripts_saved" == 1 ]]; then
+      for name in refresh.cjs history-refresh.cjs refresh.py; do
+        cp -p "$RUN/previous-$name" "/opt/stock-test/$name" || { echo "Refresh rollback failed; keeping refresh paused" >&2; exit "$code"; }
+      done
     fi
     restore_refresh
   else
@@ -70,7 +82,7 @@ start_phase runtime-config
 chmod 600 "$ENV_FILE"
 command -v systemctl >/dev/null || { echo 'systemd is required for independent backups'; false; }
 python3 --version
-systemctl --version | head -n 1
+systemctl --version | sed -n '1p'
 start_phase review-proxy-limit
 python3 "$PACKAGE/release/review-proxy.py" --backup "$RUN/nginx-before-review.conf"
 start_phase private-network-verify
@@ -121,8 +133,11 @@ fi
 start_phase pause-refresh
 if [[ ! -f /opt/stock-test/PAUSED ]]; then touch /opt/stock-test/PAUSED; paused_by_release=1; fi
 flock /var/lock/stock-test-refresh.lock true
-cp -p /opt/stock-test/refresh.cjs "$RUN/previous-refresh.cjs"
-cp -p /opt/stock-test/refresh.py "$RUN/previous-refresh.py"
+printf '%s\n' "$paused_by_release" > "$RUN/refresh-paused-by-release"
+for name in refresh.cjs history-refresh.cjs refresh.py; do
+  cp -p "/opt/stock-test/$name" "$RUN/previous-$name"
+done
+refresh_scripts_saved=1
 install -m 600 "$PACKAGE/test-db/refresh.cjs" /opt/stock-test/refresh.cjs
 install -m 600 "$PACKAGE/test-db/history-refresh.cjs" /opt/stock-test/history-refresh.cjs
 install -m 700 "$PACKAGE/test-db/refresh.py" /opt/stock-test/refresh.py
@@ -176,24 +191,11 @@ start_phase private-proxy-smoke
 for address in 127.0.0.1 172.17.0.1; do
   [[ "$(curl --noproxy '*' --silent --max-time 5 --output /dev/null --write-out '%{http_code}' "http://$address:3000/api/auth/me")" == 401 ]] || { echo 'Private API proxy connectivity failed'; false; }
 done
-start_phase enqueue-and-resume
-db enqueue-market > "$RUN/backfill.json"
-restore_refresh
-start_phase independent-backup-schedule
-install -d -m 700 "$ROOT/tools" "$ROOT/backups"
-for tool in backup.sh daily-backup.sh maintenance.py; do
-  install -m 700 "$PACKAGE/release/$tool" "$ROOT/tools/$tool"
-done
-install -m 644 "$PACKAGE/release/stock-release-backup.service" /etc/systemd/system/stock-release-backup.service
-install -m 644 "$PACKAGE/release/stock-release-backup.timer" /etc/systemd/system/stock-release-backup.timer
-systemctl daemon-reload
-systemctl enable --now stock-release-backup.timer
-systemctl is-active --quiet stock-release-backup.timer
-printf 'success\n' > "$RUN/phase"
-finish_phase
-start_phase release-retention
-# Maintenance cannot invalidate a healthy deployment. Failed recovery records
-# remain protected and no runtime configuration directory is deleted.
-python3 "$ROOT/tools/maintenance.py" --root "$ROOT" --apply > "$RUN/retention.json" || echo 'Release maintenance deferred; inspect retention logs'
+# Once the database and application pass checks, ancillary failures must not stop it.
+application_verified=1
+printf 'application-verified\n' > "$RUN/phase"
+start_phase post-deployment
+source "$PACKAGE/release/post-deploy.sh"
+complete_release "$RUN" "$PACKAGE" "$IMAGE" "$ENV_FILE"
 finish_phase
 echo "Deployment verified: $RELEASE_SHA; backup and recovery data: $RUN"

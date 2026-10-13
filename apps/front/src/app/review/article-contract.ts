@@ -14,7 +14,7 @@ export function bounded(value: unknown, max: number): string {
 }
 export function validateArticle(input: unknown): Article {
   const value = object(input);
-  const body = bounded(value.body, 40000);
+  const body = bounded(value.body, 300000);
   const feishuUrl = bounded(value.feishuUrl, 1500);
   if (feishuUrl) {
     const url = new URL(feishuUrl);

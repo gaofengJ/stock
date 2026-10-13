@@ -3,7 +3,13 @@ set -Eeuo pipefail
 umask 077
 ROOT=/opt/stock-release
 exec 9>/var/lock/stock-back-release.lock
-flock -n 9 || { echo 'Release in progress; daily backup deferred'; exit 0; }
+locked=0
+for attempt in 1 2 3; do
+  if flock -w 900 9; then locked=1; break; fi
+  echo "Release lock busy; backup wait attempt $attempt/3" >&2
+  if [[ "$attempt" != 3 ]]; then sleep 60; fi
+done
+[[ "$locked" == 1 ]] || { echo 'BACKUP_FAILED release lock unavailable after bounded retries; inspect backup age' >&2; exit 75; }
 IMAGE=$(docker inspect --format '{{.Image}}' stock-back)
 SHA=$(docker inspect --format '{{index .Config.Labels "stock.release.sha"}}' stock-back)
 ENV_FILE=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/run/stock/runtime.env"}}{{.Source}}{{end}}{{end}}' stock-back)

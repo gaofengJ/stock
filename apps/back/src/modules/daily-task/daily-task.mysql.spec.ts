@@ -19,6 +19,7 @@ import { TradeCalEntity } from '../source/trade-cal/trade-cal.entity';
 import { ActiveFundsEntity } from '../source/active-funds/active-funds.entity';
 import { SentiEntity } from '../processed/senti/senti.entity';
 import { ReliableSync1790380800000 } from '../../migrations/1790380800000-ReliableSync';
+import { readSeriesStates } from '../analysis/series.utils';
 
 // 仅显式开启时连接独立本机测试实例，绝不读取应用 DB_* 配置。
 const mysqlDescribe = process.env.SYNC_TEST_MYSQL_PORT
@@ -171,6 +172,36 @@ mysqlDescribe('MySQL 同步事务与迁移回归', () => {
     await db.manager.insert(SentiEntity, mood('2024-06-28'));
     delete process.env.SYNC_START_DATE;
     delete process.env.SYNC_MAX_DAYS_PER_RUN;
+  });
+
+  it('分析状态区分历史数据、成功零榜单、未同步、失败和删除保护', async () => {
+    const before = await readSeriesStates(db, calendar);
+    expect(before.get('2024-06-28')).toBe('ready');
+    expect(before.get('2024-07-01')).toBe('missing');
+    expect(before.has('2024-06-29')).toBe(false);
+    await db.manager.insert(DailyEntity, daily('2024-07-01'));
+    expect((await readSeriesStates(db, calendar)).get('2024-07-01')).toBe(
+      'missing',
+    );
+    await db.manager.insert(SyncRunEntity, [
+      {
+        task: 'daily',
+        tradeDate: '2024-07-01',
+        status: 'success',
+        dailyCount: 1,
+        limitCount: 0,
+      },
+      { task: 'daily', tradeDate: '2024-07-02', status: 'failed' },
+      { task: 'daily', tradeDate: '2024-07-03', status: 'success' },
+    ]);
+    await db.manager.insert(SyncDayPolicyEntity, {
+      tradeDate: '2024-07-03',
+      reason: 'manual-delete',
+    });
+    const after = await readSeriesStates(db, calendar);
+    expect(after.get('2024-07-01')).toBe('ready');
+    expect(after.get('2024-07-02')).toBe('failed');
+    expect(after.get('2024-07-03')).toBe('protected');
   });
 
   it('同日重复导入覆盖旧数据，条数不变，移除已撤销的涨跌停记录', async () => {
@@ -768,6 +799,7 @@ mysqlDescribe('MySQL 同步事务与迁移回归', () => {
         'RecoverSectorCatalog1792108800000',
         'ReviewNotebook1792195200000',
         'ReviewGeneration1792281600000',
+        'ReviewAssets1792368000000',
       ]);
       expect(before.counts.t_source_daily).toEqual({ rows: 2, duplicates: 1 });
       expect(before.requiredFreeBytes).toBe(before.totalBytes * 4 + 1024 ** 3);

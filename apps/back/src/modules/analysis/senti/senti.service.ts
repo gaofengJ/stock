@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { CommonDateDto, CommonDateRangeDto } from '@/dto/common.dto';
 import { TradeCalService } from '@/modules/source/trade-cal/trade-cal.service';
 import { BizException } from '@/exceptions/biz.exception';
@@ -10,6 +11,8 @@ import { EIsOpen } from '@/modules/source/trade-cal/trade-cal.enum';
 import {
   fillTradeDateSeries,
   sortTradeDays,
+  applySeriesStates,
+  readSeriesStates,
 } from '@/modules/analysis/series.utils';
 import { AsyncTtlCache } from '@/modules/analysis/async-ttl-cache';
 
@@ -24,6 +27,7 @@ export class SentiService {
     private dailyService: DailyService,
     private limitService: LimitService,
     private sentiService: SourceSentiService,
+    private db: DataSource,
   ) {}
 
   private async getOpenTradeDays(startDate: string, endDate: string) {
@@ -74,14 +78,14 @@ export class SentiService {
    * @param date
    */
   async distributionTatistics(date: CommonDateDto['date']) {
-    const counts = await this.dailyService.getDistributionStatistics(date);
-
-    if (counts.every((count) => count === 0)) {
-      const isOpen = await this.tradeCalService.isOpen(date);
-      if (!isOpen) {
-        this.logger.log(`${date}非交易日，请重新选择交易日期`);
-        throw new BizException(ECustomError.NON_TRADING_DAY);
-      }
+    const [counts, states] = await Promise.all([
+      this.dailyService.getDistributionStatistics(date),
+      readSeriesStates(this.db, [{ calDate: date }]),
+    ]);
+    const state = states.get(date);
+    if (!state) {
+      this.logger.log(`${date}非交易日，请重新选择交易日期`);
+      throw new BizException(ECustomError.NON_TRADING_DAY);
     }
 
     const ret = this.initializeRet();
@@ -92,7 +96,11 @@ export class SentiService {
       }
     }
 
-    return ret;
+    return ret.map((row) => ({
+      ...row,
+      count: state === 'ready' ? row.count : null,
+      state,
+    }));
   }
 
   /**
@@ -100,13 +108,25 @@ export class SentiService {
    */
   async upDownCount(dto: CommonDateRangeDto) {
     const { startDate, endDate } = dto;
-    const ret = await this.dailyService.upDownCount({
-      pageNum: 1,
-      pageSize: 10000,
-      startDate,
-      endDate,
-    });
-    return ret;
+    const [ret, tradeDays] = await Promise.all([
+      this.dailyService.upDownCount({
+        pageNum: 1,
+        pageSize: 10000,
+        startDate,
+        endDate,
+      }),
+      this.getOpenTradeDays(startDate, endDate),
+    ]);
+    return applySeriesStates(
+      fillTradeDateSeries(tradeDays, ret, (tradeDate) => ({
+        tradeDate,
+        upCount: 0,
+        flatCount: 0,
+        downCount: 0,
+      })),
+      await readSeriesStates(this.db, tradeDays),
+      ['upCount', 'flatCount', 'downCount'],
+    );
   }
 
   /**
@@ -123,12 +143,16 @@ export class SentiService {
       }),
       this.getOpenTradeDays(startDate, endDate),
     ]);
-    return fillTradeDateSeries(tradeDays, ret, (tradeDate) => ({
-      tradeDate,
-      limitUCount: 0,
-      limitDCount: 0,
-      limitZCount: 0,
-    }));
+    return applySeriesStates(
+      fillTradeDateSeries(tradeDays, ret, (tradeDate) => ({
+        tradeDate,
+        limitUCount: 0,
+        limitDCount: 0,
+        limitZCount: 0,
+      })),
+      await readSeriesStates(this.db, tradeDays),
+      ['limitUCount', 'limitDCount', 'limitZCount'],
+    );
   }
 
   /**
@@ -145,10 +169,14 @@ export class SentiService {
       }),
       this.getOpenTradeDays(startDate, endDate),
     ]);
-    return fillTradeDateSeries(tradeDays, ret, (tradeDate) => ({
-      tradeDate,
-      maxLimitTimes: 0,
-    }));
+    return applySeriesStates(
+      fillTradeDateSeries(tradeDays, ret, (tradeDate) => ({
+        tradeDate,
+        maxLimitTimes: 0,
+      })),
+      await readSeriesStates(this.db, tradeDays),
+      ['maxLimitTimes'],
+    );
   }
 
   /**
@@ -156,9 +184,45 @@ export class SentiService {
    */
   async list(dto: CommonDateRangeDto) {
     const { startDate, endDate } = dto;
-    return this.queryCache.getOrCreate(
-      `senti-list:${startDate}:${endDate}`,
-      () => this.sentiService.list({ startDate, endDate }),
+    const [rows, tradeDays] = await Promise.all([
+      this.queryCache.getOrCreate(`senti-list:${startDate}:${endDate}`, () =>
+        this.sentiService.list({ startDate, endDate }),
+      ),
+      this.getOpenTradeDays(startDate, endDate),
+    ]);
+    const states = await readSeriesStates(this.db, tradeDays);
+    const completeStates = new Map(states);
+    const storedDates = new Set(rows.map((row) => row.tradeDate));
+    tradeDays.forEach(({ calDate, preTradeDate }) => {
+      if (states.get(calDate) !== 'ready') return;
+      // Sentiment depends on prior raw quotes, not a prior sentiment row.
+      completeStates.set(
+        calDate,
+        storedDates.has(calDate)
+          ? states.get(preTradeDate || '') || 'missing'
+          : 'missing',
+      );
+    });
+    return applySeriesStates(
+      fillTradeDateSeries(
+        tradeDays,
+        rows,
+        (tradeDate) =>
+          ({
+            tradeDate,
+            a: 0,
+            b: 0,
+            c: 0,
+            d: 0,
+            e: 0,
+            sentiA: '0',
+            sentiB: '0',
+            sentiC: '0',
+            sentiD: '0',
+          }) as (typeof rows)[number],
+      ),
+      completeStates,
+      ['a', 'b', 'c', 'd', 'e', 'sentiA', 'sentiB', 'sentiC', 'sentiD'],
     );
   }
 }

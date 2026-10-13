@@ -38,7 +38,7 @@ class DeployTests(unittest.TestCase):
             log = root / 'calls.jsonl'
             env = dict(os.environ, PATH=d + os.pathsep + os.environ['PATH'],
                        TEST_MODE=mode, TEST_LOG=str(log),
-                       BLOG_DEPLOY_LOCK=str(root / 'lock'), DOCKER_USERNAME='', DOCKER_PASSWORD='')
+                       BLOG_DEPLOY_LOCK=str(root / 'lock'), DOCKER_USERNAME='', DOCKER_PASSWORD='', RELEASE_SHA='a'*40)
             result = subprocess.run(['sh', str(SCRIPT)], env=env, stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE, universal_newlines=True)
             calls = [json.loads(line) for line in log.read_text().splitlines()]
@@ -57,6 +57,7 @@ class DeployTests(unittest.TestCase):
         pull = next(i for i, c in enumerate(calls) if c[:2] == ['docker', 'pull'])
         stop = next(i for i, c in enumerate(calls) if c[:2] == ['docker', 'stop'])
         self.assertLess(pull, stop)
+        self.assertEqual(calls[pull][2], 'registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-blog:'+'a'*40)
         self.assertFalse(any(c[:2] == ['docker', 'rm'] for c in calls))
 
     def test_failed_start_and_health_restore_previous_container(self):

@@ -1,31 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button, Tooltip } from 'antd';
 import request from '@/api/request';
 import { errorMessage } from '@/api/errors';
 import { scaledNumber } from '@/utils/format';
 import { sourcePending, startWorkbenchPolling } from '../basic/components/workbench-polling';
+import { createProfitCache, profitPending, ProfitRow } from './candidate-profit-cache';
 
-type ProfitRow = {
-  tsCode: string; status: 'unknown' | 'loss' | 'profit' | 'flat'; amount: number | null;
-  reportDate: string | null; announcedAt: string | null; sourceState: string; message?: string | null;
-  history: { status: string; amount: number | null; reportDate: string | null; announcedAt: string | null }[];
-  forecast: { reportDate: string; announcedAt: string; type: string; profitMin: number | null; profitMax: number | null; changeMin: number | null; changeMax: number | null } | null;
-  forecastState: string; forecastMessage?: string | null;
-};
 export function useCandidateProfit(date: string, codes: string[], enabled: boolean) {
   const key = JSON.stringify([date, [...codes].sort()]);
   const [attempt, setAttempt] = useState(0);
+  const cache = useRef<ReturnType<typeof createProfitCache>>();
+  if (!cache.current) cache.current = createProfitCache();
+  const lastAttempt = useRef(0);
   const [result, setResult] = useState<{ key: string; rows: Map<string, ProfitRow>; error: string; stopped: boolean }>({
     key: '', rows: new Map(), error: '', stopped: false,
   });
   useEffect(() => {
     if (!enabled || !date || !codes.length) return undefined;
     const [asOf, stockCodes] = JSON.parse(key) as [string, string[]];
-    const rows = new Map<string, ProfitRow>();
-    let pending = stockCodes;
+    const cached = cache.current!.read(asOf, stockCodes, attempt !== lastAttempt.current);
+    lastAttempt.current = attempt;
+    const { rows } = cached;
+    let { pending } = cached;
     setResult({
-      key, rows, error: '', stopped: false,
+      key, rows: new Map(rows), error: '', stopped: false,
     });
+    if (!pending.length) return undefined;
     return startWorkbenchPolling({
       read: async (signal) => {
         const sources: any[] = [];
@@ -36,7 +36,8 @@ export function useCandidateProfit(date: string, codes: string[], enabled: boole
             params: { date: asOf, codes: pending.slice(i, i + 200).join(',') }, signal, timeout: 20000, autoShowError: false,
           });
           if (signal.aborted) return { sources: [] };
-          data.items.forEach((row) => { rows.set(row.tsCode, row); if (sourcePending({ source: 'fina_indicator', state: row.sourceState as any, message: row.message }) || sourcePending({ source: 'forecast', state: row.forecastState as any, message: row.forecastMessage })) next.push(row.tsCode); });
+          cache.current!.write(asOf, data.items);
+          data.items.forEach((row) => { rows.set(row.tsCode, row); if (profitPending(row)) next.push(row.tsCode); });
           sources.push(...data.sources);
         }
         pending = next;

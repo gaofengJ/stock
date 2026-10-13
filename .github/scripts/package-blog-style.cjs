@@ -11,6 +11,7 @@ fs.mkdirSync(path.join(target, 'overlay'), { recursive: true });
 fs.copyFileSync('apps/blog/blog.nginx.conf', path.join(target, 'nginx.conf'));
 const media = /\.(webp|png|jpe?g|gif|jp2|avif|svg|ico|woff2?|ttf|otf|mp4|pdf)$/i;
 const hashes = [];
+const mediaFiles = [];
 let reusedBytes = 0;
 let overlayBytes = 0;
 async function walk(directory) {
@@ -23,6 +24,7 @@ async function walk(directory) {
     if (media.test(relative)) {
       const hash = crypto.createHash('sha256');
       await pipeline(fs.createReadStream(file), hash);
+      mediaFiles.push(relative);
       hashes.push(`${hash.digest('hex')}  ${relative}`);
       reusedBytes += fs.statSync(file).size;
     } else {
@@ -36,5 +38,7 @@ async function walk(directory) {
 walk(source).then(() => {
   if (!hashes.length || !fs.existsSync(path.join(target, 'overlay', 'index.html'))) throw new Error('Incomplete static output');
   fs.writeFileSync(path.join(target, 'media.sha256'), hashes.join('\n') + '\n');
+  fs.writeFileSync(path.join(target, 'media-files.txt'), mediaFiles.join('\n') + '\n');
+  fs.copyFileSync('.github/scripts/clean-blog-overlay.sh', path.join(target, 'clean-blog-overlay.sh'));
   console.log(JSON.stringify({ verifiedMediaFiles: hashes.length, reusedBytes, overlayBytes }));
 }).catch((error) => { console.error(error.message); process.exitCode = 1; });

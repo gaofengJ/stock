@@ -126,7 +126,7 @@ test('monthly links preserve the selected month and stock, cap the observation d
 
 test('the standalone monthly page inherits existing stock permission and appears immediately after individual stocks', () => {
   const enums = load('components/Layout/enum.ts');
-  const client = load('auth/client.ts', { '@/api/errors': {}, '@/components/Layout/enum': enums });
+  const client = load('auth/client.ts', { '@/api/errors': {}, '@/components/Layout/enum': enums, './request-deadline': load('auth/request-deadline.ts') });
   const user = { permissions: ['basic:stock'], catalog: [{ code: 'basic:stock', route: '/basic/stock' }] };
   assert.equal(client.allowedPath(user, '/basic/stock/broker-picks/'), true);
   assert.equal(client.allowedPath({ ...user, permissions: [] }, '/basic/stock/broker-picks/'), false);

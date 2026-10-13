@@ -62,6 +62,9 @@ export default function Page() {
   const [following, setFollowing] = useState(false);
   const [focusOpen, setFocusOpen] = useState(false);
   const [preferences, setPreferences] = useState<NewsPreferences>({ keywords: [], stocks: [] });
+  const [preferencesReady, setPreferencesReady] = useState(false);
+  const [preferencesError, setPreferencesError] = useState('');
+  const [preferencesAttempt, setPreferencesAttempt] = useState(0);
   const [readIds, setReadIds] = useState<number[]>([]);
   const [newCount, setNewCount] = useState(0);
   const [newAfter, setNewAfter] = useState<number | null>(null);
@@ -117,10 +120,11 @@ export default function Page() {
   useEffect(() => { loadSources(); }, [loadSources]);
   useEffect(() => {
     let current = true;
+    setPreferencesReady(false); setPreferencesError('');
     setPreferences({ keywords: [], stocks: [] }); setReadIds([]); setWatchlist(false); setFollowing(false);
-    if (signedIn) api<NewsPreferences>('/news/preferences').then((value) => { if (current) setPreferences(value); }).catch((e) => { if (current) message.error(errorMessage(e)); });
+    if (signedIn) api<NewsPreferences>('/news/preferences').then((value) => { if (current) { setPreferences(value); setPreferencesReady(true); } }).catch((e) => { if (current) setPreferencesError(errorMessage(e)); });
     return () => { current = false; };
-  }, [signedIn, user?.id]);
+  }, [signedIn, user?.id, preferencesAttempt]);
   useEffect(() => {
     const refresh = () => {
       if (!auto || document.hidden || pending.current) return;
@@ -159,6 +163,7 @@ export default function Page() {
     if (source && !sources.sources.some((s) => s.code === source && s.enabled && s.lastSuccess && ['ok', 'collecting', 'delayed'].includes(s.status) && !s.lastError)) { setSource(''); setPage(1); }
   }, [source, sources]);
   const selectedSource = availableSources.find((s) => s.code === source);
+  const preferencesTip = preferencesReady ? '管理关注关键词和自选股票' : '正在读取关注设置';
   const sourceTip = selectedSource?.description ? `${selectedSource.name}：${selectedSource.description}${selectedSource.warning ? `，${selectedSource.warning}` : ''}` : '市场快讯、财经报道与热门讨论。';
   const rangeText: Record<string, string> = {
     hour: '最近一小时', today: '今天', 'three-days': '最近三天', date,
@@ -195,7 +200,7 @@ export default function Page() {
                 自动刷新
               </span>
               <Button icon={<ReloadOutlined />} loading={loading} onClick={() => { load(); loadSources(); }}>刷新</Button>
-              <Tooltip title={signedIn ? '管理关注关键词和自选股票' : '登录后保存关注设置'}><InteractionButton intent="preview" disabled={!signedIn} onClick={() => setFocusOpen(true)}>我的关注</InteractionButton></Tooltip>
+              <Tooltip title={signedIn ? preferencesTip : '登录后保存关注设置'}><InteractionButton intent="preview" disabled={!signedIn || !preferencesReady} onClick={() => setFocusOpen(true)}>我的关注</InteractionButton></Tooltip>
               <Button icon={<SettingOutlined />} onClick={() => setSettings(true)}>{manager ? '来源管理' : '来源状态'}</Button>
             </Space>
           </div>
@@ -252,6 +257,7 @@ export default function Page() {
             </span>
           </div>
           {error && <Alert className={styles.alert} type="error" showIcon message={error} description={data ? '当前显示上次成功加载的资讯。' : undefined} action={<Button size="small" onClick={() => load()}>重试</Button>} />}
+          {preferencesError && <Alert className={styles.alert} type="warning" showIcon message={`关注设置读取失败：${preferencesError}`} action={<Button size="small" onClick={() => setPreferencesAttempt((value) => value + 1)}>重试关注设置</Button>} />}
           {newCount > 0 && (
           <Button type="default" className={styles.newMessages} onClick={() => { listRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); setNewCount(0); setNewAfter(null); }}>
             新增 / 更新
