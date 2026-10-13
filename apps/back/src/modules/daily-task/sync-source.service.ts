@@ -183,9 +183,22 @@ export class SyncSourceService {
       )
     )
       throw new Error('沪深京交易所覆盖不完整，等待补齐');
-    const rows = mixinDailyParams(daily, limits, basic);
-    if (!rows.length) throw new Error('合并后的日线数据为空');
     const dailyCodes = new Set(daily.map((row) => row.tsCode));
+    const basicCodes = new Set(basic.map((row) => row.tsCode));
+    // stk_limit includes B shares, while daily/daily_basic cover A shares.
+    // Some upstream limit rows label Shanghai 900xxx B shares as .BJ.
+    // Exclude only limit-only B-share codes absent from the stock catalog;
+    // unknown A shares and every code carrying quote/basic evidence still
+    // go through the strict missing-quote and suspension checks below.
+    const stockLimits = limits.filter(
+      (row) =>
+        !/^(20\d{4}\.SZ|900\d{3}\.(SH|BJ))$/.test(row.tsCode) ||
+        stockByCode[row.tsCode] ||
+        dailyCodes.has(row.tsCode) ||
+        basicCodes.has(row.tsCode),
+    );
+    const rows = mixinDailyParams(daily, stockLimits, basic);
+    if (!rows.length) throw new Error('合并后的日线数据为空');
     const missingQuotes = rows.filter((row) => !dailyCodes.has(row.tsCode));
     if (missingQuotes.length) {
       // daily omits suspended stocks, but an incomplete feed looks identical.
@@ -220,7 +233,6 @@ export class SyncSourceService {
           `日线缺少 ${unexplained.length} 只股票行情且未确认全天停牌，保留原数据并等待补齐`,
         );
     }
-    const basicCodes = new Set(basic.map((row) => row.tsCode));
     const limitCodes = new Set(limits.map((row) => row.tsCode));
     if (
       daily.some(
