@@ -3,6 +3,7 @@ import { Connection, createConnection } from 'mysql2/promise';
 import { DataSource } from 'typeorm';
 import { StrategyTrend1791417600000 } from '@/migrations/1791417600000-StrategyTrend';
 import { DailyEntity } from '@/modules/source/daily/daily.entity';
+import { StockEntity } from '@/modules/source/stock/stock.entity';
 import { StockIdentityService } from '@/modules/source/stock/stock-identity.service';
 import { TradeCalEntity } from '@/modules/source/trade-cal/trade-cal.entity';
 import { BseMappingEntity } from '@/modules/analysis/market/market.entity';
@@ -72,6 +73,7 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
       synchronize: true,
       entities: [
         DailyEntity,
+        StockEntity,
         TradeCalEntity,
         BseMappingEntity,
         SyncRunEntity,
@@ -107,6 +109,7 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
     await Promise.all(
       [
         DailyEntity,
+        StockEntity,
         TradeCalEntity,
         BseMappingEntity,
         SyncRunEntity,
@@ -752,6 +755,49 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
         tradeDate: latest,
       }),
     ).toMatchObject({ status: 'success' });
+  });
+  test('上市首日用已确认单位因子补齐，证据异常时保留完整旧快照', async () => {
+    await db.manager.insert(StockEntity, {
+      tsCode: '000001.SZ',
+      symbol: '000001',
+      name: 'N测试',
+      area: '',
+      industry: '',
+      cnspell: '',
+      market: '主板',
+      listDate: latest,
+    });
+    let factor = 1;
+    const snapshot = response();
+    snapshot.data.items[0][0] = '000002.SZ';
+    source.queryData.mockImplementation(async (api) =>
+      api === 'adj_factor'
+        ? {
+            code: 0,
+            data: {
+              fields: ['ts_code', 'trade_date', 'adj_factor'],
+              items: [['000001.SZ', latest.replace(/-/g, ''), factor]],
+            },
+          }
+        : snapshot,
+    );
+    await service.syncDay(db.manager, latest, true);
+    const saved = await db.manager.findOneByOrFail(TrendFactorEntity, {
+      tradeDate: latest,
+    });
+    expect(saved.data).toContainEqual(['000001.SZ', 10, 11, 12, 10]);
+    expect(saved.data).toContainEqual(['000002.SZ', 10, 11, 12, 10]);
+    factor = 2;
+    await expect(service.syncDay(db.manager, latest, true)).rejects.toThrow(
+      '复权行情缺失',
+    );
+    expect(
+      (
+        await db.manager.findOneByOrFail(TrendFactorEntity, {
+          tradeDate: latest,
+        })
+      ).data,
+    ).toEqual(saved.data);
   });
   test('北交所新旧代码行情冲突拒绝覆盖', async () => {
     await db.manager.insert(BseMappingEntity, {
