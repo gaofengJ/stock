@@ -12,6 +12,7 @@ import {
   readIdentityRows,
 } from '@/modules/source/stock/stock-identity.service';
 import { DailyEntity } from '@/modules/source/daily/daily.entity';
+import { StockEntity } from '@/modules/source/stock/stock.entity';
 import { TradeCalEntity } from '@/modules/source/trade-cal/trade-cal.entity';
 import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
 import { SyncRunEntity } from '@/modules/daily-task/sync-run.entity';
@@ -30,6 +31,7 @@ import {
 } from '@/modules/source/daily/strategy-validation';
 import { TrendFactor, TrendFactorEntity } from './trend.entity';
 import { IncompleteFactorSnapshotError } from './trend-errors';
+import { listingDayFactor } from './listing-day-factor';
 import { StockHistoryEntity } from '../source/stock/stock-history.entity';
 import { StrategySnapshotReader, SnapshotVersion } from './snapshot-reader';
 import {
@@ -630,7 +632,7 @@ export class TrendService {
       // missing stocks that actually traded. Explicit source nulls remain unknown.
       const traded = await manager.find(DailyEntity, {
         where: { tradeDate: date },
-        select: ['tsCode', 'open', 'close', 'vol'],
+        select: ['tsCode', 'open', 'close', 'high', 'low', 'vol'],
       });
       const absent = traded.filter(
         (row) =>
@@ -639,9 +641,38 @@ export class TrendService {
           Number(row.close) > 0 &&
           !data.has(mapping.get(row.tsCode) || row.tsCode),
       );
-      if (absent.length)
+      if (absent.length) {
+        const listings = await manager.find(StockEntity, {
+          where: { listDate: date },
+          select: ['tsCode', 'listDate'],
+        });
+        const firstDay = absent.filter((row) =>
+          listings.some((s) => s.tsCode === row.tsCode),
+        );
+        // Bounded recovery only for confirmed IPOs. General source gaps remain errors.
+        for (const quote of firstDay.slice(0, 20)) {
+          try {
+            const factors = await this.source.queryData(
+              'adj_factor',
+              {
+                ts_code: quote.tsCode,
+                trade_date: date.replace(/-/g, ''),
+              },
+              'ts_code,trade_date,adj_factor',
+            );
+            const tuple = listingDayFactor(date, date, quote, factors);
+            if (tuple) data.set(quote.tsCode, tuple);
+          } catch {
+            // Keep the old snapshot and the missing-factor error when evidence is unavailable.
+          }
+        }
+      }
+      const unresolved = absent.filter(
+        (row) => !data.has(mapping.get(row.tsCode) || row.tsCode),
+      );
+      if (unresolved.length)
         throw new IncompleteFactorSnapshotError(
-          absent.map((row) => ({
+          unresolved.map((row) => ({
             code: mapping.get(row.tsCode) || row.tsCode,
             date,
           })),
