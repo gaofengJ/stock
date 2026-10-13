@@ -259,6 +259,84 @@ describe('同步数据校验', () => {
     expect(api.queryData).not.toHaveBeenCalled();
   });
 
+  it.each(['200012.SZ', '201872.SZ', '900901.SH', '900901.BJ'])(
+    '涨跌停接口独有的 B 股 %s 不阻断 A 股，且不会伪造零行情',
+    async (code) => {
+      const response = (fields: string[], items: unknown[][]) => ({
+        code: 0,
+        data: { fields, items },
+      });
+      const api = {
+        getDaily: jest
+          .fn()
+          .mockResolvedValue(
+            response(
+              [
+                'ts_code',
+                'trade_date',
+                'open',
+                'high',
+                'low',
+                'close',
+                'pre_close',
+                'change',
+                'pct_chg',
+                'vol',
+                'amount',
+              ],
+              [['920001.BJ', '20261013', 10, 11, 9, 11, 10, 1, 10, 100, 1000]],
+            ),
+          ),
+        getDailyLimit: jest.fn().mockResolvedValue(
+          response(
+            ['ts_code', 'trade_date', 'up_limit', 'down_limit'],
+            [
+              ['920001.BJ', '20261013', 13, 7],
+              [code, '20261013', 11, 9],
+            ],
+          ),
+        ),
+        getDailyBasic: jest
+          .fn()
+          .mockResolvedValue(
+            response(['ts_code', 'trade_date'], [['920001.BJ', '20261013']]),
+          ),
+        queryData: jest
+          .fn()
+          .mockResolvedValue(
+            response(
+              ['ts_code', 'trade_date', 'suspend_type', 'suspend_timing'],
+              [],
+            ),
+          ),
+      };
+      const service = new SyncSourceService(api as any);
+      await expect(service.daily('2026-10-13', [])).resolves.toEqual([
+        expect.objectContaining({ tsCode: '920001.BJ', close: 11 }),
+      ]);
+      expect(api.queryData).not.toHaveBeenCalled();
+      // Catalog evidence must not be silently discarded by a code prefix.
+      await expect(
+        service.daily('2026-10-13', [
+          { tsCode: code, name: '已收录股票' } as StockEntity,
+        ]),
+      ).rejects.toThrow('未确认全天停牌');
+      // A daily-basic row also keeps the code in the completeness check.
+      api.getDailyBasic.mockResolvedValue(
+        response(
+          ['ts_code', 'trade_date'],
+          [
+            ['920001.BJ', '20261013'],
+            [code, '20261013'],
+          ],
+        ),
+      );
+      await expect(service.daily('2026-10-13', [])).rejects.toThrow(
+        '未确认全天停牌',
+      );
+    },
+  );
+
   it('拒绝错误日期与重复业务键的涨跌停快照，允许合法零条', async () => {
     const api = { getLimitList: jest.fn() };
     const service = new SyncSourceService(api as unknown as TushareService);
