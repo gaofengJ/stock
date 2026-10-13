@@ -63,7 +63,6 @@ jobs:
             exec 9>/var/lock/stock-back-release.lock
             flock -n 9 || { echo 'Another release is running'; exit 1; }
             if [ "$OPERATION" = repair-oct13-sync ]; then
-              docker exec -i stock-back node < /opt/stock-release/inspections/${{ github.sha }}/release/recover-ipo-factor.cjs
               docker exec -i stock-back node < /opt/stock-release/inspections/${{ github.sha }}/release/repair-sync.cjs
               exit 0
             fi

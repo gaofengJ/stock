@@ -65,4 +65,4 @@ const date = '2026-10-13';
     }
     throw new Error('Recovery queued but not all dependent stages completed; inspect progress without deleting or resetting data');
   } finally { await db.destroy(); }
-})().catch(e=>{console.error(e.code || e.message);process.exitCode=1;});
+})().catch(e=>{console.error(e.message);process.exitCode=1;});
