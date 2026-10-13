@@ -19,6 +19,19 @@ const db = require(process.cwd() + '/dist/migration-data-source').default;
       report.coverage[name] = await r.query(`SELECT trade_date,COUNT(*) count FROM ${name} WHERE trade_date BETWEEN '2026-10-09' AND '2026-10-14' GROUP BY trade_date`);
     }
     report.processes = await r.query("SELECT ID,TIME,STATE,LEFT(INFO,240) statement FROM information_schema.PROCESSLIST WHERE DB=DATABASE() AND COMMAND<>'Sleep' AND ID<>CONNECTION_ID()");
+    const { TushareService } = require(process.cwd() + '/dist/shared/tushare/tushare.service');
+    const { HttpService } = require('@nestjs/axios');
+    const source = new TushareService(new HttpService());
+    const names = ['daily','stk_limit','daily_basic','suspend_d'];
+    const data = await Promise.all(names.map(api => source.queryData(api, {trade_date:'20261013'}, api==='suspend_d'?'ts_code,trade_date,suspend_type,suspend_timing':undefined)));
+    const records = data.map(res=>res.data.items.map(row=>Object.fromEntries(res.data.fields.map((key,i)=>[key,row[i]]))));
+    report.sourceCounts = Object.fromEntries(names.map((name,i)=>[name,records[i].length]));
+    const quotes = new Set(records[0].map(row=>row.ts_code));
+    const missing = records[1].filter(row=>!quotes.has(row.ts_code));
+    const stocks = await r.query('SELECT ts_code,name,list_date FROM t_source_stock');
+    const known = new Map(stocks.map(row=>[row.ts_code,row]));
+    report.missingQuotes = missing.map(row=>({code:row.ts_code,stock:known.get(row.ts_code),basic:records[2].some(b=>b.ts_code===row.ts_code),suspensions:records[3].filter(s=>s.ts_code===row.ts_code)}));
+    report.sourceSuspensions = records[3];
     console.log(JSON.stringify(report));
   } finally { await r.release(); await db.destroy(); }
 })().catch(e=>{console.error(e.code || e.message);process.exitCode=1;});
