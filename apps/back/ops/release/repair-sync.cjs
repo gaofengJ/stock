@@ -36,8 +36,29 @@ const date = '2026-10-13';
         assert.deepEqual(after,before,'Previous trading-day record counts or identities changed');
         const coverage = {};
         for(const table of tables) [coverage[table]]=await db.query(`SELECT COUNT(*) count FROM ${table} WHERE trade_date=?`,[date]);
+        const { TushareService } = require(process.cwd()+'/dist/shared/tushare/tushare.service');
+        const { HttpService } = require('@nestjs/axios');
+        const source = new TushareService(new HttpService());
+        const quoteData = await source.getDaily(date.replace(/-/g,''));
+        assert.equal(quoteData.code,0);
+        const quotes = quoteData.data.items.map(row=>Object.fromEntries(quoteData.data.fields.map((field,i)=>[field,row[i]])));
+        const stored = await db.query('SELECT ts_code,open,high,low,close,pre_close,`change`,pct_chg,vol,amount FROM t_source_daily WHERE trade_date=?',[date]);
+        const byCode = new Map(stored.map(row=>[row.ts_code,row]));
+        const fields = ['open','high','low','close','pre_close','change','pct_chg','vol','amount'];
+        for (const quote of quotes) {
+          assert.equal(quote.trade_date,'20261013');
+          assert.ok(byCode.has(quote.ts_code),'Missing source quote '+quote.ts_code);
+          for (const field of fields) assert.equal(Number(byCode.get(quote.ts_code)[field]),Number(quote[field]),'Quote mismatch '+quote.ts_code+' '+field);
+        }
+        const extra = stored.filter(row=>!quotes.some(q=>q.ts_code===row.ts_code));
+        const suspensionData = await source.queryData('suspend_d',{trade_date:'20261013'},'ts_code,trade_date,suspend_type,suspend_timing');
+        const suspensions = suspensionData.data.items.map(row=>Object.fromEntries(suspensionData.data.fields.map((field,i)=>[field,row[i]])));
+        for(const row of extra) {
+          const events = suspensions.filter(s=>s.ts_code===row.ts_code);
+          assert.ok(events.some(s=>s.suspend_type==='S'&&!s.suspend_timing)&&events.every(s=>s.suspend_type==='S'&&!s.suspend_timing),'Unverified non-quote record '+row.ts_code);
+        }
         const holes = await db.query("SELECT DATE_FORMAT(c.cal_date,'%Y-%m-%d') date,r.status FROM t_source_trade_cal c LEFT JOIN t_sync_run r ON r.trade_date=c.cal_date AND r.task='market' LEFT JOIN t_sync_day_policy p ON p.trade_date=c.cal_date WHERE c.is_open=1 AND c.cal_date BETWEEN '2024-10-13' AND ? AND (r.id IS NULL OR r.status<>'success') AND p.trade_date IS NULL ORDER BY c.cal_date",[date]);
-        console.log(JSON.stringify({phase:'verified',date,historicalUnchanged:true,coverage,coreHistoryHoles:holes}));
+        console.log(JSON.stringify({phase:'verified',date,historicalUnchanged:true,sourceQuotesMatched:quotes.length,verifiedSuspensions:extra.length,coverage,coreHistoryHoles:holes}));
         return;
       }
       await new Promise(resolve=>setTimeout(resolve,15000));
