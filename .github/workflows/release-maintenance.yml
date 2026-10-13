@@ -7,7 +7,7 @@ on:
         type: choice
         required: true
         default: inspect
-        options: [inspect-review-records, clear-review-records, inspect, inspect-review-proxy, repair-review-proxy, clean-build-cache, clean-package-cache, clean-release-images, clean-release-backups]
+        options: [repair-oct13-sync, inspect-review-records, clear-review-records, inspect, inspect-review-proxy, repair-review-proxy, clean-build-cache, clean-package-cache, clean-release-images, clean-release-backups]
       review_owner_id:
         description: '仅清空指定管理员的复盘记录，先用 inspect-review-records 核对'
         type: string
@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   maintenance:
-    if: github.ref == 'refs/heads/master' || inputs.operation == 'repair-review-proxy' || inputs.operation == 'inspect-review-proxy' || inputs.operation == 'inspect' || inputs.operation == 'clean-release-images' || inputs.operation == 'clean-release-backups' || inputs.operation == 'clean-package-cache'
+    if: github.ref == 'refs/heads/master' || inputs.operation == 'repair-oct13-sync' || inputs.operation == 'repair-review-proxy' || inputs.operation == 'inspect-review-proxy' || inputs.operation == 'inspect' || inputs.operation == 'clean-release-images' || inputs.operation == 'clean-release-backups' || inputs.operation == 'clean-package-cache'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,7 +39,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
-          source: apps/back/ops/release/maintenance.py,apps/back/ops/release/review-proxy.py,apps/back/ops/release/review-records.cjs,apps/back/ops/release/inspect-sync.cjs
+          source: apps/back/ops/release/maintenance.py,apps/back/ops/release/review-proxy.py,apps/back/ops/release/review-records.cjs,apps/back/ops/release/inspect-sync.cjs,apps/back/ops/release/repair-sync.cjs
           target: /opt/stock-release/inspections/${{ github.sha }}
           strip_components: 3
       - name: Inspect release storage and optionally reclaim build cache
@@ -62,6 +62,10 @@ jobs:
             fi
             exec 9>/var/lock/stock-back-release.lock
             flock -n 9 || { echo 'Another release is running'; exit 1; }
+            if [ "$OPERATION" = repair-oct13-sync ]; then
+              docker exec -i stock-back node < /opt/stock-release/inspections/${{ github.sha }}/release/repair-sync.cjs
+              exit 0
+            fi
             if [ "$OPERATION" = inspect-review-records ] || [ "$OPERATION" = clear-review-records ]; then
               docker exec -i -e OPERATION="$OPERATION" -e REVIEW_OWNER_ID="$REVIEW_OWNER_ID" stock-back node < /opt/stock-release/inspections/${{ github.sha }}/release/review-records.cjs
               exit 0
