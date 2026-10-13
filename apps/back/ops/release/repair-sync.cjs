@@ -15,7 +15,10 @@ const date = '2026-10-13';
     const historical = async () => {
       const out = {};
       for (const table of tables) {
-        out[table] = await db.query(`SELECT DATE_FORMAT(trade_date,'%Y-%m-%d') date,COUNT(*) count,SUM(id) ids FROM ${table} WHERE trade_date IN ('2026-10-09','2026-10-12') GROUP BY trade_date ORDER BY trade_date`);
+        const columns = (await db.query(`SHOW COLUMNS FROM ${table}`)).map(c=>c.Field);
+        assert.ok(columns.every(c=>/^[a-z_]+$/.test(c)), 'Unexpected column identifier');
+        const fields = columns.map(c=>'`'+c+'`').join(',');
+        out[table] = await db.query(`SELECT DATE_FORMAT(trade_date,'%Y-%m-%d') date,COUNT(*) count,SUM(id) ids,SUM(CRC32(JSON_ARRAY(${fields}))) contentChecksum FROM ${table} WHERE trade_date IN ('2026-10-09','2026-10-12') GROUP BY trade_date ORDER BY trade_date`);
       }
       return out;
     };
@@ -33,7 +36,8 @@ const date = '2026-10-13';
         assert.deepEqual(after,before,'Previous trading-day record counts or identities changed');
         const coverage = {};
         for(const table of tables) [coverage[table]]=await db.query(`SELECT COUNT(*) count FROM ${table} WHERE trade_date=?`,[date]);
-        console.log(JSON.stringify({phase:'verified',date,historicalUnchanged:true,coverage}));
+        const holes = await db.query("SELECT DATE_FORMAT(c.cal_date,'%Y-%m-%d') date,r.status FROM t_source_trade_cal c LEFT JOIN t_sync_run r ON r.trade_date=c.cal_date AND r.task='market' LEFT JOIN t_sync_day_policy p ON p.trade_date=c.cal_date WHERE c.is_open=1 AND c.cal_date BETWEEN '2024-10-13' AND ? AND (r.id IS NULL OR r.status<>'success') AND p.trade_date IS NULL ORDER BY c.cal_date",[date]);
+        console.log(JSON.stringify({phase:'verified',date,historicalUnchanged:true,coverage,coreHistoryHoles:holes}));
         return;
       }
       await new Promise(resolve=>setTimeout(resolve,15000));
