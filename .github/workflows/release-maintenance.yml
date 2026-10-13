@@ -39,7 +39,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
-          source: apps/back/ops/release/maintenance.py,apps/back/ops/release/review-proxy.py,apps/back/ops/release/review-records.cjs
+          source: apps/back/ops/release/maintenance.py,apps/back/ops/release/review-proxy.py,apps/back/ops/release/review-records.cjs,apps/back/ops/release/inspect-sync.cjs
           target: /opt/stock-release/inspections/${{ github.sha }}
           strip_components: 3
       - name: Inspect release storage and optionally reclaim build cache
@@ -55,6 +55,11 @@ jobs:
           envs: OPERATION,REVIEW_OWNER_ID
           script: |
             set -eu
+            if [ "$OPERATION" = inspect ]; then
+              docker exec -i stock-back node < /opt/stock-release/inspections/${{ github.sha }}/release/inspect-sync.cjs
+              docker ps --format '{{.Names}} {{.Status}}'
+              exit 0
+            fi
             exec 9>/var/lock/stock-back-release.lock
             flock -n 9 || { echo 'Another release is running'; exit 1; }
             if [ "$OPERATION" = inspect-review-records ] || [ "$OPERATION" = clear-review-records ]; then
