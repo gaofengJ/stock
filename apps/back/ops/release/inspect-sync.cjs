@@ -32,6 +32,13 @@ const db = require(process.cwd() + '/dist/migration-data-source').default;
     const known = new Map(stocks.map(row=>[row.ts_code,row]));
     report.missingQuotes = missing.map(row=>({code:row.ts_code,stock:known.get(row.ts_code),basic:records[2].some(b=>b.ts_code===row.ts_code),suspensions:records[3].filter(s=>s.ts_code===row.ts_code)}));
     report.sourceSuspensions = records[3];
+    report.factorGap = {};
+    for (const api of ['stk_factor_pro','adj_factor']) {
+      const res = await source.queryData(api,{trade_date:'20261013',ts_code:'301660.SZ'},api==='stk_factor_pro'?'ts_code,trade_date,open_hfq,close_hfq,high_hfq,low_hfq':undefined);
+      report.factorGap[api] = res.data;
+    }
+    report.factorGap.stock = await r.query("SELECT ts_code,name,list_date FROM t_source_stock WHERE ts_code='301660.SZ'");
+    report.factorGap.quote = await r.query("SELECT ts_code,trade_date,open,high,low,close,vol FROM t_source_daily WHERE ts_code='301660.SZ' AND trade_date='2026-10-13'");
     console.log(JSON.stringify(report));
   } finally { await r.release(); await db.destroy(); }
 })().catch(e=>{console.error(e.code || e.message);process.exitCode=1;});
