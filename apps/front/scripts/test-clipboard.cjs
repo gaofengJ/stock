@@ -79,3 +79,9 @@ test('unsupported legacy copying requests manual copying without throwing', asyn
   assert.equal(await copyText('000503'), false);
   assert.deepEqual(calls.slice(-2), ['remove', 'restore-focus']);
 });
+
+ test('unanswered clipboard permissions time out and restore manual copy access', async (t) => {
+  const calls = browser(t, { clipboard: { writeText: () => new Promise(() => {}) }, legacy: false });
+  assert.equal(await copyText('完整 Skill 任务', 10), false);
+  assert.deepEqual(calls.slice(-2), ['remove', 'restore-focus']);
+});

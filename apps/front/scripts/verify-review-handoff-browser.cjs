@@ -1,0 +1,107 @@
+/* Local browser regression. API writes stay inside fixtures. */
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const base = process.env.FRONT_TEST_URL || 'http://127.0.0.1:8088';
+if (!['127.0.0.1', 'localhost'].includes(new URL(base).hostname)) throw new Error('Local fixture server required');
+const output = process.env.TEST_ARTIFACT_DIR || '/tmp/stock-review-handoff';
+fs.mkdirSync(output, { recursive: true });
+const date = '2026-10-13';
+const items = Array.from({length:30}, (_,i) => ({tsCode:`${String(i+1).padStart(6,'0')}.SZ`,name:`测试股份${i+1}`,capState:'within',totalMv:100000+i*10000,circMv:50000+i*1000,close:10+i,strategies:[{key:'trend',label:'连续三日收阳'}]}));
+const user = {id:91,username:'fixture',nickname:'测试账户',roles:[{code:'admin'}],permissions:['/review'],catalog:[{code:'/review',route:'/review',name:'每日复盘',group:'fixture'}]};
+async function verify(browser, mode) {
+  const context = await browser.newContext({ viewport:{width:1600,height:1050}, permissions:['clipboard-read','clipboard-write'] });
+  await context.addInitScript(mode => {
+    localStorage.setItem('stock-theme', mode);
+    window.__copyMode = 'real';
+    const writeText = navigator.clipboard.writeText.bind(navigator.clipboard);
+    navigator.clipboard.writeText = text => window.__copyMode === 'pending' ? new Promise(() => {}) : writeText(text);
+    const exec = document.execCommand.bind(document);
+    document.execCommand = (...args) => window.__copyMode === 'pending' ? false : exec(...args);
+  }, mode);
+  const initialRevision = mode === 'light' ? 0 : 3;
+  let revision = initialRevision; let writes = []; let failSave = false; let held;
+  await context.route('**/*',route=>new URL(route.request().url()).origin===new URL(base).origin?route.continue():route.abort());
+  await context.route('**/api/**', async route => {
+    const path = new URL(route.request().url()).pathname;
+    let data = {items:[],sources:[]};
+    if (path === '/api/auth/access') data = {user,trial:null};
+    if (path === '/api/auth/csrf') data = {csrfToken:'fixture-only'};
+    if (path === '/api/common/all-options') data = {};
+    if (path === '/api/basic/trade-cal/list') data = [{calDate:date,isOpen:1}];
+    if (path === '/api/review/notebook') {
+      if (route.request().method() === 'POST') {
+        writes.push(route.request().postDataJSON());
+        if (failSave) return route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({code:-1,message:'fixture revision conflict'})});
+        if (held === 'hold') {held=route;return;}
+        data = {revision:++revision};
+      } else data = {date,revision,generation:2,content:null};
+    }
+    if (path === '/api/review/report') data = {date,complete:true,items,strategies:[{key:'trend',label:'连续三日收阳',state:'ready'}]};
+    if (path.includes('financial')) data = {items:items.map(row=>({...row,status:'profit',amount:100,reportDate:'2026-06-30',announcedAt:date,sourceState:'ready',forecastState:'ready',history:[],forecast:null})),sources:[]};
+    await route.fulfill({contentType:'application/json',body:JSON.stringify({code:0,data})});
+  });
+  const page = await context.newPage(); const errors = []; const dialogs = [];
+  page.on('pageerror',e=>errors.push(e.message));
+  page.on('dialog',async dialog=>{dialogs.push(dialog.message());await dialog.dismiss();});
+  await page.goto(`${base}/review/?date=${date}`,{waitUntil:'networkidle'});
+  const input = page.locator('#note-marketJudgment');
+  await input.fill('必须保留的最新用户原文');
+  await page.locator('#review-candidate-table .ant-pagination-item-2 a').click();
+  await page.locator('#review-candidate-table .ant-pagination-item-active').filter({hasText:'2'}).waitFor();
+  assert.deepEqual(dialogs, [], 'pagination cannot ask to abandon edits');
+  await page.waitForTimeout(1200);
+  await page.locator('.platform-content').evaluate(node=>{const bar=document.querySelector('.review-selection');node.scrollTop+=bar.getBoundingClientRect().top-node.getBoundingClientRect().top+150;});
+  await page.waitForTimeout(1200);
+  const metrics = await page.evaluate(()=>{const bar=document.querySelector('.review-selection'),header=document.querySelector('#review-candidate-table .ant-table-sticky-holder');return {background:getComputedStyle(bar).backgroundColor,bottom:bar.getBoundingClientRect().bottom,headerTop:header.getBoundingClientRect().top};});
+  await page.screenshot({path:`${output}/sticky-${mode}.png`});
+  assert.notEqual(metrics.background,'rgba(0, 0, 0, 0)');
+  assert.ok(Math.abs(metrics.bottom-metrics.headerTop)<2,JSON.stringify(metrics));
+  await page.screenshot({path:`${output}/sticky-${mode}.png`});
+  // Verify a genuine same-tab navigation is still guarded.
+  await page.evaluate(()=>{const a=document.createElement('a');a.href='/analysis/overview/';a.textContent='fixture leave';a.id='fixture-leave';document.querySelector('.notebook-handoff').appendChild(a);});
+  await page.locator('#fixture-leave').click();
+  assert.equal(dialogs.length,1);assert.ok(page.url().includes('/review/'));
+  await page.getByRole('checkbox',{name:'交接持仓与操作记录，仅用于私人飞书复盘'}).check();
+  const handoff = page.locator('.notebook-handoff');
+  await handoff.getByRole('button',{name:'保存并复制 Skill 任务',exact:true}).click();
+  await handoff.getByText('任务已复制，在 Codex 中粘贴并发送即可继续。',{exact:true}).waitFor();
+  assert.equal(writes.length,1);
+  assert.equal(writes[0].revision,initialRevision);
+  assert.equal(writes[0].generation,2);
+  const clipboard = await page.evaluate(()=>navigator.clipboard.readText());
+  assert.ok(clipboard.includes(`保存版本 ${initialRevision + 1}`));
+  assert.ok(clipboard.includes('必须保留的最新用户原文'));
+  assert.ok(clipboard.includes('执行记录授权：仅限私人飞书文档'));
+  const labels = await handoff.getByRole('button').allTextContents();
+  assert.ok(labels.indexOf('保存复盘') < labels.indexOf('复制 Skill 任务'));
+  await page.screenshot({path:`${output}/handoff-${mode}.png`});
+  await page.evaluate(()=>{window.__copyMode='pending';});
+  await handoff.getByRole('button',{name:'复制 Skill 任务',exact:true}).click();
+  const manual = page.getByRole('textbox',{name:'Skill 任务文本'});
+  await manual.waitFor({timeout:7000});
+  assert.equal(await manual.inputValue(),clipboard);
+  await page.screenshot({path:`${output}/manual-${mode}.png`});
+  await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
+  await page.evaluate(()=>{window.__copyMode='real';});
+  await input.fill('保存失败也不能丢失的原文');
+  failSave=true;
+  await handoff.getByRole('button',{name:'保存并复制 Skill 任务',exact:true}).click();
+  await handoff.getByText('尚未完成保存，请检查页面提示后重试。新的修改会继续保留。').waitFor();
+  assert.equal(await input.inputValue(),'保存失败也不能丢失的原文');
+  assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),clipboard);
+  failSave=false; held='hold';
+  await handoff.getByRole('button',{name:'保存并复制 Skill 任务',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('.notebook-handoff .ant-btn-loading'));
+  for (let i=0;i<100 && held==='hold';i++) await page.waitForTimeout(20);
+  assert.notEqual(held,'hold');
+  await input.fill('保存过程中继续输入的新内容');
+  await held.fulfill({contentType:'application/json',body:JSON.stringify({code:0,data:{revision:++revision}})});
+  await handoff.getByText('尚未完成保存，请检查页面提示后重试。新的修改会继续保留。').waitFor();
+  assert.equal(await input.inputValue(),'保存过程中继续输入的新内容');
+  assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),clipboard);
+  assert.deepEqual(errors,[]);
+  console.log(`PASS ${mode}: opaque sticky bar, pagination, real leave guard, save/copy exact revision, timeout fallback, failed and concurrent saves`);
+  await context.close();
+}
+(async()=>{const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE?{executablePath:process.env.CHROMIUM_EXECUTABLE}:{})});try{await verify(browser,'dark');await verify(browser,'light');}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

@@ -184,3 +184,16 @@ test('theme transport retries once, respects cancellation, and never retries rej
  let calls=0;const abort=new AbortController();abort.abort();
  await assert.rejects(themeRequest(async()=>{calls++;throw Error('cancel')},abort.signal));assert.equal(calls,1);
 });
+
+const {leavesDocument}=load('../src/app/review/navigation-guard.ts');
+test('unsaved notebook guard ignores pagination, downloads, hashes and new windows but protects actual navigation',()=>{
+ const location='https://stock.example/review/?date=2026-10-13';
+ const event={button:0};
+ const anchor=(href,extra={})=>({getAttribute:()=>href,hasAttribute:name=>name==='download'&&!!extra.download,target:extra.target||''});
+ for(const href of [null,'','#details','?date=2026-10-13#details','javascript:void(0)','mailto:owner@example.com']) assert.equal(leavesDocument(anchor(href),event,location),false);
+ assert.equal(leavesDocument(anchor('/other/',{download:true}),event,location),false);
+ assert.equal(leavesDocument(anchor('/other/',{target:'_blank'}),event,location),false);
+ for(const key of ['ctrlKey','metaKey','shiftKey','altKey','defaultPrevented']) assert.equal(leavesDocument(anchor('/other/'),{...event,[key]:true},location),false);
+ assert.equal(leavesDocument(anchor('/other/'),{button:1},location),false);
+ for(const href of ['/analysis/overview/','?date=2026-10-12','https://external.example/review/']) assert.equal(leavesDocument(anchor(href),event,location),true);
+});

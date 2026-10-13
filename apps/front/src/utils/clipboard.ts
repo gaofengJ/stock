@@ -1,13 +1,17 @@
 /** Return false when browser permissions require the user to copy manually. */
-export async function copyText(text: string): Promise<boolean> {
+export async function copyText(text: string, timeoutMs = 3000): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text);
+      await Promise.race([
+        navigator.clipboard.writeText(text),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('Clipboard timed out')), timeoutMs); }),
+      ]);
       return true;
     }
   } catch {
     // HTTP pages and denied permissions can still support the legacy copy action.
-  }
+  } finally { clearTimeout(timer); }
 
   const active = document.activeElement;
   const selection = window.getSelection();

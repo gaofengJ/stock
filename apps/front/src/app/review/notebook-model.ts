@@ -28,6 +28,7 @@ export const publicFields = [
   ['sources', '资料来源与时间', '资料链接、统计截至时间及缺失说明。'],
 ] as const;
 export interface NotebookContent { private: Record<string, string>; public: Record<string, string>; article?: Article; research?: Research; materials?: Materials }
+export interface SavedNotebook { date: string; revision: number; generation: number; content: NotebookContent }
 export const emptyNotebook = (): NotebookContent => ({ private: Object.fromEntries(internalFields.map(([k]) => [k, ''])), public: Object.fromEntries(publicFields.map(([k]) => [k, ''])) });
 
 export function internalText(date: string, value: NotebookContent) {
