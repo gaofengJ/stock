@@ -39,7 +39,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
-          source: apps/back/ops/release/maintenance.py,apps/back/ops/release/review-proxy.py,apps/back/ops/release/review-records.cjs,apps/back/ops/release/inspect-sync.cjs,apps/back/ops/release/repair-sync.cjs
+          source: apps/back/ops/release/maintenance.py,apps/back/ops/release/review-proxy.py,apps/back/ops/release/review-records.cjs,apps/back/ops/release/inspect-sync.cjs,apps/back/ops/release/repair-sync.cjs,apps/back/ops/release/recover-ipo-factor.cjs
           target: /opt/stock-release/inspections/${{ github.sha }}
           strip_components: 3
       - name: Inspect release storage and optionally reclaim build cache
@@ -63,6 +63,7 @@ jobs:
             exec 9>/var/lock/stock-back-release.lock
             flock -n 9 || { echo 'Another release is running'; exit 1; }
             if [ "$OPERATION" = repair-oct13-sync ]; then
+              docker exec -i stock-back node < /opt/stock-release/inspections/${{ github.sha }}/release/recover-ipo-factor.cjs
               docker exec -i stock-back node < /opt/stock-release/inspections/${{ github.sha }}/release/repair-sync.cjs
               exit 0
             fi
