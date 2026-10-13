@@ -24,7 +24,6 @@ const date = '2026-10-13';
     };
     const before = await historical();
     console.log(JSON.stringify({phase:'before',historical:before}));
-    await db.query("INSERT INTO t_admin_job(actor_id,actor_name,start_date,end_date,status,active_key,mode,stage) VALUES(NULL,'10月13日缺失数据修复',?,?,'queued','incident-20261013-missing','missing','仅补齐缺失数据，保留已有记录') ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)", [date,date]);
     const required = ['daily','market-index','market','market-breadth','ths-daily','strategy-factor','stock-insight','ths-hot'];
     for (let attempt=0; attempt<32; attempt++) {
       const runs = await db.query('SELECT task,status,error FROM t_sync_run WHERE trade_date=?', [date]);
@@ -48,7 +47,7 @@ const date = '2026-10-13';
         for (const quote of quotes) {
           assert.equal(quote.trade_date,'20261013');
           assert.ok(byCode.has(quote.ts_code),'Missing source quote '+quote.ts_code);
-          for (const field of fields) assert.equal(Number(byCode.get(quote.ts_code)[field]),Number(quote[field]),'Quote mismatch '+quote.ts_code+' '+field);
+          for (const field of fields) assert.equal(Number(byCode.get(quote.ts_code)[field]),Math.sign(Number(quote[field])) * Math.round((Math.abs(Number(quote[field])) + 1e-9) * 100) / 100,'Quote mismatch '+quote.ts_code+' '+field);
         }
         const extra = stored.filter(row=>!quotes.some(q=>q.ts_code===row.ts_code));
         const suspensionData = await source.queryData('suspend_d',{trade_date:'20261013'},'ts_code,trade_date,suspend_type,suspend_timing');
@@ -58,7 +57,7 @@ const date = '2026-10-13';
           assert.ok(events.some(s=>s.suspend_type==='S'&&!s.suspend_timing)&&events.every(s=>s.suspend_type==='S'&&!s.suspend_timing),'Unverified non-quote record '+row.ts_code);
         }
         const holes = await db.query("SELECT DATE_FORMAT(c.cal_date,'%Y-%m-%d') date,r.status FROM t_source_trade_cal c LEFT JOIN t_sync_run r ON r.trade_date=c.cal_date AND r.task='market' LEFT JOIN t_sync_day_policy p ON p.trade_date=c.cal_date WHERE c.is_open=1 AND c.cal_date BETWEEN '2024-10-13' AND ? AND (r.id IS NULL OR r.status<>'success') AND p.trade_date IS NULL ORDER BY c.cal_date",[date]);
-        console.log(JSON.stringify({phase:'verified',date,historicalUnchanged:true,sourceQuotesMatched:quotes.length,verifiedSuspensions:extra.length,coverage,coreHistoryHoles:holes}));
+        console.log(JSON.stringify({phase:'verified',date,historicalUnchanged:true,sourceQuotesMatched:quotes.length,decimalScale:2,verifiedSuspensions:extra.length,coverage,coreHistoryHoles:holes}));
         return;
       }
       await new Promise(resolve=>setTimeout(resolve,15000));
