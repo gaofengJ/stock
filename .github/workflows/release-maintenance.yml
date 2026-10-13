@@ -15,7 +15,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: stock-back-push-refs/heads/master
+  group: ${{ inputs.operation == 'inspect' && 'stock-sync-readonly-inspection' || 'stock-back-push-refs/heads/master' }}
   cancel-in-progress: false
 jobs:
   maintenance:
