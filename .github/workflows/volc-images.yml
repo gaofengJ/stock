@@ -1,0 +1,29 @@
+name: Volcengine database image preparation
+on:
+  push:
+    branches: [codex/stock-volc-migration]
+    paths: [.github/workflows/volc-images.yml]
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Resolve official database images for isolated upgrade
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/stock-volc-database
+          for series in 8.0 8.4; do
+            docker pull mysql:$series
+            docker image inspect --format '{{index .RepoDigests 0}} {{.Id}}' mysql:$series > /tmp/stock-volc-database/mysql-$series-image
+            docker run --rm mysql:$series mysqld --version > /tmp/stock-volc-database/mysql-$series-version
+          done
+          docker save mysql:8.0 mysql:8.4 | zstd -T0 -3 -o /tmp/stock-volc-database/mysql.tar.zst
+          cd /tmp/stock-volc-database
+          sha256sum mysql.tar.zst > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stock-volc-database-images
+          path: /tmp/stock-volc-database/
+          retention-days: 2
+          if-no-files-found: error
