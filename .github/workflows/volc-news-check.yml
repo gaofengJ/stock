@@ -1,6 +1,14 @@
 name: Verify Volcengine restricted news delivery
 on:
   workflow_dispatch: {}
+  push:
+    branches: [codex/stock-volc-migration]
+    paths:
+      - .github/workflows/volc-news-check.yml
+      - ops/volc/feed_receiver.py
+      - ops/volc/upload_news.py
+      - ops/volc/ssh_dispatch.py
+      - ops/volc/test_feed_receiver.py
 permissions:
   contents: read
 concurrency:
