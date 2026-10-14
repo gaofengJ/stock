@@ -51,14 +51,15 @@ def verify_ci(request, rehearsal):
 
 
 def pull_and_verify(request, pull):
+    roles = ('back', 'front') + (('article',) if 'articleDigest' in request else ())
     if pull:
         with tempfile.TemporaryDirectory(prefix='registry-', dir='/run/stock-cd') as auth:
             environment = dict(os.environ, DOCKER_CONFIG=auth)
             run(['docker', 'login', REGISTRY, '-u', request['registryUsername'], '--password-stdin'],
                 input=request['registryPassword'].encode(), env=environment, timeout=60)
-            for role in ('back', 'front'):
+            for role in roles:
                 run(['docker', 'pull', request[role + 'Digest']], env=environment, timeout=600)
-    for role in ('back', 'front'):
+    for role in roles:
         digest = request[role + 'Digest']
         image = json.loads(run(['docker', 'image', 'inspect', digest]))[0]
         actual = image['Id']
@@ -117,7 +118,7 @@ def healthy(production):
         time.sleep(3)
     else:
         raise TimeoutError('Backend health deadline exceeded')
-    for url, expected in [('http://127.0.0.1:8081/', 200), ('http://127.0.0.1:3000/api/auth/me', 401)]:
+    for url, expected in [('http://127.0.0.1:8081/', 200), ('http://127.0.0.1:3000/api/auth/me', 401), ('http://127.0.0.1:8082/', 403)]:
         try:
             with urllib.request.urlopen(url, timeout=10) as response:
                 code = response.status
@@ -136,7 +137,7 @@ def apply(text, production):
     args = ['python3', str(DEPLOY / 'check_stack.py'), '--env-file', str(temporary)]
     run(args + (['--production'] if production else []))
     temporary.replace(ENV)
-    run(compose(production) + ['up', '-d', '--no-deps', '--pull', 'never', 'back', 'front'])
+    run(compose(production) + ['up', '-d', '--no-deps', '--pull', 'never', 'back', 'front', 'articles'])
     healthy(production)
 
 
@@ -161,11 +162,13 @@ def deploy(request, identity, rehearsal=False, dry_run=False):
     previous_values = dict(line.split('=', 1) for line in previous.splitlines() if line and not line.startswith('#'))
     values = dict(previous_values)
     values.update(BACK_IMAGE=request['backDigest'], FRONT_IMAGE=request['frontDigest'], RELEASE_SHA=request['commit'])
+    if 'articleDigest' in request:
+        values['ARTICLE_IMAGE'] = request['articleDigest']
     candidate = ''.join(key + '=' + value + '\n' for key, value in values.items())
     if dry_run:
         return {'id': identity, 'state': 'preflight-passed', 'commit': request['commit'], 'databaseChanged': False}
     if all(values[key] == previous_values.get(key)
-           for key in ('BACK_IMAGE', 'FRONT_IMAGE', 'RELEASE_SHA')):
+           for key in ('BACK_IMAGE', 'FRONT_IMAGE', 'ARTICLE_IMAGE', 'RELEASE_SHA') if key in values):
         return {'id': identity, 'state': 'already-current', 'commit': request['commit'], 'databaseChanged': False}
     # Pull/schema validation can take minutes; fail before changing services if superseded or disabled.
     if not rehearsal:

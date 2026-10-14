@@ -50,7 +50,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           run-id: ${{ inputs.verified_run }}
-          pattern: stock-volc-*end-${{ inputs.verified_sha }}
+          pattern: stock-volc-*-${{ inputs.verified_sha }}
           github-token: ${{ github.token }}
           path: /tmp/stock-images
       - name: Verify and load the exact tested artifacts
@@ -59,7 +59,7 @@ jobs:
           import hashlib, json, os, subprocess
           from pathlib import Path
           sha=os.environ['VERIFIED_SHA']
-          for role, artifact in [('back','backend'),('front','frontend')]:
+          for role, artifact, repository in [('back','backend','stock-back'),('front','frontend','stock-front'),('articles','articles','stock-blog')]:
               folder=Path('/tmp/stock-images') / ('stock-volc-'+artifact+'-'+sha)
               assert (folder/'commit').read_text().strip()==sha
               archive=folder/(artifact+'.tar.zst')
@@ -73,7 +73,7 @@ jobs:
               image=json.loads(subprocess.check_output(['docker','image','inspect',source]))[0]
               # Fail closed if runner storage changes ID semantics; do not rebuild.
               assert image['Id']==(folder/'image-id').read_text().strip()
-              target='registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-'+role+':volc-'+sha
+              target='registry.cn-hangzhou.aliyuncs.com/mufengtongxue/'+repository+':volc-'+sha
               subprocess.run(['docker','tag',source,target],check=True)
           PY
       - name: Authenticate to the existing distribution registry
@@ -85,8 +85,10 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/registry-receipt
-          for role in back front; do
-            target="registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-$role:volc-$VERIFIED_SHA"
+          for role in back front article; do
+            repository="stock-$role"
+            if [ "$role" = article ]; then repository=stock-blog; fi
+            target="registry.cn-hangzhou.aliyuncs.com/mufengtongxue/$repository:volc-$VERIFIED_SHA"
             docker push "$target"
             docker image inspect --format '{{index .RepoDigests 0}}' "$target" > "/tmp/registry-receipt/$role-digest"
             docker image inspect --format '{{.Id}}' "$target" > "/tmp/registry-receipt/$role-image-id"

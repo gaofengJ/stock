@@ -86,6 +86,40 @@ class ReleaseTest(unittest.TestCase):
         self.assertFalse(worker.MAINTENANCE.exists())
         self.assertEqual(list((self.root / 'releases').iterdir()), [])
 
+    def test_article_requires_complete_fixed_immutable_identity(self):
+        data = request()
+        data.update(articleDigest=worker.REGISTRY + '/mufengtongxue/stock-blog@sha256:' + 'f' * 64,
+                    articleImageId='sha256:' + '1' * 64)
+        contract.validate_request(data)
+        self.assertIn('articleDigest', contract.public_request(data))
+        for key, value in [('articleDigest', worker.REGISTRY + '/mufengtongxue/blog@sha256:' + 'f' * 64),
+                           ('articleDigest', worker.REGISTRY + '/mufengtongxue/stock-blog:latest'),
+                           ('articleImageId', 'latest')]:
+            bad = dict(data); bad[key] = value
+            with self.assertRaises(ValueError): contract.validate_request(bad)
+        del data['articleImageId']
+        with self.assertRaises(ValueError): contract.validate_request(data)
+
+    def test_article_failure_rolls_back_previous_article_and_apps(self):
+        self.prepare_worker()
+        worker.ENV.write_text(worker.ENV.read_text() + 'ARTICLE_IMAGE=previous-article\n')
+        data = request()
+        data.update(articleDigest=worker.REGISTRY + '/mufengtongxue/stock-blog@sha256:' + 'f' * 64,
+                    articleImageId='sha256:' + '1' * 64)
+        with patch.object(worker, 'apply', side_effect=[RuntimeError('bad article'), None]) as apply:
+            with self.assertRaisesRegex(RuntimeError, 'previous application restored'):
+                worker.deploy(data, '9' * 32)
+        self.assertIn(data['articleDigest'], apply.call_args_list[0].args[0])
+        self.assertIn('ARTICLE_IMAGE=previous-article', apply.call_args_list[1].args[0])
+        self.assertFalse(worker.MAINTENANCE.exists())
+
+    def test_legacy_request_keeps_existing_article(self):
+        self.prepare_worker()
+        worker.ENV.write_text(worker.ENV.read_text() + 'ARTICLE_IMAGE=unchanged-article\n')
+        with patch.object(worker, 'apply') as apply:
+            worker.deploy(request(), '8' * 32)
+        self.assertIn('ARTICLE_IMAGE=unchanged-article', apply.call_args.args[0])
+
     def prepare_worker(self):
         (self.root / 'releases').mkdir()
         (self.root / 'release.env').write_text('BACK_IMAGE=previous-back\nFRONT_IMAGE=previous-front\nRELEASE_SHA=old\n')

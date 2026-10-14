@@ -25,7 +25,7 @@ const backend = http.createServer((req, res) => {
 async function main() {
   console.log('Starting the permission-check stand-in and Nginx.');
   await new Promise(resolve => backend.listen(3000, '0.0.0.0', resolve));
-  execFileSync('docker', ['run', '-d', '--name', name, '-p', '127.0.0.1:36082:80', '--mount', `type=bind,src=${path.resolve('apps/blog/blog.nginx.conf')},dst=/etc/nginx/conf.d/default.conf,readonly`, '--mount', `type=bind,src=${site},dst=/usr/share/nginx/html,readonly`, 'nginx:stable-alpine'], { stdio: 'inherit', timeout: 90000 });
+  execFileSync('docker', ['run', '-d', '--name', name, '--add-host', 'back:host-gateway', '-p', '127.0.0.1:36082:80', '--mount', `type=bind,src=${path.resolve(process.env.BLOG_NGINX_CONFIG || 'apps/blog/blog.nginx.conf')},dst=/etc/nginx/conf.d/default.conf,readonly`, '--mount', `type=bind,src=${site},dst=/usr/share/nginx/html,readonly`, process.env.BLOG_NGINX_IMAGE || 'nginx:stable-alpine'], { stdio: 'inherit', timeout: 90000 });
   execFileSync('docker', ['exec', name, 'nginx', '-t'], { stdio: 'inherit', timeout: 15000 });
   const request = (url, cookie) => fetch(`http://127.0.0.1:36082${url}`, { headers: cookie ? { Cookie: cookie } : {}, signal: AbortSignal.timeout(10000) });
   for (let attempt = 0; attempt < 20; attempt++) {

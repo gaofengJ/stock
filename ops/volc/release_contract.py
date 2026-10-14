@@ -2,11 +2,13 @@
 import re
 
 MAX_BYTES = 16384
+ARTICLE_FIELDS = ('articleDigest', 'articleImageId')
 PUBLIC_FIELDS = ('commit', 'runId', 'backDigest', 'frontDigest', 'backImageId', 'frontImageId')
 
 
 def validate_request(value):
-    if not isinstance(value, dict) or set(value) != set(PUBLIC_FIELDS) | {'registryUsername', 'registryPassword'}:
+    required = set(PUBLIC_FIELDS) | {'registryUsername', 'registryPassword'}
+    if not isinstance(value, dict) or set(value) not in (required, required | set(ARTICLE_FIELDS)):
         raise ValueError('Unexpected release fields')
     if not re.fullmatch(r'[a-f0-9]{40}', str(value['commit'])):
         raise ValueError('Invalid commit')
@@ -17,6 +19,11 @@ def validate_request(value):
             raise ValueError('Only fixed ACR repositories and immutable digests are allowed')
         if not re.fullmatch(r'sha256:[a-f0-9]{64}', str(value[role + 'ImageId'])):
             raise ValueError('Invalid tested image ID')
+    if 'articleDigest' in value:
+        if not re.fullmatch(r'registry\.cn-hangzhou\.aliyuncs\.com/mufengtongxue/stock-blog@sha256:[a-f0-9]{64}', str(value['articleDigest'])):
+            raise ValueError('Only the existing immutable article repository is allowed')
+        if not re.fullmatch(r'sha256:[a-f0-9]{64}', str(value['articleImageId'])):
+            raise ValueError('Invalid tested article image ID')
     for key in ('registryUsername', 'registryPassword'):
         if not isinstance(value[key], str) or not 1 <= len(value[key]) <= 4096 or '\x00' in value[key] or '\n' in value[key]:
             raise ValueError('Invalid registry authentication field')
@@ -24,7 +31,7 @@ def validate_request(value):
 
 
 def public_request(value):
-    return {key: value[key] for key in PUBLIC_FIELDS}
+    return {key: value[key] for key in PUBLIC_FIELDS + ARTICLE_FIELDS if key in value}
 
 
 def validate_run(run, request, rehearsal=False):

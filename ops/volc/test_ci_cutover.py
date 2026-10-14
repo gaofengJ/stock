@@ -27,6 +27,9 @@ class CutoverTest(unittest.TestCase):
         self.assertIn('run-id: ${{ github.event.workflow_run.id || inputs.verified_run }}', registry)
         self.assertIn('operations:', files['volc-rehearsal.yml'])
         self.assertIn('contracts:', files['volc-rehearsal.yml'])
+        self.assertIn('  articles:', files['volc-rehearsal.yml'])
+        self.assertIn('BLOG_NGINX_CONFIG=ops/volc/blog.nginx.conf', files['volc-rehearsal.yml'])
+        self.assertIn('blog-cd.yml', candidate.RETIRED)
         self.assertIn("ops/volc -p 'test_*.py'", files['volc-rehearsal.yml'])
 
     def test_news_same_dispatcher_filename_is_gated(self):

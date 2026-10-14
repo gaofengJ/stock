@@ -1,0 +1,8 @@
+ARG NGINX_IMAGE
+FROM ${NGINX_IMAGE}
+ARG RELEASE_SHA
+LABEL stock.blog.release=${RELEASE_SHA}
+RUN rm -rf /usr/share/nginx/html/*
+COPY apps/blog/docs/.vitepress/dist/ /usr/share/nginx/html/
+# Safe standalone default. Compose mounts the permission-checked application route.
+COPY ops/volc/articles-deny.conf /etc/nginx/conf.d/default.conf

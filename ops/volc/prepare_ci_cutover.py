@@ -7,7 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 RETIRED = ('back-cd.yml', 'front-cd.yml', 'news-scheduler.yml', 'market-maintenance.yml',
-           'intraday-history.yml', 'release-maintenance.yml', 'blog-release-status.yml')
+           'intraday-history.yml', 'release-maintenance.yml', 'blog-release-status.yml', 'blog-cd.yml')
 
 
 def replace_once(text, old, new):
@@ -77,7 +77,7 @@ def render(destination, root=ROOT):
     for name, content in files.items():
         (destination / name).write_text(content)
     manifest = {'state': 'review-only-not-installed', 'files': {name: hashlib.sha256(content.encode()).hexdigest() for name, content in files.items()},
-                'requiresBeforeInstallation': ['user-approved cutover window', 'replacement for blog-cd.yml content publishing',
+                'requiresBeforeInstallation': ['user-approved cutover window', 'verified full CI including article build and access tests',
                     'confirm no old publishing/collecting run in progress', 'final data and business acceptance',
                     'long-term backups and external alerts'],
                 'oldHostChanged': False, 'defaultBranchChanged': False, 'productionEnabled': False}

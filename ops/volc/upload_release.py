@@ -23,6 +23,9 @@ def main():
     for role in ('back', 'front'):
         request[role + 'Digest'] = (args.receipt / (role + '-digest')).read_text().strip()
         request[role + 'ImageId'] = (args.receipt / (role + '-image-id')).read_text().strip()
+    if any((args.receipt / ('article-' + field)).exists() for field in ('digest', 'image-id')):
+        request['articleDigest'] = (args.receipt / 'article-digest').read_text().strip()
+        request['articleImageId'] = (args.receipt / 'article-image-id').read_text().strip()
     raw = json.dumps(validate_request(request)).encode()
     if len(raw) > MAX_BYTES:
         raise ValueError('Request too large')
