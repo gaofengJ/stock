@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 """Root-owned application-only deployment; no uploaded scripts, DDL, data restore or shell."""
 import argparse
+from backup_database import restore_proof_matches
 import datetime as dt
 import fcntl
 import json
@@ -100,9 +101,16 @@ def check_backup():
         try:
             metadata = json.loads((proof.parent / 'backup.json').read_text())
             value = json.loads(proof.read_text())
-            if value.get('state') == 'backup-restore-verified' and value.get('sha256') == metadata.get('sha256'):
+            if restore_proof_matches(metadata, value):
                 proofs.append(proof)
         except (ValueError, OSError):
+            continue
+    for proof in Path('/srv/stock/backups/restore-proofs').glob('*.json'):
+        try:
+            archived = json.loads(proof.read_text())
+            if restore_proof_matches(archived['backup'], archived['proof']):
+                proofs.append(proof)
+        except (ValueError, KeyError, TypeError, OSError):
             continue
     if not valid or not proofs:
         raise ValueError('Fresh verified backup and restore proof are required')

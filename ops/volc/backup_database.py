@@ -10,6 +10,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import time
+import re
 
 ROOT = Path('/srv/stock/backups/daily')
 COMPOSE = ['docker', 'compose', '--env-file', '/opt/stock/deploy/release.env',
@@ -18,6 +19,31 @@ CLIENT = COMPOSE + ['exec', '-T', 'mysql', 'mysql',
                     '--defaults-extra-file=/run/secrets/mysql-root-client',
                     '--batch', '--skip-column-names']
 RESERVE = 8 * 1024**3
+
+
+def restore_proof_matches(metadata, proof):
+    if not isinstance(metadata, dict) or not isinstance(proof, dict):
+        return False
+    return (metadata.get('database') == 'stock' and str(metadata.get('version', '')).startswith('8.4.')
+            and proof.get('state') == 'backup-restore-verified'
+            and re.fullmatch('[0-9a-f]{64}', str(metadata.get('sha256', ''))) is not None
+            and proof.get('sha256') == metadata['sha256'])
+
+
+def preserve_restore_proof(folder, archive):
+    path = folder / 'restore-validation.json'
+    if not path.exists():
+        return
+    metadata = json.loads((folder / 'backup.json').read_text())
+    proof = json.loads(path.read_text())
+    if not restore_proof_matches(metadata, proof):
+        raise ValueError('Invalid restore proof; retain original snapshot for inspection')
+    archive.mkdir(mode=0o700, parents=True, exist_ok=True)
+    target = archive / (folder.name + '.json')
+    temporary = archive / (folder.name + '.tmp')
+    temporary.write_text(json.dumps({'backup': metadata, 'proof': proof}, indent=2) + '\n')
+    temporary.chmod(0o600)
+    temporary.replace(target)
 
 
 def query(sql):
@@ -77,6 +103,7 @@ def main():
         completed = sorted(p.parent for p in ROOT.glob('????????T??????Z/backup.json'))
         for old in completed[:-2]:
             if old != folder:
+                preserve_restore_proof(old, ROOT.parent / 'restore-proofs')
                 shutil.rmtree(old)
         print(json.dumps({'backup': str(folder), 'bytes': record['bytes'],
                           'sha256': record['sha256'], 'seconds': record['seconds'],
