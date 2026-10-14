@@ -65,11 +65,11 @@ async function main() {
     const me = await request('/auth/me');
     assert.equal(me.id, userId);
     assert.ok(me.roles.some(role => role.code === 'admin'));
-    const stocks = await request('/stock/list?pageNum=1&pageSize=5');
+    const stocks = await request('/basic/stock/list?pageNum=1&pageSize=5');
     assert.ok(stocks.items?.length > 0, 'Nonempty stock list');
-    const market = await request('/market/status');
+    const market = await request('/analysis/market/status');
     assert.match(market.latestDate, /^\d{4}-\d{2}-\d{2}$/, 'Restored market date available');
-    const overview = await request('/market/overview?date=' + market.latestDate);
+    const overview = await request('/analysis/market/overview?date=' + market.latestDate);
     assert.ok(overview.snapshot && overview.series?.length > 0, 'Nonempty restored market snapshot');
     const [{ date }] = await db.query("SELECT DATE_FORMAT(DATE_ADD(MAX(published_at),INTERVAL 8 HOUR),'%Y-%m-%d') date FROM t_news_item");
     assert.match(date, /^\d{4}-\d{2}-\d{2}$/);
@@ -129,4 +129,9 @@ async function main() {
     articlesPrivate: true, notebookImageRoundTrip: true, qaAccountRemoved: true,
     productionEnabled: false }));
 }
-main().catch(error => { console.error(error.message); process.exitCode = 1; });
+// The imported application logger owns a timer. Finish only after main's
+// awaited cleanup, then exit this one-shot verifier without waiting for it.
+main().then(() => process.exit(0)).catch(error => {
+  console.error(JSON.stringify({ error: error.message, completedChecks: results }));
+  process.exit(1);
+});
