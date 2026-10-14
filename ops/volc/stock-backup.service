@@ -1,0 +1,14 @@
+[Unit]
+Description=Create a checked local stock database backup
+After=docker.service
+Requires=docker.service
+ConditionPathExists=/etc/stock/production.enabled
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 -B /opt/stock/deploy/backup_database.py
+UMask=0077
+TimeoutStartSec=45min
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

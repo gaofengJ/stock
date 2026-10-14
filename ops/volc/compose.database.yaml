@@ -10,6 +10,7 @@ services:
       TZ: Asia/Shanghai
     secrets:
       - mysql-root-password
+      - mysql-root-client
     volumes:
       - type: bind
         source: /srv/stock/mysql
@@ -26,7 +27,7 @@ services:
       database:
         aliases: [mysql]
     healthcheck:
-      test: [CMD-SHELL, "mysqladmin ping --silent"]
+      test: [CMD-SHELL, "mysqladmin --defaults-extra-file=/run/secrets/mysql-root-client ping --silent"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -38,6 +39,8 @@ services:
 secrets:
   mysql-root-password:
     file: /etc/stock/mysql-root-password
+  mysql-root-client:
+    file: /etc/stock/mysql-root.cnf
 
 networks:
   database:

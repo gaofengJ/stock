@@ -8,6 +8,12 @@ import sys
 import time
 
 ROOT = '/opt/stock-test'
+COMPOSE_ROOT = os.environ.get('STOCK_COMPOSE_DIR')
+if COMPOSE_ROOT and not os.path.isabs(COMPOSE_ROOT):
+    raise ValueError('STOCK_COMPOSE_DIR must be absolute')
+NODE_COMMAND = (['docker', 'compose', '--env-file', COMPOSE_ROOT + '/release.env',
+                 '-f', COMPOSE_ROOT + '/compose.app.yaml', 'exec', '-T', 'back', 'node']
+                if COMPOSE_ROOT else ['docker', 'exec', '-i', 'stock-back', 'node'])
 if os.path.exists(ROOT + '/PAUSED'):
     sys.exit(0)
 with open(ROOT + '/config.json') as handle:
@@ -30,7 +36,7 @@ try:
         prefix = ('const historyRefresh = (() => { const module = {exports:{}};\n' + history + '\nreturn module.exports; })();\n'
                   + 'const config = ' + json.dumps(config) + ';\nconst state = ' + json.dumps(state)
                   + ';\nconst force = ' + json.dumps(first and '--force' in sys.argv) + ';\n')
-        result = subprocess.run(['docker', 'exec', '-i', 'stock-back', 'node'], input=prefix + script, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, timeout=180)
+        result = subprocess.run(NODE_COMMAND, input=prefix + script, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, timeout=180)
         output = json.loads(result.stdout.strip())
         if result.returncode:
             raise RuntimeError(output.get('error', 'refresh failed'))

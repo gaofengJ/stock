@@ -1,0 +1,14 @@
+name: mufengtongxue-blog
+services:
+  blog:
+    image: ${BLOG_IMAGE:?Set the verified independent blog image ID}
+    restart: unless-stopped
+    ports: [127.0.0.1:8080:80]
+    security_opt: [no-new-privileges:true]
+    logging:
+      driver: local
+      options: {max-size: 20m, max-file: "5"}
+    networks: [blog]
+networks:
+  blog:
+    name: mufengtongxue-blog

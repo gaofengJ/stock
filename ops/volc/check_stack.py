@@ -8,17 +8,17 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-IMAGE_KEYS = ('MYSQL_IMAGE', 'BACK_IMAGE', 'FRONT_IMAGE', 'ARTICLE_IMAGE', 'RSSHUB_IMAGE')
+IMAGE_KEYS = ('MYSQL_IMAGE', 'BACK_IMAGE', 'FRONT_IMAGE', 'ARTICLE_IMAGE', 'RSSHUB_IMAGE', 'BLOG_IMAGE')
 DISABLED = ('SCHEDULE_ENABLED', 'SYNC_SCHEDULE_ENABLED', 'SYNC_ON_STARTUP',
             'NEWS_SYNC_ENABLED', 'ADMIN_JOBS_ENABLED', 'TUSHARE_REQUESTS_ENABLED')
 
 
-def validate(app, db):
+def validate(app, db, blog):
     back = app['services']['back']
     assert back['environment']['DB_HOST'] == 'mysql', 'Backend must use the new private database'
     for key in DISABLED:
         assert back['environment'][key] == 'false', key + ' must remain disabled during rehearsal'
-    for project in (app, db):
+    for project in (app, db, blog):
         for service in project['services'].values():
             assert re.fullmatch(r'(?:[^\s]+@)?sha256:[a-f0-9]{64}', service['image']), 'Pin every registry digest or verified local image ID'
             for port in service.get('ports', []):
@@ -53,7 +53,8 @@ def main():
                                    '\nAUTH_ALLOWED_ORIGINS=https://14.103.103.4\n')
         if environment is None:
             parser.error('--env-file or --test-config is required')
-        validate(render('compose.app.yaml', environment), render('compose.database.yaml', environment))
+        validate(render('compose.app.yaml', environment), render('compose.database.yaml', environment),
+                 render('compose.blog.yaml', environment))
         print('Private ports, isolated database, pinned images, and disabled rehearsal writers verified')
 
 

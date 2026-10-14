@@ -1,8 +1,6 @@
 name: Volcengine verified image upload
 on:
-  push:
-    branches: [codex/stock-volc-migration]
-    paths: [.github/workflows/volc-transfer.yml]
+  workflow_dispatch: {}
 permissions:
   contents: read
   actions: read
@@ -12,6 +10,7 @@ concurrency:
 jobs:
   upload:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:

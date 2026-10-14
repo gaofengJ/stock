@@ -2,6 +2,10 @@
 character-set-server=utf8mb4
 collation-server=utf8mb4_general_ci
 innodb-buffer-pool-size=1536M
+innodb-buffer-pool-instances=1
+innodb-redo-log-capacity=256M
+innodb-io-capacity=1000
+innodb-io-capacity-max=2000
 max-connections=100
 max-allowed-packet=64M
 log-error-verbosity=2
