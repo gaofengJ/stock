@@ -120,6 +120,15 @@ class ReleaseTest(unittest.TestCase):
             worker.deploy(request(), '8' * 32)
         self.assertIn('ARTICLE_IMAGE=unchanged-article', apply.call_args.args[0])
 
+    def test_large_article_release_does_not_pull_into_low_disk(self):
+        self.prepare_worker()
+        data = request(); data.update(articleDigest='candidate', articleImageId='candidate')
+        worker.shutil.disk_usage.return_value.free = 7 * 1024**3
+        with patch.object(worker, 'pull_and_verify') as pull, patch.object(worker, 'apply') as apply:
+            with self.assertRaisesRegex(ValueError, 'Insufficient free space'):
+                worker.deploy(data, '7' * 32)
+        pull.assert_not_called(); apply.assert_not_called()
+
     def prepare_worker(self):
         (self.root / 'releases').mkdir()
         (self.root / 'release.env').write_text('BACK_IMAGE=previous-back\nFRONT_IMAGE=previous-front\nRELEASE_SHA=old\n')

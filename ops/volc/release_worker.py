@@ -153,9 +153,12 @@ def deploy(request, identity, rehearsal=False, dry_run=False):
         raise ValueError('Another maintenance operation is active')
     verify_ci(request, rehearsal)
     check_backup()
-    if shutil.disk_usage(DEPLOY).free < 4 * 1024**3:
-        raise ValueError('Insufficient free space to deploy')
+    reserve = (8 if 'articleDigest' in request else 4) * 1024**3
+    if shutil.disk_usage(DEPLOY).free < reserve:
+        raise ValueError('Insufficient free space to stage the verified release')
     pull_and_verify(request, pull=not dry_run)
+    if shutil.disk_usage(DEPLOY).free < 4 * 1024**3:
+        raise ValueError('Image staging consumed the disk reserve; services remain unchanged')
     # Discard authentication before parsing images or writing durable deployment history.
     request['registryPassword'] = request['registryUsername'] = ''
     check_schema(request)
