@@ -68,7 +68,7 @@ async function main() {
   const alreadyExists = await server.query('SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME=?',[database]);
   if(alreadyExists.length) { await server.destroy(); throw new Error('Refusing existing test database; choose a new name'); }
   await server.query('CREATE DATABASE ' + database + ' CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci');
-  const db = await new DataSource({ ...options, database, entities: [ActiveFundsEntity] }).initialize();
+  const db = await new DataSource({ ...options, database, entities: [ActiveFundsEntity], logging: process.env.AUTH_TEST_DEBUG === 'true' ? ['error'] : false }).initialize();
   let app; let temp;
   try {
     assert.equal((await db.query('SHOW TABLES')).length, 0, 'Use a new database name for each run');
