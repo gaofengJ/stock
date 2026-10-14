@@ -68,8 +68,10 @@ export class NewsFeatures {
   async decorate(items: any[]) {
     if (!items.length) return items;
     const ids = items.map((item) => item.id);
+    // MySQL 8-created news tables can coexist with the legacy catalog collation.
+    // Keep the stock code comparison consistent without rewriting stored data.
     const stocks = await this.db.query(
-      'SELECT DISTINCT x.news_id,s.ts_code tsCode,s.name FROM t_news_stock x JOIN t_source_stock s ON s.ts_code=x.ts_code WHERE x.news_id IN (?) ORDER BY s.ts_code',
+      'SELECT DISTINCT x.news_id,s.ts_code tsCode,s.name FROM t_news_stock x JOIN t_source_stock s ON s.ts_code=x.ts_code COLLATE utf8mb4_general_ci WHERE x.news_id IN (?) ORDER BY s.ts_code',
       [ids],
     );
     const members = await this.db.query(
