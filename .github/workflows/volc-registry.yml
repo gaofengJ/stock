@@ -1,5 +1,9 @@
 name: Publish verified Volcengine candidate images
 on:
+  workflow_run:
+    workflows: ['Volcengine isolated rehearsal']
+    types: [completed]
+    branches: [master]
   workflow_dispatch:
     inputs:
       verified_sha:
@@ -23,14 +27,21 @@ concurrency:
   cancel-in-progress: false
 jobs:
   publish:
-    if: github.ref == 'refs/heads/master' || (github.ref == 'refs/heads/codex/stock-volc-migration' && !inputs.queue_release)
+    if: >-
+      github.ref == 'refs/heads/master' &&
+      ((github.event_name == 'workflow_dispatch' && (!inputs.queue_release || vars.VOLC_PRODUCTION_ENABLED == 'true')) ||
+       (github.event_name == 'workflow_run' && vars.VOLC_PRODUCTION_ENABLED == 'true' &&
+        github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'master' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-24.04
     timeout-minutes: 50
     env:
-      VERIFIED_SHA: ${{ inputs.verified_sha }}
-      VERIFIED_RUN: ${{ inputs.verified_run }}
+      VERIFIED_SHA: ${{ github.event.workflow_run.head_sha || inputs.verified_sha }}
+      VERIFIED_RUN: ${{ github.event.workflow_run.id || inputs.verified_run }}
     steps:
       - uses: actions/checkout@v4
+        with: {ref: master}
       - name: Confirm the source run passed all gates
         env:
           GH_TOKEN: ${{ github.token }}
@@ -46,11 +57,15 @@ jobs:
           assert run['head_branch']==os.environ['GITHUB_REF_NAME']
           assert run['head_repository']['full_name']=='gaofengJ/stock'
           assert run['path']=='.github/workflows/volc-rehearsal.yml'
+          assert run['event'] in ('push','workflow_dispatch')
+          import subprocess
+          current=subprocess.check_output(['gh','api','repos/'+os.environ['GH_REPO']+'/commits/master','--jq','.sha'],text=True).strip()
+          assert current==os.environ['VERIFIED_SHA'], 'Superseded master commit; do not deploy stale artifacts'
           PY
       - uses: actions/download-artifact@v4
         with:
-          run-id: ${{ inputs.verified_run }}
-          pattern: stock-volc-*-${{ inputs.verified_sha }}
+          run-id: ${{ github.event.workflow_run.id || inputs.verified_run }}
+          pattern: stock-volc-*-${{ github.event.workflow_run.head_sha || inputs.verified_sha }}
           github-token: ${{ github.token }}
           path: /tmp/stock-images
       - name: Verify and load the exact tested artifacts
@@ -108,7 +123,7 @@ jobs:
           UPLOAD_KEY: ${{ secrets.VOLC_REHEARSAL_UPLOAD_KEY }}
           REGISTRY_USER: ${{ secrets.DOCKER_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          RELEASE_MODE: ${{ inputs.queue_release && 'queue' || 'validate' }}
+          RELEASE_MODE: ${{ (github.event_name == 'workflow_run' || inputs.queue_release) && 'queue' || 'validate' }}
         run: |
           set -euo pipefail
           umask 077

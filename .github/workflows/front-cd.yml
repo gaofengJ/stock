@@ -1,43 +1,19 @@
-name: Verify and build frontend
-on:
-  workflow_call: {}
-permissions:
-  contents: read
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          sparse-checkout: |-
-            apps/front
-            apps/back/src/modules/review
-            .github
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9.15.9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-          cache-dependency-path: |
-            pnpm-lock.yaml
-            apps/front/package.json
-      - run: pnpm install --filter front --frozen-lockfile
-      - run: pnpm -C apps/front run lint
-      - name: Verify display formatting and request compatibility
-        run: node --test apps/front/scripts/test-display.cjs apps/front/scripts/test-errors.cjs apps/front/scripts/test-market-compatibility.cjs apps/front/scripts/test-guest-access.cjs apps/front/scripts/test-market-environment.cjs apps/front/scripts/test-blog-paths.cjs apps/front/scripts/test-intraday-counts.cjs apps/front/scripts/test-live-research.cjs
-      - run: node --test apps/front/scripts/test-playbook.cjs
-      - run: node --test apps/front/scripts/test-admin-polling.cjs
-      - run: pnpm -C apps/front run test:profile
-      - run: pnpm -C apps/front run build
-      - name: Verify static hosting configuration
-        run: |
-          docker build -t stock-front-verify apps/front
-          docker run --rm stock-front-verify nginx -t
-      - uses: actions/upload-artifact@v4
-        with:
-          name: stock-front-${{ github.sha }}
-          path: apps/front/out
-          if-no-files-found: error
-          retention-days: 1
+{
+  "name": "Retired legacy entry: front-cd.yml",
+  "on": {
+    "workflow_dispatch": {}
+  },
+  "permissions": {
+    "contents": "read"
+  },
+  "jobs": {
+    "retired": {
+      "runs-on": "ubuntu-24.04",
+      "steps": [
+        {
+          "run": "echo '::error::Legacy host operation retired. See ops/volc/CI-CUTOVER.md for the controlled Volcengine procedure.'\nexit 1"
+        }
+      ]
+    }
+  }
+}

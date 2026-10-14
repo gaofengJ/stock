@@ -1,75 +1,19 @@
-name: Market data maintenance
-on:
-  workflow_dispatch:
-    inputs:
-      operation:
-        description: '检查状态或恢复已部署的两年测试库同步'
-        type: choice
-        required: true
-        default: status
-        options: [status, resume-test-refresh, update-test-refresh, pause-test-refresh]
-permissions:
-  contents: read
-concurrency:
-  group: stock-market-maintenance
-  cancel-in-progress: false
-jobs:
-  maintenance:
-    if: github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        if: inputs.operation == 'update-test-refresh'
-      - name: Upload verified refresh scripts
-        if: inputs.operation == 'update-test-refresh'
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          source: apps/back/ops/test-db
-          target: /opt/stock-release/refresh-${{ github.sha }}
-          strip_components: 3
-      - name: Run installed maintenance scripts
-        uses: appleboy/ssh-action@v1.2.0
-        env:
-          OPERATION: ${{ inputs.operation }}
-          RELEASE_SHA: ${{ github.sha }}
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          port: 22
-          command_timeout: 15m
-          envs: OPERATION,RELEASE_SHA
-          script: |
-            set -eu
-            if [ "$OPERATION" = pause-test-refresh ] || [ "$OPERATION" = update-test-refresh ]; then
-              touch /opt/stock-test/PAUSED
-              flock -w 300 /var/lock/stock-test-refresh.lock true
-            fi
-            if [ "$OPERATION" = update-test-refresh ]; then
-              package="/opt/stock-release/refresh-$RELEASE_SHA/test-db"
-              backup="/opt/stock-test/previous-$RELEASE_SHA"
-              mkdir -p "$backup"
-              chmod 700 "$backup"
-              for name in refresh.cjs history-refresh.cjs refresh.py; do
-                cp -p "/opt/stock-test/$name" "$backup/$name"
-                install -m 600 "$package/$name" "/opt/stock-test/$name"
-              done
-              OPERATION=resume-test-refresh
-            fi
-            if [ "$OPERATION" = resume-test-refresh ]; then
-              test -s /opt/stock-test/history-refresh.cjs
-              rm -f /opt/stock-test/PAUSED
-              flock -w 300 /var/lock/stock-test-refresh.lock python3 /opt/stock-test/refresh.py
-            fi
-            if [ -f /opt/stock-test/PAUSED ]; then echo 'Test refresh: paused'; else echo 'Test refresh: enabled'; fi
-            docker exec stock-back node ops/release/data-status.cjs
-            python3 - <<'PY'
-            import json, os
-            path = '/opt/stock-test/state.json'
-            if os.path.exists(path):
-                data = json.load(open(path))
-                print(json.dumps({k: data.get(k) for k in ('status','processed','remaining','blocked','window')}, ensure_ascii=False))
-            PY
+{
+  "name": "Retired legacy entry: market-maintenance.yml",
+  "on": {
+    "workflow_dispatch": {}
+  },
+  "permissions": {
+    "contents": "read"
+  },
+  "jobs": {
+    "retired": {
+      "runs-on": "ubuntu-24.04",
+      "steps": [
+        {
+          "run": "echo '::error::Legacy host operation retired. See ops/volc/CI-CUTOVER.md for the controlled Volcengine procedure.'\nexit 1"
+        }
+      ]
+    }
+  }
+}

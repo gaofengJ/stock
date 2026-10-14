@@ -1,159 +1,19 @@
-name: Release disk maintenance
-on:
-  workflow_dispatch:
-    inputs:
-      operation:
-        description: '检查磁盘，清理构建缓存、旧镜像，或保留当前数据库备份加两份历史'
-        type: choice
-        required: true
-        default: inspect
-        options: [inspect-review-records, clear-review-records, inspect, inspect-review-proxy, repair-review-proxy, clean-build-cache, clean-package-cache, clean-release-images, clean-release-backups]
-      review_owner_id:
-        description: '仅清空指定管理员的复盘记录，先用 inspect-review-records 核对'
-        type: string
-        required: false
-permissions:
-  contents: read
-concurrency:
-  group: stock-back-push-refs/heads/master
-  cancel-in-progress: false
-jobs:
-  maintenance:
-    if: github.ref == 'refs/heads/master' || inputs.operation == 'repair-review-proxy' || inputs.operation == 'inspect-review-proxy' || inputs.operation == 'inspect' || inputs.operation == 'clean-release-images' || inputs.operation == 'clean-release-backups' || inputs.operation == 'clean-package-cache'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        if: inputs.operation != 'clean-build-cache'
-        with:
-          sparse-checkout: apps/back/ops/release
-      - name: Validate backup cleanup on Linux and production Python 3.5
-        if: inputs.operation == 'clean-release-backups'
-        run: |
-          python3 -m unittest discover -s apps/back/ops/release -p 'test_*.py'
-          docker run --rm --mount "type=bind,src=$PWD/apps/back/ops/release,dst=/work,readonly" --workdir /work python:3.5-slim python -m unittest discover -p 'test_*.py'
-          for script in apps/back/ops/release/*.sh; do bash -n "$script"; done
-      - name: Upload retention maintenance tool
-        if: inputs.operation != 'clean-build-cache'
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          source: apps/back/ops/release/maintenance.py,apps/back/ops/release/review-proxy.py,apps/back/ops/release/review-records.cjs
-          target: /opt/stock-release/inspections/${{ github.sha }}
-          strip_components: 3
-      - name: Inspect release storage and optionally reclaim build cache
-        uses: appleboy/ssh-action@v1.2.0
-        env:
-          OPERATION: ${{ inputs.operation }}
-          REVIEW_OWNER_ID: ${{ inputs.review_owner_id }}
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          command_timeout: 10m
-          envs: OPERATION,REVIEW_OWNER_ID
-          script: |
-            set -eu
-            exec 9>/var/lock/stock-back-release.lock
-            flock -n 9 || { echo 'Another release is running'; exit 1; }
-            if [ "$OPERATION" = inspect-review-records ] || [ "$OPERATION" = clear-review-records ]; then
-              docker exec -i -e OPERATION="$OPERATION" -e REVIEW_OWNER_ID="$REVIEW_OWNER_ID" stock-back node < /opt/stock-release/inspections/${{ github.sha }}/release/review-records.cjs
-              exit 0
-            fi
-            if [ "$OPERATION" = repair-review-proxy ]; then
-              python3 /opt/stock-release/inspections/${{ github.sha }}/release/review-proxy.py --backup "/opt/stock-release/inspections/${{ github.sha }}/nginx-before-repair-$(date +%s).conf"
-              exit 0
-            fi
-            if [ "$OPERATION" = inspect-review-proxy ]; then
-              python3 - <<'PY'
-            import re, subprocess
-            raw = subprocess.check_output(['nginx', '-T'], stderr=subprocess.DEVNULL).decode('utf-8')
-            for line in raw.splitlines():
-                if re.match(r'\s*(# configuration file|server_name |listen |location |client_max_body_size |proxy_pass |include |[{}])', line):
-                    print(re.sub(r'(https?://)[^/@\s]+@', r'\1[redacted]@', line))
-            PY
-              exit 0
-            fi
-            case "$OPERATION" in
-              inspect)
-                python3 /opt/stock-release/inspections/${{ github.sha }}/release/maintenance.py --root /opt/stock-release --backup-status
-                ;;
-              clean-release-backups)
-                python3 - <<'PY'
-            import json, os, pathlib
-            root = pathlib.Path('/opt/stock-release')
-            policy = root/'policy.json'
-            if policy.is_symlink():
-                raise SystemExit('Symlinked retention policy rejected')
-            record = json.loads(policy.read_text()) if policy.is_file() else {}
-            record['backupMode'] = 'local-count'
-            temporary = root/'policy.json.backup-retention-new'
-            descriptor = os.open(str(temporary), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-            with os.fdopen(descriptor, 'w') as stream:
-                json.dump(record, stream)
-            temporary.replace(policy)
-            PY
-                python3 /opt/stock-release/inspections/${{ github.sha }}/release/maintenance.py --root /opt/stock-release --backups-only --apply
-                install -m 700 /opt/stock-release/inspections/${{ github.sha }}/release/maintenance.py /opt/stock-release/tools/maintenance.py
-                ;;
-              clean-release-images) python3 /opt/stock-release/inspections/${{ github.sha }}/release/maintenance.py --root /opt/stock-release --images-only --apply ;;
-              clean-build-cache) docker builder prune --force --filter until=168h ;;
-              clean-package-cache)
-                # Only regenerable package downloads/indexes; keep installed packages and locks.
-                apt-get clean
-                find /var/lib/apt/lists -maxdepth 1 -type f ! -name lock -delete
-                ;;
-              *) echo 'Unsupported operation'; exit 1 ;;
-            esac
-            df -B1 / /opt
-            docker system df
-            docker images --format '{{.ID}} {{.Repository}}:{{.Tag}} {{.Size}}'
-            docker ps -a --format '{{.Names}} {{.Status}} {{.Image}}'
-            docker inspect stock-front | python3 -c 'import json,sys; c=json.load(sys.stdin)[0]; print(json.dumps({"frontConfiguration":{"image":c["Image"],"ports":c["HostConfig"]["PortBindings"],"mounts":[{k:m.get(k) for k in ("Source","Destination","RW")} for m in c["Mounts"]],"networks":list(c["NetworkSettings"]["Networks"]),"restart":c["HostConfig"]["RestartPolicy"]}}))'
-            docker ps -a --format '{{.ID}}' | xargs -r docker inspect | python3 -c 'import json,sys; print(json.dumps({"containerReferences":[{"name":c["Name"],"image":c["Image"],"running":c["State"]["Running"]} for c in json.load(sys.stdin)]}))'
-            if [ "$OPERATION" = clean-release-images ] || [ "$OPERATION" = clean-build-cache ] || [ "$OPERATION" = clean-package-cache ]; then
-              # Cache/image cleanup must not report failure because a schema backup is missing.
-              if [ "$OPERATION" = clean-build-cache ]; then
-                python3 /opt/stock-release/tools/maintenance.py --root /opt/stock-release --images-only
-              else
-                python3 /opt/stock-release/inspections/${{ github.sha }}/release/maintenance.py --root /opt/stock-release --images-only
-              fi
-            else
-              python3 /opt/stock-release/inspections/${{ github.sha }}/release/maintenance.py --root /opt/stock-release
-            fi
-            python3 - <<'PY'
-            import glob, json, os
-            groups = {
-                'aptDownloads': glob.glob('/var/cache/apt/archives/*.deb'),
-                'rotatedSystemLogs': glob.glob('/var/log/*.gz') + glob.glob('/var/log/*/*.gz'),
-                'rotatedApplicationLogs': glob.glob('/home/logs/*/*.gz'),
-            }
-            for group, paths in groups.items():
-                files = [{'path': path, 'bytes': os.path.getsize(path)} for path in sorted(paths) if os.path.isfile(path) and not os.path.islink(path)]
-                print(json.dumps({'cleanupInventory': group, 'bytes': sum(item['bytes'] for item in files), 'files': files}))
-            PY
-            du -x -B1 -d2 / 2>/dev/null || true
-            du -x -B1 -d1 /opt/stock-release /var/lib
-            python3 - <<'PY'
-            import glob, json, os, datetime
-            archives = []
-            partials = []
-            for pattern in ('/opt/stock-release/runs/*/stock.sql.gz*', '/opt/stock-release/backups/*/stock.sql.gz*'):
-                for path in sorted(glob.glob(pattern)):
-                    if os.path.islink(path) or not os.path.isfile(path):
-                        continue
-                    if path.endswith('.sha256'):
-                        continue
-                    item = {'path': path, 'bytes': os.path.getsize(path), 'modifiedAtUTC': datetime.datetime.utcfromtimestamp(os.path.getmtime(path)).isoformat()}
-                    if path.endswith('.partial'):
-                        partials.append(item)
-                    elif path.endswith('.gz'):
-                        archives.append(item)
-            print(json.dumps({'backupStorage': {'archiveCount': len(archives), 'archiveBytes': sum(item['bytes'] for item in archives), 'partialCount': len(partials), 'partialBytes': sum(item['bytes'] for item in partials), 'archives': archives, 'partials': partials}}))
-            reports = sorted(glob.glob('/opt/stock-release/runs/*/preflight.json'))
-            if reports:
-                report = json.load(open(reports[-1]))
-                print(json.dumps({k: report.get(k) for k in ('database', 'totalBytes', 'requiredFreeBytes', 'pending')}))
-                print(json.dumps([table for table in report.get('tables', []) if table['name'].startswith('t_auth')]))
-            PY
+{
+  "name": "Retired legacy entry: release-maintenance.yml",
+  "on": {
+    "workflow_dispatch": {}
+  },
+  "permissions": {
+    "contents": "read"
+  },
+  "jobs": {
+    "retired": {
+      "runs-on": "ubuntu-24.04",
+      "steps": [
+        {
+          "run": "echo '::error::Legacy host operation retired. See ops/volc/CI-CUTOVER.md for the controlled Volcengine procedure.'\nexit 1"
+        }
+      ]
+    }
+  }
+}
