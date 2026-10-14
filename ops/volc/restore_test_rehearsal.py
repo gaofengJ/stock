@@ -100,7 +100,9 @@ def main():
                     '--triggers', '--set-gtid-purged=OFF', '--no-tablespaces', '--column-statistics=0', 'stock_test']
     with (ROOT / 'dump80.stderr').open('wb') as dump_errors, (ROOT / 'restore84.stderr').open('wb') as restore_errors:
         dump = subprocess.Popen(dump_command, stdout=subprocess.PIPE, stderr=dump_errors)
-        restore = subprocess.Popen(NEW + ['--binary-mode=1', 'stock_test'], stdin=dump.stdout, stderr=restore_errors)
+        # This is an isolated, preserved test snapshot. Its original SQL remains
+        # on both hosts; avoid duplicating the entire rehearsal import in binlog.
+        restore = subprocess.Popen(NEW + ['--init-command=SET SESSION sql_log_bin=0', '--binary-mode=1', 'stock_test'], stdin=dump.stdout, stderr=restore_errors)
         dump.stdout.close()
         try:
             assert restore.wait() == 0 and dump.wait() == 0, '8.0 -> 8.4 logical test restore failed'
