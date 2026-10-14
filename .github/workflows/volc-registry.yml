@@ -116,4 +116,3 @@ jobs:
           python3 ops/volc/upload_release.py --receipt /tmp/registry-receipt --run-id "$VERIFIED_RUN" --key "$key" --known-hosts ops/volc/known_hosts --mode "$RELEASE_MODE"
       # Validation is the default. Queue mode additionally requires master and two server-side flags.
       # No latest tag, old-host operation, uploaded shell, DDL, or database restore.
-

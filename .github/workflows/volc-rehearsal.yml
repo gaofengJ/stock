@@ -22,6 +22,17 @@ concurrency:
   group: volc-rehearsal-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "24.21.0"}
+      - name: Preserve credential, release artifact, indexing and history contracts
+        run: |
+          node .github/scripts/check-env-secrets.cjs apps/back/.env.production
+          node --test .github/scripts/test-release-tools.cjs .github/scripts/test-publish-verified-image.cjs .github/scripts/test-indexnow.cjs apps/back/ops/backfill-intraday-counts.test.cjs
   frontend:
     runs-on: ubuntu-24.04
     steps:
@@ -40,7 +51,7 @@ jobs:
       - run: pnpm -C apps/front run lint
       - name: Frontend behavior checks
         run: |
-          node --test apps/front/scripts/test-display.cjs apps/front/scripts/test-errors.cjs apps/front/scripts/test-market-compatibility.cjs apps/front/scripts/test-guest-access.cjs apps/front/scripts/test-market-environment.cjs apps/front/scripts/test-blog-paths.cjs apps/front/scripts/test-intraday-counts.cjs apps/front/scripts/test-live-research.cjs apps/front/scripts/test-playbook.cjs
+          node --test apps/front/scripts/test-display.cjs apps/front/scripts/test-errors.cjs apps/front/scripts/test-market-compatibility.cjs apps/front/scripts/test-guest-access.cjs apps/front/scripts/test-market-environment.cjs apps/front/scripts/test-blog-paths.cjs apps/front/scripts/test-intraday-counts.cjs apps/front/scripts/test-live-research.cjs apps/front/scripts/test-playbook.cjs apps/front/scripts/test-admin-polling.cjs
           pnpm -C apps/front run test:profile
       - run: pnpm -C apps/front run build
       - name: Build and validate static frontend

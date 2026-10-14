@@ -132,3 +132,18 @@ are stopped and final data checks pass. This override has not been applied yet.
 root worker复核GitHub完整CI的commit、分支、仓库及成功状态，检查近期备份和恢复证明，拉取并核对镜像ID；候选迁移列表与现库历史必须相同。仅更新back/front、关闭入口后检查健康，失败恢复previous.env及应用版本；失败回退仍异常时保留维护模式。此入口不执行DDL、不恢复数据库。已有版本重复提交返回already-current，不重启服务。代码中的业务变更仍需要正常review；摘要与image-id来源依赖受保护的GitHub CI上传凭据。
 
 `release_worker.py --rehearsal /run/stock-cd/request.json`默认只预检，要求新机维护且无生产标记；`--apply`才会尝试隔离新机应用更新。正式队列只能由root预装的systemd服务处理，不运行上传脚本。worker与备份、同步共用维护锁；状态位于`/srv/stock/deploy-status`，发布前后清单位于`/opt/stock/deploy/releases/cd-*`。单次请求失败应检查回退结果，不自动重复提交。
+
+
+## 最终同步工具（需要用户先确认停写窗口）
+
+- `final_export.py`仅适用于旧5.7主机，默认只读预检。显式`--export --window-id YYYYMMDDTHHMMSSZ`要求root持有600权限的`/root/stock-cutover-approved.json`，字段包含对应windowId、oldHost/newHost、stopWritesApproved=true和未来不超过两小时的expiresAtEpoch。授权文件只能在用户明确确认窗口后建立，文件本身不替代用户授权。
+- 工具不自动停止服务或设置只读；导出前要求旧stock-back停止、旧新闻service/timer停止、无活跃InnoDB事务、read_only和super_read_only同时开启，以及至少8GiB空间。执行前应记录原开关/定时器/容器状态并检查没有进行中的旧发布或新闻工作流。持有旧发布锁，主库与测试库分别导出，精确计数、内容checksum、列、索引、外键、排序规则及迁移历史入清单，禁止跨库外键/存储对象未经评审直接迁移。
+- `final_transfer.py`默认只显示计划。`--transfer`读取同窗口最终导出清单，复用已验证raw基线做rsync差分：旧机→Mac128KiB/s、Mac→新机2MiB/s。保留原本机基线和新的独立最终SQL；目标先验证原预置SHA，再仅将预置raw文件重命名到本窗口目录，避免额外占用4.45GB；in-place传输中间文件不可恢复数据库。仅两份SQL在本机和新机完整SHA通过后写transport-verification.json。
+- `final_import.py --window-id ...`默认只检验最终清单/传输证明及SQL计数和SHA。`--apply`还要求新机同窗口root批准文件、维护状态、后端已停、无生产标记和至少4GiB余量。仅替换新机演练stock及stock_test，逐库核验内容/结构；不修改旧库、不启动后端、不启用采集、不改DNS。失败保留SQL及当前失败库供诊断，不自动覆盖重试；任何已存在导出/传输/导入目录都需按记录人工判断，不能换窗口名来绕过失败。
+- 停写期间旧数据库必须持续只读。完成所有数据/应用验证前不开放新端；任何恢复旧写入的回滚都会使本次最终快照失效，之后必须使用新批准窗口重新导出。新机开始真实写入后禁止直接切回旧库。
+
+### MySQL 5.7 到8.4的排序规则保全
+
+实测发现仅设置collation-server=utf8mb4_general_ci不足以保留旧mysqldump建表默认值。5.7导出的DEFAULT CHARSET=utf8mb4在8.4会采用default_collation_for_utf8mb4=0900_ai_ci；原演练主库118列、测试库89列存在此差异。最终导入会话显式设为utf8mb4_general_ci，并核验每表/每列排序规则；不将general_ci与0900_ai_ci当作可忽略差异。
+
+独立schema-only探针已验证53+33张表、433+330列按此方式与旧库列定义一致，无业务行导入，探针空库已删除。现有演练库未为此重复恢复，最终导入前仍不能宣称它与5.7源库排序规则一致。版本间只归一化整数显示宽度、DEFAULT_GENERATED展示标记及utf8→utf8mb3命名，其他默认值、可空性、排序规则差异均阻断。后续新迁移DDL须显式声明预期排序规则；本导入会话设置不改变全局数据库变量。
