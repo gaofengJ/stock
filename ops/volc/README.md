@@ -30,3 +30,5 @@
 `stock-deploy`是独立上传账户，密钥仅能运行root持有的`receive_bundle.py`，不具备shell、sudo、Docker或端口转发权限。完整校验后的归档才进入`/srv/stock/incoming`，上传不会触发容器更新或流量切换；原临时迁移私钥未上传GitHub。上传凭据使用新增的`VOLC_REHEARSAL_UPLOAD_KEY`，旧生产Secrets未改。
 
 文章和独立博客迁移保留已发布静态内容，CI逐文件SHA256对比，再换为已验证稳定Nginx。RSSHub采用已固定的近期财经扩展镜像，去掉旧宿主机内核的兼容启动器，仍需在新机验证路由。
+
+日常入口和恢复边界见[运维说明](./OPERATIONS.md)。
