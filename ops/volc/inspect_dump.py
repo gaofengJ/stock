@@ -42,7 +42,9 @@ def inspect(archive, metadata):
     if archive.stat().st_size != metadata['bytes'] or digest.hexdigest() != metadata['sha256']:
         raise ValueError('Backup size or SHA256 does not match source metadata')
     rows = {}
-    with gzip.open(archive, 'rb') as stream:
+    # Raw SQL preserves rsync block matching for the final, bandwidth-limited sync.
+    opener = gzip.open if archive.suffix == '.gz' else open
+    with opener(archive, 'rb') as stream:
         for line in stream:
             table = CREATE.match(line)
             if table:
