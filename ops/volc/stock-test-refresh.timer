@@ -1,0 +1,10 @@
+[Unit]
+Description=Check for stock test data refresh every five minutes
+
+[Timer]
+OnCalendar=*-*-* *:0/5:00
+AccuracySec=30s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

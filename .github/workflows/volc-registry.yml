@@ -1,0 +1,135 @@
+name: Publish verified Volcengine candidate images
+on:
+  workflow_run:
+    workflows: ['Volcengine isolated rehearsal']
+    types: [completed]
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      verified_sha:
+        description: Full commit SHA of the successful isolated rehearsal
+        required: true
+        type: string
+      verified_run:
+        description: Successful isolated rehearsal workflow run ID
+        required: true
+        type: string
+      queue_release:
+        description: Queue application-only deployment after the approved production cutover (master only)
+        required: false
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: volc-candidate-registry
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: >-
+      github.ref == 'refs/heads/master' &&
+      ((github.event_name == 'workflow_dispatch' && (!inputs.queue_release || vars.VOLC_PRODUCTION_ENABLED == 'true')) ||
+       (github.event_name == 'workflow_run' && vars.VOLC_PRODUCTION_ENABLED == 'true' &&
+        github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'master' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      VERIFIED_SHA: ${{ github.event.workflow_run.head_sha || inputs.verified_sha }}
+      VERIFIED_RUN: ${{ github.event.workflow_run.id || inputs.verified_run }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: master}
+      - name: Confirm the source run passed all gates
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          [[ "$VERIFIED_SHA" =~ ^[0-9a-f]{40}$ ]] && [[ "$VERIFIED_RUN" =~ ^[0-9]+$ ]]
+          gh api "repos/$GH_REPO/actions/runs/$VERIFIED_RUN" > /tmp/verified-run.json
+          python3 - <<'PY'
+          import json, os
+          run=json.load(open('/tmp/verified-run.json'))
+          assert run['head_sha']==os.environ['VERIFIED_SHA']
+          assert run['status']=='completed' and run['conclusion']=='success'
+          assert run['head_branch']==os.environ['GITHUB_REF_NAME']
+          assert run['head_repository']['full_name']=='gaofengJ/stock'
+          assert run['path']=='.github/workflows/volc-rehearsal.yml'
+          assert run['event'] in ('push','workflow_dispatch')
+          import subprocess
+          current=subprocess.check_output(['gh','api','repos/'+os.environ['GH_REPO']+'/commits/master','--jq','.sha'],text=True).strip()
+          assert current==os.environ['VERIFIED_SHA'], 'Superseded master commit; do not deploy stale artifacts'
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ github.event.workflow_run.id || inputs.verified_run }}
+          pattern: stock-volc-*-${{ github.event.workflow_run.head_sha || inputs.verified_sha }}
+          github-token: ${{ github.token }}
+          path: /tmp/stock-images
+      - name: Verify and load the exact tested artifacts
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, subprocess
+          from pathlib import Path
+          sha=os.environ['VERIFIED_SHA']
+          for role, artifact, repository in [('back','backend','stock-back'),('front','frontend','stock-front'),('articles','articles','stock-blog')]:
+              folder=Path('/tmp/stock-images') / ('stock-volc-'+artifact+'-'+sha)
+              assert (folder/'commit').read_text().strip()==sha
+              archive=folder/(artifact+'.tar.zst')
+              expected=(folder/(artifact+'.sha256')).read_text().split()[0]
+              with archive.open('rb') as f: actual=hashlib.file_digest(f,'sha256').hexdigest()
+              assert actual==expected
+              z=subprocess.Popen(['zstd','-dc',str(archive)],stdout=subprocess.PIPE)
+              subprocess.run(['docker','load'],stdin=z.stdout,check=True)
+              z.stdout.close(); assert z.wait()==0
+              source='stock-'+role+'-volc:'+sha
+              image=json.loads(subprocess.check_output(['docker','image','inspect',source]))[0]
+              # Fail closed if runner storage changes ID semantics; do not rebuild.
+              assert image['Id']==(folder/'image-id').read_text().strip()
+              target='registry.cn-hangzhou.aliyuncs.com/mufengtongxue/'+repository+':volc-'+sha
+              subprocess.run(['docker','tag',source,target],check=True)
+          PY
+      - name: Authenticate to the existing distribution registry
+        env:
+          REGISTRY_USER: ${{ secrets.DOCKER_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: printf '%s' "$REGISTRY_PASSWORD" | docker login registry.cn-hangzhou.aliyuncs.com -u "$REGISTRY_USER" --password-stdin
+      - name: Publish candidate-only tags and record immutable digests
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/registry-receipt
+          for role in back front article; do
+            repository="stock-$role"
+            if [ "$role" = article ]; then repository=stock-blog; fi
+            target="registry.cn-hangzhou.aliyuncs.com/mufengtongxue/$repository:volc-$VERIFIED_SHA"
+            docker push "$target"
+            docker image inspect --format '{{index .RepoDigests 0}}' "$target" > "/tmp/registry-receipt/$role-digest"
+            docker image inspect --format '{{.Id}}' "$target" > "/tmp/registry-receipt/$role-image-id"
+          done
+          printf '%s\n' "$VERIFIED_SHA" > /tmp/registry-receipt/commit
+      - name: Remove temporary registry login
+        if: always()
+        run: docker logout registry.cn-hangzhou.aliyuncs.com
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stock-volc-registry-${{ env.VERIFIED_SHA }}
+          path: /tmp/registry-receipt/
+          retention-days: 30
+          if-no-files-found: error
+      - name: Validate or queue the fixed release through restricted SSH
+        env:
+          UPLOAD_KEY: ${{ secrets.VOLC_REHEARSAL_UPLOAD_KEY }}
+          REGISTRY_USER: ${{ secrets.DOCKER_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          RELEASE_MODE: ${{ (github.event_name == 'workflow_run' || inputs.queue_release) && 'queue' || 'validate' }}
+        run: |
+          set -euo pipefail
+          umask 077
+          key="$RUNNER_TEMP/volc-release-key"
+          trap 'rm -f "$key"' EXIT
+          printf '%s\n' "$UPLOAD_KEY" > "$key"
+          python3 ops/volc/upload_release.py --receipt /tmp/registry-receipt --run-id "$VERIFIED_RUN" --key "$key" --known-hosts ops/volc/known_hosts --mode "$RELEASE_MODE"
+      # Validation is the default. Queue mode additionally requires master and two server-side flags.
+      # No latest tag, old-host operation, uploaded shell, DDL, or database restore.

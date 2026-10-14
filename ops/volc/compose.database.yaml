@@ -1,0 +1,48 @@
+name: mufengtongxue-stock-db
+
+services:
+  mysql:
+    image: ${MYSQL_IMAGE:?Set an approved MySQL 8.4 image digest}
+    restart: unless-stopped
+    stop_grace_period: 90s
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql-root-password
+      TZ: Asia/Shanghai
+    secrets:
+      - mysql-root-password
+      - mysql-root-client
+    volumes:
+      - type: bind
+        source: /srv/stock/mysql
+        target: /var/lib/mysql
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./mysql.cnf
+        target: /etc/mysql/conf.d/stock.cnf
+        read_only: true
+    ports:
+      - 127.0.0.1:3306:3306
+    networks:
+      database:
+        aliases: [mysql]
+    healthcheck:
+      test: [CMD-SHELL, "mysqladmin --defaults-extra-file=/run/secrets/mysql-root-client ping --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    logging:
+      driver: local
+      options: {max-size: 20m, max-file: "5"}
+
+secrets:
+  mysql-root-password:
+    file: /etc/stock/mysql-root-password
+  mysql-root-client:
+    file: /etc/stock/mysql-root.cnf
+
+networks:
+  database:
+    name: mufengtongxue-stock-db
+    internal: true

@@ -1,0 +1,204 @@
+name: Volcengine isolated rehearsal
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: volc-rehearsal-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "24.21.0"}
+      - name: Preserve credential, release artifact, indexing contracts
+        run: |
+          node .github/scripts/check-env-secrets.cjs apps/back/.env.production
+          node --test .github/scripts/test-release-tools.cjs .github/scripts/test-publish-verified-image.cjs .github/scripts/test-indexnow.cjs
+  frontend:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            apps/front
+            apps/back
+            ops/volc
+            .github
+      - uses: actions/setup-node@v4
+        with: {node-version: "24.21.0"}
+      - uses: pnpm/action-setup@v4
+        with: {version: 9.15.9}
+      - run: pnpm install --filter front --frozen-lockfile
+      - run: pnpm -C apps/front run lint
+      - name: Frontend behavior checks
+        run: |
+          node --test apps/front/scripts/test-display.cjs apps/front/scripts/test-errors.cjs apps/front/scripts/test-market-compatibility.cjs apps/front/scripts/test-guest-access.cjs apps/front/scripts/test-market-environment.cjs apps/front/scripts/test-blog-paths.cjs apps/front/scripts/test-intraday-counts.cjs apps/front/scripts/test-live-research.cjs apps/front/scripts/test-playbook.cjs apps/front/scripts/test-admin-polling.cjs
+          pnpm -C apps/front run test:profile
+      - run: pnpm -C apps/front run build
+      - name: Build and validate static frontend
+        run: |
+          docker pull nginx:stable
+          NGINX_IMAGE=$(docker image inspect --format '{{index .RepoDigests 0}}' nginx:stable)
+          docker build --build-arg NGINX_IMAGE="$NGINX_IMAGE" -f ops/volc/Dockerfile.front -t stock-front-volc:${{ github.sha }} .
+          docker run --rm stock-front-volc:${{ github.sha }} nginx -t
+          mkdir -p /tmp/stock-volc-front
+          docker save stock-front-volc:${{ github.sha }} | zstd -T0 -3 -o /tmp/stock-volc-front/frontend.tar.zst
+          sha256sum /tmp/stock-volc-front/frontend.tar.zst > /tmp/stock-volc-front/frontend.sha256
+          docker image inspect --format '{{.Id}}' stock-front-volc:${{ github.sha }} > /tmp/stock-volc-front/image-id
+          printf '%s\n' "$NGINX_IMAGE" > /tmp/stock-volc-front/base-image
+          printf '%s\n' '${{ github.sha }}' > /tmp/stock-volc-front/commit
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stock-volc-frontend-${{ github.sha }}
+          path: /tmp/stock-volc-front/
+          retention-days: 2
+          if-no-files-found: error
+  verify:
+    runs-on: ubuntu-24.04
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-local-only
+          MYSQL_ROOT_HOST: "%"
+        ports: [3306:3306]
+        options: --health-cmd="mysqladmin ping --silent" --health-interval=10s --health-timeout=5s --health-retries=12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            apps/back
+            ops/volc
+            .github
+      - uses: actions/setup-node@v4
+        with: {node-version: "24.21.0"}
+      - uses: pnpm/action-setup@v4
+        with: {version: 9.15.9}
+      - run: pnpm install --filter back --frozen-lockfile
+      - name: Intraday history contracts
+        run: node --test apps/back/ops/backfill-intraday-counts.test.cjs
+      - run: pnpm -C apps/back run lint
+      - run: pnpm -C apps/back run build
+      - run: node apps/back/scripts/check-migration-policy.cjs
+      - name: Unit and MySQL 8.4 integration
+        run: pnpm -C apps/back run test --runInBand
+        env:
+          TZ: Asia/Shanghai
+          SYNC_TEST_MYSQL_PORT: 3306
+          SYNC_TEST_MYSQL_PASSWORD: ci-local-only
+      - name: Account and legacy schema integration
+        working-directory: apps/back
+        env:
+          AUTH_TEST_PORT: 3306
+          AUTH_TEST_PASSWORD: ci-local-only
+          AUTH_TEST_DEBUG: "true"
+        run: |
+          AUTH_TEST_DATABASE=stock_auth_test_volc node test/accounts.integration.cjs
+          AUTH_TEST_DATABASE=stock_auth_test_volc_legacy node test/migration-legacy.cjs
+      - name: Validate isolated Compose topology
+        run: python3 ops/volc/check_stack.py --test-config
+      - name: Build and validate Node 24 runtime
+        run: |
+          docker build -f ops/volc/Dockerfile.back -t stock-back-volc:${{ github.sha }} .
+          docker run --rm stock-back-volc:${{ github.sha }} node scripts/check-argon2.cjs
+          docker run --rm stock-back-volc:${{ github.sha }} node scripts/check-image.cjs
+      - name: Package verified image for private rehearsal transfer
+        run: |
+          mkdir -p /tmp/stock-volc-image
+          docker save stock-back-volc:${{ github.sha }} | zstd -T0 -3 -o /tmp/stock-volc-image/backend.tar.zst
+          sha256sum /tmp/stock-volc-image/backend.tar.zst > /tmp/stock-volc-image/backend.sha256
+          docker image inspect --format '{{.Id}}' stock-back-volc:${{ github.sha }} > /tmp/stock-volc-image/image-id
+          printf '%s\n' '${{ github.sha }}' > /tmp/stock-volc-image/commit
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stock-volc-backend-${{ github.sha }}
+          path: /tmp/stock-volc-image/
+          retention-days: 2
+          if-no-files-found: error
+# Intentionally no SSH, production Secrets, database migration, or deployment job.
+
+  articles:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            apps/blog
+            ops/volc
+            .github
+      - uses: actions/setup-node@v4
+        with: {node-version: "24.21.0"}
+      - uses: pnpm/action-setup@v4
+        with: {version: 9.15.9}
+      - run: pnpm install --filter blog --frozen-lockfile
+      - name: Verify article metadata and build all published content
+        run: |
+          pnpm -C apps/blog run test
+          pnpm -C apps/blog run build
+      - name: Verify protected routing and build the tested image
+        run: |
+          set -euo pipefail
+          docker pull nginx:stable
+          NGINX_IMAGE=$(docker image inspect --format '{{index .RepoDigests 0}}' nginx:stable)
+          BLOG_NGINX_IMAGE="$NGINX_IMAGE" BLOG_NGINX_CONFIG=ops/volc/blog.nginx.conf node .github/scripts/test-blog-server.cjs
+          docker build --build-arg NGINX_IMAGE="$NGINX_IMAGE" --build-arg RELEASE_SHA=${{ github.sha }} -f ops/volc/Dockerfile.articles -t stock-articles-volc:${{ github.sha }} .
+          docker run --rm stock-articles-volc:${{ github.sha }} nginx -t
+          docker run -d --name article-standalone -p 127.0.0.1:36083:80 stock-articles-volc:${{ github.sha }}
+          python3 - <<'PYTEST'
+          import time,urllib.request,urllib.error
+          for attempt in range(20):
+              try:
+                  response=urllib.request.urlopen('http://127.0.0.1:36083/',timeout=3)
+              except urllib.error.HTTPError as error:
+                  assert error.code==403
+                  break
+              except OSError:
+                  time.sleep(.2)
+              else:
+                  raise AssertionError('Standalone article image exposed content')
+          else: raise AssertionError('Article image did not start')
+          PYTEST
+          docker rm -f article-standalone
+          mkdir -p /tmp/stock-volc-articles
+          docker save stock-articles-volc:${{ github.sha }} | zstd -T0 -3 -o /tmp/stock-volc-articles/articles.tar.zst
+          sha256sum /tmp/stock-volc-articles/articles.tar.zst > /tmp/stock-volc-articles/articles.sha256
+          docker image inspect --format '{{.Id}}' stock-articles-volc:${{ github.sha }} > /tmp/stock-volc-articles/image-id
+          printf '%s\n' "$NGINX_IMAGE" > /tmp/stock-volc-articles/base-image
+          printf '%s\n' '${{ github.sha }}' > /tmp/stock-volc-articles/commit
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stock-volc-articles-${{ github.sha }}
+          path: /tmp/stock-volc-articles/
+          retention-days: 2
+          if-no-files-found: error
+
+  operations:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile deployment and backup tools
+        run: python3 -m compileall -q ops/volc
+      - name: Backup failure detection and restricted feed delivery
+        env:
+          PYTHONPATH: .github/scripts
+        run: python3 -B -m unittest discover -s ops/volc -p 'test_*.py'
+      - name: Feed and translation boundaries
+        run: python3 -B -m unittest discover -s .github/scripts -p 'test_*.py'
+      - name: Check isolated service topology
+        run: |
+          python3 -B ops/volc/check_stack.py --test-config
+          python3 -B ops/volc/check_stack.py --test-config --production
+# No production credentials, remote commands, image rebuild or deployment.

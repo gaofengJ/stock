@@ -1,0 +1,34 @@
+name: Volcengine verified image upload
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: volc-rehearsal-upload
+  cancel-in-progress: false
+jobs:
+  upload:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: ops/volc
+      - name: Download the already-tested application images
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 38517287815
+          github-token: ${{ github.token }}
+          path: /tmp/stock-images
+      - name: Upload archives with a separate, restricted key
+        env:
+          UPLOAD_KEY: ${{ secrets.VOLC_REHEARSAL_UPLOAD_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          key="$RUNNER_TEMP/volc-upload-key"
+          trap 'rm -f "$key"' EXIT
+          printf '%s\n' "$UPLOAD_KEY" > "$key"
+          python3 ops/volc/upload_bundles.py /tmp/stock-images --key "$key" --known-hosts ops/volc/known_hosts
+      # Upload is not deployment: no container update, database write or traffic switch.

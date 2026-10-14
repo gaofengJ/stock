@@ -1,25 +1,19 @@
-name: Inspect article release
-on:
-  workflow_dispatch:
-jobs:
-  inspect:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Read server release progress
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          script: |
-            echo 'Running Docker operations (arguments omitted):'
-            ps -eo pid,etime,args | awk '$3 ~ /(^|\/)docker$/ {print $1,$2,$3,$4}'
-            echo 'Article containers:'
-            docker ps --filter name=stock-blog --format '{{.Names}} {{.Status}} {{.Image}}'
-            echo 'Article images:'
-            docker images --format '{{.Repository}}:{{.Tag}} {{.Size}}' | grep 'stock-blog' || true
-            echo 'Media-verified release build directories:'
-            find /opt/stock-blog-style -maxdepth 2 -name Dockerfile -print
-            echo 'Memory and disk:'
-            free -m
-            df -h / /opt
+{
+  "name": "Retired legacy entry: blog-release-status.yml",
+  "on": {
+    "workflow_dispatch": {}
+  },
+  "permissions": {
+    "contents": "read"
+  },
+  "jobs": {
+    "retired": {
+      "runs-on": "ubuntu-24.04",
+      "steps": [
+        {
+          "run": "echo '::error::Legacy host operation retired. See ops/volc/CI-CUTOVER.md for the controlled Volcengine procedure.'\nexit 1"
+        }
+      ]
+    }
+  }
+}

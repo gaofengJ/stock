@@ -124,8 +124,8 @@ async function main() {
     const translationsMigration = new NewsTranslations1791072000000();
     await translationsMigration.up(q);
     await new NewsReadingFeatures1791158400000().up(q);
-    // Stock linkage uses the existing stock catalog in production.
-    await db.query('CREATE TABLE IF NOT EXISTS t_source_stock (ts_code VARCHAR(16),name VARCHAR(80),fullname VARCHAR(200))');
+    // Preserve the old catalog collation even when news tables use MySQL 8 defaults.
+    await db.query('CREATE TABLE IF NOT EXISTS t_source_stock (ts_code VARCHAR(16),name VARCHAR(80),fullname VARCHAR(200)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci');
     await db.query("INSERT INTO t_source_stock(ts_code,name,fullname) VALUES('000001.SZ','平安银行','平安银行股份有限公司')");
     await translationsMigration.up(q);
     assert.equal(Number((await db.query('SELECT COUNT(*) n FROM t_news_source WHERE source IN (?) AND enabled=1', [[...RETIRED_RESEARCH_CODES]]))[0].n), 0, 'Display policy disables retired research sources idempotently');
@@ -154,7 +154,8 @@ async function main() {
     const accessEntries = [];
     registerAccessLogging(adapter.getInstance(), entry => accessEntries.push({ ...entry, kind: 'access' }));
     await adapter.register(require('@fastify/cookie'));
-    app = module.createNestApplication(adapter, { logger: false });
+    // Fixtures are disposable; surface server errors when validating a new runtime.
+    app = module.createNestApplication(adapter, { logger: process.env.AUTH_TEST_DEBUG === 'true' ? ['error'] : false });
     app.useGlobalPipes(new ValidationPipe({ transform:true,whitelist:true,forbidNonWhitelisted:true,transformOptions:{enableImplicitConversion:true} }));
     app.setGlobalPrefix('api'); app.useGlobalInterceptors(new TransformInterceptor(new Reflector()));
     await app.init(); await adapter.getInstance().ready();

@@ -1,0 +1,63 @@
+name: Volcengine published content preparation
+on:
+  push:
+    branches: [codex/stock-volc-migration]
+    paths: [.github/workflows/volc-content.yml]
+permissions:
+  contents: read
+concurrency:
+  group: volc-content-rehearsal
+  cancel-in-progress: false
+jobs:
+  content:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Read the existing published images
+        env:
+          REGISTRY_USER: ${{ secrets.DOCKER_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          printf '%s' "$REGISTRY_PASSWORD" | docker login registry.cn-hangzhou.aliyuncs.com -u "$REGISTRY_USER" --password-stdin
+      - name: Preserve published files on the verified stable Nginx runtime
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/content-output /tmp/content-build
+          base='nginx@sha256:9bf97bd7714f5e24c1ccd545ecb9eb5435cb6d109c97cebb15e7e455e0239edb'
+          docker pull "$base"
+          for role in articles blog; do
+            if [ "$role" = articles ]; then
+              source='registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-blog@sha256:8d8a31b4ab257642d136f9dbd80fbd3997cc421e15cdd03764ad5576bcbd1d6c'
+            else
+              source='registry.cn-hangzhou.aliyuncs.com/mufengtongxue/blog@sha256:541affe737a6da10805d68a0c9cbff9b1dd93da198148e4a43a8210fac167aee'
+            fi
+            docker pull "$source"
+            docker run --rm --entrypoint sh "$source" -c 'cd /usr/share/nginx/html && find . -type f -exec sha256sum {} \; | LC_ALL=C sort' > /tmp/content-output/$role-files.sha256
+            printf 'FROM %s AS published\nFROM %s\nRUN rm -rf /usr/share/nginx/html/*\nCOPY --from=published /usr/share/nginx/html/ /usr/share/nginx/html/\n' "$source" "$base" > /tmp/content-build/Dockerfile
+            docker build -t stock-$role-volc:${{ github.sha }} /tmp/content-build
+            docker run --rm --entrypoint sh stock-$role-volc:${{ github.sha }} -c 'cd /usr/share/nginx/html && find . -type f -exec sha256sum {} \; | LC_ALL=C sort' > /tmp/$role-files.sha256
+            cmp /tmp/content-output/$role-files.sha256 /tmp/$role-files.sha256
+            docker run --rm stock-$role-volc:${{ github.sha }} nginx -t
+            docker image inspect --format '{{.Id}}' stock-$role-volc:${{ github.sha }} > /tmp/content-output/$role-image-id
+            printf '%s\n' "$source" > /tmp/content-output/$role-source
+          done
+          # This recent, pinned RSSHub image already includes the necessary feed/browser fixes.
+          # The old kernel's host-mounted compatibility launcher is deliberately not copied.
+          rss='registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-back@sha256:b8c1393310ce0663f6a514e9c1e8855a51f2e70c3d1105c3dcac1cffc754f804'
+          docker pull "$rss"
+          docker tag "$rss" stock-rsshub-volc:${{ github.sha }}
+          docker run --rm --entrypoint node stock-rsshub-volc:${{ github.sha }} --version > /tmp/content-output/rsshub-node-version
+          docker image inspect --format '{{.Id}}' stock-rsshub-volc:${{ github.sha }} > /tmp/content-output/rsshub-image-id
+          printf '%s\n' '${{ github.sha }}' > /tmp/content-output/commit
+          printf '%s\n' "$base" > /tmp/content-output/base-image
+          docker save stock-articles-volc:${{ github.sha }} stock-blog-volc:${{ github.sha }} stock-rsshub-volc:${{ github.sha }} | zstd -T0 -3 -o /tmp/content-output/content.tar.zst
+          cd /tmp/content-output
+          sha256sum content.tar.zst > SHA256SUMS
+      - name: Remove temporary registry login
+        if: always()
+        run: docker logout registry.cn-hangzhou.aliyuncs.com
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stock-volc-content-${{ github.sha }}
+          path: /tmp/content-output/
+          retention-days: 2
+          if-no-files-found: error

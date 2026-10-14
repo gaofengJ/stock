@@ -90,6 +90,32 @@ describe('admin logs and retry policy', () => {
     expect(limited.truncated).toBe(true);
     expect(limited.bytes).toBe(0);
   });
+
+  it('includes every rotated application part without counting duplicate error logs', async () => {
+    for (const [name, message] of [
+      ['stock-back.2026-10-02.log', 'first'],
+      ['stock-back.2026-10-02.log.1', 'second'],
+      ['stock-back.2026-10-02.log.10', 'latest'],
+      ['stock-back-error.2026-10-02.log', 'duplicate'],
+    ])
+      fs.writeFileSync(
+        path.join(directory, name),
+        JSON.stringify({ level: 'error', message }),
+      );
+    const service = new LogsService({} as any);
+    const result = await service.application({
+      page: 1,
+      pageSize: 20,
+      startDate: '2026-10-02',
+    });
+    expect(result.items.map((r) => r.message)).toEqual([
+      'latest',
+      'second',
+      'first',
+    ]);
+    expect(result.total).toBe(3);
+    expect(result.availableDates).toEqual(['2026-10-02']);
+  });
   it('shows errors and warnings without including ordinary request noise', async () => {
     fs.writeFileSync(
       path.join(directory, 'stock-back.2026-10-02.log'),

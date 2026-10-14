@@ -1,0 +1,100 @@
+name: mufengtongxue-stock
+
+x-app: &app
+  restart: unless-stopped
+  logging:
+    driver: local
+    options: {max-size: 20m, max-file: "5"}
+  security_opt: [no-new-privileges:true]
+
+services:
+  back:
+    <<: *app
+    image: ${BACK_IMAGE:?Set the verified backend image digest}
+    init: true
+    stop_grace_period: 60s
+    environment:
+      NODE_ENV: production
+      APP_ENV_FILE: /run/stock/runtime.env
+      APP_PORT: "3000"
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_DATABASE: stock
+      LOG_DIR: /var/log/stock
+      LOG_STDOUT_JSON: "true"
+      LOGGER_MAX_FILES: "5"
+      RELEASE_SHA: ${RELEASE_SHA:?Set the verified commit}
+      AUTH_ALLOWED_ORIGINS: ${AUTH_ALLOWED_ORIGINS:?Set exact HTTPS origins}
+      # Enabling writers requires a separate, validated cutover operation.
+      SCHEDULE_ENABLED: "false"
+      SYNC_SCHEDULE_ENABLED: "false"
+      SYNC_ON_STARTUP: "false"
+      NEWS_SYNC_ENABLED: "false"
+      ADMIN_JOBS_ENABLED: "false"
+      TUSHARE_REQUESTS_ENABLED: "false"
+      RSSHUB_BASE_URL: http://rsshub:1200
+    volumes:
+      - type: bind
+        source: /etc/stock/runtime.env
+        target: /run/stock/runtime.env
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: /srv/stock/logs
+        target: /var/log/stock
+        bind: {create_host_path: false}
+      - type: bind
+        source: /srv/stock/news
+        target: /run/stock/news-feeds
+        read_only: true
+        bind: {create_host_path: false}
+    ports: [127.0.0.1:3000:3000]
+    networks: [database, application]
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('http').get('http://127.0.0.1:3000/api/auth/me',r=>process.exit(r.statusCode===401?0:1)).on('error',()=>process.exit(1))"
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 90s
+
+  front:
+    <<: *app
+    image: ${FRONT_IMAGE:?Set the verified frontend image digest}
+    ports: [127.0.0.1:8081:80]
+    networks: [application]
+
+  articles:
+    <<: *app
+    image: ${ARTICLE_IMAGE:?Set the verified article image digest}
+    depends_on:
+      back: {condition: service_healthy}
+    volumes:
+      - type: bind
+        source: ./blog.nginx.conf
+        target: /etc/nginx/conf.d/default.conf
+        read_only: true
+    ports: [127.0.0.1:8082:80]
+    networks: [application]
+
+  rsshub:
+    <<: *app
+    profiles: [news]
+    image: ${RSSHUB_IMAGE:?Set the verified RSSHub image digest}
+    init: true
+    mem_limit: 1g
+    environment:
+      NODE_ENV: production
+      TZ: Asia/Shanghai
+      CACHE_TYPE: memory
+    networks: [application]
+
+networks:
+  database:
+    external: true
+    name: mufengtongxue-stock-db
+  application:
+    name: mufengtongxue-stock-app

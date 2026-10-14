@@ -1,0 +1,5 @@
+ARG NGINX_IMAGE
+FROM ${NGINX_IMAGE}
+COPY apps/front/out /usr/share/nginx/html/
+COPY apps/front/front.nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80

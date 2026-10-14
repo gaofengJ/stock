@@ -1,0 +1,39 @@
+name: Volcengine external health check
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  push:
+    branches: [codex/stock-volc-migration]
+    paths: [.github/workflows/volc-health.yml]
+permissions:
+  contents: read
+concurrency:
+  group: stock-volc-external-health
+  cancel-in-progress: false
+jobs:
+  check:
+    if: >-
+      (github.ref == 'refs/heads/master' && vars.VOLC_PRODUCTION_ENABLED == 'true') ||
+      (github.ref == 'refs/heads/codex/stock-volc-migration' && github.event_name != 'schedule')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check HTTPS and the fixed operational summary
+        env:
+          UPLOAD_KEY: ${{ secrets.VOLC_REHEARSAL_UPLOAD_KEY }}
+          PRODUCTION: ${{ github.ref == 'refs/heads/master' && vars.VOLC_PRODUCTION_ENABLED == 'true' }}
+        run: |
+          set -euo pipefail
+          umask 077
+          key="$RUNNER_TEMP/volc-health-key"
+          trap 'rm -f "$key"' EXIT
+          printf '%s\n' "$UPLOAD_KEY" > "$key"
+          # Owner deferred recurring off-host backups on 2026-10-14; local backups remain required.
+          # Report the missing off-host protection as a warning; never fabricate a verified copy.
+          args=(--offhost-policy deferred)
+          if [ "$PRODUCTION" = true ]; then args+=(--production); fi
+          python3 ops/volc/check_remote_health.py --key "$key" --known-hosts ops/volc/known_hosts "${args[@]}"
+# Failed checks mark this workflow failed. Recipient notification preferences are managed by GitHub.
+# Schedule becomes active only after the reviewed default-branch takeover and production variable enablement.

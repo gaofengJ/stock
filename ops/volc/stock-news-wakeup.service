@@ -1,0 +1,13 @@
+[Unit]
+Description=Wake fixed news sources after atomic feed delivery
+After=docker.service
+Requires=docker.service
+ConditionPathExists=/etc/stock/production.enabled
+ConditionPathExists=/etc/stock-news-delivery.enabled
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 -B /opt/stock/deploy/news_wakeup.py
+UMask=0077
+TimeoutStartSec=90s
+NoNewPrivileges=yes

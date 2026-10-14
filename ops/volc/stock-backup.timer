@@ -1,0 +1,10 @@
+[Unit]
+Description=Back up stock data every morning
+
+[Timer]
+OnCalendar=*-*-* 04:15:00
+AccuracySec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

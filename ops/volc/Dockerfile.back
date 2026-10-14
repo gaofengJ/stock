@@ -1,0 +1,50 @@
+ARG NODE_IMAGE=node:24.21.0-bookworm-slim
+FROM ${NODE_IMAGE} AS builder
+
+RUN npm install -g pnpm@9.15.9
+
+WORKDIR /usr/src/app
+
+# 依赖文件单独复制，避免业务代码变更导致依赖缓存失效。
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/back/package.json ./apps/back/package.json
+RUN pnpm install --filter back --frozen-lockfile
+
+COPY apps/back ./apps/back
+RUN pnpm --filter back build
+
+FROM ${NODE_IMAGE} AS production-dependencies
+
+RUN npm install -g pnpm@9.15.9
+
+WORKDIR /usr/src/app
+
+# 运行镜像只安装后端生产依赖。
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY apps/back/package.json ./apps/back/package.json
+RUN pnpm install --filter back --prod --frozen-lockfile --ignore-scripts
+
+# 运行镜像只复制实际依赖，不携带 pnpm、安装缓存和构建工具。
+FROM ${NODE_IMAGE} AS production
+WORKDIR /usr/src/app
+COPY --from=production-dependencies /usr/src/app/node_modules ./node_modules
+COPY --from=production-dependencies /usr/src/app/apps/back/node_modules ./apps/back/node_modules
+COPY apps/back/package.json ./apps/back/package.json
+COPY --from=builder /usr/src/app/apps/back/dist ./apps/back/dist
+COPY --from=builder /usr/src/app/apps/back/public ./apps/back/public
+COPY apps/back/.env ./apps/back/.env
+COPY apps/back/ops ./apps/back/ops
+
+COPY apps/back/scripts/check-argon2.cjs ./apps/back/scripts/check-argon2.cjs
+COPY apps/back/scripts/check-image.cjs ./apps/back/scripts/check-image.cjs
+WORKDIR /usr/src/app/apps/back
+ENV TZ=Asia/Shanghai
+ENV NODE_ENV=production
+
+RUN mkdir -p /var/log/stock && chown node:node /var/log/stock
+ENV LOG_DIR=/var/log/stock
+USER node
+
+EXPOSE 3000
+
+CMD ["node", "dist/main"]

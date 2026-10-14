@@ -4,7 +4,6 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as dayjs from 'dayjs';
 import {
   accessRetentionDays,
   accessSlowMs,
@@ -174,16 +173,27 @@ export class LogsService {
     const availableDates: string[] = [];
     const from = (q.page - 1) * q.pageSize;
     const budget = { bytes: 128 * 1024 * 1024, truncated: false };
-    // Main log contains errors too; never double-count the separate error file.
-    for (
-      let d = dayjs(end);
-      d.valueOf() >= dayjs(start).valueOf();
-      d = d.subtract(1, 'day')
-    ) {
-      const date = d.format('YYYY-MM-DD');
-      const filename = path.join(logDirectory(), `stock-back.${date}.log`);
-      if (!fs.existsSync(filename)) continue;
-      availableDates.push(date);
+    // Include size-rotated parts, newest first; error files are duplicates.
+    let names: string[];
+    try {
+      names = await fs.promises.readdir(logDirectory());
+    } catch (error) {
+      if (error.code === 'ENOENT') names = [];
+      else throw error;
+    }
+    const candidates = names
+      .flatMap((name) => {
+        const match = /^stock-back\.(\d{4}-\d{2}-\d{2})\.log(?:\.(\d+))?$/.exec(
+          name,
+        );
+        return match && match[1] >= start && match[1] <= end
+          ? [{ name, date: match[1], part: Number(match[2] || 0) }]
+          : [];
+      })
+      .sort((a, b) => b.date.localeCompare(a.date) || b.part - a.part);
+    for (const { name, date } of candidates) {
+      const filename = path.join(logDirectory(), name);
+      if (!availableDates.includes(date)) availableDates.push(date);
       const lines = reverseLogLines(filename, budget);
       try {
         for await (const line of lines) {
@@ -213,6 +223,8 @@ export class LogsService {
             items.push({ ...entry, id: `${date}:${total}` });
           total += 1;
         }
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
       } finally {
         await lines.return(undefined);
       }

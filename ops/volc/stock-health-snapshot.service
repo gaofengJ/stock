@@ -1,0 +1,14 @@
+[Unit]
+Description=Publish a sanitized stock health snapshot for restricted monitoring
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 -B /opt/stock/deploy/health_snapshot.py
+UMask=0077
+TimeoutStartSec=45s
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/srv/stock/deploy-status
+ProtectHome=yes
+PrivateTmp=yes

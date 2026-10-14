@@ -1,0 +1,15 @@
+[Unit]
+Description=Refresh the isolated stock test database
+After=docker.service
+Requires=docker.service
+ConditionPathExists=/etc/stock/production.enabled
+
+[Service]
+Type=oneshot
+Environment=STOCK_COMPOSE_DIR=/opt/stock/deploy
+ExecStart=/usr/bin/flock -n /run/lock/stock-test-refresh.lock /usr/bin/python3 -B /opt/stock-test/refresh.py
+UMask=0077
+TimeoutStartSec=5min
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

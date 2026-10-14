@@ -1,0 +1,34 @@
+name: Volcengine operations checks
+on:
+  push:
+    branches: [codex/stock-volc-migration]
+    paths:
+      - ops/volc/**
+      - .github/scripts/**
+      - .github/workflows/volc-ops.yml
+      - .github/workflows/volc-rehearsal.yml
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  operations:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile deployment and backup tools
+        run: python3 -m compileall -q ops/volc
+      - name: Backup failure detection and restricted feed delivery
+        env:
+          PYTHONPATH: .github/scripts
+        run: python3 -B -m unittest discover -s ops/volc -p 'test_*.py'
+      - name: Feed and translation boundaries
+        run: python3 -B -m unittest discover -s .github/scripts -p 'test_*.py'
+      - name: Check isolated service topology
+        run: |
+          python3 -B ops/volc/check_stack.py --test-config
+          python3 -B ops/volc/check_stack.py --test-config --production
+# No production credentials, remote commands, image rebuild or deployment.

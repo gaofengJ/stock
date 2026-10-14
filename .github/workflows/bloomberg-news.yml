@@ -1,22 +1,22 @@
-name: Collect public Bloomberg news
+name: Collect and deliver news to Volcengine
 run-name: 资讯采集 · ${{ inputs.dispatch_id || github.event_name }}
-on:
+'on':
   workflow_dispatch:
     inputs:
       deliver:
-        description: Deliver collected feeds and subsequent translations to the website
+        description: Publish to the enabled Volcengine production host (master only)
         type: boolean
-        default: true
+        default: false
       dispatch_id:
         description: Unique server dispatch identifier
         type: string
         default: ''
   schedule:
-    - cron: '43 * * * *'
+    - cron: '17 * * * *'
 permissions:
   contents: read
 concurrency:
-  group: stock-bloomberg-news
+  group: stock-volc-news
   cancel-in-progress: false
 jobs:
   collect:
@@ -34,7 +34,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: .github
+          sparse-checkout: |-
+            .github
+            ops/volc
+      - name: Require master for production delivery
+        env:
+          DELIVER: ${{ inputs.deliver }}
+          REF: ${{ github.ref }}
+        run: if [ "$DELIVER" = true ] && [ "$REF" != refs/heads/master ]; then echo "::error::Production delivery requires master and the server cutover flag"; exit 1; fi
       - name: Verify RSS validation and atomic delivery
         run: python3 -m unittest discover -s .github/scripts -p 'test_*bloomberg*.py'
       - name: Verify Sina rolling list validation
@@ -47,45 +54,42 @@ jobs:
         id: bloomberg
         continue-on-error: true
         run: python3 .github/scripts/bloomberg_relay.py collect --file bloomberg.json
-      - name: Upload original Bloomberg feed immediately
-        if: steps.bloomberg.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.deliver)
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          source: bloomberg.json,.github/scripts/bloomberg_relay.py,.github/scripts/sina_relay.py
-          target: /opt/stock-news/staging/${{ github.run_id }}
-      - name: Upload Sina feed immediately
-        if: steps.sina.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.deliver)
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          source: sina.json,.github/scripts/bloomberg_relay.py,.github/scripts/sina_relay.py
-          target: /opt/stock-news/staging/${{ github.run_id }}
-      - name: Deliver originals before translation
-        if: (steps.bloomberg.outcome == 'success' || steps.sina.outcome == 'success') && (github.event_name != 'workflow_dispatch' || inputs.deliver)
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          command_timeout: 2m
-          script: |
-            set -eu
-            if [ '${{ steps.bloomberg.outcome }}' = success ]; then
-              python3 -B /opt/stock-news/staging/${{ github.run_id }}/.github/scripts/bloomberg_relay.py receive --file /opt/stock-news/staging/${{ github.run_id }}/bloomberg.json
-            fi
-            if [ '${{ steps.sina.outcome }}' = success ]; then
-              python3 -B /opt/stock-news/staging/${{ github.run_id }}/.github/scripts/sina_relay.py receive --file /opt/stock-news/staging/${{ github.run_id }}/sina.json
-            fi
-            docker exec stock-back node -e "require('dotenv').config({path:process.env.APP_ENV_FILE});const ds=require('./dist/migration-data-source').default;(async()=>{await ds.initialize();try{await ds.query(\"UPDATE t_news_source SET next_attempt=NULL,consecutive_failures=0 WHERE enabled=1 AND source IN ('sina','bloomberg')\");}finally{await ds.destroy();}})().catch(()=>{process.exitCode=1;});"
+      - name: Deliver original Bloomberg through restricted SSH
+        id: original_bloomberg
+        if: steps.bloomberg.outcome == 'success'
+        continue-on-error: true
+        env:
+          UPLOAD_KEY: ${{ secrets.VOLC_REHEARSAL_UPLOAD_KEY }}
+          NEWS_MODE: ${{ (github.event_name == 'schedule' || inputs.deliver) && 'publish' || 'validate' }}
+        run: |-
+          set -euo pipefail
+          umask 077
+          key="$RUNNER_TEMP/volc-news-key"
+          feed_dir="$(mktemp -d)"
+          trap 'rm -f "$key"; rm -rf "$feed_dir"' EXIT
+          printf '%s\n' "$UPLOAD_KEY" > "$key"
+          cp bloomberg.json "$feed_dir/bloomberg.json"
+          python3 ops/volc/upload_news.py --directory "$feed_dir" --key "$key" --known-hosts ops/volc/known_hosts --mode "$NEWS_MODE"
+      - name: Deliver Sina independently through restricted SSH
+        id: original_sina
+        if: steps.sina.outcome == 'success'
+        continue-on-error: true
+        env:
+          UPLOAD_KEY: ${{ secrets.VOLC_REHEARSAL_UPLOAD_KEY }}
+          NEWS_MODE: ${{ (github.event_name == 'schedule' || inputs.deliver) && 'publish' || 'validate' }}
+        run: |-
+          set -euo pipefail
+          umask 077
+          key="$RUNNER_TEMP/volc-news-key"
+          feed_dir="$(mktemp -d)"
+          trap 'rm -f "$key"; rm -rf "$feed_dir"' EXIT
+          printf '%s\n' "$UPLOAD_KEY" > "$key"
+          cp sina.json "$feed_dir/sina.json"
+          python3 ops/volc/upload_news.py --directory "$feed_dir" --key "$key" --known-hosts ops/volc/known_hosts --mode "$NEWS_MODE"
       - uses: actions/setup-python@v5
         if: steps.bloomberg.outcome == 'success'
         with:
-          python-version: '3.12'
+          python-version: 3.12.15
       - name: Restore CPU translation runtime and English-Chinese model
         if: steps.bloomberg.outcome == 'success'
         id: runtime
@@ -94,17 +98,18 @@ jobs:
           path: |
             .argos-venv
             .argos
-          key: argos-cpu-v1-${{ runner.os }}-${{ hashFiles('.github/scripts/argos-requirements.txt') }}
+          key: argos-cpu-v2-ubuntu24-py3.12.15-${{ runner.arch }}-${{ hashFiles('.github/scripts/argos-requirements.txt') }}
       - name: Prepare offline translation runtime
         if: steps.bloomberg.outcome == 'success'
         id: prepare
         continue-on-error: true
         timeout-minutes: 7
         run: |
-          if [ ! -x .argos-venv/bin/python ]; then python -m venv .argos-venv; fi
-          if [ '${{ steps.runtime.outputs.cache-hit }}' != 'true' ]; then
-            .argos-venv/bin/pip install --no-cache-dir torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
-            .argos-venv/bin/pip install --no-cache-dir -r .github/scripts/argos-requirements.txt
+          if ! .argos-venv/bin/python -c 'import argostranslate.package; import torch' 2>/dev/null; then
+            rm -rf .argos-venv
+            python -m venv .argos-venv
+            .argos-venv/bin/python -m pip install --no-cache-dir torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+            .argos-venv/bin/python -m pip install --no-cache-dir -r .github/scripts/argos-requirements.txt
           fi
           .argos-venv/bin/python .github/scripts/translate_bloomberg.py prepare
       - name: Cache the verified CPU runtime and model
@@ -146,36 +151,34 @@ jobs:
             echo '::warning::Translation unavailable; original English feed will still be delivered and retried next run.'
           fi
           du -sh .argos-venv .argos .translation-cache 2>/dev/null || true
-      - name: Upload translated Bloomberg snapshot
+      - name: Deliver translation independently through restricted SSH
         id: translated_upload
-        if: steps.translate.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.deliver)
+        if: steps.translate.outcome == 'success'
         continue-on-error: true
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          source: bloomberg.json,.github/scripts/bloomberg_relay.py,.github/scripts/sina_relay.py
-          target: /opt/stock-news/staging/${{ github.run_id }}
-      - name: Deliver translations without delaying originals
-        id: translated_delivery
-        if: steps.translated_upload.outcome == 'success'
-        continue-on-error: true
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          command_timeout: 2m
-          script: |
-            set -eu
-            python3 -B /opt/stock-news/staging/${{ github.run_id }}/.github/scripts/bloomberg_relay.py receive --file /opt/stock-news/staging/${{ github.run_id }}/bloomberg.json
-            docker exec stock-back node -e "require('dotenv').config({path:process.env.APP_ENV_FILE});const ds=require('./dist/migration-data-source').default;(async()=>{await ds.initialize();try{await ds.query(\"UPDATE t_news_source SET next_attempt=NULL WHERE enabled=1 AND source='bloomberg'\");}finally{await ds.destroy();}})().catch(()=>{process.exitCode=1;});"
+        env:
+          UPLOAD_KEY: ${{ secrets.VOLC_REHEARSAL_UPLOAD_KEY }}
+          NEWS_MODE: ${{ (github.event_name == 'schedule' || inputs.deliver) && 'publish' || 'validate' }}
+        run: |-
+          set -euo pipefail
+          umask 077
+          key="$RUNNER_TEMP/volc-news-key"
+          feed_dir="$(mktemp -d)"
+          trap 'rm -f "$key"; rm -rf "$feed_dir"' EXIT
+          printf '%s\n' "$UPLOAD_KEY" > "$key"
+          cp bloomberg.json "$feed_dir/bloomberg.json"
+          python3 ops/volc/upload_news.py --directory "$feed_dir" --key "$key" --known-hosts ops/volc/known_hosts --mode "$NEWS_MODE"
       - name: Report translation delivery failure
-        if: steps.translated_upload.outcome == 'failure' || steps.translated_delivery.outcome == 'failure'
+        if: steps.translated_upload.outcome == 'failure'
         run: echo '::warning::Translation delivery failed; original feeds have already been delivered.'
-      - name: Report source collection failures
-        if: steps.bloomberg.outcome != 'success' || steps.sina.outcome != 'success'
-        run: |
-          echo '::error::One or more public feeds could not be collected; the other source was delivered independently.'
+      - name: Require original source collection and delivery
+        if: always() && (steps.bloomberg.outcome != 'success' || steps.sina.outcome != 'success' || steps.original_bloomberg.outcome != 'success' || steps.original_sina.outcome != 'success')
+        run: |-
+          echo "::error::A source collection or original delivery failed; other sources were processed independently."
           exit 1
+      - name: Require translation path during candidate validation
+        if: always() && github.event_name == 'push' && (steps.prepare.outcome != 'success' || steps.translate.outcome != 'success' || steps.translated_upload.outcome != 'success')
+        run: |-
+          echo "::error::Candidate translation must be exercised; original-only delivery is not full validation."
+          exit 1
+    if: github.ref == 'refs/heads/master' && (vars.VOLC_PRODUCTION_ENABLED == 'true' || (github.event_name == 'workflow_dispatch' && !inputs.deliver))
+# Candidate only: enable the repository variable only after retiring the old collector.

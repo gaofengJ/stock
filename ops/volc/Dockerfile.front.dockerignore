@@ -1,0 +1,6 @@
+**
+!apps
+!apps/front
+!apps/front/out
+!apps/front/out/**
+!apps/front/front.nginx.conf

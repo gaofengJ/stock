@@ -1,0 +1,19 @@
+[Unit]
+Description=Trigger public news collection after the Volcengine cutover
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/etc/stock/production.enabled
+ConditionPathExists=/etc/stock/news-delivery-ready
+
+[Service]
+Type=oneshot
+User=stock-news-dispatch
+Group=stock-news-dispatch
+EnvironmentFile=/etc/stock-news-dispatch.env
+ExecStart=/usr/bin/python3 -B /opt/stock-news/scheduler/dispatch.py --feeds /srv/stock/news
+UMask=0077
+TimeoutStartSec=3min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
