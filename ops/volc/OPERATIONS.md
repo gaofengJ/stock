@@ -133,6 +133,8 @@ root worker复核GitHub完整CI的commit、分支、仓库及成功状态，检�
 
 2026-10-14用户明确本次暂不配置长期异机备份，后续需要时另接个人电脑。保留本地备份和已验证的迁移副本，不安装个人电脑定时任务，不新增云存储费用。候选外部健康检查显式使用`--offhost-policy deferred`，持续异机缺失作为warning，原证明仍false；本地备份、业务健康和报告时效仍是必需检查。下文较早的长期异机前置要求以本次决定为准。
 
+最终停写还必须覆盖旧机`/etc/cron.d/stock-test-refresh`的每5分钟任务。获准窗口内保存原PAUSED状态，创建`/opt/stock-test/PAUSED`，等待`flock -w 300 /var/lock/stock-test-refresh.lock true`成功，才停止后端和冻结数据库。最终export要求PAUSED存在，并在整个导出期间同时持有发布锁和测试刷新锁；已有刷新未退出时拒绝导出。操作员不要在外层持有同一个发布锁再启动export，以免自锁。回旧服务时只按原状态恢复PAUSED，新机stock_test继续保持独立及PAUSED。
+
 `release_worker.py --rehearsal /run/stock-cd/request.json`默认只预检，要求新机维护且无生产标记；`--apply`才会尝试隔离新机应用更新。正式队列只能由root预装的systemd服务处理，不运行上传脚本。worker与备份、同步共用维护锁；状态位于`/srv/stock/deploy-status`，发布前后清单位于`/opt/stock/deploy/releases/cd-*`。单次请求失败应检查回退结果，不自动重复提交。
 
 

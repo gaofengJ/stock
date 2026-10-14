@@ -29,12 +29,14 @@ def fixtures():
 class FinalSyncTest(unittest.TestCase):
     def test_running_backend_or_timer_or_writable_db_blocks_export(self):
         valid = dict(backendRunning=False, readOnly=True, superReadOnly=True,
-                     activeTransactions=0, units={'timer': 'inactive'}, freeBytes=12 * 1024**3)
+                     testRefreshPaused=True, activeTransactions=0, units={'timer': 'inactive'}, freeBytes=12 * 1024**3)
         export.require_quiesced(valid)
         for key, value in [('backendRunning', True), ('readOnly', False), ('superReadOnly', False),
-                           ('activeTransactions', 1), ('units', {'timer': 'active'}), ('freeBytes', 1)]:
+                           ('testRefreshPaused', False), ('activeTransactions', 1), ('units', {'timer': 'active'}), ('freeBytes', 1)]:
             with self.assertRaises(ValueError):
                 export.require_quiesced(dict(valid, **{key: value}))
+        missing = dict(valid); del missing['testRefreshPaused']
+        with self.assertRaises(ValueError): export.require_quiesced(missing)
 
     def test_expired_or_wrong_window_approval_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:

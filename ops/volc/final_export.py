@@ -101,6 +101,7 @@ def preflight(client, info):
     state = {'version': query(client, 'SELECT VERSION();'), 'backendRunning': info['State']['Running'],
              'readOnly': read_only == '1', 'superReadOnly': super_read_only == '1',
              'units': units, 'tables': {db: len(tables) for db, tables in schemas.items()},
+             'testRefreshPaused': Path('/opt/stock-test/PAUSED').is_file(),
              'freeBytes': shutil.disk_usage(str(ROOT)).free,
              'activeTransactions': int(query(client, 'SELECT COUNT(*) FROM information_schema.INNODB_TRX;'))}
     if not state['version'].startswith('5.7.'):
@@ -110,6 +111,7 @@ def preflight(client, info):
 
 def require_quiesced(state):
     if (state['backendRunning'] or not state['readOnly'] or not state['superReadOnly']
+            or state.get('testRefreshPaused') is not True
             or state['activeTransactions'] or any(v not in ('inactive', 'failed') for v in state['units'].values())):
         raise ValueError('Old writers are not fully stopped; no export performed')
     if state['freeBytes'] < 8 * 1024**3:
@@ -178,7 +180,13 @@ def main():
         validate_approval(APPROVAL, args.window_id or '')
     with open('/var/lock/stock-back-release.lock', 'a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        with client_config() as (client, credentials, info):
+        with contextlib.ExitStack() as stack:
+            # A PAUSED file prevents future cron work; the lock also proves an
+            # already-running refresh has exited and excludes it during export.
+            if args.export:
+                refresh_lock = stack.enter_context(open('/var/lock/stock-test-refresh.lock', 'a'))
+                fcntl.flock(refresh_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            client, credentials, info = stack.enter_context(client_config())
             before, schemas = preflight(client, info)
             if not args.export:
                 print(json.dumps(dict(before, mode='preflight-only', exported=False))); return
