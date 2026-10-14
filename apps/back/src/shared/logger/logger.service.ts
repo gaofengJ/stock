@@ -59,7 +59,7 @@ export class LoggerService extends ConsoleLogger implements OnModuleDestroy {
   }
 
   protected timezoned() {
-    return dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm:ss');
+    return dayjs().tz('Asia/Shanghai').format('YYYY-MM-DDTHH:mm:ssZ');
   }
 
   /**
@@ -69,13 +69,21 @@ export class LoggerService extends ConsoleLogger implements OnModuleDestroy {
     this.winstonLogger = createLogger({
       levels: config.npm.levels, // 指定不同日志级别的优先级
       format: format.combine(
-        format((entry) => ({ ...entry, kind: 'system' }))(),
+        format((entry) => ({
+          ...entry,
+          kind: 'system',
+          service: 'stock-back',
+          release: process.env.RELEASE_SHA,
+        }))(),
         format.errors({ stack: true }), // 记录错误信息和堆栈
         format.timestamp({ format: this.timezoned }), // 添加时间戳
         format.json(), // 将日志消息格式化为 JSON 格式
       ),
       // 日志传输机制的配置项，用于指定日志的输出目的地
       transports: [
+        ...(process.env.LOG_STDOUT_JSON === 'true'
+          ? [new transports.Console({ level: this.level })]
+          : []),
         new transports.DailyRotateFile({
           level: this.level,
           filename: path.join(
@@ -83,6 +91,8 @@ export class LoggerService extends ConsoleLogger implements OnModuleDestroy {
             'stock-back.%DATE%.log',
           ),
           datePattern: 'YYYY-MM-DD',
+          maxSize: '20m',
+          options: { flags: 'a', mode: 0o600 },
           maxFiles: this.maxFiles,
           format: format.combine(
             format.timestamp({ format: this.timezoned }),
@@ -100,6 +110,8 @@ export class LoggerService extends ConsoleLogger implements OnModuleDestroy {
             'stock-back-error.%DATE%.log',
           ),
           datePattern: 'YYYY-MM-DD',
+          maxSize: '20m',
+          options: { flags: 'a', mode: 0o600 },
           maxFiles: this.maxFiles,
           format: format.combine(
             format.timestamp({ format: this.timezoned }),
@@ -143,7 +155,8 @@ export class LoggerService extends ConsoleLogger implements OnModuleDestroy {
         ? { message: message.message, stack: message.stack }
         : message,
     );
-    super.verbose.apply(this, [safeMessage, context]);
+    if (process.env.LOG_STDOUT_JSON !== 'true')
+      super.verbose.apply(this, [safeMessage, context]);
     this.winstonLogger.log(ELogLevel.VERBOSE, safeMessage, {
       context,
       ...requestLogFields(),
@@ -161,7 +174,8 @@ export class LoggerService extends ConsoleLogger implements OnModuleDestroy {
         ? { message: message.message, stack: message.stack }
         : message,
     );
-    super.debug.apply(this, [safeMessage, context]);
+    if (process.env.LOG_STDOUT_JSON !== 'true')
+      super.debug.apply(this, [safeMessage, context]);
     this.winstonLogger.log(ELogLevel.DEBUG, safeMessage, {
       context,
       ...requestLogFields(),
@@ -179,7 +193,8 @@ export class LoggerService extends ConsoleLogger implements OnModuleDestroy {
         ? { message: message.message, stack: message.stack }
         : message,
     );
-    super.log.apply(this, [safeMessage, context]);
+    if (process.env.LOG_STDOUT_JSON !== 'true')
+      super.log.apply(this, [safeMessage, context]);
 
     this.winstonLogger.log(ELogLevel.INFO, safeMessage, {
       context,
@@ -198,7 +213,8 @@ export class LoggerService extends ConsoleLogger implements OnModuleDestroy {
         ? { message: message.message, stack: message.stack }
         : message,
     );
-    super.warn.apply(this, [safeMessage, context]);
+    if (process.env.LOG_STDOUT_JSON !== 'true')
+      super.warn.apply(this, [safeMessage, context]);
 
     this.winstonLogger.log(ELogLevel.WARN, safeMessage, {
       context,
@@ -218,7 +234,8 @@ export class LoggerService extends ConsoleLogger implements OnModuleDestroy {
         : message,
     );
     const safeStack = redact(stack) as string;
-    super.error.apply(this, [safeMessage, safeStack, context]);
+    if (process.env.LOG_STDOUT_JSON !== 'true')
+      super.error.apply(this, [safeMessage, safeStack, context]);
 
     this.winstonLogger.log(ELogLevel.ERROR, {
       ...requestLogFields(),

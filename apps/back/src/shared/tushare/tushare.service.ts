@@ -137,6 +137,9 @@ export class TushareService {
   }
 
   private async requestOnce(config: AxiosRequestConfig) {
+    // Rehearsal reads must not consume production quotas or refresh snapshots.
+    if (process.env.TUSHARE_REQUESTS_ENABLED === 'false')
+      throw new TushareRequestError('当前环境未启用外部行情请求', false);
     const response = await this.httpService.axiosRef.request({
       method: 'post',
       baseURL: 'https://api.tushare.pro',

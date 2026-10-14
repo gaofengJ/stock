@@ -2,6 +2,27 @@ import { JobsService } from './jobs.service';
 import { retryOutcome } from './job-policy';
 
 describe('source cooldown and existing job lifecycle', () => {
+  it('leaves restored jobs untouched when background execution is disabled', async () => {
+    const old = process.env.ADMIN_JOBS_ENABLED;
+    process.env.ADMIN_JOBS_ENABLED = 'false';
+    const query = jest.fn();
+    const lock = jest.fn();
+    try {
+      const service = new JobsService(
+        { query } as any,
+        { marketEnabled: true } as any,
+        {} as any,
+        { run: lock } as any,
+      );
+      await service.onApplicationBootstrap();
+      await service.tick();
+      expect(query).not.toHaveBeenCalled();
+      expect(lock).not.toHaveBeenCalled();
+    } finally {
+      if (old === undefined) delete process.env.ADMIN_JOBS_ENABLED;
+      else process.env.ADMIN_JOBS_ENABLED = old;
+    }
+  });
   const setup = (result: any, currentStatus = 'running') => {
     const current = {
       status: currentStatus,

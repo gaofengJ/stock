@@ -48,6 +48,8 @@ export class JobsService implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap() {
+    // A restored rehearsal copy must not claim or rewrite production job state.
+    if (process.env.ADMIN_JOBS_ENABLED === 'false') return;
     if (this.daily.marketEnabled) {
       try {
         await this.locks.run(async () => {

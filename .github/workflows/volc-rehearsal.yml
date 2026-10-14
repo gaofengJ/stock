@@ -1,0 +1,66 @@
+name: Volcengine isolated rehearsal
+on:
+  push:
+    branches: [codex/stock-volc-migration]
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: volc-rehearsal-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-local-only
+          MYSQL_ROOT_HOST: "%"
+        ports: [3306:3306]
+        options: --health-cmd="mysqladmin ping --silent" --health-interval=10s --health-timeout=5s --health-retries=12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "24.21.0"}
+      - uses: pnpm/action-setup@v4
+        with: {version: 9.15.9}
+      - run: pnpm install --filter back --frozen-lockfile
+      - run: pnpm -C apps/back run lint
+      - run: pnpm -C apps/back run build
+      - run: node apps/back/scripts/check-migration-policy.cjs
+      - name: Unit and MySQL 8.4 integration
+        run: pnpm -C apps/back run test --runInBand
+        env:
+          TZ: Asia/Shanghai
+          SYNC_TEST_MYSQL_PORT: 3306
+          SYNC_TEST_MYSQL_PASSWORD: ci-local-only
+      - name: Account and legacy schema integration
+        working-directory: apps/back
+        env:
+          AUTH_TEST_PORT: 3306
+          AUTH_TEST_PASSWORD: ci-local-only
+        run: |
+          AUTH_TEST_DATABASE=stock_auth_test_volc node test/accounts.integration.cjs
+          AUTH_TEST_DATABASE=stock_auth_test_volc_legacy node test/migration-legacy.cjs
+      - name: Validate isolated Compose topology
+        run: python3 ops/volc/check_stack.py --test-config
+      - name: Build and validate Node 24 runtime
+        run: |
+          docker build -f ops/volc/Dockerfile.back -t stock-back-volc:${{ github.sha }} .
+          docker run --rm stock-back-volc:${{ github.sha }} node scripts/check-argon2.cjs
+          docker run --rm stock-back-volc:${{ github.sha }} node scripts/check-image.cjs
+      - name: Package verified image for private rehearsal transfer
+        run: |
+          mkdir -p /tmp/stock-volc-image
+          docker save stock-back-volc:${{ github.sha }} | zstd -T0 -3 -o /tmp/stock-volc-image/backend.tar.zst
+          sha256sum /tmp/stock-volc-image/backend.tar.zst > /tmp/stock-volc-image/backend.sha256
+          docker image inspect --format '{{.Id}}' stock-back-volc:${{ github.sha }} > /tmp/stock-volc-image/image-id
+          printf '%s\n' '${{ github.sha }}' > /tmp/stock-volc-image/commit
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stock-volc-backend-${{ github.sha }}
+          path: /tmp/stock-volc-image/
+          retention-days: 2
+          if-no-files-found: error
+# Intentionally no SSH, production Secrets, database migration, or deployment job.
