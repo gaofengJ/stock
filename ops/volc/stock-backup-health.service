@@ -1,0 +1,15 @@
+[Unit]
+Description=Detect failed, stale or incomplete stock backups
+After=stock-backup.service
+ConditionPathExists=/etc/stock/production.enabled
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 -B /opt/stock/deploy/backup_health.py
+UMask=0077
+TimeoutStartSec=30s
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/srv/stock/state
+ProtectHome=yes
+PrivateTmp=yes

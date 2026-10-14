@@ -68,3 +68,21 @@ MySQL引擎升级和数据库DDL不属于普通应用发版。备份及后续发
 应用23项API检查已通过，包括注册/登录/退出、权限、股票/行情/新闻、后台日志、文章鉴权、笔记冲突及图片往返。HTTPS IP浏览器完成首页、非空行情、登录、刷新保持会话及退出；验收用临时账号和维护通行入口已清理，普通公网请求恢复503。手机视口验收仍待完成。
 
 备份、测试库刷新和新闻dispatch的systemd单元已安装但未启用。测试库另有`/opt/stock-test/PAUSED`保护；新闻dispatch还要求`/etc/stock/news-delivery-ready`，只有GitHub采集投递目标验证为新机后才可创建。新机dispatch使用`--feeds /srv/stock/news`；独立服务用户通过目录/文件ACL仅读取feed，不加入后端凭据所在组。后续原子替换feed时需保留此读取ACL。旧服务与任务保持运行。
+
+### Backup failure detection
+
+`stock-backup-health.timer` checks every 15 minutes after cutover; keep it disabled
+while `/etc/stock/production.enabled` is absent. It checks the latest completed
+archive's metadata and size, a 36-hour freshness limit, abandoned partial dumps,
+the backup service result, the enabled backup timer, and an 8 GiB free-space reserve.
+The check does not rehash 1+ GiB every 15 minutes; backup creation/restore validation
+provides that proof. A failure returns nonzero, appears in the systemd journal, and
+writes a private `/srv/stock/state/backup-health.json` for the migration monitor.
+`backup_health.py --audit` evaluates the same conditions without changing status.
+This is local failure detection; an enduring external notification destination and
+recurring off-host backup still need to be configured before final acceptance.
+
+The rehearsal application CI runs for application/runtime/topology changes. Python
+operations-only changes use `volc-ops.yml`, so they do not rebuild unchanged images.
+Manual ACR publication must still identify a successful full application CI run and
+its exact SHA; an operations check is not sufficient evidence to publish an image.

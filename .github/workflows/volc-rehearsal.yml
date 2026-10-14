@@ -2,7 +2,19 @@ name: Volcengine isolated rehearsal
 on:
   push:
     branches: [codex/stock-volc-migration]
-    paths-ignore: [.github/workflows/volc-images.yml]
+    paths:
+      - apps/back/**
+      - apps/front/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .npmrc
+      - .dockerignore
+      - .github/workflows/volc-rehearsal.yml
+      - ops/volc/Dockerfile*
+      - ops/volc/compose.*.yaml
+      - ops/volc/check_stack.py
+      - ops/volc/smoke_rehearsal.cjs
   workflow_dispatch: {}
 permissions:
   contents: read
