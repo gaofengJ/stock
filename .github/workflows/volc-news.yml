@@ -92,7 +92,7 @@ jobs:
       - uses: actions/setup-python@v5
         if: steps.bloomberg.outcome == 'success'
         with:
-          python-version: '3.12'
+          python-version: 3.12.15
       - name: Restore CPU translation runtime and English-Chinese model
         if: steps.bloomberg.outcome == 'success'
         id: runtime
@@ -101,17 +101,18 @@ jobs:
           path: |
             .argos-venv
             .argos
-          key: argos-cpu-v1-${{ runner.os }}-${{ hashFiles('.github/scripts/argos-requirements.txt') }}
+          key: argos-cpu-v2-ubuntu24-py3.12.15-${{ runner.arch }}-${{ hashFiles('.github/scripts/argos-requirements.txt') }}
       - name: Prepare offline translation runtime
         if: steps.bloomberg.outcome == 'success'
         id: prepare
         continue-on-error: true
         timeout-minutes: 7
         run: |
-          if [ ! -x .argos-venv/bin/python ]; then python -m venv .argos-venv; fi
-          if [ '${{ steps.runtime.outputs.cache-hit }}' != 'true' ]; then
-            .argos-venv/bin/pip install --no-cache-dir torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
-            .argos-venv/bin/pip install --no-cache-dir -r .github/scripts/argos-requirements.txt
+          if ! .argos-venv/bin/python -c 'import argostranslate.package; import torch' 2>/dev/null; then
+            rm -rf .argos-venv
+            python -m venv .argos-venv
+            .argos-venv/bin/python -m pip install --no-cache-dir torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+            .argos-venv/bin/python -m pip install --no-cache-dir -r .github/scripts/argos-requirements.txt
           fi
           .argos-venv/bin/python .github/scripts/translate_bloomberg.py prepare
       - name: Cache the verified CPU runtime and model
@@ -177,5 +178,10 @@ jobs:
         run: |-
           echo "::error::A source collection or original delivery failed; other sources were processed independently."
           exit 1
+      - name: Require translation path during candidate validation
+        if: always() && github.event_name == 'push' && (steps.prepare.outcome != 'success' || steps.translate.outcome != 'success' || steps.translated_upload.outcome != 'success')
+        run: |-
+          echo "::error::Candidate translation must be exercised; original-only delivery is not full validation."
+          exit 1
     if: github.ref == 'refs/heads/codex/stock-volc-migration' || github.ref == 'refs/heads/master'
-# Candidate only: no schedule until the old news workflow is retired at cutover.
+# No schedule until the legacy collector is retired at cutover.
