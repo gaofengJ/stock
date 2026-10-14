@@ -4,6 +4,7 @@ import argparse
 import gzip
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 import time
@@ -19,6 +20,7 @@ def query(sql):
 
 
 def main():
+    os.umask(0o077)
     parser = argparse.ArgumentParser()
     parser.add_argument('directory', type=Path)
     args = parser.parse_args()
@@ -66,7 +68,9 @@ def main():
     report = {'version': query('SELECT VERSION();'), 'sourceSha256': metadata['sha256'],
               'sourceCompletedAt': metadata['completedAt'], 'rows': actual, 'checksums': checksums,
               'seconds': round(time.monotonic() - started, 1)}
-    (folder / 'mysql80-validation.json').write_text(json.dumps(report, indent=2) + '\n')
+    temporary = folder / 'mysql80-validation.json.tmp'
+    temporary.write_text(json.dumps(report, indent=2) + '\n')
+    temporary.replace(folder / 'mysql80-validation.json')
     print(json.dumps({'state': 'mysql80-restored-and-counted', 'tables': len(actual),
                       'rows': sum(actual.values()), 'seconds': report['seconds']}), flush=True)
 
