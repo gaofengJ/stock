@@ -31,6 +31,9 @@ def apply(text):
         time.sleep(3)
     else:
         raise TimeoutError('Backend did not become healthy')
+    # Nginx resolves the private backend at config load; refresh after recreation.
+    subprocess.run(COMPOSE + ['exec', '-T', 'articles', 'nginx', '-t'], check=True)
+    subprocess.run(COMPOSE + ['exec', '-T', 'articles', 'nginx', '-s', 'reload'], check=True)
     with urllib.request.urlopen('http://127.0.0.1:8081', timeout=10) as response:
         assert response.status == 200
 
