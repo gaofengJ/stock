@@ -1,0 +1,181 @@
+name: Collect and deliver news to Volcengine
+run-name: 资讯采集 · ${{ inputs.dispatch_id || github.event_name }}
+'on':
+  workflow_dispatch:
+    inputs:
+      deliver:
+        description: Publish to the enabled Volcengine production host (master only)
+        type: boolean
+        default: false
+      dispatch_id:
+        description: Unique server dispatch identifier
+        type: string
+        default: ''
+  push:
+    branches:
+      - codex/stock-volc-migration
+    paths:
+      - .github/workflows/volc-news.yml
+permissions:
+  contents: read
+concurrency:
+  group: stock-volc-news
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      ARGOS_PACKAGES_DIR: ${{ github.workspace }}/.argos/packages
+      XDG_CACHE_HOME: ${{ github.workspace }}/.argos/cache
+      XDG_DATA_HOME: ${{ github.workspace }}/.argos/data
+      ARGOS_DEVICE_TYPE: cpu
+      ARGOS_CHUNK_TYPE: MINISBD
+      ARGOS_INTRA_THREADS: '2'
+      ARGOS_INTER_THREADS: '1'
+      OMP_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |-
+            .github
+            ops/volc
+      - name: Require master for production delivery
+        env:
+          DELIVER: ${{ inputs.deliver }}
+          REF: ${{ github.ref }}
+        run: if [ "$DELIVER" = true ] && [ "$REF" != refs/heads/master ]; then echo "::error::Production delivery requires master and the server cutover flag"; exit 1; fi
+      - name: Verify RSS validation and atomic delivery
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*bloomberg*.py'
+      - name: Verify Sina rolling list validation
+        run: python3 -m unittest discover -s .github/scripts -p 'test_sina_relay.py'
+      - name: Collect public Sina rolling headlines and summaries
+        id: sina
+        continue-on-error: true
+        run: python3 .github/scripts/sina_relay.py collect --file sina.json
+      - name: Collect public market headlines and summaries
+        id: bloomberg
+        continue-on-error: true
+        run: python3 .github/scripts/bloomberg_relay.py collect --file bloomberg.json
+      - name: Deliver original Bloomberg through restricted SSH
+        id: original_bloomberg
+        if: steps.bloomberg.outcome == 'success'
+        continue-on-error: true
+        env:
+          UPLOAD_KEY: ${{ secrets.VOLC_REHEARSAL_UPLOAD_KEY }}
+          NEWS_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.deliver && 'publish' || 'validate' }}
+        run: |-
+          set -euo pipefail
+          umask 077
+          key="$RUNNER_TEMP/volc-news-key"
+          feed_dir="$(mktemp -d)"
+          trap 'rm -f "$key"; rm -rf "$feed_dir"' EXIT
+          printf '%s\n' "$UPLOAD_KEY" > "$key"
+          cp bloomberg.json "$feed_dir/bloomberg.json"
+          python3 ops/volc/upload_news.py --directory "$feed_dir" --key "$key" --known-hosts ops/volc/known_hosts --mode "$NEWS_MODE"
+      - name: Deliver Sina independently through restricted SSH
+        id: original_sina
+        if: steps.sina.outcome == 'success'
+        continue-on-error: true
+        env:
+          UPLOAD_KEY: ${{ secrets.VOLC_REHEARSAL_UPLOAD_KEY }}
+          NEWS_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.deliver && 'publish' || 'validate' }}
+        run: |-
+          set -euo pipefail
+          umask 077
+          key="$RUNNER_TEMP/volc-news-key"
+          feed_dir="$(mktemp -d)"
+          trap 'rm -f "$key"; rm -rf "$feed_dir"' EXIT
+          printf '%s\n' "$UPLOAD_KEY" > "$key"
+          cp sina.json "$feed_dir/sina.json"
+          python3 ops/volc/upload_news.py --directory "$feed_dir" --key "$key" --known-hosts ops/volc/known_hosts --mode "$NEWS_MODE"
+      - uses: actions/setup-python@v5
+        if: steps.bloomberg.outcome == 'success'
+        with:
+          python-version: '3.12'
+      - name: Restore CPU translation runtime and English-Chinese model
+        if: steps.bloomberg.outcome == 'success'
+        id: runtime
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .argos-venv
+            .argos
+          key: argos-cpu-v1-${{ runner.os }}-${{ hashFiles('.github/scripts/argos-requirements.txt') }}
+      - name: Prepare offline translation runtime
+        if: steps.bloomberg.outcome == 'success'
+        id: prepare
+        continue-on-error: true
+        timeout-minutes: 7
+        run: |
+          if [ ! -x .argos-venv/bin/python ]; then python -m venv .argos-venv; fi
+          if [ '${{ steps.runtime.outputs.cache-hit }}' != 'true' ]; then
+            .argos-venv/bin/pip install --no-cache-dir torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+            .argos-venv/bin/pip install --no-cache-dir -r .github/scripts/argos-requirements.txt
+          fi
+          .argos-venv/bin/python .github/scripts/translate_bloomberg.py prepare
+      - name: Cache the verified CPU runtime and model
+        if: steps.prepare.outcome == 'success' && steps.runtime.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .argos-venv
+            .argos
+          key: ${{ steps.runtime.outputs.cache-primary-key }}
+      - name: Restore recent translations
+        if: steps.bloomberg.outcome == 'success'
+        id: translations
+        uses: actions/cache/restore@v4
+        with:
+          path: .translation-cache
+          key: bloomberg-translations-v1-${{ github.ref_name }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: bloomberg-translations-v1-${{ github.ref_name }}-
+      - name: Translate new or changed headlines and summaries
+        id: translate
+        if: steps.prepare.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 3
+        run: |
+          /usr/bin/time -f 'Translation peak RSS: %M KB; elapsed: %e seconds' .argos-venv/bin/python .github/scripts/translate_bloomberg.py translate --file bloomberg.json
+      - name: Save translations only when new text was translated
+        if: steps.translate.outputs.changed == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .translation-cache
+          key: ${{ steps.translations.outputs.cache-primary-key }}
+      - name: Report translation fallback and resource footprint
+        if: always() && steps.prepare.outcome != ''
+        env:
+          PREPARE_RESULT: ${{ steps.prepare.outcome }}
+          TRANSLATE_RESULT: ${{ steps.translate.outcome }}
+        run: |
+          if [ "$PREPARE_RESULT" != success ] || [ "$TRANSLATE_RESULT" != success ]; then
+            echo '::warning::Translation unavailable; original English feed will still be delivered and retried next run.'
+          fi
+          du -sh .argos-venv .argos .translation-cache 2>/dev/null || true
+      - name: Deliver translation independently through restricted SSH
+        id: translated_upload
+        if: steps.translate.outcome == 'success'
+        continue-on-error: true
+        env:
+          UPLOAD_KEY: ${{ secrets.VOLC_REHEARSAL_UPLOAD_KEY }}
+          NEWS_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.deliver && 'publish' || 'validate' }}
+        run: |-
+          set -euo pipefail
+          umask 077
+          key="$RUNNER_TEMP/volc-news-key"
+          feed_dir="$(mktemp -d)"
+          trap 'rm -f "$key"; rm -rf "$feed_dir"' EXIT
+          printf '%s\n' "$UPLOAD_KEY" > "$key"
+          cp bloomberg.json "$feed_dir/bloomberg.json"
+          python3 ops/volc/upload_news.py --directory "$feed_dir" --key "$key" --known-hosts ops/volc/known_hosts --mode "$NEWS_MODE"
+      - name: Report translation delivery failure
+        if: steps.translated_upload.outcome == 'failure'
+        run: echo '::warning::Translation delivery failed; original feeds have already been delivered.'
+      - name: Require original source collection and delivery
+        if: always() && (steps.bloomberg.outcome != 'success' || steps.sina.outcome != 'success' || steps.original_bloomberg.outcome != 'success' || steps.original_sina.outcome != 'success')
+        run: |-
+          echo "::error::A source collection or original delivery failed; other sources were processed independently."
+          exit 1
+    if: github.ref == 'refs/heads/codex/stock-volc-migration' || github.ref == 'refs/heads/master'
+# Candidate only: no schedule until the old news workflow is retired at cutover.

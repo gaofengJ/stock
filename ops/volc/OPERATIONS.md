@@ -86,3 +86,26 @@ The rehearsal application CI runs for application/runtime/topology changes. Pyth
 operations-only changes use `volc-ops.yml`, so they do not rebuild unchanged images.
 Manual ACR publication must still identify a successful full application CI run and
 its exact SHA; an operations check is not sufficient evidence to publish an image.
+
+### News cutover candidate
+
+`volc-news.yml` preserves Sina/Bloomberg collection, original delivery before CPU
+translation, the Argos model/cache, and a separate translated delivery. Its default
+is validation only. Production publish requires both master and the server-owned
+`/etc/stock-news-delivery.enabled` flag. No root password, uploaded executable,
+arbitrary SSH command or database credential is given to the runner.
+
+`stock-news-wakeup.timer` checks the two delivered files every minute. The local
+root-owned controller validates each changed file and resets only that source's
+`next_attempt`/failure counter through the existing app DB permissions. It requires
+both cutover flags and `NEWS_SYNC_ENABLED=true`; unchanged files are ignored and
+failed DB updates remain pending for retry. A translated file with the same source
+generation time but changed content wakes the source again. The reader and SSH
+receiver use the same file lock. New services/timers remain disabled in rehearsal.
+
+At the approved cutover, replace the legacy `bloomberg-news.yml` delivery steps with
+this verified candidate, keeping its existing workflow filename because the server
+dispatcher targets that filename. Retain its hourly fallback schedule only after
+old server dispatch has stopped. Do not add a second scheduled collector. Retire
+this validation candidate's migration-branch push trigger after integration. The
+existing production workflow remains unchanged until this handover is approved.
