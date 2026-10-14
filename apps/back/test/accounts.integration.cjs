@@ -154,7 +154,8 @@ async function main() {
     const accessEntries = [];
     registerAccessLogging(adapter.getInstance(), entry => accessEntries.push({ ...entry, kind: 'access' }));
     await adapter.register(require('@fastify/cookie'));
-    app = module.createNestApplication(adapter, { logger: false });
+    // Fixtures are disposable; surface server errors when validating a new runtime.
+    app = module.createNestApplication(adapter, { logger: process.env.AUTH_TEST_DEBUG === 'true' ? ['error'] : false });
     app.useGlobalPipes(new ValidationPipe({ transform:true,whitelist:true,forbidNonWhitelisted:true,transformOptions:{enableImplicitConversion:true} }));
     app.setGlobalPrefix('api'); app.useGlobalInterceptors(new TransformInterceptor(new Reflector()));
     await app.init(); await adapter.getInstance().ready();
