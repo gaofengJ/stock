@@ -118,6 +118,9 @@ def healthy(production):
         time.sleep(3)
     else:
         raise TimeoutError('Backend health deadline exceeded')
+    # Refresh the upstream address after a backend container replacement before probing authorization.
+    run(compose(production) + ['exec', '-T', 'articles', 'nginx', '-t'])
+    run(compose(production) + ['exec', '-T', 'articles', 'nginx', '-s', 'reload'])
     for url, expected in [('http://127.0.0.1:8081/', 200), ('http://127.0.0.1:3000/api/auth/me', 401), ('http://127.0.0.1:8082/', 403)]:
         try:
             with urllib.request.urlopen(url, timeout=10) as response:
@@ -126,8 +129,6 @@ def healthy(production):
             code = error.code
         if code != expected:
             raise ValueError('Read-only health check failed')
-    run(compose(production) + ['exec', '-T', 'articles', 'nginx', '-t'])
-    run(compose(production) + ['exec', '-T', 'articles', 'nginx', '-s', 'reload'])
 
 
 def apply(text, production):
