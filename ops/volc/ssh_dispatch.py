@@ -1,0 +1,8 @@
+#!/usr/bin/python3
+"""Route the restricted CI key to fixed upload receivers; never run input as a shell."""
+import os
+
+command = os.environ.get('SSH_ORIGINAL_COMMAND', '')
+receiver = ('/usr/local/lib/stock-news/feed_receiver.py' if command.startswith('news ')
+            else '/usr/local/libexec/stock-receive-image.py')
+os.execv('/usr/bin/python3', ['/usr/bin/python3', receiver])

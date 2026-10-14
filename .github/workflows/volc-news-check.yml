@@ -1,0 +1,42 @@
+name: Verify Volcengine restricted news delivery
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: volc-news-validation
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/codex/stock-volc-migration'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github
+            ops/volc
+      - name: Verify receiver boundaries
+        run: PYTHONPATH=.github/scripts:ops/volc python3 -m unittest ops/volc/test_feed_receiver.py
+      - name: Collect current public Sina feed
+        id: sina
+        continue-on-error: true
+        run: python3 .github/scripts/sina_relay.py collect --file sina.json
+      - name: Collect current public Bloomberg feed
+        id: bloomberg
+        continue-on-error: true
+        run: python3 .github/scripts/bloomberg_relay.py collect --file bloomberg.json
+      - name: Validate through the restricted key without publishing or database writes
+        env:
+          UPLOAD_KEY: ${{ secrets.VOLC_REHEARSAL_UPLOAD_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          key="$RUNNER_TEMP/volc-news-validation-key"
+          trap 'rm -f "$key"' EXIT
+          printf '%s\n' "$UPLOAD_KEY" > "$key"
+          python3 ops/volc/upload_news.py --directory . --key "$key" --known-hosts ops/volc/known_hosts --mode validate
+      - name: Require both sources
+        if: steps.sina.outcome != 'success' || steps.bloomberg.outcome != 'success'
+        run: exit 1
