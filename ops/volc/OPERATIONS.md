@@ -109,3 +109,15 @@ dispatcher targets that filename. Retain its hourly fallback schedule only after
 old server dispatch has stopped. Do not add a second scheduled collector. Retire
 this validation candidate's migration-branch push trigger after integration. The
 existing production workflow remains unchanged until this handover is approved.
+
+### Explicit writer handover
+
+The base `compose.app.yaml` always disables every writer. Production requires the
+additional `-f compose.production.yaml`; it enables normal scheduled collection,
+news, admin jobs and Tushare, while keeping `SYNC_ON_STARTUP=false` to prevent a
+restart from launching an unsolicited bulk import. Validate resolved topology with
+`check_stack.py --env-file release.env --production`. Validation does not start any
+container or grant cutover authorization. Merely creating `production.enabled`
+does not enable application writers; merely adding the override does not enable
+systemd timers. The approved cutover must handle both explicitly, after old writers
+are stopped and final data checks pass. This override has not been applied yet.

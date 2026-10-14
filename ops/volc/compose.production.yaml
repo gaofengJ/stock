@@ -1,0 +1,11 @@
+# Apply only after final data verification and the approved writer handover.
+services:
+  back:
+    environment:
+      SCHEDULE_ENABLED: "true"
+      SYNC_SCHEDULE_ENABLED: "true"
+      # Restarting a release must not launch a bulk historical import.
+      SYNC_ON_STARTUP: "false"
+      NEWS_SYNC_ENABLED: "true"
+      ADMIN_JOBS_ENABLED: "true"
+      TUSHARE_REQUESTS_ENABLED: "true"
