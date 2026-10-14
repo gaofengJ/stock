@@ -14,7 +14,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
-from release_contract import MAX_BYTES, validate_request, public_request, validate_run
+from release_contract import validate_master_head, MAX_BYTES, validate_request, public_request, validate_run
 
 DEPLOY = Path('/opt/stock/deploy')
 ENV = DEPLOY / 'release.env'
@@ -43,6 +43,11 @@ def verify_ci(request, rehearsal):
     req = urllib.request.Request(url, headers={'Accept': 'application/vnd.github+json', 'User-Agent': 'stock-release-controller'})
     with urllib.request.urlopen(req, timeout=20) as response:
         validate_run(json.load(response), request, rehearsal)
+    if not rehearsal:
+        req = urllib.request.Request('https://api.github.com/repos/gaofengJ/stock/commits/master',
+                                     headers={'Accept': 'application/vnd.github+json', 'User-Agent': 'stock-release-controller'})
+        with urllib.request.urlopen(req, timeout=20) as response:
+            validate_master_head(json.load(response), request)
 
 
 def pull_and_verify(request, pull):
@@ -162,6 +167,11 @@ def deploy(request, identity, rehearsal=False, dry_run=False):
     if all(values[key] == previous_values.get(key)
            for key in ('BACK_IMAGE', 'FRONT_IMAGE', 'RELEASE_SHA')):
         return {'id': identity, 'state': 'already-current', 'commit': request['commit'], 'databaseChanged': False}
+    # Pull/schema validation can take minutes; fail before changing services if superseded or disabled.
+    if not rehearsal:
+        if not all(p.is_file() for p in (PRODUCTION, ENABLED)) or MAINTENANCE.exists():
+            raise ValueError('Production deployment was disabled during preflight')
+        verify_ci(request, rehearsal)
     history = DEPLOY / 'releases' / ('cd-' + identity)
     history.mkdir(mode=0o700)
     (history / 'previous.env').write_text(previous)

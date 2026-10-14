@@ -30,7 +30,13 @@ def public_request(value):
 def validate_run(run, request, rehearsal=False):
     if (run.get('head_sha') != request['commit'] or run.get('status') != 'completed'
             or run.get('conclusion') != 'success'
+            or run.get('event') not in ('push', 'workflow_dispatch')
             or run.get('path') != '.github/workflows/volc-rehearsal.yml'
             or run.get('head_branch') != ('codex/stock-volc-migration' if rehearsal else 'master')
             or run.get('head_repository', {}).get('full_name') != 'gaofengJ/stock'):
         raise ValueError('Release lacks a successful full CI run on the authorized branch')
+
+
+def validate_master_head(head, request):
+    if head.get('sha') != request['commit']:
+        raise ValueError('Superseded master commit; do not deploy stale artifacts')

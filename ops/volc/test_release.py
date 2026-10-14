@@ -61,15 +61,30 @@ class ReleaseTest(unittest.TestCase):
             self.send('queue')
 
     def test_ci_must_match_commit_branch_and_full_workflow(self):
-        run = dict(head_sha='a' * 40, status='completed', conclusion='success',
+        run = dict(event='push', head_sha='a' * 40, status='completed', conclusion='success',
                    path='.github/workflows/volc-rehearsal.yml', head_branch='master',
                    head_repository={'full_name': 'gaofengJ/stock'})
         contract.validate_run(run, request())
         for key, value in [('head_sha', 'b' * 40), ('conclusion', 'failure'),
-                           ('head_branch', 'unreviewed'), ('path', '.github/workflows/volc-ops.yml')]:
+                           ('head_branch', 'unreviewed'), ('event', 'pull_request'), ('path', '.github/workflows/volc-ops.yml')]:
             changed = copy.deepcopy(run); changed[key] = value
             with self.assertRaises(ValueError):
                 contract.validate_run(changed, request())
+
+    def test_stale_ci_result_cannot_replace_current_master(self):
+        contract.validate_master_head({'sha': 'a' * 40}, request())
+        for value in ({}, {'sha': 'b' * 40}):
+            with self.assertRaises(ValueError):
+                contract.validate_master_head(value, request())
+
+    def test_head_advancing_during_pull_does_not_change_services(self):
+        self.prepare_worker()
+        with patch.object(worker, 'verify_ci', side_effect=[None, ValueError('superseded')]), patch.object(worker, 'apply') as apply:
+            with self.assertRaises(ValueError):
+                worker.deploy(request(), 'f' * 32)
+        apply.assert_not_called()
+        self.assertFalse(worker.MAINTENANCE.exists())
+        self.assertEqual(list((self.root / 'releases').iterdir()), [])
 
     def prepare_worker(self):
         (self.root / 'releases').mkdir()
