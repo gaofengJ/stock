@@ -131,6 +131,8 @@ are stopped and final data checks pass. This override has not been applied yet.
 
 root worker复核GitHub完整CI的commit、分支、仓库及成功状态，检查近期备份和恢复证明，拉取并核对镜像ID；候选迁移列表与现库历史必须相同。仅更新back/front、关闭入口后检查健康，失败恢复previous.env及应用版本；失败回退仍异常时保留维护模式。此入口不执行DDL、不恢复数据库。已有版本重复提交返回already-current，不重启服务。代码中的业务变更仍需要正常review；摘要与image-id来源依赖受保护的GitHub CI上传凭据。
 
+2026-10-14用户明确本次暂不配置长期异机备份，后续需要时另接个人电脑。保留本地备份和已验证的迁移副本，不安装个人电脑定时任务，不新增云存储费用。候选外部健康检查显式使用`--offhost-policy deferred`，持续异机缺失作为warning，原证明仍false；本地备份、业务健康和报告时效仍是必需检查。下文较早的长期异机前置要求以本次决定为准。
+
 `release_worker.py --rehearsal /run/stock-cd/request.json`默认只预检，要求新机维护且无生产标记；`--apply`才会尝试隔离新机应用更新。正式队列只能由root预装的systemd服务处理，不运行上传脚本。worker与备份、同步共用维护锁；状态位于`/srv/stock/deploy-status`，发布前后清单位于`/opt/stock/deploy/releases/cd-*`。单次请求失败应检查回退结果，不自动重复提交。
 
 

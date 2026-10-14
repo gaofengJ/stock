@@ -23,5 +23,12 @@ class HealthTest(unittest.TestCase):
     def test_no_arbitrary_file_or_command(self):
         for command in ['id','health status /etc/stock/runtime.env','health /etc/passwd']:
             with self.assertRaises(ValueError):read(command)
+    def test_owner_deferral_preserves_local_backup_and_runtime_checks(self):
+        value=self.report();value.update(production=True,maintenance=False,backupHealthy=True)
+        self.assertEqual(assess(value,NOW,True,'deferred'),[])
+        self.assertFalse(value['recurringOffhostVerified'])
+        value.update(backupHealthy=False,databaseHealthy=False)
+        self.assertEqual(set(assess(value,NOW,True,'deferred')),{'local_backup_unhealthy','databaseHealthy'})
+        with self.assertRaises(ValueError):assess(value,NOW,True,'ignore-everything')
 
 if __name__=='__main__':unittest.main()

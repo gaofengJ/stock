@@ -30,7 +30,9 @@ jobs:
           key="$RUNNER_TEMP/volc-health-key"
           trap 'rm -f "$key"' EXIT
           printf '%s\n' "$UPLOAD_KEY" > "$key"
-          args=()
+          # Owner deferred recurring off-host backups on 2026-10-14; local backups remain required.
+          # Report the missing off-host protection as a warning; never fabricate a verified copy.
+          args=(--offhost-policy deferred)
           if [ "$PRODUCTION" = true ]; then args+=(--production); fi
           python3 ops/volc/check_remote_health.py --key "$key" --known-hosts ops/volc/known_hosts "${args[@]}"
 # Failed checks mark this workflow failed. Recipient notification preferences are managed by GitHub.

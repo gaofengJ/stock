@@ -79,7 +79,7 @@ def render(destination, root=ROOT):
     manifest = {'state': 'review-only-not-installed', 'files': {name: hashlib.sha256(content.encode()).hexdigest() for name, content in files.items()},
                 'requiresBeforeInstallation': ['user-approved cutover window', 'verified full CI including article build and access tests',
                     'confirm no old publishing/collecting run in progress', 'final data and business acceptance',
-                    'long-term backups and external alerts'],
+                    'local backup readiness and external alerts; recurring off-host backup deferred by owner'],
                 'oldHostChanged': False, 'defaultBranchChanged': False, 'productionEnabled': False}
     (destination / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     return manifest
