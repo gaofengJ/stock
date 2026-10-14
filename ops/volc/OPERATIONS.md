@@ -149,3 +149,12 @@ root worker复核GitHub完整CI的commit、分支、仓库及成功状态，检�
 独立schema-only探针已验证53+33张表、433+330列按此方式与旧库列定义一致，无业务行导入，探针空库已删除。现有演练库未为此重复恢复，最终导入前仍不能宣称它与5.7源库排序规则一致。版本间只归一化整数显示宽度、DEFAULT_GENERATED展示标记及utf8→utf8mb3命名，其他默认值、可空性、排序规则差异均阻断。后续新迁移DDL须显式声明预期排序规则；本导入会话设置不改变全局数据库变量。
 
 发布接收器以stock-deploy运行，不能遍历保存密码的/etc/stock。它仅检查/srv/stock/state/cd.enabled这个root控制的公开标记；root worker再次同时检查两个开关。不要通过放宽/etc/stock权限使CI账户可读运行凭据。停止生产发布时移除公开cd标记，保证新请求立即拒绝。
+
+
+## 内容镜像与站外健康检查候选
+
+应用发布可携带现有stock-blog仓库的文章固定摘要和测试image-id；字段缺一或任意其他仓库均拒绝。健康检查包含文章匿名403，失败恢复前一份完整release.env（含ARTICLE_IMAGE），不动数据库。完整CI的文章任务还验证有权限的内容访问、图片/搜索数据权限和后端故障拒绝访问。
+
+stock-health-snapshot.service生成root:root/644的固定无凭据摘要，供受限SSH的`health status`读取；此账号仍无shell、Docker或备份读取权限。snapshot timer候选保持disabled。check_remote_health.py默认只验证隔离状态；--production要求正常入口、DB/backend healthy、有效本地备份和持续异机证明。当前recurringOffhostVerified固定false，等用户指定长期存储再接证明，不能手改true假装已完成。
+
+volc-health.yml失败走GitHub现有工作流通知设置；没有配置新收件人或声称邮件已送达。执行旧机停写和默认分支接管前须核对上述状态。
