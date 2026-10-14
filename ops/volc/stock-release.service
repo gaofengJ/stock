@@ -8,6 +8,6 @@ ConditionPathExists=/srv/stock/state/cd.enabled
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/python3 /opt/stock/deploy/release_worker.py
-TimeoutStartSec=30min
+TimeoutStartSec=60min
 UMask=0077
 Nice=5

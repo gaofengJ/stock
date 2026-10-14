@@ -32,9 +32,12 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 class GitHub:
-    def __init__(self, token, opener=None, sleep=time.sleep):
+    def __init__(self, token, opener=None, sleep=time.sleep, not_before=None):
         if not re.match(r'^[A-Za-z0-9_]{20,512}\Z', token or ''):
             raise ValueError('Missing or invalid NEWS_DISPATCH_TOKEN')
+        self.not_before = os.environ.get('NEWS_DISPATCH_NOT_BEFORE', '') if not_before is None else not_before
+        if self.not_before:
+            dt.datetime.strptime(self.not_before, '%Y-%m-%dT%H:%M:%SZ')
         self.token = token
         self.opener = opener or urllib.request.build_opener(NoRedirect())
         self.sleep = sleep
@@ -75,7 +78,11 @@ class GitHub:
         result = self.request('/runs?branch=master&per_page=30')
         if not isinstance(result, dict) or not isinstance(result.get('workflow_runs'), list):
             raise ApiError()
-        return result['workflow_runs']
+        # A reviewed cutover can retire legacy queued runs without cancelling or deleting history.
+        # Unknown timestamps remain visible, so they cannot silently bypass duplicate protection.
+        return [run for run in result['workflow_runs']
+                if not self.not_before or not re.match(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$', str(run.get('created_at', '')))
+                or run['created_at'] >= self.not_before]
 
     def dispatch(self, dispatch_id):
         result = self.request('/dispatches', {'ref': 'master', 'inputs': {'deliver': True, 'dispatch_id': dispatch_id}})

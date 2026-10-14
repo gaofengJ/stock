@@ -71,6 +71,19 @@ class ReleaseTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 contract.validate_run(changed, request())
 
+    def test_master_verification_reads_small_git_ref_and_rejects_new_head(self):
+        run = dict(event='push', head_sha='a' * 40, status='completed', conclusion='success',
+                   path='.github/workflows/volc-rehearsal.yml', head_branch='master',
+                   head_repository={'full_name': 'gaofengJ/stock'})
+        for head, valid in [('a' * 40, True), ('b' * 40, False)]:
+            responses = [io.BytesIO(json.dumps(run).encode()),
+                         io.BytesIO(json.dumps({'object': {'sha': head}}).encode())]
+            with patch.object(worker.urllib.request, 'urlopen', side_effect=responses) as opened:
+                if valid: worker.verify_ci(request(), False)
+                else:
+                    with self.assertRaises(ValueError): worker.verify_ci(request(), False)
+                self.assertTrue(opened.call_args_list[1].args[0].full_url.endswith('/git/ref/heads/master'))
+
     def test_stale_ci_result_cannot_replace_current_master(self):
         contract.validate_master_head({'sha': 'a' * 40}, request())
         for value in ({}, {'sha': 'b' * 40}):
