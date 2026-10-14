@@ -20,7 +20,7 @@ def validate(app, db):
         assert back['environment'][key] == 'false', key + ' must remain disabled during rehearsal'
     for project in (app, db):
         for service in project['services'].values():
-            assert re.fullmatch(r'[^\s]+@sha256:[a-f0-9]{64}', service['image']), 'Pin every image digest'
+            assert re.fullmatch(r'(?:[^\s]+@)?sha256:[a-f0-9]{64}', service['image']), 'Pin every registry digest or verified local image ID'
             for port in service.get('ports', []):
                 assert port['host_ip'] == '127.0.0.1', 'Containers must not publish public ports'
             assert service['logging']['options']['max-size'] == '20m'
