@@ -1,0 +1,86 @@
+name: Publish verified Volcengine candidate images
+on:
+  push:
+    branches: [codex/stock-volc-migration]
+    paths: [.github/workflows/volc-registry.yml]
+  workflow_dispatch: {}
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: volc-candidate-registry
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      VERIFIED_SHA: c1dd8e180b15b84629156ed06ee9490c3705e3ea
+      VERIFIED_RUN: '38517287815'
+    steps:
+      - name: Confirm the source run passed all gates
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh api "repos/$GH_REPO/actions/runs/$VERIFIED_RUN" > /tmp/verified-run.json
+          python3 - <<'PY'
+          import json, os
+          run=json.load(open('/tmp/verified-run.json'))
+          assert run['head_sha']==os.environ['VERIFIED_SHA']
+          assert run['status']=='completed' and run['conclusion']=='success'
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 38517287815
+          github-token: ${{ github.token }}
+          path: /tmp/stock-images
+      - name: Verify and load the exact tested artifacts
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, subprocess
+          from pathlib import Path
+          sha=os.environ['VERIFIED_SHA']
+          for role, artifact in [('back','backend'),('front','frontend')]:
+              folder=Path('/tmp/stock-images') / ('stock-volc-'+artifact+'-'+sha)
+              assert (folder/'commit').read_text().strip()==sha
+              archive=folder/(artifact+'.tar.zst')
+              expected=(folder/(artifact+'.sha256')).read_text().split()[0]
+              with archive.open('rb') as f: actual=hashlib.file_digest(f,'sha256').hexdigest()
+              assert actual==expected
+              z=subprocess.Popen(['zstd','-dc',str(archive)],stdout=subprocess.PIPE)
+              subprocess.run(['docker','load'],stdin=z.stdout,check=True)
+              z.stdout.close(); assert z.wait()==0
+              source='stock-'+role+'-volc:'+sha
+              image=json.loads(subprocess.check_output(['docker','image','inspect',source]))[0]
+              # Fail closed if runner storage changes ID semantics; do not rebuild.
+              assert image['Id']==(folder/'image-id').read_text().strip()
+              target='registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-'+role+':volc-'+sha
+              subprocess.run(['docker','tag',source,target],check=True)
+          PY
+      - name: Authenticate to the existing distribution registry
+        env:
+          REGISTRY_USER: ${{ secrets.DOCKER_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: printf '%s' "$REGISTRY_PASSWORD" | docker login registry.cn-hangzhou.aliyuncs.com -u "$REGISTRY_USER" --password-stdin
+      - name: Publish candidate-only tags and record immutable digests
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/registry-receipt
+          for role in back front; do
+            target="registry.cn-hangzhou.aliyuncs.com/mufengtongxue/stock-$role:volc-$VERIFIED_SHA"
+            docker push "$target"
+            docker image inspect --format '{{index .RepoDigests 0}}' "$target" > "/tmp/registry-receipt/$role-digest"
+            docker image inspect --format '{{.Id}}' "$target" > "/tmp/registry-receipt/$role-image-id"
+          done
+          printf '%s\n' "$VERIFIED_SHA" > /tmp/registry-receipt/commit
+      - name: Remove temporary registry login
+        if: always()
+        run: docker logout registry.cn-hangzhou.aliyuncs.com
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stock-volc-registry-${{ env.VERIFIED_SHA }}
+          path: /tmp/registry-receipt/
+          retention-days: 30
+          if-no-files-found: error
+      # No latest/production tag changes, SSH, deployment or database operation.
