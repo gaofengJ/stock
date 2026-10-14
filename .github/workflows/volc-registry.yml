@@ -1,6 +1,15 @@
 name: Publish verified Volcengine candidate images
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      verified_sha:
+        description: Full commit SHA of the successful isolated rehearsal
+        required: true
+        type: string
+      verified_run:
+        description: Successful isolated rehearsal workflow run ID
+        required: true
+        type: string
 permissions:
   contents: read
   actions: read
@@ -13,24 +22,28 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      VERIFIED_SHA: c1dd8e180b15b84629156ed06ee9490c3705e3ea
-      VERIFIED_RUN: '38517287815'
+      VERIFIED_SHA: ${{ inputs.verified_sha }}
+      VERIFIED_RUN: ${{ inputs.verified_run }}
     steps:
       - name: Confirm the source run passed all gates
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
+          [[ "$VERIFIED_SHA" =~ ^[0-9a-f]{40}$ ]] && [[ "$VERIFIED_RUN" =~ ^[0-9]+$ ]]
           gh api "repos/$GH_REPO/actions/runs/$VERIFIED_RUN" > /tmp/verified-run.json
           python3 - <<'PY'
           import json, os
           run=json.load(open('/tmp/verified-run.json'))
           assert run['head_sha']==os.environ['VERIFIED_SHA']
           assert run['status']=='completed' and run['conclusion']=='success'
+          assert run['head_branch']=='codex/stock-volc-migration'
+          assert run['path']=='.github/workflows/volc-rehearsal.yml'
           PY
       - uses: actions/download-artifact@v4
         with:
-          run-id: 38517287815
+          run-id: ${{ inputs.verified_run }}
+          pattern: stock-volc-*end-${{ inputs.verified_sha }}
           github-token: ${{ github.token }}
           path: /tmp/stock-images
       - name: Verify and load the exact tested artifacts

@@ -919,6 +919,7 @@ export class AuthService implements OnModuleInit {
 
   @Cron('0 15 3 * * *')
   async cleanup() {
+    if (process.env.SCHEDULE_ENABLED === 'false') return;
     await this.db.query(
       'DELETE FROM t_auth_session WHERE expires_at<UTC_TIMESTAMP(6) OR revoked_at IS NOT NULL OR last_seen_at<DATE_SUB(UTC_TIMESTAMP(6),INTERVAL ? HOUR)',
       [Number(process.env.AUTH_IDLE_HOURS || 24)],
