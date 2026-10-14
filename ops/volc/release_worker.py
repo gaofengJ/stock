@@ -23,7 +23,7 @@ CLAIMED = Path('/run/stock-cd/claimed')
 STATUS = Path('/srv/stock/deploy-status')
 MAINTENANCE = Path('/srv/stock/state/maintenance')
 PRODUCTION = Path('/etc/stock/production.enabled')
-ENABLED = Path('/etc/stock/cd.enabled')
+ENABLED = Path('/srv/stock/state/cd.enabled')
 REGISTRY = 'registry.cn-hangzhou.aliyuncs.com'
 
 

@@ -29,10 +29,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: {node-version: "24.21.0"}
-      - name: Preserve credential, release artifact, indexing and history contracts
+      - name: Preserve credential, release artifact, indexing contracts
         run: |
           node .github/scripts/check-env-secrets.cjs apps/back/.env.production
-          node --test .github/scripts/test-release-tools.cjs .github/scripts/test-publish-verified-image.cjs .github/scripts/test-indexnow.cjs apps/back/ops/backfill-intraday-counts.test.cjs
+          node --test .github/scripts/test-release-tools.cjs .github/scripts/test-publish-verified-image.cjs .github/scripts/test-indexnow.cjs
   frontend:
     runs-on: ubuntu-24.04
     steps:
@@ -94,6 +94,8 @@ jobs:
       - uses: pnpm/action-setup@v4
         with: {version: 9.15.9}
       - run: pnpm install --filter back --frozen-lockfile
+      - name: Intraday history contracts
+        run: node --test apps/back/ops/backfill-intraday-counts.test.cjs
       - run: pnpm -C apps/back run lint
       - run: pnpm -C apps/back run build
       - run: node apps/back/scripts/check-migration-policy.cjs

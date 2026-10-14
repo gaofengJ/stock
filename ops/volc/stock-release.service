@@ -3,7 +3,7 @@ Description=Apply a queued verified stock application release
 After=docker.service network-online.target
 Requires=docker.service
 ConditionPathExists=/etc/stock/production.enabled
-ConditionPathExists=/etc/stock/cd.enabled
+ConditionPathExists=/srv/stock/state/cd.enabled
 
 [Service]
 Type=oneshot

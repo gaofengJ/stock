@@ -13,11 +13,12 @@ from release_contract import MAX_BYTES, validate_request
 
 QUEUE = Path('/run/stock-cd/queue')
 STATUS = Path('/srv/stock/deploy-status')
-ENABLED = Path('/etc/stock/cd.enabled')
-PRODUCTION = Path('/etc/stock/production.enabled')
+# The upload user cannot traverse /etc/stock (runtime secrets). This public marker
+# contains no data and is writable only by root. The root worker also checks production.enabled.
+ENABLED = Path('/srv/stock/state/cd.enabled')
 
 
-def receive(command, stream, queue=QUEUE, status=STATUS, enabled=ENABLED, production=PRODUCTION):
+def receive(command, stream, queue=QUEUE, status=STATUS, enabled=ENABLED):
     query = re.fullmatch(r'release status ([a-f0-9]{32})', command)
     if query:
         path = status / (query[1] + '.json')
@@ -31,7 +32,7 @@ def receive(command, stream, queue=QUEUE, status=STATUS, enabled=ENABLED, produc
     request = validate_request(json.loads(raw))
     if match[1] == 'validate':
         return {'state': 'validated-not-queued', 'commit': request['commit']}
-    if not enabled.is_file() or not production.is_file():
+    if not enabled.is_file():
         raise ValueError('Production CD has not been enabled')
     # /run is tmpfs: registry authentication is never written into durable artifacts/logs.
     with (queue / '.queue.lock').open('a') as lock:

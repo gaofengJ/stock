@@ -29,7 +29,7 @@ class ReleaseTest(unittest.TestCase):
     def send(self, mode, value=None):
         raw = json.dumps(request() if value is None else value).encode()
         return receiver.receive('release ' + mode + ' ' + hashlib.sha256(raw).hexdigest(), io.BytesIO(raw),
-                                self.root, self.root, self.root / 'enabled', self.root / 'production')
+                                self.root, self.root, self.root / 'enabled')
 
     def test_remote_validation_cannot_queue_or_expose_auth(self):
         result = self.send('validate')
@@ -52,7 +52,7 @@ class ReleaseTest(unittest.TestCase):
             receiver.receive('release validate ' + 'a' * 64, io.BytesIO(b'a' * (contract.MAX_BYTES + 1)))
 
     def test_queue_is_private_bounded_and_receipts_hide_auth(self):
-        (self.root / 'enabled').touch(); (self.root / 'production').touch()
+        (self.root / 'enabled').touch()
         receipt = self.send('queue')
         self.assertEqual((self.root / (receipt['id'] + '.json')).stat().st_mode & 0o777, 0o600)
         self.assertNotIn('private-', json.dumps(receipt))
@@ -83,6 +83,15 @@ class ReleaseTest(unittest.TestCase):
             patcher = patch.object(worker, name); patcher.start(); self.addCleanup(patcher.stop)
         patcher = patch.object(worker.shutil, 'disk_usage')
         mocked = patcher.start(); mocked.return_value.free = 12 * 1024**3; self.addCleanup(patcher.stop)
+
+    def test_public_cd_gate_cannot_bypass_private_production_gate(self):
+        self.prepare_worker()
+        worker.PRODUCTION.unlink()
+        with patch.object(worker, 'apply') as apply:
+            with self.assertRaises(ValueError):
+                worker.deploy(request(), 'e' * 32)
+        apply.assert_not_called()
+        self.assertEqual(list((self.root / 'releases').iterdir()), [])
 
     def test_failure_restores_previous_application_and_removes_own_maintenance(self):
         self.prepare_worker()

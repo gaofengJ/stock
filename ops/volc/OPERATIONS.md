@@ -125,7 +125,7 @@ are stopped and final data checks pass. This override has not been applied yet.
 
 ## 受限正式发布候选（切换前禁用）
 
-`volc-registry.yml`从完整CI成功run取回同批测试镜像，推到既有ACR并生成固定摘要清单；默认仅通过SSH校验请求，不部署。`queue_release=true`只允许master，并要求服务器同时存在`production.enabled`和`cd.enabled`。切换前不要创建标记或启用`stock-release.timer`；默认分支旧CI还需单独替换，不能直接合并触发旧机发布。
+`volc-registry.yml`从完整CI成功run取回同批测试镜像，推到既有ACR并生成固定摘要清单；默认仅通过SSH校验请求，不部署。`queue_release=true`只允许master，并要求服务器同时存在`/etc/stock/production.enabled`和`/srv/stock/state/cd.enabled`。切换前不要创建标记或启用`stock-release.timer`；默认分支旧CI还需单独替换，不能直接合并触发旧机发布。
 
 现有stock-deploy密钥由root持有的分派器限定为镜像/新闻/发布数据入口，没有shell或Docker权限。发布请求大小上限16KiB，只允许固定ACR两个仓库的SHA256摘要；最多两项待处理。临时仓库认证仅在`/run/stock-cd`内存文件系统，持久化记录和状态响应不包含凭据。重启丢失待处理请求时应人工核对状态，不自动补发。
 
@@ -147,3 +147,5 @@ root worker复核GitHub完整CI的commit、分支、仓库及成功状态，检�
 实测发现仅设置collation-server=utf8mb4_general_ci不足以保留旧mysqldump建表默认值。5.7导出的DEFAULT CHARSET=utf8mb4在8.4会采用default_collation_for_utf8mb4=0900_ai_ci；原演练主库118列、测试库89列存在此差异。最终导入会话显式设为utf8mb4_general_ci，并核验每表/每列排序规则；不将general_ci与0900_ai_ci当作可忽略差异。
 
 独立schema-only探针已验证53+33张表、433+330列按此方式与旧库列定义一致，无业务行导入，探针空库已删除。现有演练库未为此重复恢复，最终导入前仍不能宣称它与5.7源库排序规则一致。版本间只归一化整数显示宽度、DEFAULT_GENERATED展示标记及utf8→utf8mb3命名，其他默认值、可空性、排序规则差异均阻断。后续新迁移DDL须显式声明预期排序规则；本导入会话设置不改变全局数据库变量。
+
+发布接收器以stock-deploy运行，不能遍历保存密码的/etc/stock。它仅检查/srv/stock/state/cd.enabled这个root控制的公开标记；root worker再次同时检查两个开关。不要通过放宽/etc/stock权限使CI账户可读运行凭据。停止生产发布时移除公开cd标记，保证新请求立即拒绝。
