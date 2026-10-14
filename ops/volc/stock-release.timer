@@ -1,0 +1,10 @@
+[Unit]
+Description=Process at most one stock application release at a time
+
+[Timer]
+OnBootSec=1min
+OnUnitInactiveSec=15s
+Unit=stock-release.service
+
+[Install]
+WantedBy=timers.target

@@ -121,3 +121,14 @@ container or grant cutover authorization. Merely creating `production.enabled`
 does not enable application writers; merely adding the override does not enable
 systemd timers. The approved cutover must handle both explicitly, after old writers
 are stopped and final data checks pass. This override has not been applied yet.
+
+
+## 受限正式发布候选（切换前禁用）
+
+`volc-registry.yml`从完整CI成功run取回同批测试镜像，推到既有ACR并生成固定摘要清单；默认仅通过SSH校验请求，不部署。`queue_release=true`只允许master，并要求服务器同时存在`production.enabled`和`cd.enabled`。切换前不要创建标记或启用`stock-release.timer`；默认分支旧CI还需单独替换，不能直接合并触发旧机发布。
+
+现有stock-deploy密钥由root持有的分派器限定为镜像/新闻/发布数据入口，没有shell或Docker权限。发布请求大小上限16KiB，只允许固定ACR两个仓库的SHA256摘要；最多两项待处理。临时仓库认证仅在`/run/stock-cd`内存文件系统，持久化记录和状态响应不包含凭据。重启丢失待处理请求时应人工核对状态，不自动补发。
+
+root worker复核GitHub完整CI的commit、分支、仓库及成功状态，检查近期备份和恢复证明，拉取并核对镜像ID；候选迁移列表与现库历史必须相同。仅更新back/front、关闭入口后检查健康，失败恢复previous.env及应用版本；失败回退仍异常时保留维护模式。此入口不执行DDL、不恢复数据库。已有版本重复提交返回already-current，不重启服务。代码中的业务变更仍需要正常review；摘要与image-id来源依赖受保护的GitHub CI上传凭据。
+
+`release_worker.py --rehearsal /run/stock-cd/request.json`默认只预检，要求新机维护且无生产标记；`--apply`才会尝试隔离新机应用更新。正式队列只能由root预装的systemd服务处理，不运行上传脚本。worker与备份、同步共用维护锁；状态位于`/srv/stock/deploy-status`，发布前后清单位于`/opt/stock/deploy/releases/cd-*`。单次请求失败应检查回退结果，不自动重复提交。

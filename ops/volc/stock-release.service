@@ -1,0 +1,13 @@
+[Unit]
+Description=Apply a queued verified stock application release
+After=docker.service network-online.target
+Requires=docker.service
+ConditionPathExists=/etc/stock/production.enabled
+ConditionPathExists=/etc/stock/cd.enabled
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/stock/deploy/release_worker.py
+TimeoutStartSec=30min
+UMask=0077
+Nice=5

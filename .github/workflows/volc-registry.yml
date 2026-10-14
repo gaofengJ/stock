@@ -10,6 +10,11 @@ on:
         description: Successful isolated rehearsal workflow run ID
         required: true
         type: string
+      queue_release:
+        description: Queue application-only deployment after the approved production cutover (master only)
+        required: false
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
@@ -18,13 +23,14 @@ concurrency:
   cancel-in-progress: false
 jobs:
   publish:
-    if: github.ref == 'refs/heads/codex/stock-volc-migration'
+    if: github.ref == 'refs/heads/master' || (github.ref == 'refs/heads/codex/stock-volc-migration' && !inputs.queue_release)
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 50
     env:
       VERIFIED_SHA: ${{ inputs.verified_sha }}
       VERIFIED_RUN: ${{ inputs.verified_run }}
     steps:
+      - uses: actions/checkout@v4
       - name: Confirm the source run passed all gates
         env:
           GH_TOKEN: ${{ github.token }}
@@ -37,7 +43,8 @@ jobs:
           run=json.load(open('/tmp/verified-run.json'))
           assert run['head_sha']==os.environ['VERIFIED_SHA']
           assert run['status']=='completed' and run['conclusion']=='success'
-          assert run['head_branch']=='codex/stock-volc-migration'
+          assert run['head_branch']==os.environ['GITHUB_REF_NAME']
+          assert run['head_repository']['full_name']=='gaofengJ/stock'
           assert run['path']=='.github/workflows/volc-rehearsal.yml'
           PY
       - uses: actions/download-artifact@v4
@@ -94,4 +101,19 @@ jobs:
           path: /tmp/registry-receipt/
           retention-days: 30
           if-no-files-found: error
-      # No latest/production tag changes, SSH, deployment or database operation.
+      - name: Validate or queue the fixed release through restricted SSH
+        env:
+          UPLOAD_KEY: ${{ secrets.VOLC_REHEARSAL_UPLOAD_KEY }}
+          REGISTRY_USER: ${{ secrets.DOCKER_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          RELEASE_MODE: ${{ inputs.queue_release && 'queue' || 'validate' }}
+        run: |
+          set -euo pipefail
+          umask 077
+          key="$RUNNER_TEMP/volc-release-key"
+          trap 'rm -f "$key"' EXIT
+          printf '%s\n' "$UPLOAD_KEY" > "$key"
+          python3 ops/volc/upload_release.py --receipt /tmp/registry-receipt --run-id "$VERIFIED_RUN" --key "$key" --known-hosts ops/volc/known_hosts --mode "$RELEASE_MODE"
+      # Validation is the default. Queue mode additionally requires master and two server-side flags.
+      # No latest tag, old-host operation, uploaded shell, DDL, or database restore.
+
