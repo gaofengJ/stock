@@ -1,0 +1,10 @@
+[Unit]
+Description=Check short-lived TLS certificate renewal every four hours
+
+[Timer]
+OnCalendar=*-*-* 00/4:00:00
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
