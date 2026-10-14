@@ -60,6 +60,16 @@ class DispatchTests(unittest.TestCase):
     def run_dispatch(self, api, now=NOW):
         return Dispatcher(api, self.state, self.root, lambda: now).run()
 
+    def test_cutover_boundary_retires_only_known_legacy_runs(self):
+        runs = [{'id': 1, 'created_at': '2026-10-12T23:45:04Z', 'status': 'queued'},
+                {'id': 2, 'created_at': '2026-10-14T16:10:00Z', 'status': 'in_progress'},
+                {'id': 3, 'status': 'queued'}]
+        opener = Opener([json.dumps({'workflow_runs': runs}).encode()])
+        api = GitHub(TOKEN, opener=opener, not_before='2026-10-14T16:04:00Z')
+        self.assertEqual([r['id'] for r in api.runs()], [2, 3])
+        with self.assertRaises(ValueError):
+            GitHub(TOKEN, not_before='not-a-date')
+
     def test_starts_collection_and_records_only_nonsecret_status(self):
         api = FakeApi()
         result = self.run_dispatch(api)

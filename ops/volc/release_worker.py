@@ -45,10 +45,10 @@ def verify_ci(request, rehearsal):
     with urllib.request.urlopen(req, timeout=20) as response:
         validate_run(json.load(response), request, rehearsal)
     if not rehearsal:
-        req = urllib.request.Request('https://api.github.com/repos/gaofengJ/stock/commits/master',
+        req = urllib.request.Request('https://api.github.com/repos/gaofengJ/stock/git/ref/heads/master',
                                      headers={'Accept': 'application/vnd.github+json', 'User-Agent': 'stock-release-controller'})
         with urllib.request.urlopen(req, timeout=20) as response:
-            validate_master_head(json.load(response), request)
+            validate_master_head(json.load(response)['object'], request)
 
 
 def pull_and_verify(request, pull):
@@ -59,7 +59,7 @@ def pull_and_verify(request, pull):
             run(['docker', 'login', REGISTRY, '-u', request['registryUsername'], '--password-stdin'],
                 input=request['registryPassword'].encode(), env=environment, timeout=60)
             for role in roles:
-                run(['docker', 'pull', request[role + 'Digest']], env=environment, timeout=600)
+                run(['docker', 'pull', request[role + 'Digest']], env=environment, timeout=1800 if role == 'article' else 600)
     for role in roles:
         digest = request[role + 'Digest']
         image = json.loads(run(['docker', 'image', 'inspect', digest]))[0]

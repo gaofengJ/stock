@@ -127,7 +127,7 @@ def snapshot(client, credentials, db, folder, tables):
     started = time.monotonic(); digest = hashlib.sha256(); size = 0
     args = ['nice', '-n', '10', 'ionice', '-c', '2', '-n', '7', 'mysqldump',
             '--defaults-extra-file=' + credentials, '--single-transaction', '--skip-lock-tables',
-            '--quick', '--hex-blob', '--routines', '--events', '--triggers', '--set-gtid-purged=OFF', db]
+            '--quick', '--default-character-set=utf8mb4', '--hex-blob', '--routines', '--events', '--triggers', '--set-gtid-purged=OFF', db]
     with (folder / (db + '.stderr')).open('wb') as errors, partial.open('xb') as output:
         process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=errors)
         try:
