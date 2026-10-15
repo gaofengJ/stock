@@ -180,10 +180,11 @@ export class TrendService {
           }
           LEFT JOIN t_sync_day_policy p ON p.trade_date=r.trade_date
           WHERE r.task='daily' AND r.status='success' AND r.trade_date<=? AND p.trade_date IS NULL) latestDate,
-         (SELECT DATE_FORMAT(MIN(d.trade_date),'%Y-%m-%d') FROM t_source_daily d
-          JOIN t_sync_run r ON r.trade_date=d.trade_date AND r.task='daily' AND r.status='success'
-          LEFT JOIN t_sync_day_policy p ON p.trade_date=d.trade_date
-          WHERE d.ts_code IN (?) AND d.vol>0 AND p.trade_date IS NULL) earliestDate`,
+         (SELECT DATE_FORMAT(r.trade_date,'%Y-%m-%d') FROM t_sync_run r
+          STRAIGHT_JOIN t_source_daily d ON d.trade_date=r.trade_date AND d.ts_code IN (?)
+          LEFT JOIN t_sync_day_policy p ON p.trade_date=r.trade_date
+          WHERE r.task='daily' AND r.status='success' AND d.vol>0 AND p.trade_date IS NULL
+          ORDER BY r.trade_date LIMIT 1) earliestDate`,
         [latestSyncDate(), codes],
       );
       if (!bounds?.latestDate)

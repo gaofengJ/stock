@@ -117,3 +117,61 @@ test('daily close overview preserves missing closes and never substitutes an unf
   assert.deepEqual(closes, [['2026-09-28 15:00', 4000], ['2026-09-29 15:00', null]]);
   assert.equal(intradayCloses([]).length, 0);
 });
+
+// Exercise the component's requests and controls without ECharts or a browser.
+function chartHarness(selectedDate = '') {
+  const values = []; const dependencies = []; let cursor = 0; let effectCursor = 0; let effects = []; let timer;
+  const requests = []; const doc = { hidden: false, addEventListener() {}, removeEventListener() {} };
+  const react = require('react');
+  const noop = () => null;
+  const hooks = {
+    useState(initial) {
+      const index = cursor++;
+      if (!(index in values)) values[index] = initial;
+      return [values[index], next => { values[index] = typeof next === 'function' ? next(values[index]) : next; }];
+    },
+    useEffect(effect, deps) { const index = effectCursor++; if (!dependencies[index] || deps.some((value, i) => value !== dependencies[index][i])) effects.push(effect); dependencies[index] = deps; },
+    useCallback(fn) { return fn; },
+  };
+  const exports = {};
+  const code = ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/app/analysis/components/IntradayCountsChart.tsx'), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  new Function('exports', 'require', 'setInterval', 'clearInterval', 'document', code)(exports, name => {
+    if (name === 'react') return { ...react, ...hooks };
+    if (name === 'dayjs') return { default: require('dayjs') };
+    if (name === 'antd') return Object.fromEntries(['Alert','Button','Card','DatePicker','Empty','Select','Space'].map(k => [k, k]));
+    if (name === './MarketContext') return { useMarket: () => ({ date: '2026-10-14', selectedDate }) };
+    if (name === '@/api/market') return { marketRequest: (_endpoint, params) => { requests.push(params); return Promise.resolve({data:{}}); } };
+    if (name === '@/hooks/useLatestRequest') return { useLatestRequest: () => ({ requestConfig: {}, runLatestRequest: options => options.request() }) };
+    if (name === '@/components/SiteTheme') return { useSiteTheme: () => ({ colors: {} }) };
+    if (name === './intraday-counts-plot') return sandbox.exports;
+    if (name === '@/utils/format') return { numberText: String };
+    if (name === '@/colors') return { chartColors: {}, quoteColors: {} };
+    if (name.startsWith('@/') || name.endsWith('.css')) return { default: noop, LoadingOverlay: noop };
+    return require(name);
+  }, fn => { timer = fn; return 1; }, () => {}, doc);
+  const render = () => { cursor = 0; effectCursor = 0; effects = []; const tree = exports.default(); effects.forEach(effect => effect()); return tree; };
+  return { requests, render, poll: () => timer(), doc };
+}
+function findElement(node, type) {
+  if (!node || typeof node !== 'object') return null;
+  if (node.type === type) return node;
+  for (const child of [node.props?.children].flat(Infinity)) {
+    const found = findElement(child, type); if (found) return found;
+  }
+  return null;
+}
+test('intraday defaults to live even when daily status is yesterday, and polls only while visible', () => {
+  const chart = chartHarness(); chart.render();
+  assert.deepEqual(chart.requests.at(-1), { days: 10 });
+  chart.poll(); assert.equal(chart.requests.length, 2);
+  chart.doc.hidden = true; chart.poll(); assert.equal(chart.requests.length, 2);
+});
+test('explicit review dates stay historical; the live button clears the request cutoff', () => {
+  const chart = chartHarness('2026-10-14'); const tree = chart.render();
+  assert.deepEqual(chart.requests.at(-1), { days: 10, date: '2026-10-14' });
+  chart.poll(); assert.equal(chart.requests.at(-1).date, '2026-10-14');
+  findElement(tree, 'Button').props.onClick(); chart.render();
+  assert.deepEqual(chart.requests.at(-1), { days: 10 });
+});

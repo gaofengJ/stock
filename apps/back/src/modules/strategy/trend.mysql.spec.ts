@@ -513,6 +513,38 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
       service.chart({ ...dto, chartLatest: true, chartBefore: dates[9] }),
     ).rejects.toThrow('不能同时使用');
   });
+  test('K线最早边界跳过未发布、停牌、受保护日期，并覆盖北交所旧代码', async () => {
+    await db.manager.update(
+      SyncRunEntity,
+      { task: 'daily', tradeDate: dates[0] },
+      { status: 'failed' },
+    );
+    await db.manager.update(DailyEntity, { tradeDate: dates[1] }, { vol: '0' });
+    await db.manager.insert(SyncDayPolicyEntity, {
+      tradeDate: dates[2],
+      reason: 'test',
+    });
+    await db.manager.insert(BseMappingEntity, {
+      oldCode: '830001.BJ',
+      newCode: '920001.BJ',
+    });
+    await db.query(
+      "UPDATE t_source_daily SET ts_code=IF(trade_date<=?, '830001.BJ','920001.BJ')",
+      [dates[3]],
+    );
+    const dto = {
+      date: latest,
+      code: '920001.BJ',
+      strategyType: 'raw',
+      chartBefore: dates[3],
+    };
+    expect((await service.chart(dto, 1)).hasEarlier).toBe(false);
+    expect(
+      (await service.chart({ ...dto, chartBefore: dates[4] }, 1)).hasEarlier,
+    ).toBe(true);
+    await db.query('UPDATE t_source_daily SET vol=0');
+    expect((await service.chart(dto, 1)).hasEarlier).toBe(false);
+  });
   test('K线缓存不缓存价格，同秒价格更正和代码换位后仍返回正确股票', async () => {
     const dto = {
       date: latest,
