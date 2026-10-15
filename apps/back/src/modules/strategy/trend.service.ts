@@ -32,7 +32,7 @@ import {
 import { TrendFactor, TrendFactorEntity } from './trend.entity';
 import { FactorProjectionCache } from './factor-projection-cache';
 import { IncompleteFactorSnapshotError } from './trend-errors';
-import { listingDayFactor } from './listing-day-factor';
+import { confirmedListingDay, listingDayFactor } from './listing-day-factor';
 import { StockHistoryEntity } from '../source/stock/stock-history.entity';
 import { StrategySnapshotReader, SnapshotVersion } from './snapshot-reader';
 import {
@@ -654,12 +654,17 @@ export class TrendService {
           where: { listDate: date },
           select: ['tsCode', 'listDate'],
         });
-        const firstDay = absent.filter((row) =>
-          listings.some((s) => s.tsCode === row.tsCode),
-        );
         // Bounded recovery only for confirmed IPOs. General source gaps remain errors.
-        for (const quote of firstDay.slice(0, 20)) {
+        for (const quote of absent.slice(0, 20)) {
           try {
+            if (!listings.some((s) => s.tsCode === quote.tsCode)) {
+              const listing = await this.source.queryData(
+                'stock_basic',
+                { ts_code: quote.tsCode },
+                'ts_code,list_date',
+              );
+              if (!confirmedListingDay(date, quote.tsCode, listing)) continue;
+            }
             const factors = await this.source.queryData(
               'adj_factor',
               {

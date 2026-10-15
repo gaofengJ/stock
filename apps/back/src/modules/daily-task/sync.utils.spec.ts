@@ -4,9 +4,26 @@ import {
   normalizeDate,
   shanghaiDate,
   sourceThrottleDelay,
+  referenceNeedsRefresh,
 } from './sync.utils';
 
 describe('同步日期与情绪计算', () => {
+  it('晚间首次同步刷新凌晨名录，后续批次复用晚间快照', () => {
+    const early = new Date('2026-10-14T16:14:14Z');
+    const evening = new Date('2026-10-15T12:30:00Z');
+    expect(referenceNeedsRefresh(early, new Date('2026-10-15T12:29:59Z'))).toBe(
+      false,
+    );
+    expect(referenceNeedsRefresh(early, evening)).toBe(true);
+    expect(
+      referenceNeedsRefresh(evening, new Date('2026-10-15T14:00:00Z')),
+    ).toBe(false);
+    expect(
+      referenceNeedsRefresh(evening, new Date('2026-10-15T16:00:00Z')),
+    ).toBe(true);
+    expect(referenceNeedsRefresh(undefined, evening)).toBe(true);
+    expect(referenceNeedsRefresh(new Date(NaN), evening)).toBe(true);
+  });
   it('未来或无效阶段时间最多等待一个限流周期，正常时间仍遵守请求间隔', () => {
     const now = Date.parse('2026-10-11T00:00:00Z');
     expect(sourceThrottleDelay(new Date(now + 8 * 3600000), 2100, now)).toBe(

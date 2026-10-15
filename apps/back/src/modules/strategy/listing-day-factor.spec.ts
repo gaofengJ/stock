@@ -1,6 +1,41 @@
-import { listingDayFactor } from './listing-day-factor';
+import { confirmedListingDay, listingDayFactor } from './listing-day-factor';
 
 describe('listing-day HFQ recovery', () => {
+  it('requires one matching authoritative listing record when the local catalog is stale', () => {
+    const response = (items: unknown[], code = 0) => ({
+      code,
+      data: { fields: ['ts_code', 'list_date'], items },
+    });
+    expect(
+      confirmedListingDay(
+        '2026-10-15',
+        '301569.SZ',
+        response([['301569.SZ', '20261015']]),
+      ),
+    ).toBe(true);
+    [
+      [],
+      [['301569.SZ', '20261014']],
+      [['000001.SZ', '20261015']],
+      [
+        ['301569.SZ', '20261015'],
+        ['301569.SZ', '20261015'],
+      ],
+      [['301569.SZ']],
+    ].forEach((items) => {
+      expect(
+        confirmedListingDay('2026-10-15', '301569.SZ', response(items)),
+      ).toBe(false);
+    });
+    expect(
+      confirmedListingDay(
+        '2026-10-15',
+        '301569.SZ',
+        response([['301569.SZ', '20261015']], -1),
+      ),
+    ).toBe(false);
+    expect(confirmedListingDay('2026-10-15', '301569.SZ', {})).toBe(false);
+  });
   const date = '2026-10-13';
   const quote = {
     tsCode: '301660.SZ',
