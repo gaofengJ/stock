@@ -30,6 +30,7 @@ import {
   meetsCommonStrategyConditions,
 } from '@/modules/source/daily/strategy-validation';
 import { TrendFactor, TrendFactorEntity } from './trend.entity';
+import { FactorProjectionCache } from './factor-projection-cache';
 import { IncompleteFactorSnapshotError } from './trend-errors';
 import { listingDayFactor } from './listing-day-factor';
 import { StockHistoryEntity } from '../source/stock/stock-history.entity';
@@ -48,6 +49,8 @@ import {
 @Injectable()
 export class TrendService {
   private snapshotReader: StrategySnapshotReader;
+
+  private factorProjections = new FactorProjectionCache();
 
   private chartIndexes: StrategySnapshotReader;
 
@@ -96,10 +99,12 @@ export class TrendService {
     // Small per-stock charts retain narrow projections. Broad strategy scans
     // share stored compressed days instead of extracting each candidate in SQL.
     if (codes.size > 20)
-      return this.snapshotReader.read(
-        't_source_strategy_factor',
-        rows,
-        (data: TrendFactor[]) => data.filter((row) => codes.has(row[0])),
+      return this.factorProjections.read(rows, codes, (missing) =>
+        this.snapshotReader.read(
+          't_source_strategy_factor',
+          missing,
+          (data: TrendFactor[]) => data.filter((row) => codes.has(row[0])),
+        ),
       );
     const indexes = await this.snapshotReader.read(
       't_source_strategy_factor',
