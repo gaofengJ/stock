@@ -1,8 +1,12 @@
+# syntax=docker/dockerfile:1
 ARG NGINX_IMAGE
 FROM ${NGINX_IMAGE}
+RUN rm -rf /usr/share/nginx/html/*
+# Independent content-addressed layers: changing HTML/base/commit does not
+# duplicate the unchanged 1.4GiB image collection on the production host.
+COPY --link media/ /usr/share/nginx/html/
+COPY --link site/ /usr/share/nginx/html/
+# Safe standalone default. Compose mounts the permission-checked application route.
+COPY --link articles-deny.conf /etc/nginx/conf.d/default.conf
 ARG RELEASE_SHA
 LABEL stock.blog.release=${RELEASE_SHA}
-RUN rm -rf /usr/share/nginx/html/*
-COPY apps/blog/docs/.vitepress/dist/ /usr/share/nginx/html/
-# Safe standalone default. Compose mounts the permission-checked application route.
-COPY ops/volc/articles-deny.conf /etc/nginx/conf.d/default.conf

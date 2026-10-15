@@ -1,0 +1,15 @@
+[Unit]
+Description=Retain current and previous stock release images
+After=docker.service
+Requires=docker.service
+ConditionPathExists=/etc/stock/production.enabled
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 -B /opt/stock/deploy/image_retention.py --apply
+UMask=0077
+TimeoutStartSec=10min
+Nice=10
+NoNewPrivileges=yes
+ProtectHome=yes
+PrivateTmp=yes
