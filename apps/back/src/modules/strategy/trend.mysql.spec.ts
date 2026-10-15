@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { Connection, createConnection } from 'mysql2/promise';
 import { DataSource } from 'typeorm';
+import { StrategyFactorRead1792454400000 } from '@/migrations/1792454400000-StrategyFactorRead';
 import { StrategyTrend1791417600000 } from '@/migrations/1791417600000-StrategyTrend';
 import { DailyEntity } from '@/modules/source/daily/daily.entity';
 import { StockEntity } from '@/modules/source/stock/stock.entity';
@@ -88,6 +89,8 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
     try {
       await new StrategyTrend1791417600000().up(runner);
       await new StrategyTrend1791417600000().up(runner);
+      await new StrategyFactorRead1792454400000().up(runner);
+      await new StrategyFactorRead1792454400000().up(runner);
     } finally {
       await runner.release();
     }
@@ -175,6 +178,32 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
         ] as any,
       })),
     );
+  });
+  test('stored projections backfill and follow direct same-second JSON repairs', async () => {
+    const runner = db.createQueryRunner();
+    try {
+      await new StrategyFactorRead1792454400000().down(runner);
+      await new StrategyFactorRead1792454400000().up(runner);
+      await new StrategyFactorRead1792454400000().up(runner);
+    } finally {
+      await runner.release();
+    }
+    const before = await db.query(
+      'SELECT id,content_hash hash,UNCOMPRESS(packed_data) data FROM t_source_strategy_factor ORDER BY trade_date',
+    );
+    expect(before).toHaveLength(dates.length);
+    expect(JSON.parse(before[0].data.toString())[0][1]).toBe(8.9);
+    await db.query(
+      "UPDATE t_source_strategy_factor SET data=JSON_SET(data,'$[0][1]',123),updated_at=updated_at WHERE id=?",
+      [before[0].id],
+    );
+    const [after] = await db.query(
+      'SELECT content_hash hash,MD5(data) expected,UNCOMPRESS(packed_data) data FROM t_source_strategy_factor WHERE id=?',
+      [before[0].id],
+    );
+    expect(after.hash).not.toBe(before[0].hash);
+    expect(after.hash).toBe(after.expected);
+    expect(JSON.parse(after.data.toString())[0][1]).toBe(123);
   });
   test('新增表JSON及日期正确往返，真实计算命中并保留证据', async () => {
     const result = await service.list(latest, 'volumeBreakout');

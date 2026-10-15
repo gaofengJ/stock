@@ -123,3 +123,24 @@ export async function readNotebookContent(
   } = await hydrateNotebookAssets(manager, owner, [raw]);
   return parseNotebook(content);
 }
+
+/** References are an opt-in transport only. Saves still require validated inline images. */
+export function notebookAssetReferences(raw: string): NotebookContent {
+  const value = JSON.parse(raw);
+  const original = value.article?.images;
+  if (Array.isArray(original)) {
+    value.article.images = original.map((image) => ({
+      ...image,
+      data: assetPattern.test(image.data)
+        ? 'data:image/png;base64,iVBORw0KGgo='
+        : image.data,
+    }));
+  }
+  const parsed = parseNotebook(JSON.stringify(value));
+  if (parsed.article)
+    parsed.article.images = parsed.article.images.map((image, index) => ({
+      ...image,
+      data: original[index].data,
+    }));
+  return parsed;
+}

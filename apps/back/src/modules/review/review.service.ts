@@ -53,7 +53,11 @@ export class ReviewService {
       const batch = tabs.slice(i, i + 2);
       const results = await Promise.allSettled(
         batch.map((tab) =>
-          this.strategies.list({ date, strategyType: tab.key }),
+          this.strategies.list({
+            date,
+            strategyType: tab.key,
+            includeLabels: false,
+          }),
         ),
       );
       results.forEach((result, index) => {
@@ -71,8 +75,13 @@ export class ReviewService {
         });
       });
     }
-    const risk = await this.workbench.risk({ date });
+    const [risk, labels] = await Promise.all([
+      this.workbench.risk({ date }),
+      this.strategies.labels(date, [...merged.keys()]),
+    ]);
+    const byCode = new Map(labels.map((row) => [row.tsCode, row]));
     const items = [...merged.values()]
+      .map((row) => ({ ...row, ...byCode.get(row.tsCode) }))
       .map((row) => ({
         ...row,
         capState: capStatus(row.totalMv),

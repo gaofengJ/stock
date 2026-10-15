@@ -9,9 +9,13 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
+import { FastifyReply } from 'fastify';
+import { Throttle } from '@nestjs/throttler';
+import { Bypass } from '@/decorators/bypass.decorator';
 import { SignedIn } from '../auth/permissions';
 import { AuthRequest } from '../auth/auth.service';
 import { NotebookService } from './notebook.service';
@@ -53,7 +57,28 @@ export class NotebookController {
       dto.date,
       dto.revision,
       dto.publicationBodies !== 0,
+      dto.previous !== 0,
+      dto.assetReferences === 1,
     );
+  }
+
+  @Get('images/:hash')
+  @Bypass()
+  // A notebook supports twenty images. Keep a bounded image-specific budget.
+  @Throttle({ default: { limit: 30, ttl: 10000 } })
+  async image(
+    @Req() req: AuthRequest,
+    @Param('hash') hash: string,
+    @Res() reply: FastifyReply,
+  ) {
+    const image = await this.service.image(this.owner(req), hash);
+    const etag = `"${hash}"`;
+    // Authenticate and check ownership before accepting a conditional request.
+    reply.header('Cache-Control', 'private, max-age=0, must-revalidate');
+    reply.header('ETag', etag);
+    reply.header('X-Content-Type-Options', 'nosniff');
+    if (req.headers['if-none-match'] === etag) return reply.status(304).send();
+    return reply.type(image.type).send(image.data);
   }
 
   @Post()

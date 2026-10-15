@@ -263,7 +263,6 @@ export class StrategyService {
       return rows.map(withoutSectorClassification);
     // Only membership labels belong on the critical path. Board performance is
     // requested separately when the user enables the corresponding column.
-    if (this.reads && rows.length <= 20) return this.reads.decorate(rows, date);
     return this.sectors
       ? this.sectors.decorate(rows, date)
       : rows.map(withoutSectorClassification);
@@ -271,7 +270,6 @@ export class StrategyService {
 
   async labels(date: string, codes: string[]) {
     const rows = codes.map((tsCode) => ({ tsCode }) as DailyEntity);
-    if (this.reads && rows.length <= 20) return this.reads.decorate(rows, date);
     return this.sectors
       ? this.sectors.decorate(rows, date)
       : rows.map(withoutSectorClassification);

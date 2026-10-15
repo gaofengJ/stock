@@ -30,6 +30,7 @@ import {
   meetsCommonStrategyConditions,
 } from '@/modules/source/daily/strategy-validation';
 import { TrendFactor, TrendFactorEntity } from './trend.entity';
+import { FactorProjectionCache } from './factor-projection-cache';
 import { IncompleteFactorSnapshotError } from './trend-errors';
 import { listingDayFactor } from './listing-day-factor';
 import { StockHistoryEntity } from '../source/stock/stock-history.entity';
@@ -48,6 +49,8 @@ import {
 @Injectable()
 export class TrendService {
   private snapshotReader: StrategySnapshotReader;
+
+  private factorProjections = new FactorProjectionCache();
 
   private chartIndexes: StrategySnapshotReader;
 
@@ -93,11 +96,15 @@ export class TrendService {
   }
 
   private async factorData(rows: SnapshotVersion[], codes: Set<string>) {
-    if (codes.size > 200)
-      return this.snapshotReader.read(
-        't_source_strategy_factor',
-        rows,
-        (data: TrendFactor[]) => data.filter((row) => codes.has(row[0])),
+    // Small per-stock charts retain narrow projections. Broad strategy scans
+    // share stored compressed days instead of extracting each candidate in SQL.
+    if (codes.size > 20)
+      return this.factorProjections.read(rows, codes, (missing) =>
+        this.snapshotReader.read(
+          't_source_strategy_factor',
+          missing,
+          (data: TrendFactor[]) => data.filter((row) => codes.has(row[0])),
+        ),
       );
     const indexes = await this.snapshotReader.read(
       't_source_strategy_factor',
@@ -880,7 +887,7 @@ export class TrendService {
       // ORM updates can reuse a second-resolution timestamp. Fingerprint the
       // payload as well so corrections never reuse an earlier factor index.
       this.db.query<(SnapshotVersion & { tradeDate: string })[]>(
-        "SELECT id,updated_at updatedAt,MD5(data) contentHash,DATE_FORMAT(trade_date,'%Y-%m-%d') tradeDate FROM t_source_strategy_factor WHERE trade_date IN (?)",
+        "SELECT id,updated_at updatedAt,content_hash contentHash,DATE_FORMAT(trade_date,'%Y-%m-%d') tradeDate FROM t_source_strategy_factor WHERE trade_date IN (?)",
         [dates],
       ),
       this.db.manager.find(SyncDayPolicyEntity, {

@@ -11,6 +11,7 @@ import {
 import Link from 'next/link';
 import request from '@/api/request';
 import { errorMessage } from '@/api/errors';
+import { fetchNotebookImage, loadNotebookImages } from './notebook-images';
 import ArticleEditor from './ArticleEditor';
 import InvestmentCalendar from '../basic/components/InvestmentCalendar';
 import { Materials, emptyMaterials, validateMaterials } from './materials-contract';
@@ -48,10 +49,19 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
   useEffect(() => () => captureAbort.current?.abort(), []);
   useEffect(() => {
     let active = true;
-    request.get<Snapshot>('/review/notebook', { params: { date, publicationBodies: 0 }, autoShowError: false })
-      .then(({ data }) => { if (active) { setSnapshot(data); setContent(data.content || emptyNotebook()); setDirty(false); setError(''); setStatus(data.revision ? '已读取保存的记录' : '当天尚未保存'); } })
+    const abort = new AbortController();
+    setSnapshot(null); setContent(emptyNotebook()); setDirty(false); setError(''); setStatus('正在读取复盘');
+    request.get<Snapshot>('/review/notebook', {
+      params: {
+        date, publicationBodies: 0, previous: 0, assetReferences: 1,
+      },
+      signal: abort.signal,
+      autoShowError: false,
+    })
+      .then(async ({ data }) => ({ ...data, content: await loadNotebookImages(data.content, abort.signal, (hash) => fetchNotebookImage(hash, abort.signal)) }))
+      .then((data) => { if (active) { setSnapshot(data); setContent(data.content || emptyNotebook()); setDirty(false); setError(''); setStatus(data.revision ? '已读取保存的记录' : '当天尚未保存'); } })
       .catch((e) => { if (active) { setError(errorMessage(e)); setStatus('读取失败，重试后可编辑'); } });
-    return () => { active = false; };
+    return () => { active = false; abort.abort(); };
   }, [date, attempt]);
   useEffect(() => {
     if (!dirty) return undefined;

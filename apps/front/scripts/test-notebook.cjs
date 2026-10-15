@@ -197,3 +197,21 @@ test('unsaved notebook guard ignores pagination, downloads, hashes and new windo
  assert.equal(leavesDocument(anchor('/other/'),{button:1},location),false);
  for(const href of ['/analysis/overview/','?date=2026-10-12','https://external.example/review/']) assert.equal(leavesDocument(anchor(href),event,location),true);
 });
+
+test('image transport restores exact bytes, deduplicates assets and leaves the input untouched', async () => {
+ const {loadNotebookImages}=load('../src/app/review/notebook-images.ts');
+ const c=exp.emptyNotebook(); const token='review-asset:'+'a'.repeat(64);
+ c.article={body:'# Test',feishuUrl:'',images:[{id:'a',data:token,caption:'A',source:'',after:''},{id:'b',data:token,caption:'B',source:'',after:''}]};
+ let reads=0;
+ const result=await loadNotebookImages(c,new AbortController().signal,async()=>{reads++;return png;});
+ assert.equal(reads,1);assert.equal(result.article.images[0].data,png);assert.equal(result.article.images[1].data,png);assert.equal(c.article.images[0].data,token);
+ assert.deepEqual(contract.validateArticle(result.article),result.article);
+});
+test('missing, invalid and canceled images never produce an editable partial notebook', async () => {
+ const {loadNotebookImages}=load('../src/app/review/notebook-images.ts');
+ const c=exp.emptyNotebook();c.article={body:'',feishuUrl:'',images:[{id:'a',data:'review-asset:'+'a'.repeat(64),caption:'',source:'',after:''}]};
+ await assert.rejects(loadNotebookImages(c,new AbortController().signal,async()=>{throw Error('missing');}),/missing/);
+ await assert.rejects(loadNotebookImages(c,new AbortController().signal,async()=>'https://external/image'));
+ const abort=new AbortController();abort.abort();let reads=0;
+ await assert.rejects(loadNotebookImages(c,abort.signal,async()=>{reads++;return png;}));assert.equal(reads,0);
+});
