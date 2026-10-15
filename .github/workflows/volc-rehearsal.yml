@@ -144,6 +144,7 @@ jobs:
         run: |
           pnpm -C apps/blog run test
           pnpm -C apps/blog run build
+      - uses: docker/setup-buildx-action@v4
       - name: Verify protected routing and build the tested image
         run: |
           set -euo pipefail
@@ -152,7 +153,7 @@ jobs:
           BLOG_NGINX_IMAGE="$NGINX_IMAGE" BLOG_NGINX_CONFIG=ops/volc/blog.nginx.conf node .github/scripts/test-blog-server.cjs
           python3 ops/volc/prepare_article_context.py --source apps/blog/docs/.vitepress/dist --destination /tmp/stock-article-context --deny-config ops/volc/articles-deny.conf --report /tmp/article-context.json
           python3 ops/volc/verify_article_layers.py --nginx-image "$NGINX_IMAGE"
-          docker build --build-arg SOURCE_DATE_EPOCH=0 --build-arg NGINX_IMAGE="$NGINX_IMAGE" --build-arg RELEASE_SHA=${{ github.sha }} -f ops/volc/Dockerfile.articles -t stock-articles-volc:${{ github.sha }} /tmp/stock-article-context
+          docker buildx build --output type=docker,rewrite-timestamp=true --build-arg SOURCE_DATE_EPOCH=0 --build-arg NGINX_IMAGE="$NGINX_IMAGE" --build-arg RELEASE_SHA=${{ github.sha }} -f ops/volc/Dockerfile.articles -t stock-articles-volc:${{ github.sha }} /tmp/stock-article-context
           python3 ops/volc/verify_article_image.py --image stock-articles-volc:${{ github.sha }} --manifest /tmp/article-context.json
           docker run --rm stock-articles-volc:${{ github.sha }} nginx -t
           docker run -d --name article-standalone -p 127.0.0.1:36083:80 stock-articles-volc:${{ github.sha }}

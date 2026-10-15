@@ -23,11 +23,13 @@ def verify(base):
                 context = root / ('context-' + str(index))
                 prepare(site, context, deny)
                 tag = 'stock-article-layer-test:' + str(index); tags.append(tag)
-                subprocess.run(['docker', 'build', '--no-cache', '--build-arg', 'SOURCE_DATE_EPOCH=0',
+                subprocess.run(['docker', 'buildx', 'build', '--no-cache',
+                                '--output', 'type=docker,rewrite-timestamp=true', '--build-arg', 'SOURCE_DATE_EPOCH=0',
                                 '--build-arg', 'NGINX_IMAGE=' + base, '--build-arg', 'RELEASE_SHA=' + str(index),
                                 '-f', str(dockerfile), '-t', tag, str(context)], check=True)
                 value = json.loads(subprocess.check_output(['docker', 'image', 'inspect', tag]))[0]
                 layers.append(value['RootFS']['Layers'])
+            print(json.dumps({'copyLayers': [value[-3:] for value in layers]}))
             assert layers[0][-3:] == layers[1][-3:], 'Commit-only change duplicated article content'
             assert layers[0][-3] == layers[2][-3], 'Page change duplicated media layer'
             assert layers[0][-2] != layers[2][-2], 'Updated page was lost'
