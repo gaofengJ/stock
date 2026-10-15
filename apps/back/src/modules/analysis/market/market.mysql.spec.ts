@@ -671,6 +671,52 @@ mysqlDescribe('市场分析迁移、发布及持久化续跑', () => {
     expect(tasks.filter((r: any) => r.status === 'queued')).toHaveLength(1);
     expect(tasks).toHaveLength(2);
   });
+  it('晚间重新取得早间股票名录，并强制更新同日历史身份缓存', async () => {
+    const today = new Date().toLocaleDateString('en-CA', {
+      timeZone: 'Asia/Shanghai',
+    });
+    await db.manager.update(
+      SyncRunEntity,
+      { task: 'market-reference', tradeDate: today },
+      { updatedAt: new Date(`${today}T07:30:00+08:00`) },
+    );
+    const identity = { refresh: jest.fn().mockResolvedValue(undefined) };
+    await db.manager.insert(SyncRunEntity, {
+      task: 'bse-mapping',
+      tradeDate: today,
+      status: 'success',
+    });
+    const service = new DailyTaskService(
+      db,
+      source as unknown as SyncSourceService,
+      writes,
+      market,
+      undefined,
+      undefined,
+      identity as any,
+    );
+    await service.marketBatch(
+      dates[1],
+      dates[5],
+      false,
+      [],
+      new Date(`${today}T20:30:00+08:00`),
+    );
+    expect(source.stocks).toHaveBeenCalledTimes(1);
+    expect(identity.refresh).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(Array),
+      true,
+    );
+    expect(
+      (
+        await db.manager.findOneByOrFail(SyncRunEntity, {
+          task: 'market-reference',
+          tradeDate: today,
+        })
+      ).status,
+    ).toBe('success');
+  });
   it('最新日优先，每批最多3日，复用完整原始数据且六范围金额可以对账', async () => {
     const first = await daily.marketBatch(dates[1], dates[5]);
     expect(first?.completed).toEqual([dates[5], dates[1], dates[2]]);

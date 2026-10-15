@@ -41,6 +41,7 @@ import {
   latestSyncDate,
   eveningSlot,
   permanentSyncError,
+  referenceNeedsRefresh,
 } from './sync.utils';
 
 @Injectable()
@@ -497,13 +498,14 @@ export class DailyTaskService {
           tradeDate: today,
           status: 'success',
         });
-        if (!reference) {
+        if (referenceNeedsRefresh(reference?.updatedAt, now)) {
           await this.market!.stage(
             manager,
             'market-reference',
             today,
             async () => {
-              await this.refreshSources(manager, false, false);
+              // The same-day identity snapshot can also predate today's IPOs.
+              await this.refreshSources(manager, true, false);
               await this.market!.mapping(manager, today);
             },
           );

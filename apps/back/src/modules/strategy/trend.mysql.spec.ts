@@ -860,6 +860,51 @@ mysqlDescribe('趋势策略 MySQL 快照与发布就绪', () => {
       ).data,
     ).toEqual(saved.data);
   });
+  test('凌晨名录缺少新股时在线核验上市日期，异常证据不覆盖旧快照', async () => {
+    const snapshot = response();
+    snapshot.data.items[0][0] = '000002.SZ';
+    let listingDate = latest.replace(/-/g, '');
+    source.queryData.mockImplementation(async (api) => {
+      if (api === 'stock_basic')
+        return {
+          code: 0,
+          data: {
+            fields: ['ts_code', 'list_date'],
+            items: [['000001.SZ', listingDate]],
+          },
+        };
+      if (api === 'adj_factor')
+        return {
+          code: 0,
+          data: {
+            fields: ['ts_code', 'trade_date', 'adj_factor'],
+            items: [['000001.SZ', latest.replace(/-/g, ''), 1]],
+          },
+        };
+      return snapshot;
+    });
+    await service.syncDay(db.manager, latest, true);
+    const saved = await db.manager.findOneByOrFail(TrendFactorEntity, {
+      tradeDate: latest,
+    });
+    expect(saved.data).toContainEqual(['000001.SZ', 10, 11, 12, 10]);
+    expect(source.queryData).toHaveBeenCalledWith(
+      'stock_basic',
+      { ts_code: '000001.SZ' },
+      'ts_code,list_date',
+    );
+    listingDate = '20250101';
+    await expect(service.syncDay(db.manager, latest, true)).rejects.toThrow(
+      '复权行情缺失',
+    );
+    expect(
+      (
+        await db.manager.findOneByOrFail(TrendFactorEntity, {
+          tradeDate: latest,
+        })
+      ).data,
+    ).toEqual(saved.data);
+  });
   test('北交所新旧代码行情冲突拒绝覆盖', async () => {
     await db.manager.insert(BseMappingEntity, {
       oldCode: '830001.BJ',

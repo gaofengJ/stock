@@ -1,6 +1,25 @@
 import type { DailyEntity } from '../source/daily/daily.entity';
 import type { TrendFactor } from './trend.entity';
 
+/** An absent local catalog entry is not proof that a stock is not a new listing. */
+export function confirmedListingDay(date: string, code: string, response: any) {
+  const { fields, items } = response?.data || {};
+  if (
+    response?.code !== 0 ||
+    !Array.isArray(fields) ||
+    !Array.isArray(items) ||
+    items.length !== 1 ||
+    !['ts_code', 'list_date'].every((key) => fields.includes(key)) ||
+    !Array.isArray(items[0]) ||
+    items[0].length !== fields.length
+  )
+    return false;
+  return (
+    items[0][fields.indexOf('ts_code')] === code &&
+    items[0][fields.indexOf('list_date')] === date.replace(/-/g, '')
+  );
+}
+
 /** Only an authoritative unit factor on the listing day proves raw = HFQ. */
 export function listingDayFactor(
   date: string,

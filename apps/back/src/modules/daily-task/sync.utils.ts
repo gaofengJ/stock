@@ -50,6 +50,14 @@ export function latestSyncDate(now = new Date()): string {
     : dayjs(date).subtract(1, 'day').format('YYYY-MM-DD');
 }
 
+/** Refresh pre-evening catalogs once when today's market data becomes eligible. */
+export function referenceNeedsRefresh(updatedAt?: Date, now = new Date()) {
+  if (!updatedAt || !Number.isFinite(updatedAt.getTime())) return true;
+  if (shanghaiDate(updatedAt) !== shanghaiDate(now)) return true;
+  const cutoff = new Date(`${shanghaiDate(now)}T20:30:00+08:00`);
+  return now >= cutoff && updatedAt < cutoff;
+}
+
 export function normalizeDate(value: string): string {
   const date = dayjs(value);
   const normalized = date.format('YYYY-MM-DD');
