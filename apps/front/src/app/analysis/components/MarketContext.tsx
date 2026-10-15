@@ -9,7 +9,7 @@ import { marketRequest, MarketScope, MarketStatus } from '@/api/market';
 import { defaultSelection, linkedSelection, Selection } from './market-navigation';
 
 interface MarketSelection {
-  date: string; scope: MarketScope; days: number; status: MarketStatus | null; error: string;
+  date: string; selectedDate: string; scope: MarketScope; days: number; status: MarketStatus | null; error: string;
   retry: () => void;
   select: (value: { date?: string; scope?: MarketScope; days?: number }) => void;
 }
@@ -49,6 +49,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     ...selection,
     ...(new URLSearchParams(query).get('reviewCapture') === '1' ? { days: 60 } : {}),
     date: selection.date || status?.latestDate || '',
+    selectedDate: selection.date,
     status,
     error,
     retry: () => setAttempt((v) => v + 1),

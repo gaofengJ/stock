@@ -22,7 +22,8 @@ import { useMarket } from './MarketContext';
 import './intraday-counts.css';
 
 export default function IntradayCountsChart() {
-  const { date: reviewDate } = useMarket();
+  // Only an explicitly selected review date pins this live chart to history.
+  const { selectedDate: reviewDate } = useMarket();
   const [date, setDate] = useState(reviewDate);
   useEffect(() => { setDate(reviewDate); }, [reviewDate]);
   const { colors } = useSiteTheme();
@@ -64,7 +65,7 @@ export default function IntradayCountsChart() {
     <Card
       data-review-capture="intraday"
       data-review-date={date}
-      data-review-ready={!loading && !error && !!rows.length && visible?.dates?.at(-1) === date}
+      data-review-ready={!loading && !error && !!rows.length && (!date || visible?.dates?.at(-1) === date)}
       title={(
         <span className="market-section-title">
           全市场盘中上涨家数
@@ -79,10 +80,13 @@ export default function IntradayCountsChart() {
             size="small"
             aria-label="盘中上涨家数截止日期"
             value={date ? dayjs(date) : null}
-            placeholder="最新交易日"
+            placeholder="实时更新"
             onChange={(value) => setDate(value?.format('YYYY-MM-DD') || '')}
             disabledDate={(value) => value.format('YYYY-MM-DD') > new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10)}
           />
+          <Button size="small" type={!date ? 'primary' : 'default'} onClick={() => { setDate(''); retry(); }}>
+            实时
+          </Button>
           <Select
             size="small"
             aria-label="盘中上涨家数交易日范围"
@@ -92,7 +96,10 @@ export default function IntradayCountsChart() {
           />
         </Space>
         <p className="market-note">
-          <span>固定全市场（含ST），不随页面筛选变化。</span>
+          <span>
+            固定全市场（含ST），每5分钟采样。
+            {date ? '当前为历史回看。' : '当前为实时模式，每分钟刷新。'}
+          </span>
           {latest && (
           <span className="intraday-latest">
             更新至
