@@ -30,8 +30,10 @@ def verify(base):
                 value = json.loads(subprocess.check_output(['docker', 'image', 'inspect', tag]))[0]
                 layers.append(value['RootFS']['Layers'])
             print(json.dumps({'copyLayers': [value[-3:] for value in layers]}))
-            assert layers[0][-3:] == layers[1][-3:], 'Commit-only change duplicated article content'
-            assert layers[0][-3] == layers[2][-3], 'Page change duplicated media layer'
+            # The entire parent chain must be stable for unpacked containerd snapshots
+            # to share space, not merely the media blob itself.
+            assert layers[0] == layers[1], 'Commit-only change duplicated article content or parent chain'
+            assert layers[0][:-2] == layers[2][:-2], 'Page change duplicated media layer or parent chain'
             assert layers[0][-2] != layers[2][-2], 'Updated page was lost'
             print('Verified uncached rebuilds: same content shares all COPY layers; page edit shares media.')
         finally:
