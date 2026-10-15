@@ -90,6 +90,9 @@ describe('personal review', () => {
     }));
     const strategies = {
       navList: async () => tabs,
+      labels: jest.fn(async (_date: string, codes: string[]) =>
+        codes.map((tsCode) => ({ tsCode, industries: [], topics: [] })),
+      ),
       list: jest.fn(async ({ strategyType }) => {
         if (strategyType === 'failed') throw new Error('unavailable');
         return strategyType === 'existing'
@@ -110,6 +113,17 @@ describe('personal review', () => {
     );
     const result = await service.report('2026-09-30');
     expect(strategies.list).toHaveBeenCalledTimes(3);
+    expect(strategies.list).toHaveBeenCalledWith({
+      date: '2026-09-30',
+      strategyType: 'existing',
+      includeLabels: false,
+    });
+    expect(strategies.labels).toHaveBeenCalledTimes(1);
+    expect(strategies.labels).toHaveBeenCalledWith('2026-09-30', [
+      '000001.SZ',
+      '600000.SH',
+      '600001.SH',
+    ]);
     expect(result.complete).toBe(false);
     expect(result.items.map((r) => r.tsCode)).toEqual([
       '600000.SH',

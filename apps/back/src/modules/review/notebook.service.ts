@@ -8,6 +8,7 @@ import {
 import { DataSource, EntityManager } from 'typeorm';
 import {
   hydrateNotebookAssets,
+  notebookAssetReferences,
   readNotebookContent,
   storeNotebookImages,
 } from './notebook-assets';
@@ -30,9 +31,19 @@ export class NotebookService {
     date: string,
     revision?: number,
     publicationBodies = true,
+    previous = true,
+    assetReferences = false,
   ) {
     return this.db.transaction('REPEATABLE READ', (manager) =>
-      this.readSnapshot(manager, owner, date, revision, publicationBodies),
+      this.readSnapshot(
+        manager,
+        owner,
+        date,
+        revision,
+        publicationBodies,
+        previous,
+        assetReferences,
+      ),
     );
   }
 
@@ -42,6 +53,8 @@ export class NotebookService {
     date: string,
     revision: number | undefined,
     publicationBodies: boolean,
+    includePrevious: boolean,
+    assetReferences: boolean,
   ) {
     const [state] = await manager.query(
       'SELECT generation FROM t_review_notebook_state WHERE user_id=?',
@@ -57,10 +70,12 @@ export class NotebookService {
           [owner, date],
         );
     if (revision && !item) throw new NotFoundException('版本不存在');
-    const [previous] = await manager.query(
-      'SELECT trade_date date,revision,content FROM t_review_notebook WHERE user_id=? AND trade_date<? ORDER BY trade_date DESC LIMIT 1',
-      [owner, date],
-    );
+    const [previous] = includePrevious
+      ? await manager.query(
+          'SELECT trade_date date,revision,content FROM t_review_notebook WHERE user_id=? AND trade_date<? ORDER BY trade_date DESC LIMIT 1',
+          [owner, date],
+        )
+      : [];
     const versions = await manager.query(
       'SELECT revision,created_at createdAt FROM t_review_notebook_version WHERE user_id=? AND trade_date=? ORDER BY revision DESC LIMIT 100',
       [owner, date],
@@ -77,17 +92,25 @@ export class NotebookService {
     } = await hydrateNotebookAssets(
       manager,
       owner,
-      [item?.content || '{}', previous?.content || '{}'],
+      assetReferences ? [] : [item?.content || '{}', previous?.content || '{}'],
       publicationBodies ? publications : [],
     );
+    const content = assetReferences
+      ? () => notebookAssetReferences(item.content)
+      : () => parseNotebook(currentContent);
     return {
       date,
       generation: Number(state?.generation || 0),
       revision: Number(item?.revision || 0),
-      content: item ? parseNotebook(currentContent) : null,
+      content: item ? content() : null,
       updatedAt: item?.updatedAt,
       previous: previous
-        ? { ...previous, content: parseNotebook(previousContent) }
+        ? {
+            ...previous,
+            content: assetReferences
+              ? notebookAssetReferences(previous.content)
+              : parseNotebook(previousContent),
+          }
         : null,
       versions,
       publications: publications.map(
@@ -101,6 +124,19 @@ export class NotebookService {
         },
       ),
     };
+  }
+
+  async image(owner: number, hash: string) {
+    if (!/^[a-f0-9]{64}$/.test(hash)) throw new NotFoundException('图片不存在');
+    const [row] = await this.db.query(
+      'SELECT data FROM t_review_image WHERE user_id=? AND image_hash=?',
+      [owner, hash],
+    );
+    const match = row?.data?.match(
+      /^data:image\/(png|jpeg);base64,([a-zA-Z0-9+/]+={0,2})$/,
+    );
+    if (!match) throw new NotFoundException('图片不存在');
+    return { type: `image/${match[1]}`, data: Buffer.from(match[2], 'base64') };
   }
 
   async save(owner: number, dto: NotebookSaveDto) {

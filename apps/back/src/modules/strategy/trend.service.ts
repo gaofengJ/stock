@@ -93,7 +93,9 @@ export class TrendService {
   }
 
   private async factorData(rows: SnapshotVersion[], codes: Set<string>) {
-    if (codes.size > 200)
+    // Small per-stock charts retain narrow projections. Broad strategy scans
+    // share stored compressed days instead of extracting each candidate in SQL.
+    if (codes.size > 20)
       return this.snapshotReader.read(
         't_source_strategy_factor',
         rows,
@@ -880,7 +882,7 @@ export class TrendService {
       // ORM updates can reuse a second-resolution timestamp. Fingerprint the
       // payload as well so corrections never reuse an earlier factor index.
       this.db.query<(SnapshotVersion & { tradeDate: string })[]>(
-        "SELECT id,updated_at updatedAt,MD5(data) contentHash,DATE_FORMAT(trade_date,'%Y-%m-%d') tradeDate FROM t_source_strategy_factor WHERE trade_date IN (?)",
+        "SELECT id,updated_at updatedAt,content_hash contentHash,DATE_FORMAT(trade_date,'%Y-%m-%d') tradeDate FROM t_source_strategy_factor WHERE trade_date IN (?)",
         [dates],
       ),
       this.db.manager.find(SyncDayPolicyEntity, {

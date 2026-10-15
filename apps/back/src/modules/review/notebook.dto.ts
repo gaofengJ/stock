@@ -18,6 +18,10 @@ export class NotebookSaveDto extends ReviewDateDto {
   @IsString() @MaxLength(6500000) content: string;
 }
 export class NotebookVersionDto extends ReviewDateDto {
+  @IsOptional() @Type(() => Number) @IsIn([0, 1]) previous?: number;
+
+  @IsOptional() @Type(() => Number) @IsIn([0, 1]) assetReferences?: number;
+
   @IsOptional() @Type(() => Number) @IsIn([0, 1]) publicationBodies?: number;
 
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) revision?: number;

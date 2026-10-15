@@ -90,3 +90,11 @@ RELEASE_SHA=<40位提交SHA> bash /opt/stock-release/packages/<同一SHA>/releas
 ```sh
 python3 /opt/stock-release/tools/maintenance.py --backup-status
 ```
+
+## StrategyFactorRead1792454400000
+
+该迁移只为 `t_source_strategy_factor` 增加数据库自动维护的 `content_hash`、`packed_data` 存储生成列，以及覆盖日期、更新时间和校验值的索引。源 JSON 不改写；旧应用可继续读写源列。直接 SQL 修正和同秒修正都会重新生成派生值。存储生成列需要重建该表，预检按该表大小计入重建空间。
+
+火山自动发布器只接受已执行的迁移清单，不能替代迁移：先完成 CI 的 MySQL 8.4 回归、确认新备份并取得 `/run/lock/stock-maintenance.lock`，在维护窗口停止应用写入，使用受审阅版本的 TypeORM migration CLI 执行迁移，再恢复旧应用读写并通过正常流水线发布新镜像。核验源行数、日期范围和源内容摘要与迁移前一致，且所有行满足 `content_hash=MD5(data)`、`packed_data=COMPRESS(data)`。不能把预检失败改成忽略。
+
+旧应用与新增派生列兼容；无需删除列来恢复旧业务代码。自动发布器仍会阻止迁移清单不同的版本回退，需要单独核验兼容性并按维护流程处理。不要以删除或还原源行情表作为应用回退方式。

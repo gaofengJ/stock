@@ -82,6 +82,35 @@ mysqlDescribe('notebook assets and publication transactions', () => {
     for (const table of tables) await db.query(`DELETE FROM ${table}`);
   });
 
+  it('loads current text independently, isolates image ownership and keeps legacy reads intact', async () => {
+    await service.save(17, { date: '2026-10-11', revision: 0, content });
+    await service.save(17, { date, revision: 0, content });
+    const light = await service.read(17, date, undefined, false, false, true);
+    expect(light.previous).toBeNull();
+    const marker = light.content!.article!.images[0].data;
+    expect(marker).toMatch(/^review-asset:[a-f0-9]{64}$/);
+    expect(JSON.stringify(light)).not.toContain(png);
+    const hash = marker.split(':')[1];
+    const image = await service.image(17, hash);
+    expect(image.type).toBe('image/png');
+    expect(`data:image/png;base64,${image.data.toString('base64')}`).toBe(png);
+    await expect(service.image(18, hash)).rejects.toMatchObject({
+      status: 404,
+    });
+    await expect(service.image(17, '../bad')).rejects.toMatchObject({
+      status: 404,
+    });
+    const full = await service.read(17, date);
+    expect(full.previous!.content.article!.images[0].data).toBe(png);
+    expect(full.content!.article!.images[0].data).toBe(png);
+    await expect(
+      service.save(17, {
+        date,
+        revision: 1,
+        content: JSON.stringify(light.content),
+      }),
+    ).rejects.toThrow();
+  });
   it('deduplicates repeated saves while preserving old and new read contracts', async () => {
     await service.save(17, { date, revision: 0, content });
     await service.save(17, { date, revision: 1, content });

@@ -105,3 +105,41 @@ describe('versioned strategy snapshot reader', () => {
     expect(db.query.mock.calls[1][0]).toContain('MD5(data) contentHash');
   });
 });
+
+describe('stored factor projections', () => {
+  it('reads materialized compression and rejects same-timestamp content changes', async () => {
+    const version = {
+      id: 1,
+      updatedAt: new Date('2026-10-01'),
+      contentHash: 'first',
+    };
+    const db: any = {
+      query: jest
+        .fn()
+        .mockResolvedValue([
+          { ...version, packed: packedJson([['000001.SZ', 10]]) },
+        ]),
+    };
+    const reader = new StrategySnapshotReader(db);
+    expect(
+      (await reader.read('t_source_strategy_factor', [version], (v) => v)).get(
+        1,
+      ),
+    ).toEqual([['000001.SZ', 10]]);
+    expect(db.query.mock.calls[0][0]).toContain(
+      'content_hash contentHash,packed_data packed',
+    );
+    const changed = { ...version, contentHash: 'second' };
+    expect(
+      (await reader.read('t_source_strategy_factor', [changed], (v) => v)).size,
+    ).toBe(0);
+    db.query.mockResolvedValue([
+      { ...changed, packed: packedJson([['000001.SZ', 20]]) },
+    ]);
+    expect(
+      (await reader.read('t_source_strategy_factor', [changed], (v) => v)).get(
+        1,
+      ),
+    ).toEqual([['000001.SZ', 20]]);
+  });
+});

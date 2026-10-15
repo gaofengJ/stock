@@ -79,13 +79,21 @@ export class StrategySnapshotReader {
             table === 't_processed_stock_insight' ? 'revision,' : ''
           }${
             missing.some((row) => row.contentHash)
-              ? 'MD5(data) contentHash,'
+              ? `${
+                  table === 't_source_strategy_factor'
+                    ? 'content_hash'
+                    : 'MD5(data)'
+                } contentHash,`
               : ''
-          }COMPRESS(${
-            paths?.length
-              ? `JSON_EXTRACT(data,${paths.map(() => '?').join(',')})`
-              : 'data'
-          }) packed FROM ${table} WHERE id IN (?)`,
+          }${
+            table === 't_source_strategy_factor' && !paths?.length
+              ? 'packed_data'
+              : `COMPRESS(${
+                  paths?.length
+                    ? `JSON_EXTRACT(data,${paths.map(() => '?').join(',')})`
+                    : 'data'
+                })`
+          } packed FROM ${table} WHERE id IN (?)`,
           [...(paths || []), missing.map((row) => row.id)],
         );
         missing.forEach((row) => {

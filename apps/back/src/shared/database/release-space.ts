@@ -4,6 +4,7 @@ interface TableSize {
 }
 
 const migrationTables: Record<string, readonly string[]> = {
+  StrategyFactorRead1792454400000: ['t_source_strategy_factor'],
   ReviewAssets1792368000000: ['t_review_image', 't_review_publication'],
   ReviewGeneration1792281600000: ['t_review_notebook_state'],
   ReviewNotebook1792195200000: [
@@ -80,6 +81,7 @@ const migrationOperations: Record<
   string,
   'create' | 'data' | 'schema' | 'full-database'
 > = {
+  StrategyFactorRead1792454400000: 'schema',
   ReviewAssets1792368000000: 'schema',
   ReviewGeneration1792281600000: 'create',
   ReviewNotebook1792195200000: 'create',
