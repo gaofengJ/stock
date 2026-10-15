@@ -162,3 +162,27 @@ root worker复核GitHub完整CI的commit、分支、仓库及成功状态，检�
 stock-health-snapshot.service生成root:root/644的固定无凭据摘要，供受限SSH的`health status`读取；此账号仍无shell、Docker或备份读取权限。snapshot timer候选保持disabled。check_remote_health.py默认只验证隔离状态；--production要求正常入口、DB/backend healthy、有效本地备份和持续异机证明。当前recurringOffhostVerified固定false，等用户指定长期存储再接证明，不能手改true假装已完成。
 
 volc-health.yml失败走GitHub现有工作流通知设置；没有配置新收件人或声称邮件已送达。执行旧机停写和默认分支接管前须核对上述状态。
+
+## 发布镜像空间管理（2026-10-15）
+
+`image_retention.py`只处理既有 ACR 的 stock-back/front/blog 应用镜像，不调用
+`docker system prune`、不删除卷或 containerd 底层文件。它从成功生产发布的
+`candidate.env`/`previous.env`核对当前版本和上一版本，保护两套完整镜像以及
+所有运行/停止容器引用的镜像。回滚清单缺失、摘要未在本机、维护模式或排队发布
+都会停止清理；与备份和发布共用 stock-maintenance.lock。
+
+已被新版本取代且不再受保护的成功发布镜像可清除；未记录的候选镜像按本机首次
+发现时间保留24小时用于排障。不要使用镜像 Created 判断年龄：可复现构建将其
+设为 epoch 0。未知仓库、额外别名、无标签镜像及其他服务保持不变。
+
+安装 root 管理的脚本及 stock-image-retention.service/timer 后，先运行
+`python3 -B /opt/stock/deploy/image_retention.py`预览，再启用 timer（每15分钟）。
+结果保存在 `/srv/stock/deploy-status/image-retention.json`；暂停可停用 timer。
+回滚材料保留不等于数据库回滚：新库接收真实写入后，不得恢复旧库替代当前数据。
+
+文章构建把 imgs 独立成稳定的 COPY --link 层；页面和搜索索引分层，构建副本统一
+时间戳/权限，SOURCE_DATE_EPOCH=0，发布标签置于 COPY 之后。CI以三次无缓存构建
+验证改版本号/改页面不会重建图片层，并逐文件核对最终镜像路径和 SHA256。
+原始图片不压缩、不删除，鉴权规则不变。最初一次新分层发布仍需保留上一份旧格式
+镜像；两代都采用新格式后才能充分共享图片层。图片本身更新仍可能产生新层，
+本机制限制历史版本数量，不保证业务内容永不增长。

@@ -1,0 +1,11 @@
+[Unit]
+Description=Bound unused stock application images after release
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=15min
+RandomizedDelaySec=30
+Unit=stock-image-retention.service
+
+[Install]
+WantedBy=timers.target

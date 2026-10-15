@@ -1,10 +1,6 @@
 **
-!apps
-!apps/blog
-!apps/blog/docs
-!apps/blog/docs/.vitepress
-!apps/blog/docs/.vitepress/dist
-!apps/blog/docs/.vitepress/dist/**
-!ops
-!ops/volc
-!ops/volc/articles-deny.conf
+!media
+!media/**
+!site
+!site/**
+!articles-deny.conf
