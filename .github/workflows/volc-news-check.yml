@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   verify:
-    if: github.ref == 'refs/heads/codex/stock-volc-migration'
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/codex/stock-volc-migration'
     runs-on: ubuntu-24.04
     timeout-minutes: 6
     steps:
@@ -27,6 +27,8 @@ jobs:
             ops/volc
       - name: Verify receiver boundaries
         run: PYTHONPATH=.github/scripts:ops/volc python3 -m unittest ops/volc/test_feed_receiver.py
+      - name: Verify bounded transport retries and outcome reporting
+        run: PYTHONPATH=ops/volc python3 -m unittest ops/volc/test_upload_news.py
       - name: Collect current public Sina feed
         id: sina
         continue-on-error: true
