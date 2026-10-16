@@ -55,6 +55,15 @@ class FeedReceiverTest(unittest.TestCase):
             self.assertEqual(target.read_bytes(), previous)
             self.assertEqual(list(root.glob('.delivery-*')), [])
 
+    def test_replay_after_lost_receipt_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'enabled').touch()
+            first = self.invoke(root, 'publish')
+            data = (root / 'sina.json').read_bytes()
+            self.assertEqual(self.invoke(root, 'publish'), first)
+            self.assertEqual((root / 'sina.json').read_bytes(), data)
+
     def test_newer_existing_feed_cannot_be_replaced(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

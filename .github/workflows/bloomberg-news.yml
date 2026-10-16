@@ -148,7 +148,7 @@ jobs:
           TRANSLATE_RESULT: ${{ steps.translate.outcome }}
         run: |
           if [ "$PREPARE_RESULT" != success ] || [ "$TRANSLATE_RESULT" != success ]; then
-            echo '::warning::Translation unavailable; original English feed will still be delivered and retried next run.'
+            echo '::warning::Translation unavailable; original delivery outcome is reported separately.'
           fi
           du -sh .argos-venv .argos .translation-cache 2>/dev/null || true
       - name: Deliver translation independently through restricted SSH
@@ -167,14 +167,15 @@ jobs:
           printf '%s\n' "$UPLOAD_KEY" > "$key"
           cp bloomberg.json "$feed_dir/bloomberg.json"
           python3 ops/volc/upload_news.py --directory "$feed_dir" --key "$key" --known-hosts ops/volc/known_hosts --mode "$NEWS_MODE"
-      - name: Report translation delivery failure
-        if: steps.translated_upload.outcome == 'failure'
-        run: echo '::warning::Translation delivery failed; original feeds have already been delivered.'
-      - name: Require original source collection and delivery
-        if: always() && (steps.bloomberg.outcome != 'success' || steps.sina.outcome != 'success' || steps.original_bloomberg.outcome != 'success' || steps.original_sina.outcome != 'success')
-        run: |-
-          echo "::error::A source collection or original delivery failed; other sources were processed independently."
-          exit 1
+      - name: Report source delivery outcomes
+        if: always()
+        env:
+          BLOOMBERG_COLLECTION: ${{ steps.bloomberg.outcome }}
+          SINA_COLLECTION: ${{ steps.sina.outcome }}
+          BLOOMBERG_DELIVERY: ${{ steps.original_bloomberg.outcome }}
+          SINA_DELIVERY: ${{ steps.original_sina.outcome }}
+          TRANSLATION_DELIVERY: ${{ steps.translated_upload.outcome }}
+        run: python3 ops/volc/news_delivery_status.py
       - name: Require translation path during candidate validation
         if: always() && github.event_name == 'push' && (steps.prepare.outcome != 'success' || steps.translate.outcome != 'success' || steps.translated_upload.outcome != 'success')
         run: |-
