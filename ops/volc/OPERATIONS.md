@@ -186,3 +186,34 @@ volc-health.yml失败走GitHub现有工作流通知设置；没有配置新收�
 原始图片不压缩、不删除，鉴权规则不变。最初一次新分层发布仍需保留上一份旧格式
 镜像；两代都采用新格式后才能充分共享图片层。图片本身更新仍可能产生新层，
 本机制限制历史版本数量，不保证业务内容永不增长。
+
+## 资讯 SSH 连接保护（2026-10-16）
+
+`upload_news.py`只对已识别的 SSH 连接超时/关闭/重置等传输故障退避重试，
+最多4次、总预算90秒。主机指纹、凭据、内容校验或接收端拒绝不重试；
+每次重放相同字节并核对来源、SHA256和发布模式回执。接收器原子替换且拒绝
+旧时间戳覆盖新数据。工作流按来源报告实际采集和投递状态，原文失败仍使作业失败。
+
+`ssh-protection/`为Ubuntu24.04主机配置：每来源最多5个未认证连接，
+全局MaxStartups为30:30:60；不修改端口、密码/密钥认证、root登录或120秒等待时间。
+Fail2Ban只累计ssh日志的实际Failed password，10分钟8次失败封该来源22端口15分钟，
+不封HTTP，也不累计密钥失败或网络断开；禁用新安装包自带的宽泛sshd jail，
+只启用stock-sshd-password。正常登录不触发封禁；同一公网IP连续输错密码达到
+阈值仍会暂时受限。通过云控制台或保留的已登录会话可执行
+`fail2ban-client set stock-sshd-password unbanip <IP>`恢复误操作来源。
+
+部署顺序：
+1. 保留已验证的管理员会话；安装发行版fail2ban时先runtime mask其service，
+   避免未经验证的默认jail启用。安装不替换SSH，不创建管理员密钥。
+2. 复制候选配置到隔离目录，运行`fail2ban-client -c <候选目录> -t`和
+   `test_ssh_password_filter.py`，验证真实IPv4/IPv6失败、正常登录与伪造用户名边界。
+3. 备份配置和`sshd -T`，设置10分钟自动回滚，失败应停止新fail2ban并移除本次新增文件。
+   将连接限制放入`/etc/ssh/sshd_config.d/20-stock-connection-limits.conf`，
+   filter和jail分别安装至`/etc/fail2ban/filter.d/`与`jail.d/`。
+4. `sshd -t`和Fail2Ban配置校验通过，并确认`sshd -T`仅两项连接限制改变后，
+   reload ssh（不restart），解除本次runtime mask并enable/start fail2ban。
+5. 用独立的新密码连接及现有CI受限密钥验收，再检查真实GitHub采集、投递回执、
+   服务器feed时间戳和应用消费状态。通过后取消自动回滚；不能仅凭原会话可用宣称成功。
+
+服务回滚使用该次部署目录的rollback.sh；该脚本需保留原文件存在性，
+仅恢复本次新增的SSH和Fail2Ban设置。工作流可回退对应代码提交；不回退资讯数据。
