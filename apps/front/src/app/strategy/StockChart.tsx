@@ -279,9 +279,9 @@ export default function StockChart({
                   yAxis: [{
                     scale: true, boundaryGap: ['12%', '12%'], name: `${data?.basis}（元）`, splitNumber: 5,
                   }, {
-                    scale: true, min: 0, gridIndex: 1, name: '成交量（万手）', nameGap: 8, splitNumber: 1,
+                    scale: true, min: 0, gridIndex: 1, name: '成交量（万手）', nameGap: 16, splitNumber: 1,
                   }, {
-                    type: 'value', gridIndex: 2, name: 'MACD(12,26,9)', nameGap: 8, splitNumber: 2, scale: true,
+                    type: 'value', gridIndex: 2, name: 'MACD(12,26,9)', nameGap: 16, splitNumber: 2, scale: true,
                   }],
                   dataZoom: [{
                     type: 'inside', xAxisIndex: [0, 1, 2], startValue: range.start, endValue: range.end, zoomOnMouseWheel: 'ctrl',

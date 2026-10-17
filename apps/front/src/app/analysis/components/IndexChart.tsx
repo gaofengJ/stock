@@ -112,10 +112,10 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
               type: 'value', gridIndex: 0, scale: true, boundaryGap: ['12%', '12%'], axisLabel: { formatter: (v: number) => numberText(v) },
             },
             {
-              type: 'value', gridIndex: 1, name: '成交量（万手）', nameGap: 8, splitNumber: 1, axisLabel: { formatter: (v: number) => numberText(v, v > 0 && v < 1 ? 2 : 0) },
+              type: 'value', gridIndex: 1, name: '成交量（万手）', nameGap: 16, splitNumber: 1, axisLabel: { formatter: (v: number) => numberText(v, v > 0 && v < 1 ? 2 : 0) },
             },
             {
-              type: 'value', gridIndex: 2, name: 'MACD(12,26,9)', nameGap: 8, splitNumber: 2, scale: true,
+              type: 'value', gridIndex: 2, name: 'MACD(12,26,9)', nameGap: 16, splitNumber: 2, scale: true,
             },
           ],
           series: [{

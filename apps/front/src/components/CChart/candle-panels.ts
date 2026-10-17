@@ -3,8 +3,10 @@ import type { calculateMacd } from './macd';
 
 /** Three aligned panes share the same date axis and zoom; price keeps most of the height. */
 export function candleGrids(height: number, top = 36, left = 64) {
-  const gap = height < 360 ? 22 : 28;
-  const usable = Math.max(48, height - top - 56 - 2 * gap);
+  // Leave room above and below pane titles without pushing compact charts out of bounds.
+  const available = Math.max(0, height - top - 56);
+  const gap = Math.min(height < 360 ? 36 : 44, available / 3);
+  const usable = available - 2 * gap;
   const price = usable * 0.64;
   const volume = usable * 0.14;
   return [
