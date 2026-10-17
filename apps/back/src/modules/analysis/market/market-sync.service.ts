@@ -12,6 +12,7 @@ import { TradeCalEntity } from '@/modules/source/trade-cal/trade-cal.entity';
 import {
   permanentSyncError,
   shanghaiDate,
+  SyncDependencyNotReadyError,
 } from '@/modules/daily-task/sync.utils';
 import {
   BseMappingEntity,
@@ -69,7 +70,10 @@ export class MarketSyncService implements OnModuleInit {
       });
     } catch (e) {
       await manager.update(SyncRunEntity, run.id, {
-        status: 'failed',
+        status: e instanceof SyncDependencyNotReadyError ? 'pending' : 'failed',
+        ...(e instanceof SyncDependencyNotReadyError
+          ? { attempts: old?.attempts || 0 }
+          : {}),
         error: String(e.message).slice(0, 2000),
         updatedAt: new Date(),
       });

@@ -1,4 +1,5 @@
 import * as dayjs from 'dayjs';
+import { ConflictException } from '@nestjs/common';
 import { DailyEntity } from '../source/daily/daily.entity';
 import { LimitEntity } from '../source/limit/limit.entity';
 
@@ -11,6 +12,9 @@ export interface SyncBatchResult {
   retryAt?: Date;
   waitingReason?: string;
 }
+
+/** The worker can poll dependencies without spending its failure retry budget. */
+export class SyncDependencyNotReadyError extends ConflictException {}
 
 /** A persisted clock may be ahead after a timezone change; wait at most one interval. */
 export function sourceThrottleDelay(

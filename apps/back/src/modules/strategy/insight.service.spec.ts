@@ -5,6 +5,8 @@ import { InsightService } from './insight.service';
 import { StockInsightEntity, ThsHotEntity } from './insight.entity';
 import { SyncRunEntity } from '../daily-task/sync-run.entity';
 import { IncompleteFactorSnapshotError } from './trend-errors';
+import { SyncDependencyNotReadyError } from '../daily-task/sync.utils';
+import { retryOutcome } from '../admin/job-policy';
 
 describe('InsightService observation boundaries', () => {
   const days = ['2026-09-30', '2026-09-29', '2026-09-28', '2026-09-25'];
@@ -383,7 +385,9 @@ describe('historical hot-rank source gaps', () => {
     jest.spyOn(service, 'buildDay').mockRejectedValue(error);
     const result = await service.batch(dates[0], dates[0]);
     expect(result?.completed).toEqual([]);
-    expect(result?.failures[0]).toContain(`${dates[1]} 002142.SZ`);
+    expect(result?.failures).toEqual([]);
+    expect(result?.waitingReason).toContain(`${dates[1]} 002142.SZ`);
+    expect(result?.retryAt).toBeInstanceOf(Date);
     expect(tx.update).toHaveBeenCalledWith(
       SyncRunEntity,
       expect.objectContaining({ task: 'strategy-factor', status: 'success' }),
@@ -394,6 +398,88 @@ describe('historical hot-rank source gaps', () => {
       expect.stringContaining('ON DUPLICATE KEY UPDATE'),
       [dates[1], dates[1]],
     );
+  });
+  it('dependency waits survive five retries and automatically complete once upstream is ready', async () => {
+    const { service } = setup('', 0, [dates[0]]);
+    const build = jest
+      .spyOn(service, 'buildDay')
+      .mockRejectedValue(new SyncDependencyNotReadyError('等待完整复权历史'));
+    let failures = 0;
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      // eslint-disable-next-line no-await-in-loop -- Each retry observes the preceding persisted failure budget.
+      const result = await service.batch(dates[0], dates[0]);
+      expect(result).toMatchObject({
+        completed: [],
+        remaining: 1,
+        failures: [],
+        stage: '等待上游数据，依赖补齐后自动继续',
+      });
+      expect(result!.retryAt!.getTime() - Date.now()).toBeGreaterThan(59000);
+      const outcome = retryOutcome(
+        'pending',
+        failures,
+        Date.now(),
+        result!.retryAt,
+      );
+      expect(outcome.status).toBe('pending');
+      failures = outcome.failures;
+    }
+    expect(failures).toBe(0);
+    build.mockResolvedValue(undefined);
+    const result = await service.batch(dates[0], dates[0]);
+    expect(result).toMatchObject({
+      completed: [dates[0]],
+      remaining: 0,
+      failures: [],
+    });
+    expect(result!.retryAt).toBeUndefined();
+  });
+  it('a genuine error beside a dependency wait still consumes the failure budget', async () => {
+    const { service } = setup('', 0, dates.slice(0, 2));
+    jest
+      .spyOn(service, 'buildDay')
+      .mockRejectedValueOnce(
+        new SyncDependencyNotReadyError('等待完整复权历史'),
+      )
+      .mockRejectedValueOnce(new Error('network timeout'));
+    const result = await service.batch(dates[1], dates[0]);
+    expect(result!.failures).toEqual([`${dates[1]}: network timeout`]);
+    expect(result!.retryAt).toBeUndefined();
+    expect(retryOutcome('pending', 4, Date.now(), result!.retryAt).status).toBe(
+      'failed',
+    );
+  });
+  it('missing factor dates are reported as dependencies; protected history remains a real blocker', async () => {
+    const { service, manager } = setup('', 0, [dates[0]]);
+    const sessions = Array.from({ length: 61 }, (_, i) =>
+      new Date(Date.UTC(2020, 8, 30 - i)).toISOString().slice(0, 10),
+    );
+    (service as any).calendar.mockResolvedValue(sessions);
+    manager.findOneBy = jest.fn().mockResolvedValue(null);
+    (service as any).writes.excluded = jest.fn().mockResolvedValue(false);
+    (service as any).sync.stage = (
+      _m: any,
+      _task: string,
+      _date: string,
+      action: any,
+    ) => action();
+    const revisions = sessions.slice(1).map((date) => ({
+      date,
+      task: 'strategy-factor',
+      value: 'success:revision',
+    }));
+    await expect(
+      service.buildDay(manager, dates[0], revisions),
+    ).rejects.toBeInstanceOf(SyncDependencyNotReadyError);
+    await expect(
+      service.buildDay(manager, dates[0], revisions),
+    ).rejects.toThrow(dates[0]);
+    await expect(
+      service.buildDay(manager, dates[0], [
+        ...revisions,
+        { date: dates[1], task: 'policy', value: '主动删除保护' },
+      ]),
+    ).rejects.not.toBeInstanceOf(SyncDependencyNotReadyError);
   });
   it('盘后发布前继续补历史日期，当日等待22:40且不消耗失败次数', async () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-10-09T12:30:00Z'));
