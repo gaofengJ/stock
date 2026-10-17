@@ -18,7 +18,12 @@ const requestOptions = {
     Referer: 'https://data.eastmoney.com/',
   },
 };
-const textCache = new Map<string, { text: string; until: number }>();
+// Original numbered announcements are documents, not live plan statuses. Re-read
+// the catalog and later termination/correction notices on every refresh instead
+// of downloading six months of unchanged documents again every day.
+export const REDUCTION_TEXT_TTL_MS = 180 * 86400000;
+type CachedText = { text: string; until: number; persisted: boolean };
+const textCache = new Map<string, CachedText>();
 let textBytes = 0;
 const normalized = (text: string) =>
   text
@@ -84,7 +89,50 @@ export async function publicReductionPlans(
   get: typeof axios.get = axios.get,
   date = shanghaiDate(),
   store: ReductionTextStore | undefined = undefined,
+  diagnostic: (event: Record<string, unknown>) => void = () => {},
 ) {
+  const started = Date.now();
+  const stats = {
+    cacheHits: 0,
+    bodyRequests: 0,
+    requestFailures: 0,
+    cacheWriteFailures: 0,
+  };
+  try {
+    // eslint-disable-next-line no-use-before-define
+    const result = await scanReductionPlans(
+      get,
+      date,
+      store,
+      diagnostic,
+      stats,
+    );
+    diagnostic({
+      event: 'complete',
+      ...stats,
+      records: result.data.items.length,
+      elapsedMs: Date.now() - started,
+    });
+    return result;
+  } catch (error) {
+    diagnostic({ event: 'failed', ...stats, elapsedMs: Date.now() - started });
+    throw error;
+  }
+}
+
+async function scanReductionPlans(
+  get: typeof axios.get,
+  date: string,
+  store: ReductionTextStore | undefined,
+  diagnostic: (event: Record<string, unknown>) => void,
+  metrics: {
+    cacheHits: number;
+    bodyRequests: number;
+    requestFailures: number;
+    cacheWriteFailures: number;
+  },
+) {
+  const stats = metrics;
   const start = new Date(`${date}T00:00:00Z`);
   start.setUTCDate(start.getUTCDate() - 185);
   const since = start.toISOString().slice(0, 10);
@@ -112,6 +160,13 @@ export async function publicReductionPlans(
         maxRedirects: 0,
       },
       '目录',
+      undefined,
+      {
+        onFailure: (failure) => {
+          stats.requestFailures += 1;
+          diagnostic({ event: 'request-failed', page, ...failure });
+        },
+      },
     );
     const data = response.data?.data;
     if (
@@ -168,27 +223,48 @@ export async function publicReductionPlans(
   let lastFailure: string | undefined;
   const unavailable = () => failed >= 5 && failed > succeeded / 4;
   const inFlight = new Map<string, Promise<string>>();
+  const persist = async (notice: Notice, cached: CachedText) => {
+    const entry = cached;
+    if (!store || cached.persisted) return;
+    try {
+      await store.write(notice.id, notice.date, cached.text);
+      entry.persisted = true;
+    } catch {
+      stats.cacheWriteFailures += 1;
+      diagnostic({ event: 'cache-write-deferred', articleId: notice.id });
+      // Keep the verified body in memory and retry persistence on the next scan.
+    }
+  };
+  const beforeBodyAttempt = async () => {
+    // Retries share the same pacing as first attempts and later pages.
+    const delay = Math.max(0, nextRequest - Date.now());
+    nextRequest = Math.max(nextRequest, Date.now()) + 1000;
+    if (delay)
+      await new Promise((resolve) => {
+        setTimeout(resolve, delay);
+      });
+    stats.bodyRequests += 1;
+  };
   const content = async (notice: Notice) => {
     const key = `${notice.id}:${notice.date}`;
     const cached = textCache.get(key);
     if (cached && cached.until > Date.now()) {
       textCache.delete(key);
       textCache.set(key, cached);
+      stats.cacheHits += 1;
+      await persist(notice, cached);
       return cached.text;
     }
     const saved = await store?.read(notice.id, notice.date);
-    if (saved) return saved;
+    if (saved) {
+      stats.cacheHits += 1;
+      return saved;
+    }
     if (unavailable())
       throw new ReductionSourceError(lastFailure || '计划公告来源暂不可用');
     let text = '';
     let pages = 1;
     for (let page = 1; page <= pages; page += 1) {
-      const delay = Math.max(0, nextRequest - Date.now());
-      nextRequest = Math.max(nextRequest, Date.now()) + 350;
-      if (delay)
-        await new Promise((resolve) => {
-          setTimeout(resolve, delay);
-        });
       const response = await reductionRequest(
         get,
         'https://np-cnotice-stock.eastmoney.com/api/content/ann',
@@ -204,6 +280,19 @@ export async function publicReductionPlans(
           maxRedirects: 0,
         },
         '正文',
+        undefined,
+        {
+          beforeAttempt: beforeBodyAttempt,
+          onFailure: (failure) => {
+            stats.requestFailures += 1;
+            diagnostic({
+              event: 'request-failed',
+              articleId: notice.id,
+              page,
+              ...failure,
+            });
+          },
+        },
       );
       const data = response.data?.data;
       if (
@@ -222,14 +311,19 @@ export async function publicReductionPlans(
     }
     const bytes = Buffer.byteLength(text);
     if (cached) textBytes -= Buffer.byteLength(cached.text);
-    textCache.set(key, { text, until: Date.now() + 24 * 3600000 });
+    const entry = {
+      text,
+      until: Date.now() + REDUCTION_TEXT_TTL_MS,
+      persisted: !store,
+    };
+    textCache.set(key, entry);
     textBytes += bytes;
     while (textBytes > 32 * 1024 * 1024 || textCache.size > 5000) {
       const evicted = textCache.keys().next().value;
       textBytes -= Buffer.byteLength(textCache.get(evicted)!.text);
       textCache.delete(evicted);
     }
-    await store?.write(notice.id, notice.date, text);
+    await persist(notice, entry);
     return text;
   };
   const sharedContent = (notice: Notice) => {

@@ -53,6 +53,79 @@ const rows = (result: any) =>
   );
 
 describe('original current reduction plans', () => {
+  it('retries a deferred cache write without downloading the same verified document again', async () => {
+    const get = fixture([notice('AN995001', '股东减持计划预披露')], {
+      AN995001: original,
+    });
+    const store = {
+      read: jest.fn().mockResolvedValue(undefined),
+      write: jest
+        .fn()
+        .mockRejectedValueOnce(new Error('busy'))
+        .mockResolvedValue(undefined),
+    };
+    const diagnostic = jest.fn();
+    const first = await publicReductionPlans(
+      get as any,
+      date,
+      store,
+      diagnostic,
+    );
+    const second = await publicReductionPlans(
+      get as any,
+      date,
+      store,
+      diagnostic,
+    );
+    expect(second).toEqual(first);
+    expect(store.write).toHaveBeenCalledTimes(2);
+    expect(
+      get.mock.calls.filter(([url]) => url.includes('/content/ann')),
+    ).toHaveLength(1);
+    expect(diagnostic).toHaveBeenCalledWith({
+      event: 'cache-write-deferred',
+      articleId: 'AN995001',
+    });
+    expect(diagnostic).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        event: 'complete',
+        cacheHits: 1,
+        bodyRequests: 0,
+        cacheWriteFailures: 0,
+      }),
+    );
+  });
+
+  it('keeps historical original documents across days while detecting newly published termination notices', async () => {
+    jest.useFakeTimers();
+    try {
+      jest.setSystemTime(new Date('2026-10-04T10:00:00Z'));
+      const plan = notice('AN995002', '股东减持计划预披露');
+      const firstGet = fixture([plan], { AN995002: original });
+      expect(
+        rows(await publicReductionPlans(firstGet as any, '2026-10-04'))[0]
+          .plan_status,
+      ).toBe('active');
+      jest.setSystemTime(new Date('2026-10-06T10:00:00Z'));
+      const secondGet = fixture(
+        [plan, notice('AN995003', '减持计划实施完毕', '301272', '2026-10-05')],
+        {
+          AN995002: null,
+          AN995003: '股东甲和股东乙于2026年8月28日披露的减持计划已实施完毕。',
+        },
+      );
+      expect(rows(await publicReductionPlans(secondGet as any, date))).toEqual(
+        [],
+      );
+      expect(
+        secondGet.mock.calls
+          .filter(([url]) => url.includes('/content/ann'))
+          .map(([, config]) => config.params.art_code),
+      ).toEqual(['AN995003']);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
   it('reuses persistent verified bodies after an application restart without requesting them again', async () => {
     const get = fixture([notice('AN994001', '股东减持计划预披露')], {
       AN994001: null,
@@ -189,16 +262,23 @@ describe('original current reduction plans', () => {
   });
 
   it('stops repeated failed body reads and rejects an outage instead of replacing a usable snapshot', async () => {
-    const announcements = Array.from({ length: 25 }, (_, i) =>
-      notice(`AN9910${i}`, '股东减持计划预披露'),
-    );
-    const get = fixture(announcements, {});
-    await expect(publicReductionPlans(get as any, date)).rejects.toThrow(
-      '保留已有快照',
-    );
-    expect(
-      get.mock.calls.filter(([url]) => url.includes('/content/ann')).length,
-    ).toBeLessThanOrEqual(8);
+    jest.useFakeTimers();
+    try {
+      const announcements = Array.from({ length: 25 }, (_, i) =>
+        notice(`AN9910${i}`, '股东减持计划预披露'),
+      );
+      const get = fixture(announcements, {});
+      const pending = expect(
+        publicReductionPlans(get as any, date),
+      ).rejects.toThrow('保留已有快照');
+      await jest.runAllTimersAsync();
+      await pending;
+      expect(
+        get.mock.calls.filter(([url]) => url.includes('/content/ann')).length,
+      ).toBeLessThanOrEqual(8);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('preserves the HTTP failure after the outage circuit stops further reads', async () => {

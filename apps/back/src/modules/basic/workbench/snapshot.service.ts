@@ -2,13 +2,16 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { createHash } from 'crypto';
-import { DataSource, In, LessThan } from 'typeorm';
+import { DataSource, In, LessThan, Not } from 'typeorm';
 import { TushareService } from '@/shared/tushare/tushare.service';
 import { SyncWriteService } from '@/modules/daily-task/sync-write.service';
 import { BasicSnapshotEntity } from './snapshot.entity';
 import { publicAnnouncements } from './public-announcements';
 import { publicThsReview } from './public-ths-review';
-import { publicReductionPlans } from './public-reduction-plans';
+import {
+  publicReductionPlans,
+  REDUCTION_TEXT_TTL_MS,
+} from './public-reduction-plans';
 import { ReductionSourceError } from './reduction-request';
 import { compactUnlockRows } from './unlock-calendar';
 import {
@@ -411,47 +414,69 @@ export class BasicSnapshotService implements OnModuleInit {
               : source === 'investment_calendar'
               ? await publicInvestmentCalendar(params)
               : source === 'reduction_plans'
-              ? await publicReductionPlans(undefined, undefined, {
-                  read: async (id, date) => {
-                    const saved = await this.db.manager
-                      .findOneBy(BasicSnapshotEntity, {
+              ? await publicReductionPlans(
+                  undefined,
+                  undefined,
+                  {
+                    read: async (id, date) => {
+                      const saved = await this.db.manager
+                        .findOneBy(BasicSnapshotEntity, {
+                          snapshotKey: this.key('reduction_text_v1', {
+                            id,
+                            date,
+                          }),
+                        })
+                        .catch(() => null);
+                      const text = saved?.rows?.[0]?.text;
+                      return saved?.source === 'reduction_text_v1' &&
+                        !!saved.fetchedAt &&
+                        Date.now() - saved.fetchedAt.getTime() <
+                          REDUCTION_TEXT_TTL_MS &&
+                        typeof text === 'string' &&
+                        text.length > 0 &&
+                        text.length <= 200000
+                        ? text
+                        : undefined;
+                    },
+                    write: async (id, date, text) => {
+                      const bodyRecord = {
                         snapshotKey: this.key('reduction_text_v1', {
                           id,
                           date,
                         }),
-                      })
-                      .catch(() => null);
-                    const text = saved?.rows?.[0]?.text;
-                    return saved?.source === 'reduction_text_v1' &&
-                      !!saved.fetchedAt &&
-                      Date.now() - saved.fetchedAt.getTime() < 24 * 3600000 &&
-                      typeof text === 'string' &&
-                      text.length > 0 &&
-                      text.length <= 200000
-                      ? text
-                      : undefined;
+                        source: 'reduction_text_v1',
+                        params: { id, date } as any,
+                        rows: [{ text }] as any,
+                        fetchedAt: new Date(),
+                        retryAt: new Date(Date.now() + REDUCTION_TEXT_TTL_MS),
+                        error: null,
+                      };
+                      for (let attempt = 0; attempt < 3; attempt += 1) {
+                        try {
+                          // eslint-disable-next-line no-await-in-loop
+                          await this.writes.withLock((manager) =>
+                            manager.upsert(BasicSnapshotEntity, bodyRecord, [
+                              'snapshotKey',
+                            ]),
+                          );
+                          return;
+                        } catch (error) {
+                          if (attempt === 2 || error?.getStatus?.() !== 409)
+                            throw error;
+                          // eslint-disable-next-line no-await-in-loop
+                          await new Promise((resolve) => {
+                            setTimeout(resolve, (attempt + 1) * 250);
+                          });
+                        }
+                      }
+                    },
                   },
-                  write: async (id, date, text) => {
-                    const bodyRecord = {
-                      snapshotKey: this.key('reduction_text_v1', { id, date }),
-                      source: 'reduction_text_v1',
-                      params: { id, date } as any,
-                      rows: [{ text }] as any,
-                      fetchedAt: new Date(),
-                      retryAt: new Date(Date.now() + 24 * 3600000),
-                      error: null,
-                    };
-                    await this.writes
-                      .withLock((manager) =>
-                        manager.upsert(BasicSnapshotEntity, bodyRecord, [
-                          'snapshotKey',
-                        ]),
-                      )
-                      .catch(() =>
-                        this.logger.warn('减持公告正文缓存写入延后'),
-                      );
+                  (event) => {
+                    const message = `reduction_plans: ${JSON.stringify(event)}`;
+                    if (event.event === 'complete') this.logger.log(message);
+                    else this.logger.warn(message);
                   },
-                })
+                )
               : source === 'eastmoney_ann'
               ? await publicAnnouncements(params)
               : await this.source.queryData(
@@ -700,9 +725,16 @@ export class BasicSnapshotService implements OnModuleInit {
       return;
     await this.writes
       .withLock((manager) =>
-        manager.delete(BasicSnapshotEntity, {
-          updatedAt: LessThan(new Date(Date.now() - 120 * 86400000)),
-        }),
+        manager.delete(BasicSnapshotEntity, [
+          {
+            source: Not('reduction_text_v1'),
+            updatedAt: LessThan(new Date(Date.now() - 120 * 86400000)),
+          },
+          {
+            source: 'reduction_text_v1',
+            updatedAt: LessThan(new Date(Date.now() - REDUCTION_TEXT_TTL_MS)),
+          },
+        ]),
       )
       .catch(() => this.logger.warn('基础资料缓存清理延后'));
   }

@@ -1,7 +1,17 @@
 import axios from 'axios';
+import { Agent } from 'https';
 
 /** Only controlled diagnostic text may be returned to clients; never include request URLs or headers. */
 export class ReductionSourceError extends Error {}
+
+export type ReductionRequestFailure = {
+  stage: '目录' | '正文';
+  attempt: number;
+  code: string;
+  status?: number;
+  reusedSocket: boolean;
+  tlsConnected: boolean;
+};
 
 export async function reductionRequest(
   get: typeof axios.get,
@@ -12,13 +22,39 @@ export async function reductionRequest(
     new Promise((resolve) => {
       setTimeout(resolve, ms);
     }),
+  hooks: {
+    beforeAttempt?: () => Promise<void>;
+    onFailure?: (failure: ReductionRequestFailure) => void;
+  } = {},
 ) {
+  let freshConnection = false;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
+    // A reset must not send every retry back through the same connection pool.
+    const retryAgent = freshConnection
+      ? new Agent({ ...(config?.httpsAgent?.options || {}), keepAlive: false })
+      : undefined;
     try {
       // eslint-disable-next-line no-await-in-loop
-      return await get(url, config);
+      await hooks.beforeAttempt?.();
+      // eslint-disable-next-line no-await-in-loop
+      return await get(
+        url,
+        retryAgent ? { ...config, httpsAgent: retryAgent } : config,
+      );
     } catch (error) {
       const status = Number(error?.response?.status);
+      const code = /^[A-Z_]{2,32}$/.test(error?.code || '')
+        ? error.code
+        : 'REQUEST_FAILED';
+      hooks.onFailure?.({
+        stage,
+        attempt,
+        code,
+        ...(Number.isInteger(status) ? { status } : {}),
+        reusedSocket: !!error?.request?.reusedSocket,
+        tlsConnected: !!error?.request?.socket?.getProtocol?.(),
+      });
+      if (['ECONNRESET', 'EPIPE'].includes(code)) freshConnection = true;
       const timeout = ['ECONNABORTED', 'ETIMEDOUT'].includes(error?.code);
       const transient =
         timeout ||
@@ -52,6 +88,8 @@ export async function reductionRequest(
           `减持公告${stage}获取失败（${reason}，尝试 ${attempt} 次）`,
         );
       }
+    } finally {
+      retryAgent?.destroy();
     }
   }
   throw new ReductionSourceError(`减持公告${stage}获取失败`);

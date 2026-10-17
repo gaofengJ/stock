@@ -1,6 +1,51 @@
+import { Agent } from 'https';
 import { reductionRequest } from './reduction-request';
 
 describe('reduction source retries', () => {
+  it('recovers a reset using a fresh connection and paces every attempt with safe diagnostics', async () => {
+    const pooled = new Agent({ keepAlive: true });
+    const wait = jest.fn().mockResolvedValue(undefined);
+    const beforeAttempt = jest.fn().mockResolvedValue(undefined);
+    const onFailure = jest.fn();
+    let destroyed: jest.SpyInstance | undefined;
+    const get = jest
+      .fn()
+      .mockRejectedValueOnce({
+        code: 'ECONNRESET',
+        request: {
+          reusedSocket: true,
+          socket: { getProtocol: () => 'TLSv1.3' },
+        },
+        message: 'private-url-and-token',
+      })
+      .mockImplementationOnce(async (_url, config) => {
+        expect(config.httpsAgent).not.toBe(pooled);
+        expect(config.httpsAgent.options.keepAlive).toBe(false);
+        destroyed = jest.spyOn(config.httpsAgent, 'destroy');
+        return { data: 'complete' };
+      });
+    await expect(
+      reductionRequest(
+        get,
+        'https://example.test',
+        { httpsAgent: pooled },
+        '正文',
+        wait,
+        { beforeAttempt, onFailure },
+      ),
+    ).resolves.toEqual({ data: 'complete' });
+    expect(beforeAttempt).toHaveBeenCalledTimes(2);
+    expect(destroyed).toHaveBeenCalled();
+    expect(onFailure).toHaveBeenCalledWith({
+      stage: '正文',
+      attempt: 1,
+      code: 'ECONNRESET',
+      reusedSocket: true,
+      tlsConnected: true,
+    });
+    expect(JSON.stringify(onFailure.mock.calls)).not.toContain('private');
+    pooled.destroy();
+  });
   it('recovers a transient 502 with bounded backoff', async () => {
     const get = jest
       .fn()
