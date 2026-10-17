@@ -7,6 +7,11 @@
 .chains-ladder .market-ladder-stocks { gap: 8px; }
 .chains-ladder .market-ladder-stock { min-width: 116px; padding: 6px 10px; border: 0; }
 .chains-ladder-content > button { margin-top: 8px; }
+.chains-ladder-content > .market-ladder-stocks:empty { display: none; }
+.chains-ladder-content > .market-ladder-stocks:empty + button { margin-top: 0; }
+.chains-ladder .market-ladder-stock { align-items: flex-start; text-align: left; }
+.chains-ladder .stock-identity-name { color: var(--color-black); font-size: 14px; }
+.chains-transitions-table .ant-table-tbody > tr > td { height: 60px; padding: 8px 12px; box-sizing: border-box; }
 .chains-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 16px 0 8px; }
 .chains-history-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .chains-history-toolbar .ant-picker { width: 150px; }

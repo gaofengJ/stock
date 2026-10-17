@@ -37,6 +37,10 @@
   transition: color .15s, background-color .15s;
 }
 .interaction-button.ant-btn > .ant-btn-icon { margin: 0; color: var(--text-secondary); font-size: 12px; }
+.interaction-button.ant-btn > .ant-btn-icon, .interaction-button.ant-btn > .ant-btn-icon > span { display: inline-flex; align-items: center; justify-content: center; line-height: 1; }
+.interaction-button.ant-btn > .ant-btn-icon .anticon { display: inline-flex; align-items: center; line-height: 1; }
+.interaction-button.ant-btn > .ant-btn-icon svg { display: block; }
+.interaction-button.ant-btn > .interaction-label { display: inline-flex; align-items: center; min-width: 0; }
 .interaction-button.ant-btn:not(:disabled):hover {
   color: var(--color-primary-text);
   background: var(--color-primary-subtle);

@@ -30,12 +30,12 @@ export default function RiskStatus({
                 {source.nextRetryAt && <span>{`可重试时间：${beijingTime(source.nextRetryAt)}（北京时间）`}</span>}
               </div>
             ))}
-            <span>已获取的风险事件仍显示在股票名称下方，未就绪来源不代表没有风险。</span>
+            <span>已获取的风险事件显示在风险提示列，未就绪来源不代表没有风险。</span>
           </div>
         )}
         action={<Button size="small" loading={loading} onClick={retry}>检查更新</Button>}
       />
     );
   }
-  return <p className="limits-risk-note">风险资料已加载。股票名称下方展示已识别的风险事件，标签覆盖范围以已取得的资料为限。</p>;
+  return <p className="limits-risk-note">风险资料已加载。风险提示列展示已识别的风险事件，标签覆盖范围以已取得的资料为限。</p>;
 }

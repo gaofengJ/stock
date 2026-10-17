@@ -16,10 +16,11 @@ import { changeClass, scaledNumber } from '@/utils/format';
 import { DragonList, LimitRow } from '@/api/market';
 import SectorFilter, { useSectorSelection } from '@/components/SectorFilter';
 import SectorLinks from '@/components/SectorLinks';
+import { StockIdentity } from '@/components/StockActions';
 import RiskStatus from './RiskStatus';
 import ThemeReview from './ThemeReview';
 import './limits.sass';
-import { RiskTags, StockLink, useWorkbench } from '../../basic/components/workbench';
+import { RiskTags, useWorkbench } from '../../basic/components/workbench';
 import LegacyPage from './LegacyPage';
 import MarketCompatibility from '../components/MarketCompatibility';
 import MarketShell from '../components/MarketShell';
@@ -29,13 +30,27 @@ import DragonDrawer from '../components/DragonDrawer';
 import { useMarket } from '../components/MarketContext';
 import { linkedLimitType, marketHref } from '../components/market-navigation';
 
-const defaultColumns = ['pctChg', 'limitTimes', 'topics', 'firstTime', 'lastTime', 'openTimes', 'amount'];
+const defaultColumns = ['risk', 'pctChg', 'limitTimes', 'topics', 'firstTime', 'lastTime', 'openTimes', 'amount'];
 const fieldNames: Record<string, string> = {
-  pctChg: '涨跌幅', limitTimes: '连板数', topics: '所属概念', industry: '所属行业', close: '收盘价', upStat: '近期涨停记录', firstTime: '首次封板', lastTime: '最后封板', openTimes: '开板次数', turnoverRatio: '换手率', amount: '成交额', fdAmount: '封单额', floatMv: '流通市值',
+  risk: '风险提示',
+  pctChg: '涨跌幅',
+  limitTimes: '连板数',
+  topics: '所属概念',
+  industry: '所属行业',
+  close: '收盘价',
+  upStat: '近期涨停记录',
+  firstTime: '首次封板',
+  lastTime: '最后封板',
+  openTimes: '开板次数',
+  turnoverRatio: '换手率',
+  amount: '成交额',
+  fdAmount: '封单额',
+  floatMv: '流通市值',
 };
 // Minimum widths keep compact values readable; text columns get more of the spare space.
 const columnSizing: Record<string, { width: number; grow: number }> = {
   stock: { width: 160, grow: 0 },
+  risk: { width: 184, grow: 0.4 },
   topics: { width: 260, grow: 3 },
   industry: { width: 130, grow: 1.2 },
   pctChg: { width: 96, grow: 0.4 },
@@ -98,13 +113,10 @@ function LimitsPage() {
       title: '股票',
       key: 'stock',
       fixed: 'left',
-      render: (_, r) => (
-        <div className="limits-stock-cell">
-          <StockLink code={r.tsCode} name={r.name} date={date} />
-          <span className="limits-stock-code">{r.tsCode}</span>
-          <RiskTags data={riskData} code={r.tsCode} date={date} showSourceState={false} />
-        </div>
-      ),
+      render: (_, r) => <StockIdentity code={r.tsCode} name={r.name} date={date} />,
+    },
+    {
+      title: '风险提示', key: 'risk', render: (_, r) => <RiskTags data={riskData} code={r.tsCode} date={date} showSourceState={false} compact />,
     },
     {
       title: '所属行业', key: 'industry', render: (_, r) => <SectorLinks stock={r} date={date} />,
@@ -170,7 +182,7 @@ function LimitsPage() {
       },
     },
   ];
-  const order = ['stock', 'pctChg', 'limitTimes', 'topics', 'industry', 'close', 'upStat', 'firstTime', 'lastTime', 'openTimes', 'turnoverRatio', 'amount', 'fdAmount', 'floatMv', 'action'];
+  const order = ['stock', 'pctChg', 'limitTimes', 'risk', 'topics', 'industry', 'close', 'upStat', 'firstTime', 'lastTime', 'openTimes', 'turnoverRatio', 'amount', 'fdAmount', 'floatMv', 'action'];
   const selectedColumns = allColumns.map((column) => ({ ...column, key: String(column.key || ('dataIndex' in column ? column.dataIndex : '')) }))
     .filter((column) => column.key === 'stock' || column.key === 'action' || (visibleColumns.includes(column.key) && optionalFields.some(([key]) => key === column.key)))
     .sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
@@ -180,7 +192,7 @@ function LimitsPage() {
   const columns = selectedColumns.map((column) => ({
     ...column,
     width: columnSizing[column.key].width + Math.floor((spareWidth * columnSizing[column.key].grow) / totalGrow),
-    className: ['stock', 'topics', 'industry'].includes(column.key) ? undefined : 'limits-value-cell',
+    className: ['stock', 'topics', 'industry', 'risk'].includes(column.key) ? undefined : 'limits-value-cell',
   }));
   return (
     <MarketShell title="涨停复盘" path="/analysis/limits">

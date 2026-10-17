@@ -1,7 +1,7 @@
 'use client';
 
 import { InteractionButton } from '@/components/Interaction';
-import { StockLink } from '@/components/StockActions';
+import { StockIdentity, StockLink } from '@/components/StockActions';
 import {
   useCallback, useEffect, useMemo, useRef, useState,
 } from 'react';
@@ -98,12 +98,7 @@ export default function Page() {
       key: 'stock',
       fixed: 'left',
       width: 160,
-      render: (_, r) => (
-        <div>
-          <StockLink code={r.tsCode} name={r.name} date={date} />
-          <div className="market-note">{r.tsCode}</div>
-        </div>
-      ),
+      render: (_, r) => <StockIdentity code={r.tsCode} name={r.name} date={date} />,
     },
     {
       title: '净买入(万元)', dataIndex: 'netAmount', width: 140, align: 'right', defaultSortOrder: 'descend', sorter: (a, b) => (a.netAmount ?? -Infinity) - (b.netAmount ?? -Infinity), render: (v) => <strong className={changeClass(v)}>{money(v, true)}</strong>,

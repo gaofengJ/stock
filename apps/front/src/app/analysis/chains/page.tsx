@@ -7,7 +7,7 @@ import Table from '@/components/DataTable';
 import { changeClass } from '@/utils/format';
 import { Ladder, LimitRow, MarketSeries } from '@/api/market';
 import Link, { InteractionButton } from '@/components/Interaction';
-import { StockLink } from '@/components/StockActions';
+import { StockIdentity } from '@/components/StockActions';
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import dayjs from 'dayjs';
@@ -50,8 +50,7 @@ function LadderGroups({ items }: { items: LimitRow[] }) {
               <div className="market-ladder-stocks" id={`ladder-height-${height}`}>
                 {visible.map((r) => (
                   <span key={r.tsCode} className="market-ladder-stock">
-                    <StockLink code={r.tsCode} name={r.name} date={date} navigation={visible} />
-                    <span>{r.tsCode}</span>
+                    <StockIdentity code={r.tsCode} name={r.name} date={date} navigation={visible} />
                   </span>
                 ))}
               </div>
@@ -136,22 +135,17 @@ function ChainsPage() {
                       rowKey="tsCode"
                       size="small"
                       dataSource={ladder.data?.transitions}
-                      scroll={{ x: 720 }}
+                      scroll={{ x: 790 }}
                       pagination={false}
-                      minBodyHeight={120}
-                      maxBodyHeight={400}
+                      className="chains-transitions-table"
+                      minBodyHeight={600}
+                      maxBodyHeight={600}
                       locale={{ emptyText: '当前范围内无昨日连板股票' }}
                       columns={[
                         {
                           title: '股票',
                           width: 170,
-                          render: (_, r) => (
-                            <div className="chains-stock-link">
-                              <StockLink code={r.tsCode} name={r.name} date={date} />
-                              <span className="chains-stock-code">{r.tsCode}</span>
-                              <Link href={marketHref('/analysis/chains', { date, scope }, { view: 'trajectory', code: r.tsCode })}>多日轨迹</Link>
-                            </div>
-                          ),
+                          render: (_, r) => <StockIdentity code={r.tsCode} name={r.name} date={date} />,
                         },
                         {
                           title: '昨日连板', dataIndex: 'previousHeight', width: 120, align: 'right', sorter: (a, b) => a.previousHeight - b.previousHeight, render: (v) => `${v}板`,
@@ -173,6 +167,12 @@ function ChainsPage() {
                         },
                         {
                           title: '结果', dataIndex: 'state', width: 140, filters: ['晋级', '断板', '无行情', '无成交'].map((text) => ({ text, value: text })), onFilter: (value, row) => row.state === value, render: (v) => <Tag className={v === '晋级' ? 'quote-up-tag' : undefined}>{v}</Tag>,
+                        },
+                        {
+                          title: '操作',
+                          key: 'actions',
+                          width: 100,
+                          render: (_, r) => <Link href={marketHref('/analysis/chains', { date, scope }, { view: 'trajectory', code: r.tsCode })}>多日轨迹</Link>,
                         },
                       ]}
                     />

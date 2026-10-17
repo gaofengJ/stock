@@ -14,6 +14,7 @@ import { ExternalLink, InteractionButton } from '@/components/Interaction';
 import { useSiteTheme } from '@/components/SiteTheme';
 import { errorMessage } from '@/api/errors';
 import { numberText, scaledNumber } from '@/utils/format';
+import { StockIdentity } from '@/components/StockActions';
 import { SourceState, StockLink } from '../../basic/components/workbench';
 import { DataState, SectionTitle } from '../components/MarketCharts';
 import { useMarket } from '../components/MarketContext';
@@ -186,12 +187,7 @@ export default function ThemeReview({ keyword, height, sector }: { keyword: stri
       key: 'stock',
       width: 144,
       fixed: 'left',
-      render: (_, row) => (
-        <div className="limits-stock-cell">
-          <StockLink code={row.tsCode} name={row.name} date={date} />
-          <span className="limits-stock-code">{row.tsCode}</span>
-        </div>
-      ),
+      render: (_, row) => <StockIdentity code={row.tsCode} name={row.name} date={date} />,
     },
     {
       title: '收盘价(元)', dataIndex: 'close', width: 104, align: 'right', render: (value) => numberText(value),

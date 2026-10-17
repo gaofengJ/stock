@@ -1,11 +1,11 @@
 'use client';
 
 import Link, { InteractionButton } from '@/components/Interaction';
-import { StockLink } from '@/components/StockActions';
+import { StockIdentity } from '@/components/StockActions';
 
 import { useState } from 'react';
 import {
-  Card, Col, Row, Space, Tag,
+  Card, Col, Row, Tag,
 } from 'antd';
 import Table from '@/components/DataTable';
 import CChart from '@/components/CChart';
@@ -124,13 +124,7 @@ export default function StrongFeedback() {
                     {
                       title: '股票',
                       width: 160,
-                      render: (_, r) => (
-                        <Space direction="vertical" size={0}>
-                          <StockLink code={r.tsCode} name={r.name} date={date} />
-                          {allowedPath(user, '/analysis/chains') && <Link href={marketHref('/analysis/chains', { date, scope }, { code: r.tsCode, view: 'trajectory' })}>多日轨迹</Link>}
-                          <span className="market-note">{r.tsCode}</span>
-                        </Space>
-                      ),
+                      render: (_, r) => <StockIdentity code={r.tsCode} name={r.name} date={date} />,
                     },
                     {
                       title: '今日涨跌幅', dataIndex: 'pctChg', align: 'right', render: pct,
@@ -153,6 +147,12 @@ export default function StrongFeedback() {
                         </span>
                       ) : '参与'),
                     },
+                    ...(allowedPath(user, '/analysis/chains') ? [{
+                      title: '操作',
+                      key: 'actions',
+                      width: 100,
+                      render: (_: unknown, r: FeedbackMember) => <Link href={marketHref('/analysis/chains', { date, scope }, { code: r.tsCode, view: 'trajectory' })}>多日轨迹</Link>,
+                    }] : []),
                   ]}
                 />
                 <p className="market-note">统计范围：首板、连板组排除昨日一字板；各组排除ST、新股、退市整理及无效行情。排除的样本保留在明细中供核对。</p>

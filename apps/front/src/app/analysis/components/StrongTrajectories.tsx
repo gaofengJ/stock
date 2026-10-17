@@ -1,6 +1,6 @@
 'use client';
 
-import { StockLink } from '@/components/StockActions';
+import { StockIdentity, StockLink } from '@/components/StockActions';
 
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -118,7 +118,7 @@ export default function StrongTrajectories({ sector, onSectorChange, active }: {
           maxBodyHeight={960}
           minBodyHeight={120}
           bottomSpacing={24}
-          scroll={{ x: (screens.sm ? 260 : 140) + (data?.dates.length || count) * 105 }}
+          scroll={{ x: 260 + (data?.dates.length || count) * 105 }}
           locale={{ emptyText: keyword || state !== 'all' || sector ? '当前筛选条件下无匹配股票' : '当前区间内无涨停或炸板股票' }}
           dataSource={filterTrajectories(data?.items || [], date, keyword, state)}
           columns={[
@@ -126,23 +126,13 @@ export default function StrongTrajectories({ sector, onSectorChange, active }: {
               title: '股票',
               fixed: 'left',
               width: 140,
-              render: (_, r) => (
-                <Space direction="vertical" size={0}>
-                  <StockLink code={r.tsCode} name={r.name} date={date} />
-                  <span className="market-note">{r.tsCode}</span>
-                  <div className="chains-mobile-current">
-                    <span className="market-note">{`${date.slice(5)} 状态`}</span>
-                    <strong>{r.cells.find((c) => c.date === date)?.state === '交易' ? '未涨停' : r.cells.find((c) => c.date === date)?.state || '待更新'}</strong>
-                  </div>
-                </Space>
-              ),
+              render: (_, r) => <StockIdentity code={r.tsCode} name={r.name} date={date} />,
             },
             {
               title: <Tooltip title={`所选交易日 ${date}，点击表头按连板高度排序`}>{`${date.slice(5)} 状态`}</Tooltip>,
               key: 'current',
-              responsive: ['sm'],
               width: 120,
-              fixed: 'left',
+              fixed: screens.sm ? 'left' : undefined,
               sorter: (a, b) => (a.cells.find((c) => c.date === date)?.height ?? -1) - (b.cells.find((c) => c.date === date)?.height ?? -1),
               render: (_, row) => {
                 const cell = row.cells.find((c) => c.date === date);

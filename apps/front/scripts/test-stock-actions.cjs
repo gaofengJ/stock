@@ -72,7 +72,7 @@ function renderMenu(props, permissions = ['basic:stock'], rows = []) {
 }
 test('one menu exposes detail, chart and copy while preserving the page date', () => {
   const menu = renderMenu({ code: '000503.SZ', name: '国新健康', date: '2026-10-06' });
-  assert.deepEqual(menu.element.props.trigger, ['click']);
+  assert.deepEqual(menu.element.props.trigger, ['hover', 'click']);
   assert.equal(new URL(menu.find('个股详情').props.href, 'https://example.test').searchParams.get('date'), '2026-10-06');
   menu.find('预览K线').props.onClick();
   menu.find('复制代码').props.onClick();

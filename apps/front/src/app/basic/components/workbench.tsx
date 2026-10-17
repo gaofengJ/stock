@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   Alert, Button, Popover, Space, Tag, Tooltip,
 } from 'antd';
-import Link from '@/components/Interaction';
+import Link, { InteractionButton } from '@/components/Interaction';
 import request from '@/api/request';
 import { useAccount } from '@/auth/Boundary';
 import { allowedPath } from '@/auth/client';
@@ -136,8 +136,8 @@ export function SourceState({
   );
 }
 export function RiskTags({
-  data, code, date, showSourceState = true, prefix,
-}: { data: any; code: string; date?: string; showSourceState?: boolean; prefix?: React.ReactNode }) {
+  data, code, date, showSourceState = true, prefix, compact = false,
+}: { data: any; code: string; date?: string; showSourceState?: boolean; prefix?: React.ReactNode; compact?: boolean }) {
   const { user } = useAccount();
   const canLink = allowedPath(user, '/basic/stock/risk');
   const items = data?.items?.filter((r: any) => r.tsCode === code && (r.type !== '减持' || currentReduction(r, date || data?.date))) || [];
@@ -165,12 +165,28 @@ export function RiskTags({
     eventSourcesReady && !labels.length ? '已获取的状态与事件中暂无相关记录。' : '',
     '标签仅覆盖已取得的风险记录，具体影响需结合公告正文核实。',
   ].join('');
+  const renderLabel = (label: string) => (canLink ? <Link key={label} href={`/basic/stock/risk/?code=${code}&date=${date || ''}`}><Tag color={label === '复牌' ? 'blue' : 'orange'}>{riskTypeLabel(label)}</Tag></Link> : <Tag color="orange" key={label}>{riskTypeLabel(label)}</Tag>);
+  if (compact) {
+    return labels.length ? (
+      <Space size={4}>
+        {renderLabel(labels[0])}
+        {labels.length > 1 && (
+          <Popover trigger={['hover', 'click']} title="已识别风险事件" content={<Space wrap style={{ maxWidth: 280 }}>{labels.slice(1).map(renderLabel)}</Space>}>
+            <InteractionButton intent="popover" aria-label={`查看其余${labels.length - 1}项风险事件`}>
+              更多
+              <span className="interaction-count">{labels.length - 1}</span>
+            </InteractionButton>
+          </Popover>
+        )}
+      </Space>
+    ) : <Tooltip title={sourceTip}><span className="quote-flat">—</span></Tooltip>;
+  }
   if (!showSourceState && !labels.length && !prefix) return null;
   return (
     <Space size={2} wrap>
       {prefix}
       {showSourceState && <span className="basic-muted">{reduction}</span>}
-      {labels.map((label) => (canLink ? <Link key={label} href={`/basic/stock/risk/?code=${code}&date=${date || ''}`}><Tag color={label === '复牌' ? 'blue' : 'orange'}>{riskTypeLabel(label)}</Tag></Link> : <Tag color="orange" key={label}>{riskTypeLabel(label)}</Tag>))}
+      {labels.map(renderLabel)}
       {showSourceState && <Tooltip title={sourceTip}><span className="basic-muted">{summary}</span></Tooltip>}
     </Space>
   );

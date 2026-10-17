@@ -70,7 +70,7 @@ export const InteractionButton = forwardRef<ComponentRef<typeof Button>, Interac
       icon={icon || (marks[intent] ? <span aria-hidden="true">{marks[intent]}</span> : undefined)}
       iconPosition={intent === 'preview' ? 'start' : 'end'}
     >
-      {children}
+      <span className="interaction-label">{children}</span>
     </Button>
   );
 });

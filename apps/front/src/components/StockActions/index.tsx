@@ -20,12 +20,13 @@ import './stock-actions.css';
 
 interface Props {
   code: string; name?: string; date?: string; label?: React.ReactNode;
+  className?: string;
   navigation?: readonly unknown[];
   onChart?: (rows: any[]) => void; onDetails?: () => void; chartOpen?: boolean;
 }
 /** Explicit actions keep stock navigation separate from page-specific selection. */
 export default function StockActions({
-  code, name, date, label = '股票操作', onChart, onDetails, chartOpen = false, navigation,
+  code, name, date, label = '股票操作', onChart, onDetails, chartOpen = false, navigation, className = '',
 }: Props) {
   const { user } = useAccount();
   const actions = useStockActions();
@@ -44,7 +45,9 @@ export default function StockActions({
   else if (chartOpen) chartHint = '正在查看该股票K线';
   return (
     <Popover
-      trigger={['click']}
+      trigger={['hover', 'click']}
+      mouseEnterDelay={0.15}
+      mouseLeaveDelay={0.15}
       open={open}
       onOpenChange={setOpen}
       title={(
@@ -73,10 +76,30 @@ export default function StockActions({
         </div>
       )}
     >
-      <InteractionButton ref={triggerRef} className="stock-action-trigger" intent="popover" aria-label={`${name || symbol}股票操作`} aria-haspopup="dialog" aria-expanded={open} title="个股详情、预览K线或复制代码" onKeyDown={closeOnEscape}>{label}</InteractionButton>
+      <InteractionButton ref={triggerRef} className={`stock-action-trigger ${className}`} intent="popover" aria-label={`${name || symbol}股票操作`} aria-haspopup="dialog" aria-expanded={open} title="个股详情、预览K线或复制代码" onKeyDown={closeOnEscape}>{label}</InteractionButton>
     </Popover>
   );
 }
 export function StockLink({ label, ...props }: Props) {
   return <StockActions {...props} label={label || props.name || stockSymbol(props.code)} />;
+}
+
+/** One shared two-line identity keeps both name and code aligned and actionable. */
+export function StockIdentity({
+  code, name, className = '', ...props
+}: Omit<Props, 'label'>) {
+  return (
+    <StockActions
+      {...props}
+      code={code}
+      name={name}
+      className={`stock-identity-trigger ${className}`}
+      label={(
+        <span className="stock-identity-text">
+          <span className="stock-identity-name">{name || stockSymbol(code)}</span>
+          <span className="stock-identity-code">{code}</span>
+        </span>
+      )}
+    />
+  );
 }
