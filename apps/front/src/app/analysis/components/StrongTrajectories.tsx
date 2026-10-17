@@ -157,15 +157,15 @@ export default function StrongTrajectories({ sector, onSectorChange, active }: {
                 const hits = signalMap.get(`${day}:${row.tsCode}`) || [];
                 return (
                   <button type="button" className={`trajectory-cell ${changeClass(cell.pctChg)}`} aria-haspopup="dialog" title="打开当日交易详情" onClick={() => setDetail({ row, cell })} aria-label={`预览${row.name} ${day} ${cell.state}`}>
-                    <span className="trajectory-state">{cell.state === '交易' ? '未涨停' : cell.state}</span>
+                    <span className="trajectory-cell-heading">
+                      <span className="trajectory-state">{cell.state === '交易' ? '未涨停' : cell.state}</span>
+                      <EyeOutlined className="trajectory-preview-icon" aria-hidden />
+                    </span>
                     <span>
                       {numberText(cell.pctChg, 2, true)}
                       {cell.pctChg == null ? '' : '%'}
                     </span>
                     {showSignals && <small>{readySignals.has(day) && hits.length ? `★ ${hits.length}${pendingSignals(day).length ? ' / 待更新' : ''}` : signalText(day).replace('未命中', '')}</small>}
-                    <span className="interaction-preview-caption" aria-hidden="true">
-                      <EyeOutlined aria-hidden />
-                    </span>
                   </button>
                 );
               },

@@ -23,7 +23,12 @@
 .chains-stock-link:hover .chains-stock-code { color: inherit; }
 .chains-trajectory-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
 .chains-trajectory-hint { margin: 8px 0; font-size: 12px; line-height: 20px; color: var(--text-secondary); }
-.chains-trajectory .trajectory-cell { min-height: 56px; gap: 2px; }
+.chains-trajectory .trajectory-cell { min-height: 56px; justify-content: center; gap: 4px; padding: 6px 4px; border-radius: 4px; line-height: 20px; }
+.trajectory-cell-heading { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.trajectory-cell .trajectory-preview-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 14px; width: 14px; height: 14px; font-size: 14px; line-height: 1; color: var(--text-secondary); }
+.trajectory-preview-icon svg { display: block; }
+.trajectory-cell:is(:hover, :focus-visible) .trajectory-preview-icon { color: var(--color-primary-text); }
+.chains-trajectory .trajectory-cell small:empty { display: none; }
 .chains-detail-caption { margin: 0 0 16px; font-size: 12px; line-height: 20px; color: var(--text-secondary); }
 .chains-detail-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0 0 20px; padding: 16px; border-radius: 6px; background: var(--color-surface-muted); }
 .chains-detail-metrics dt { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
