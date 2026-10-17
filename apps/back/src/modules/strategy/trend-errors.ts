@@ -1,6 +1,6 @@
-import { ConflictException } from '@nestjs/common';
+import { SyncDependencyNotReadyError } from '../daily-task/sync.utils';
 
-export class IncompleteFactorSnapshotError extends ConflictException {
+export class IncompleteFactorSnapshotError extends SyncDependencyNotReadyError {
   readonly dates: string[];
 
   constructor(readonly missing: { code: string; date: string }[]) {

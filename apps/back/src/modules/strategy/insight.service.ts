@@ -21,6 +21,7 @@ import {
   automaticSyncRetryBlocked,
   permanentSyncError,
   shanghaiDate,
+  SyncDependencyNotReadyError,
 } from '../daily-task/sync.utils';
 import { readSnapshot } from '../daily-task/sync-source.service';
 import { MarketSyncService } from '../analysis/market/market-sync.service';
@@ -237,7 +238,8 @@ export class InsightService {
       throw new Error('该日受主动删除保护');
     await this.sync.stage(manager, 'stock-insight', date, async () => {
       const dates = (await this.calendar(date, 61, manager)).reverse();
-      if (dates.length !== 61) throw new Error('等待61个交易日数据');
+      if (dates.length !== 61)
+        throw new SyncDependencyNotReadyError('等待61个交易日数据');
       const ready = new Set(
         revisions
           .filter(
@@ -249,8 +251,13 @@ export class InsightService {
       const policies = new Set(
         revisions.filter((r) => r.task === 'policy').map((r) => r.date),
       );
-      if (dates.some((d) => !ready.has(d) || policies.has(d)))
+      if (dates.some((d) => policies.has(d)))
         throw new Error('等待完整复权历史，缺失日期不能按零处理');
+      const missing = dates.filter((d) => !ready.has(d));
+      if (missing.length)
+        throw new SyncDependencyNotReadyError(
+          `等待完整复权历史，缺失日期不能按零处理：${missing.join('、')}`,
+        );
       const daily = await manager.find(DailyEntity, {
         where: { tradeDate: date },
         select: ['tsCode', 'name', 'amount', 'vol'],
@@ -281,7 +288,8 @@ export class InsightService {
           const snapshot = await manager.findOneBy(TrendFactorEntity, {
             tradeDate: day,
           });
-          if (!snapshot) throw new Error('复权快照缺失');
+          if (!snapshot)
+            throw new SyncDependencyNotReadyError(`复权快照缺失：${day}`);
           if (this.factors.size >= 64)
             this.factors.delete(this.factors.keys().next().value!);
           cached = { revision: versions.get(day) || '', data: snapshot.data };
@@ -338,7 +346,7 @@ export class InsightService {
         !keys.length ||
         keys.some((key) => !signals.readyByStrategy[key].includes(date))
       )
-        throw new Error('策略窗口尚未完整，等待策略数据');
+        throw new SyncDependencyNotReadyError('策略窗口尚未完整，等待策略数据');
       await manager.save(StockInsightEntity, {
         ...previous,
         tradeDate: date,
@@ -486,6 +494,7 @@ export class InsightService {
         const actionable = pending.filter((d) => !deferred.has(d));
         const completed: string[] = [];
         const failures: string[] = [];
+        const dependencyWaiting = new Map<string, string>();
         for (const date of actionable.slice(0, 3)) {
           try {
             if (hot) await this.syncHot(manager, date);
@@ -511,6 +520,10 @@ export class InsightService {
                 );
               });
             }
+            if (!hot && e instanceof SyncDependencyNotReadyError) {
+              dependencyWaiting.set(date, e.message);
+              continue;
+            }
             failures.push(`${date}: ${e.message}`);
             if (permanentSyncError(e)) break;
           }
@@ -519,6 +532,26 @@ export class InsightService {
           deferred.size > 0 &&
           pending.length - completed.length === deferred.size &&
           !failures.length;
+        const waitingForDependencies =
+          dependencyWaiting.size > 0 && !failures.length;
+        let retryAt: Date | undefined;
+        let waitingReason: string | undefined;
+        if (waiting) {
+          retryAt = new Date(
+            Math.min(...[...deferred.values()].map((d) => d.getTime())),
+          );
+          waitingReason = `日终人气数据待源端补齐，${
+            awaitingPublication ? '等待北京时间22:40发布' : '按源端冷却时间重试'
+          }：${[...deferred.keys()].join('、')}`;
+        }
+        if (waitingForDependencies) {
+          retryAt = new Date(Date.now() + 60000);
+          waitingReason = `等待上游数据，1分钟后自动检查：${[
+            ...dependencyWaiting,
+          ]
+            .map(([date, message]) => `${date} ${message}`)
+            .join('；')}`;
+        }
         return {
           completed,
           failures,
@@ -529,18 +562,11 @@ export class InsightService {
                 )} 人气数据，不再补齐`,
               }
             : {}),
-          retryAt: waiting
-            ? new Date(
-                Math.min(...[...deferred.values()].map((d) => d.getTime())),
-              )
-            : undefined,
-          waitingReason: waiting
-            ? `日终人气数据待源端补齐，${
-                awaitingPublication
-                  ? '等待北京时间22:40发布'
-                  : '按源端冷却时间重试'
-              }：${[...deferred.keys()].join('、')}`
-            : undefined,
+          retryAt,
+          waitingReason,
+          ...(waitingForDependencies
+            ? { stage: '等待上游数据，依赖补齐后自动继续' }
+            : {}),
           remaining: pending.length - completed.length,
           protectedDates,
           calendarReady: true,
