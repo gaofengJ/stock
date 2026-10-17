@@ -1,6 +1,38 @@
 .analysis-limits-table
   min-width: 0
 
+.market-page:has(> .limits-review-content) > .c-search-form
+  margin-bottom: 12px
+
+.limits-review-content
+  min-width: 0
+  .limits-tabs > .ant-tabs-nav
+    margin-bottom: 12px
+  .limits-results .ant-table-tbody > tr > td
+    padding-top: 8px
+    padding-bottom: 8px
+
+.limits-filters
+  display: flex
+  align-items: center
+  flex-wrap: wrap
+  gap: 8px 12px
+  margin-bottom: 12px
+  .limits-keyword
+    width: 240px
+  .limits-height-filter
+    width: 140px
+  .sector-filter
+    max-width: 100%
+  .sector-filter > .ant-space-item
+    display: inline-flex
+    align-items: center
+  .sector-filter-select.ant-select-single .ant-select-selector
+    display: flex
+    align-items: center
+  .sector-filter-select.ant-select-single .ant-select-selector .ant-select-selection-item
+    line-height: 22px
+
 .limits-results
   .limits-value-cell
     white-space: nowrap
@@ -40,6 +72,12 @@
 
 .limits-risk-note
   margin: 0 0 12px
+
+@media (max-width: 600px)
+  .limits-filters
+    .limits-keyword
+      flex: 1 1 200px
+      width: auto
 
 @media (max-width: 600px)
   .limits-risk-status

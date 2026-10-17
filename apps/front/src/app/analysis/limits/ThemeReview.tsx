@@ -1,7 +1,9 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import {
+  useEffect, useId, useRef, useState,
+} from 'react';
 import {
   Alert, Button, Collapse, Descriptions, Drawer, Empty, Select, Space, Tabs, message,
 } from 'antd';
@@ -28,15 +30,26 @@ function ThemeDetailPanel({ stock, close }: { stock: ThemeStock | null; close: (
   const { data } = result;
   const content = reviewContent(data?.stock.detailReason);
   return (
-    <Drawer open={!!stock} title={`${stock?.name || ''}：资料解析`} width="min(760px, 100vw)" onClose={close} destroyOnClose>
-      {stock && <StockLink code={stock.tsCode} name={stock.name} date={date} />}
+    <Drawer
+      rootClassName="theme-review-drawer"
+      open={!!stock}
+      title={(
+        <div className="theme-review-drawer-title">
+          {stock && <StockLink code={stock.tsCode} name={stock.name} date={date} />}
+          <span>资料解析</span>
+        </div>
+      )}
+      width="min(720px, 100vw)"
+      onClose={close}
+      destroyOnClose
+    >
       <DataState loading={result.loading} error={result.error} retry={result.retry} empty={!data}>
         {data && (
         <div className="theme-review-detail">
           <div className="theme-review-detail-meta">
             <span>{data.stock.tsCode}</span>
             <span>{date}</span>
-            <span>{data.stock.themes.join('、')}</span>
+            <span className="theme-review-detail-themes">{data.stock.themes.join('、')}</span>
           </div>
           <Tabs
             defaultActiveKey="review"
@@ -80,10 +93,12 @@ function ThemeDetailPanel({ stock, close }: { stock: ThemeStock | null; close: (
                     />
                     )}
                     <div className="theme-review-attribution">
-                      <ExternalLink href="https://eq.10jqka.com.cn/webpage/kamis-renderer/index.0.3.5.html?token=K79OTEyOQB5">来源：同花顺热点复盘</ExternalLink>
+                      <div className="theme-review-source-row">
+                        <ExternalLink href="https://eq.10jqka.com.cn/webpage/kamis-renderer/index.0.3.5.html?token=K79OTEyOQB5">来源：同花顺热点复盘</ExternalLink>
+                        <SourceState data={{ sources: data.sources.filter((source) => source.source === 'ths_hot_review') }} error="" retry={result.retry} pollingStopped={result.pollingStopped} loading={result.loading} />
+                      </div>
                       {content.disclaimer.map((text) => <p key={text}>{text}</p>)}
                     </div>
-                    <SourceState data={{ sources: data.sources.filter((source) => source.source === 'ths_hot_review') }} error="" retry={result.retry} pollingStopped={result.pollingStopped} loading={result.loading} />
                   </div>
                 ),
               },
@@ -145,6 +160,8 @@ export default function ThemeReview({ keyword, height, sector }: { keyword: stri
   const captureNode = useRef<HTMLDivElement>(null);
   const [captureReady, setCaptureReady] = useState('');
   const [theme, setTheme] = useState<string>();
+  const [collapsedThemes, setCollapsedThemes] = useState<string[]>([]);
+  const groupId = useId();
   const [stock, setStock] = useState<ThemeStock | null>(null);
   const [exporting, setExporting] = useState(false);
   const { data } = result;
@@ -221,7 +238,7 @@ export default function ThemeReview({ keyword, height, sector }: { keyword: stri
           </span>
         </div>
         <Space wrap>
-          <Select aria-label="复盘题材" allowClear showSearch placeholder="全部题材" value={theme} onChange={setTheme} style={{ width: 180 }} options={(data?.groups || []).map((group) => ({ value: group.name, label: `${group.name}（${group.count}）` }))} />
+          <Select className="theme-review-filter" aria-label="复盘题材" allowClear showSearch placeholder="全部题材" value={theme} onChange={setTheme} popupMatchSelectWidth={320} options={(data?.groups || []).map((group) => ({ value: group.name, label: `${group.name}（${group.count}）` }))} />
           <Button icon={<DownloadOutlined />} loading={exporting} disabled={result.loading || !!result.error || !groups.length || !!pending} onClick={download}>导出长图</Button>
         </Space>
       </div>
@@ -229,25 +246,39 @@ export default function ThemeReview({ keyword, height, sector }: { keyword: stri
       <DataState loading={result.loading && !data?.ready} error={data?.ready ? '' : result.error} retry={result.retry} empty={!data?.ready}>
         {data && pending && <SourceState data={data} error="" retry={result.retry} pollingStopped={result.pollingStopped} loading={result.loading} />}
         {!groups.length && <Empty description="没有符合筛选条件的涨停股票" />}
-        {groups.map((group) => (
-          <section key={group.name} className="theme-review-group" aria-label={group.name}>
-            <div className="theme-review-group-heading">
-              <div>
-                <h3>{group.name}</h3>
-                <span className="theme-review-count">
-                  {group.count}
-                  只
-                </span>
+        {groups.map((group, index) => {
+          const expanded = !collapsedThemes.includes(group.name);
+          return (
+            <section key={group.name} className="theme-review-group" aria-label={group.name}>
+              <div className="theme-review-group-heading">
+                <div>
+                  <h3>{group.name}</h3>
+                  <span className="theme-review-count">
+                    {group.count}
+                    只
+                  </span>
+                </div>
+                <Space className="theme-review-group-stats" size={16} wrap>
+                  {group.maxHeight > 1 && <span className="theme-review-height">{`最高${group.maxHeight}板`}</span>}
+                  <span>{`成交额 ${scaledNumber(group.amount, 100000000)} 亿`}</span>
+                  <InteractionButton
+                    intent="expand"
+                    expanded={expanded}
+                    aria-label={`${expanded ? '收起' : '展开'}${group.name}股票`}
+                    aria-controls={`${groupId}-${index}`}
+                    onClick={() => setCollapsedThemes((names) => (expanded ? [...names, group.name] : names.filter((name) => name !== group.name)))}
+                  >
+                    {expanded ? '收起' : '展开'}
+                  </InteractionButton>
+                </Space>
               </div>
-              <Space className="theme-review-group-stats" size={16} wrap>
-                {group.maxHeight > 1 && <span className="theme-review-height">{`最高${group.maxHeight}板`}</span>}
-                <span>{`成交额 ${scaledNumber(group.amount, 100000000)} 亿`}</span>
-              </Space>
-            </div>
-            {!!group.keywords.length && <p className="theme-review-keywords">{group.keywords.join('、')}</p>}
-            <Table<ThemeStock> autoHeight size="small" tableLayout="fixed" rowKey="tsCode" columns={columns} dataSource={group.items} pagination={false} scroll={{ x: 1100 }} />
-          </section>
-        ))}
+              <div id={`${groupId}-${index}`} hidden={!expanded}>
+                {!!group.keywords.length && <p className="theme-review-keywords">{group.keywords.join('、')}</p>}
+                <Table<ThemeStock> autoHeight size="small" tableLayout="fixed" rowKey="tsCode" columns={columns} dataSource={group.items} pagination={false} scroll={{ x: 1100 }} />
+              </div>
+            </section>
+          );
+        })}
       </DataState>
       {data && !pending && (
       <div className="theme-review-board-source">
