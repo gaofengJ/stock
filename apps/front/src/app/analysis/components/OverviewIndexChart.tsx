@@ -9,6 +9,8 @@ import {
 import { ExpandOutlined, ReloadOutlined } from '@ant-design/icons';
 import CChart from '@/components/CChart';
 import candleExtremaMarks from '@/components/CChart/candle-extrema';
+import { candleGrids, macdSeries } from '@/components/CChart/candle-panels';
+import { calculateMacd, macdHint } from '@/components/CChart/macd';
 import { useSiteTheme } from '@/components/SiteTheme';
 import HelpTooltip from '@/components/HelpTooltip';
 import { MarketSeries } from '@/api/market';
@@ -49,6 +51,7 @@ function OverviewIndexChart({ index, dates, window }: { index: MarketSeries['ind
   const { period, count } = window;
   const all = pairedIndexCandles(index?.series || [], dates, period);
   const candles = all;
+  const macd = calculateMacd(candles.map((c) => c.value?.[1]));
   const dateLabels = new Map(candles.map((c, i) => [c.date, !i || candles[i - 1].date.slice(0, 4) !== c.date.slice(0, 4) ? c.date.slice(0, 7) : c.date.slice(5)]));
   const averages = averagePeriods.map((n) => ({ name: `MA${n}`, values: movingAverage(all, n) }));
   const gaps = unfilledGaps(all);
@@ -59,7 +62,7 @@ function OverviewIndexChart({ index, dates, window }: { index: MarketSeries['ind
           key={`${index.code}-${period}-${count}-${dates.at(-1)}-${resetKey}`}
           height={height}
           onAxisHover={full ? onExpandedAxisHover : onAxisHover}
-          formatHoverLegend={(name, date) => hoverAverageLabel(name, date, candles, averages)}
+          formatHoverLegend={(name, date) => hoverAverageLabel(name, date, candles, [...averages, { name: 'DIF', values: macd.dif }, { name: 'DEA', values: macd.dea }, { name: 'MACD', values: macd.histogram }])}
           genOptions={() => ({
             tooltip: {
               trigger: 'axis',
@@ -69,7 +72,7 @@ function OverviewIndexChart({ index, dates, window }: { index: MarketSeries['ind
             axisPointer: { link: [{ xAxisIndex: 'all' }], label: { backgroundColor: panel.selection, color: panel.text } },
             dataZoom: [{
               type: 'inside',
-              xAxisIndex: [0, 1],
+              xAxisIndex: [0, 1, 2],
               filterMode: 'filter',
               startValue: count ? Math.max(0, candles.length - count) : 0,
               endValue: candles.length - 1,
@@ -78,7 +81,7 @@ function OverviewIndexChart({ index, dates, window }: { index: MarketSeries['ind
               preventDefaultMouseMove: false,
             }, {
               type: 'slider',
-              xAxisIndex: [0, 1],
+              xAxisIndex: [0, 1, 2],
               filterMode: 'filter',
               bottom: 8,
               height: 20,
@@ -93,23 +96,19 @@ function OverviewIndexChart({ index, dates, window }: { index: MarketSeries['ind
               dataBackground: { lineStyle: { color: panel.muted }, areaStyle: { color: panel.selection } },
               selectedDataBackground: { lineStyle: { color: panel.text }, areaStyle: { color: panel.selection } },
             }],
-            grid: [
-              {
-                left: 56, right: 44, top: 36, height: Math.max(60, height - 156) * 0.72,
-              },
-              {
-                left: 56, right: 44, top: 76 + Math.max(60, height - 156) * 0.72, height: Math.max(60, height - 156) * 0.28,
-              },
-            ],
+            grid: candleGrids(height, 36, 64),
             legend: {
-              top: 8, left: 8, right: 8, type: 'scroll', pageIconColor: panel.text, pageTextStyle: { color: panel.text }, data: averages.map((a, i) => ({ name: a.name, textStyle: { color: averagesPalette[i] } })),
+              top: 8, left: 8, right: 8, type: 'scroll', pageIconColor: panel.text, pageTextStyle: { color: panel.text }, data: [...averages.map((a, i) => ({ name: a.name, textStyle: { color: averagesPalette[i] } })), 'DIF', 'DEA', 'MACD'],
             },
             xAxis: [
               {
                 type: 'category', data: candles.map((c) => c.date), gridIndex: 0, axisLabel: { show: false }, axisTick: { show: false },
               },
               {
-                type: 'category', data: candles.map((c) => c.date), gridIndex: 1, axisTick: { alignWithLabel: true }, axisLabel: { hideOverlap: true, formatter: (date: string) => (period === 'month' ? date.slice(0, 7) : dateLabels.get(date) || date) },
+                type: 'category', data: candles.map((c) => c.date), gridIndex: 1, axisTick: { show: false }, axisLabel: { show: false },
+              },
+              {
+                type: 'category', data: candles.map((c) => c.date), gridIndex: 2, axisTick: { alignWithLabel: true }, axisLabel: { hideOverlap: true, formatter: (date: string) => (period === 'month' ? date.slice(0, 7) : dateLabels.get(date) || date) },
               },
             ],
             yAxis: [
@@ -117,7 +116,10 @@ function OverviewIndexChart({ index, dates, window }: { index: MarketSeries['ind
                 type: 'value', gridIndex: 0, scale: true, boundaryGap: ['12%', '12%'], axisLabel: { formatter: (v: number) => numberText(v) },
               },
               {
-                type: 'value', gridIndex: 1, name: '成交量（万手）', nameGap: 12, splitNumber: 2, axisLabel: { formatter: (v: number) => numberText(v, v > 0 && v < 1 ? 2 : 0) },
+                type: 'value', gridIndex: 1, name: '成交量（万手）', nameGap: 8, splitNumber: 1, axisLabel: { formatter: (v: number) => numberText(v, v > 0 && v < 1 ? 2 : 0) },
+              },
+              {
+                type: 'value', gridIndex: 2, name: 'MACD(12,26,9)', nameGap: 8, splitNumber: 2, scale: true,
               },
             ],
             series: [{
@@ -157,7 +159,7 @@ function OverviewIndexChart({ index, dates, window }: { index: MarketSeries['ind
                 value: c.volume,
                 itemStyle: { color: !c.value || c.value[0] === c.value[1] ? colors.secondary : quoteColors[c.value[1] > c.value[0] ? 'up' : 'down'] },
               })),
-            }],
+            }, ...macdSeries(macd)],
           })}
         />
       </IndexQuotePanel>
@@ -170,7 +172,7 @@ function OverviewIndexChart({ index, dates, window }: { index: MarketSeries['ind
         title={(
           <span className="market-section-title">
             {index?.name || '指数'}
-            <HelpTooltip label="指数走势" title="悬停图内时，图例显示对应日期的均线数值，并浮现行情明细；移出后收起，点击图例可切换均线。上方K线、下方成交量，共用日期与缩放。标记当前日期范围内的最高价与最低价；淡色虚线为未回补缺口边界。" />
+            <HelpTooltip label="指数走势" title={`悬停图内时，图例显示对应日期的指标数值，并浮现行情明细；移出后收起，点击图例可切换指标。上方K线、中间成交量、下方MACD，共用日期与缩放。标记当前日期范围内的最高价与最低价；淡色虚线为未回补缺口边界。${macdHint}`} />
           </span>
       )}
         extra={(
@@ -188,7 +190,7 @@ function OverviewIndexChart({ index, dates, window }: { index: MarketSeries['ind
         open={expanded}
         keyboard
         onCancel={() => setExpanded(false)}
-        footer={<Button icon={<ReloadOutlined />} onClick={() => setResetKey((v) => v + 1)}>重置日期范围</Button>}
+        footer={<div className="market-chart-actions"><Button icon={<ReloadOutlined />} onClick={() => setResetKey((v) => v + 1)}>重置日期范围</Button></div>}
         width="calc(100vw - 32px)"
         style={{
           top: 16, margin: '0 auto', maxWidth: 'calc(100vw - 32px)', paddingBottom: 0,

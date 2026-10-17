@@ -53,6 +53,42 @@ const rows = (result: any) =>
   );
 
 describe('original current reduction plans', () => {
+  it('reuses persistent verified bodies after an application restart without requesting them again', async () => {
+    const get = fixture([notice('AN994001', '股东减持计划预披露')], {
+      AN994001: null,
+    });
+    const store = {
+      read: jest.fn().mockResolvedValue(original),
+      write: jest.fn(),
+    };
+    const result = rows(await publicReductionPlans(get as any, date, store));
+    expect(result[0].plan_status).toBe('active');
+    expect(get.mock.calls.every(([url]) => url.includes('/security/ann'))).toBe(
+      true,
+    );
+    expect(store.read).toHaveBeenCalledWith('AN994001', '2026-08-28');
+    expect(store.write).not.toHaveBeenCalled();
+  });
+  it('persists only complete verified bodies and shares one article across multiple securities', async () => {
+    const announcement = notice('AN994002', '股东减持计划预披露');
+    announcement.codes.push({ stock_code: '000001' });
+    const get = fixture([announcement], { AN994002: original });
+    const store = {
+      read: jest.fn().mockResolvedValue(undefined),
+      write: jest.fn().mockResolvedValue(undefined),
+    };
+    const result = rows(await publicReductionPlans(get as any, date, store));
+    expect(result).toHaveLength(2);
+    expect(
+      get.mock.calls.filter(([url]) => url.includes('/content/ann')),
+    ).toHaveLength(1);
+    expect(store.write).toHaveBeenCalledTimes(1);
+    expect(store.write).toHaveBeenCalledWith(
+      'AN994002',
+      '2026-08-28',
+      expect.stringContaining('减持期间'),
+    );
+  });
   it('reuses verified announcement bodies on the next refresh while rechecking the catalog', async () => {
     const get = fixture([notice('AN992000', '股东减持计划预披露')], {
       AN992000: original,

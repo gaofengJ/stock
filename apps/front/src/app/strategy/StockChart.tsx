@@ -11,6 +11,9 @@ import request from '@/api/request';
 import { errorMessage } from '@/api/errors';
 import CChart from '@/components/CChart';
 import candleExtremaMarks from '@/components/CChart/candle-extrema';
+import { candleGrids, macdSeries } from '@/components/CChart/candle-panels';
+import { calculateMacd, macdHint } from '@/components/CChart/macd';
+import HelpTooltip from '@/components/HelpTooltip';
 import Loading from '@/components/Loading';
 import StockActions from '@/components/StockActions';
 import { useSiteTheme } from '@/components/SiteTheme';
@@ -173,6 +176,7 @@ export default function StockChart({
     end: row.date,
     value: row.open == null || row.close == null || row.low == null || row.high == null ? null : [row.open, row.close, row.low, row.high] as [number, number, number, number],
   }));
+  const macd = calculateMacd(candles.map((c) => c.value?.[1]));
   const palette = mode === 'dark' ? movingAverageColors : lightMovingAverageColors;
   const lineColors = [palette[0], palette[1], palette[2], palette[4], palette[5]];
   const ma = periods.map((period) => movingAverage(candles, period));
@@ -213,6 +217,7 @@ export default function StockChart({
       keyboard
     >
       <div className="strategy-chart-summary">
+        <HelpTooltip label="MACD计算口径" title={macdHint} />
         {code && <StockActions key={code} code={code} name={stock?.name} date={date} chartOpen onDetails={onClose} />}
         <span>
           {neutral ? '观察日期' : '信号日期'}
@@ -249,39 +254,40 @@ export default function StockChart({
                 height={height}
                 onAxisHover={onAxisHover}
                 onZoomChange={onZoomChange}
-                formatHoverLegend={(name, hoverDate) => hoverAverageLabel(name, hoverDate, candles, periods.map((n, i) => ({ name: `MA${n}`, values: ma[i] })))}
+                formatHoverLegend={(name, hoverDate) => hoverAverageLabel(name, hoverDate, candles, [...periods.map((n, i) => ({ name: `MA${n}`, values: ma[i] })), { name: 'DIF', values: macd.dif }, { name: 'DEA', values: macd.dea }, { name: 'MACD', values: macd.histogram }])}
                 genOptions={() => ({
                   animation: false,
-                  legend: { type: 'scroll', top: 4, data: periods.map((n) => `MA${n}`) },
+                  legend: { type: 'scroll', top: 4, data: [...periods.map((n) => `MA${n}`), 'DIF', 'DEA', 'MACD'] },
                   tooltip: {
                     trigger: 'axis',
                     showContent: false,
                     axisPointer: { type: 'cross' },
                   },
                   axisPointer: { link: [{ xAxisIndex: 'all' }] },
-                  grid: [{
-                    left: 76, right: 44, top: height < 360 ? 44 : 60, height: height < 360 ? '42%' : '55%',
-                  }, {
-                    left: 76, right: 44, top: '73%', height: '14%',
-                  }],
+                  grid: candleGrids(height, 60, 76),
                   xAxis: [
                     {
                       type: 'category', data: candles.map((c) => c.date), axisLabel: { show: false }, axisTick: { alignWithLabel: true },
                     },
                     {
-                      type: 'category', gridIndex: 1, data: candles.map((c) => c.date), axisTick: { alignWithLabel: true }, axisLabel: { hideOverlap: true, formatter: (v: string) => v.slice(5) },
+                      type: 'category', gridIndex: 1, data: candles.map((c) => c.date), axisTick: { show: false }, axisLabel: { show: false },
+                    },
+                    {
+                      type: 'category', gridIndex: 2, data: candles.map((c) => c.date), axisLabel: { hideOverlap: true, formatter: (v: string) => v.slice(5) }, axisTick: { alignWithLabel: true },
                     },
                   ],
                   yAxis: [{
                     scale: true, boundaryGap: ['12%', '12%'], name: `${data?.basis}（元）`, splitNumber: 5,
                   }, {
-                    scale: true, min: 0, gridIndex: 1, name: '成交量（万手）', splitNumber: 2,
+                    scale: true, min: 0, gridIndex: 1, name: '成交量（万手）', nameGap: 8, splitNumber: 1,
+                  }, {
+                    type: 'value', gridIndex: 2, name: 'MACD(12,26,9)', nameGap: 8, splitNumber: 2, scale: true,
                   }],
                   dataZoom: [{
-                    type: 'inside', xAxisIndex: [0, 1], startValue: range.start, endValue: range.end, zoomOnMouseWheel: 'ctrl',
+                    type: 'inside', xAxisIndex: [0, 1, 2], startValue: range.start, endValue: range.end, zoomOnMouseWheel: 'ctrl',
                   },
                   {
-                    type: 'slider', xAxisIndex: [0, 1], bottom: 0, height: 22, startValue: range.start, endValue: range.end,
+                    type: 'slider', xAxisIndex: [0, 1, 2], bottom: 0, height: 22, startValue: range.start, endValue: range.end,
                   }],
                   series: [
                     {
@@ -302,6 +308,7 @@ export default function StockChart({
                     {
                       type: 'bar', name: '成交量', xAxisIndex: 1, yAxisIndex: 1, data: (data?.series || []).map((row) => ({ value: row.vol == null ? null : row.vol / 10000, itemStyle: { color: Number(row.close) >= Number(row.open) ? quoteColors.up : quoteColors.down } })),
                     },
+                    ...macdSeries(macd),
                   ],
                 })}
               />

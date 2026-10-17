@@ -132,7 +132,7 @@ describe('risk record dates and targeted reads', () => {
       ])
       .mockResolvedValueOnce([
         {
-          rows: [
+          projectedRows: [
             { ts_code: '920001.BJ', ann_date: '20260901' },
             { ts_code: '920001.BJ', ann_date: '20260920' },
             { ts_code: '830001.BJ', ann_date: '20260801' },
@@ -185,7 +185,7 @@ describe('risk record dates and targeted reads', () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([second])
       .mockResolvedValueOnce([
-        { rows: { ts_code: '000010.SZ', ann_date: '20260930' } },
+        { projectedRows: { ts_code: '000010.SZ', ann_date: '20260930' } },
       ]);
     const service = new BasicSnapshotService(
       { query } as any,
@@ -199,5 +199,6 @@ describe('risk record dates and targeted reads', () => {
     expect(result.state).toBe('stale');
     expect(result.nextRetryAt).toBe(second.retryAt.toISOString());
     expect(query).toHaveBeenCalledTimes(4);
+    expect(query.mock.calls[3][0]).toContain(') projectedRows');
   });
 });

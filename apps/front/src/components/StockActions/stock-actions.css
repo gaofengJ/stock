@@ -6,6 +6,10 @@
 .stock-identity-code { color: var(--text-secondary); font-size: 12px; line-height: 18px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .stock-action-trigger.ant-btn > span:not(.ant-btn-icon) { overflow: hidden; text-overflow: ellipsis; }
 .stock-action-trigger.ant-btn > .ant-btn-icon { flex-shrink: 0; font-size: 10px; }
+.stock-actions-popover .ant-popover-inner { padding: 12px; }
+.stock-action-trigger.ant-btn.interaction-button[aria-expanded="true"] { color: var(--color-primary-text); background: var(--color-primary-subtle); }
+.stock-identity-trigger.ant-btn.interaction-button { padding-inline: 4px; margin-inline: -4px; }
+.stock-identity-trigger.ant-btn > .interaction-label { overflow: visible; }
 .stock-actions-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; max-width: 176px; }
 .stock-actions-title > span { color: var(--text-secondary); font-size: 12px; font-weight: 400; }
 .stock-actions-menu { display: flex; flex-direction: column; align-items: stretch; gap: 4px; width: 176px; max-width: calc(100vw - 48px); }

@@ -63,7 +63,7 @@ export const InteractionButton = forwardRef<ComponentRef<typeof Button>, Interac
       {...props}
       type="text"
       className={`interaction-button interaction-${intent} ${className}`}
-      title={`${title ? `${title}，` : ''}${hints[intent]}`}
+      title={title === '' ? undefined : `${title ? `${title}，` : ''}${hints[intent]}`}
       aria-pressed={intent === 'select' ? selected : undefined}
       aria-expanded={intent === 'expand' ? expanded : props['aria-expanded']}
       aria-haspopup={intent === 'preview' ? 'dialog' : props['aria-haspopup']}

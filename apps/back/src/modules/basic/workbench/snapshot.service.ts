@@ -411,7 +411,47 @@ export class BasicSnapshotService implements OnModuleInit {
               : source === 'investment_calendar'
               ? await publicInvestmentCalendar(params)
               : source === 'reduction_plans'
-              ? await publicReductionPlans()
+              ? await publicReductionPlans(undefined, undefined, {
+                  read: async (id, date) => {
+                    const saved = await this.db.manager
+                      .findOneBy(BasicSnapshotEntity, {
+                        snapshotKey: this.key('reduction_text_v1', {
+                          id,
+                          date,
+                        }),
+                      })
+                      .catch(() => null);
+                    const text = saved?.rows?.[0]?.text;
+                    return saved?.source === 'reduction_text_v1' &&
+                      !!saved.fetchedAt &&
+                      Date.now() - saved.fetchedAt.getTime() < 24 * 3600000 &&
+                      typeof text === 'string' &&
+                      text.length > 0 &&
+                      text.length <= 200000
+                      ? text
+                      : undefined;
+                  },
+                  write: async (id, date, text) => {
+                    const bodyRecord = {
+                      snapshotKey: this.key('reduction_text_v1', { id, date }),
+                      source: 'reduction_text_v1',
+                      params: { id, date } as any,
+                      rows: [{ text }] as any,
+                      fetchedAt: new Date(),
+                      retryAt: new Date(Date.now() + 24 * 3600000),
+                      error: null,
+                    };
+                    await this.writes
+                      .withLock((manager) =>
+                        manager.upsert(BasicSnapshotEntity, bodyRecord, [
+                          'snapshotKey',
+                        ]),
+                      )
+                      .catch(() =>
+                        this.logger.warn('减持公告正文缓存写入延后'),
+                      );
+                  },
+                })
               : source === 'eastmoney_ann'
               ? await publicAnnouncements(params)
               : await this.source.queryData(
@@ -606,7 +646,9 @@ export class BasicSnapshotService implements OnModuleInit {
     let rows: Record<string, any>[] = [];
     if (paths.length) {
       const [projected] = await this.db.query(
-        `SELECT JSON_EXTRACT(data,${paths.map(() => '?').join(',')}) rows
+        `SELECT JSON_EXTRACT(data,${paths
+          .map(() => '?')
+          .join(',')}) projectedRows
          FROM t_source_basic_snapshot WHERE snapshot_key=? AND fetched_at <=> ?`,
         [...paths, snapshotKey, record.fetchedAt],
       );
@@ -614,7 +656,9 @@ export class BasicSnapshotService implements OnModuleInit {
         if (!attempt) return this.readProjectedRows(snapshotKey, codes, 1);
         throw new Error('资料正在更新，请稍后重试');
       }
-      rows = list(projected.rows).filter((row) => codes.includes(row.ts_code));
+      rows = list(projected.projectedRows).filter((row) =>
+        codes.includes(row.ts_code),
+      );
     }
     return {
       fetchedAt: record.fetchedAt ? new Date(record.fetchedAt) : null,

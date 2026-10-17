@@ -22,7 +22,13 @@ export async function reductionRequest(
       const timeout = ['ECONNABORTED', 'ETIMEDOUT'].includes(error?.code);
       const transient =
         timeout ||
-        ['ECONNRESET', 'EAI_AGAIN', 'ENOTFOUND'].includes(error?.code) ||
+        [
+          'ECONNRESET',
+          'ECONNREFUSED',
+          'EPIPE',
+          'EAI_AGAIN',
+          'ENOTFOUND',
+        ].includes(error?.code) ||
         [408, 429, 500, 502, 503, 504].includes(status);
       if (transient && attempt < 3) {
         // Bound the pause; retries must not flood an already unhealthy source.
@@ -30,6 +36,16 @@ export async function reductionRequest(
         await wait(attempt * 1000);
       } else {
         let reason = timeout ? '请求超时' : '连接失败';
+        if (
+          [
+            'ECONNRESET',
+            'ECONNREFUSED',
+            'EPIPE',
+            'EAI_AGAIN',
+            'ENOTFOUND',
+          ].includes(error?.code)
+        )
+          reason = `连接失败 ${error.code}`;
         if (Number.isInteger(status) && status >= 400 && status < 600)
           reason = `HTTP ${status}`;
         throw new ReductionSourceError(

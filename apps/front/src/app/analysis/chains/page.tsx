@@ -49,9 +49,7 @@ function LadderGroups({ items }: { items: LimitRow[] }) {
             <div className="chains-ladder-content">
               <div className="market-ladder-stocks" id={`ladder-height-${height}`}>
                 {visible.map((r) => (
-                  <span key={r.tsCode} className="market-ladder-stock">
-                    <StockIdentity code={r.tsCode} name={r.name} date={date} navigation={visible} />
-                  </span>
+                  <StockIdentity key={r.tsCode} className="market-ladder-stock" code={r.tsCode} name={r.name} date={date} navigation={visible} />
                 ))}
               </div>
               {(height === 1 || stocks.length > 8) && (

@@ -45,6 +45,9 @@ export default function StockActions({
   else if (chartOpen) chartHint = '正在查看该股票K线';
   return (
     <Popover
+      placement="bottomLeft"
+      arrow={false}
+      overlayClassName="stock-actions-popover"
       trigger={['hover', 'click']}
       mouseEnterDelay={0.15}
       mouseLeaveDelay={0.15}
@@ -76,7 +79,7 @@ export default function StockActions({
         </div>
       )}
     >
-      <InteractionButton ref={triggerRef} className={`stock-action-trigger ${className}`} intent="popover" aria-label={`${name || symbol}股票操作`} aria-haspopup="dialog" aria-expanded={open} title="个股详情、预览K线或复制代码" onKeyDown={closeOnEscape}>{label}</InteractionButton>
+      <InteractionButton ref={triggerRef} className={`stock-action-trigger ${className}`} intent="popover" aria-label={`${name || symbol}股票操作`} aria-haspopup="dialog" aria-expanded={open} title="" onKeyDown={closeOnEscape}>{label}</InteractionButton>
     </Popover>
   );
 }

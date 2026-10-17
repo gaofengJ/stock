@@ -1,10 +1,23 @@
 /* eslint-disable no-await-in-loop */
 import axios from 'axios';
+import { Agent } from 'https';
 import { shanghaiDate } from '@/modules/daily-task/sync.utils';
 import { reductionState, terminalReduction } from './reduction-state';
 import { reductionRequest, ReductionSourceError } from './reduction-request';
 
 type Notice = { id: string; code: string; date: string; title: string };
+export interface ReductionTextStore {
+  read: (id: string, date: string) => Promise<string | undefined>;
+  write: (id: string, date: string, text: string) => Promise<void>;
+}
+const agent = new Agent({ keepAlive: true, maxSockets: 2 });
+const requestOptions = {
+  httpsAgent: agent,
+  headers: {
+    'User-Agent': 'Mozilla/5.0',
+    Referer: 'https://data.eastmoney.com/',
+  },
+};
 const textCache = new Map<string, { text: string; until: number }>();
 let textBytes = 0;
 const normalized = (text: string) =>
@@ -70,6 +83,7 @@ const fields = [
 export async function publicReductionPlans(
   get: typeof axios.get = axios.get,
   date = shanghaiDate(),
+  store: ReductionTextStore | undefined = undefined,
 ) {
   const start = new Date(`${date}T00:00:00Z`);
   start.setUTCDate(start.getUTCDate() - 185);
@@ -82,6 +96,7 @@ export async function publicReductionPlans(
       get,
       'https://np-anotice-stock.eastmoney.com/api/security/ann',
       {
+        ...requestOptions,
         params: {
           sr: -1,
           page_size: 100,
@@ -152,20 +167,24 @@ export async function publicReductionPlans(
   let failed = 0;
   let lastFailure: string | undefined;
   const unavailable = () => failed >= 5 && failed > succeeded / 4;
+  const inFlight = new Map<string, Promise<string>>();
   const content = async (notice: Notice) => {
-    if (unavailable())
-      throw new ReductionSourceError(lastFailure || '计划公告来源暂不可用');
-    const cached = textCache.get(notice.id);
+    const key = `${notice.id}:${notice.date}`;
+    const cached = textCache.get(key);
     if (cached && cached.until > Date.now()) {
-      textCache.delete(notice.id);
-      textCache.set(notice.id, cached);
+      textCache.delete(key);
+      textCache.set(key, cached);
       return cached.text;
     }
+    const saved = await store?.read(notice.id, notice.date);
+    if (saved) return saved;
+    if (unavailable())
+      throw new ReductionSourceError(lastFailure || '计划公告来源暂不可用');
     let text = '';
     let pages = 1;
     for (let page = 1; page <= pages; page += 1) {
       const delay = Math.max(0, nextRequest - Date.now());
-      nextRequest = Math.max(nextRequest, Date.now()) + 150;
+      nextRequest = Math.max(nextRequest, Date.now()) + 350;
       if (delay)
         await new Promise((resolve) => {
           setTimeout(resolve, delay);
@@ -174,6 +193,7 @@ export async function publicReductionPlans(
         get,
         'https://np-cnotice-stock.eastmoney.com/api/content/ann',
         {
+          ...requestOptions,
           params: {
             art_code: notice.id,
             client_source: 'web',
@@ -202,14 +222,24 @@ export async function publicReductionPlans(
     }
     const bytes = Buffer.byteLength(text);
     if (cached) textBytes -= Buffer.byteLength(cached.text);
-    textCache.set(notice.id, { text, until: Date.now() + 24 * 3600000 });
+    textCache.set(key, { text, until: Date.now() + 24 * 3600000 });
     textBytes += bytes;
     while (textBytes > 32 * 1024 * 1024 || textCache.size > 5000) {
-      const key = textCache.keys().next().value;
-      textBytes -= Buffer.byteLength(textCache.get(key)!.text);
-      textCache.delete(key);
+      const evicted = textCache.keys().next().value;
+      textBytes -= Buffer.byteLength(textCache.get(evicted)!.text);
+      textCache.delete(evicted);
     }
+    await store?.write(notice.id, notice.date, text);
     return text;
+  };
+  const sharedContent = (notice: Notice) => {
+    const key = `${notice.id}:${notice.date}`;
+    if (!inFlight.has(key))
+      inFlight.set(
+        key,
+        content(notice).finally(() => inFlight.delete(key)),
+      );
+    return inFlight.get(key)!;
   };
   const parallel = async <T>(
     rows: Notice[],
@@ -218,7 +248,7 @@ export async function publicReductionPlans(
     let cursor = 0;
     const results: T[] = [];
     await Promise.all(
-      Array.from({ length: Math.min(4, rows.length) }, async () => {
+      Array.from({ length: Math.min(2, rows.length) }, async () => {
         while (cursor < rows.length) {
           const index = cursor;
           cursor += 1;
@@ -237,7 +267,7 @@ export async function publicReductionPlans(
     ),
     async (notice) => {
       try {
-        const text = await content(notice);
+        const text = await sharedContent(notice);
         succeeded += 1;
         const periods = planPeriods(text);
         return {
@@ -274,7 +304,7 @@ export async function publicReductionPlans(
     ),
     async (notice) => {
       try {
-        const text = normalized(await content(notice));
+        const text = normalized(await sharedContent(notice));
         succeeded += 1;
         return { ...notice, text };
       } catch (error) {

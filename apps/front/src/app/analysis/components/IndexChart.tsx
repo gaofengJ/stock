@@ -9,6 +9,8 @@ import {
 import { ExpandOutlined, ReloadOutlined } from '@ant-design/icons';
 import CChart from '@/components/CChart';
 import candleExtremaMarks from '@/components/CChart/candle-extrema';
+import { candleGrids, macdSeries } from '@/components/CChart/candle-panels';
+import { calculateMacd, macdHint } from '@/components/CChart/macd';
 import { useSiteTheme } from '@/components/SiteTheme';
 import HelpTooltip from '@/components/HelpTooltip';
 import { MarketSeries } from '@/api/market';
@@ -40,6 +42,7 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
   const { period, count } = window;
   const all = pairedIndexCandles(index?.series || [], dates, period);
   const candles = all;
+  const macd = calculateMacd(candles.map((c) => c.value?.[1]));
   const dateLabels = new Map(candles.map((c, i) => [c.date, !i || candles[i - 1].date.slice(0, 4) !== c.date.slice(0, 4) ? c.date.slice(0, 7) : c.date.slice(5)]));
   const averages = averagePeriods.map((n) => ({ name: `MA${n}`, values: movingAverage(all, n) }));
   const gaps = unfilledGaps(all);
@@ -65,7 +68,7 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
           axisPointer: { link: [{ xAxisIndex: 'all' }], label: { backgroundColor: panel.selection, color: panel.text } },
           dataZoom: [{
             type: 'inside',
-            xAxisIndex: [0, 1],
+            xAxisIndex: [0, 1, 2],
             filterMode: 'filter',
             startValue: count ? Math.max(0, candles.length - count) : 0,
             endValue: candles.length - 1,
@@ -74,7 +77,7 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
             preventDefaultMouseMove: false,
           }, {
             type: 'slider',
-            xAxisIndex: [0, 1],
+            xAxisIndex: [0, 1, 2],
             filterMode: 'filter',
             bottom: 8,
             height: 20,
@@ -89,23 +92,19 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
             dataBackground: { lineStyle: { color: panel.muted }, areaStyle: { color: panel.selection } },
             selectedDataBackground: { lineStyle: { color: panel.text }, areaStyle: { color: panel.selection } },
           }],
-          grid: [
-            {
-              left: 64, right: 44, top: 44, height: Math.max(60, height - 156) * 0.72,
-            },
-            {
-              left: 64, right: 44, top: 84 + Math.max(60, height - 156) * 0.72, height: Math.max(60, height - 156) * 0.28,
-            },
-          ],
+          grid: candleGrids(height, 36, 64),
           legend: {
-            top: 8, left: 8, right: 8, type: 'scroll', pageIconColor: panel.text, pageTextStyle: { color: panel.text }, data: averages.map((a) => a.name),
+            top: 8, left: 8, right: 8, type: 'scroll', pageIconColor: panel.text, pageTextStyle: { color: panel.text }, data: [...averages.map((a) => a.name), 'DIF', 'DEA', 'MACD'],
           },
           xAxis: [
             {
               type: 'category', data: candles.map((c) => c.date), gridIndex: 0, axisLabel: { show: false }, axisTick: { show: false },
             },
             {
-              type: 'category', data: candles.map((c) => c.date), gridIndex: 1, axisTick: { alignWithLabel: true }, axisLabel: { hideOverlap: true, formatter: (date: string) => (period === 'month' ? date.slice(0, 7) : dateLabels.get(date) || date) },
+              type: 'category', data: candles.map((c) => c.date), gridIndex: 1, axisTick: { show: false }, axisLabel: { show: false },
+            },
+            {
+              type: 'category', data: candles.map((c) => c.date), gridIndex: 2, axisTick: { alignWithLabel: true }, axisLabel: { hideOverlap: true, formatter: (date: string) => (period === 'month' ? date.slice(0, 7) : dateLabels.get(date) || date) },
             },
           ],
           yAxis: [
@@ -113,7 +112,10 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
               type: 'value', gridIndex: 0, scale: true, boundaryGap: ['12%', '12%'], axisLabel: { formatter: (v: number) => numberText(v) },
             },
             {
-              type: 'value', gridIndex: 1, name: '成交量（万手）', nameGap: 12, splitNumber: 2, axisLabel: { formatter: (v: number) => numberText(v, v > 0 && v < 1 ? 2 : 0) },
+              type: 'value', gridIndex: 1, name: '成交量（万手）', nameGap: 8, splitNumber: 1, axisLabel: { formatter: (v: number) => numberText(v, v > 0 && v < 1 ? 2 : 0) },
+            },
+            {
+              type: 'value', gridIndex: 2, name: 'MACD(12,26,9)', nameGap: 8, splitNumber: 2, scale: true,
             },
           ],
           series: [{
@@ -153,7 +155,7 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
               value: c.volume,
               itemStyle: { color: !c.value || c.value[0] === c.value[1] ? colors.secondary : quoteColors[c.value[1] > c.value[0] ? 'up' : 'down'] },
             })),
-          }],
+          }, ...macdSeries(macd)],
         })}
       />
     )
@@ -165,7 +167,7 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
         title={(
           <span className="market-section-title">
             {index?.name || '指数'}
-            <HelpTooltip label="指数走势" title="上方K线、下方成交量，共用日期与缩放。标记当前日期范围内的最高价与最低价；淡色虚线为未回补缺口边界。" />
+            <HelpTooltip label="指数走势" title={`上方K线、中间成交量、下方MACD，共用日期与缩放。标记当前日期范围内的最高价与最低价；淡色虚线为未回补缺口边界。${macdHint}`} />
           </span>
       )}
         extra={(
@@ -183,7 +185,7 @@ function IndexChart({ index, dates, window }: { index: MarketSeries['indexes'][n
         open={expanded}
         keyboard
         onCancel={() => setExpanded(false)}
-        footer={<Button icon={<ReloadOutlined />} onClick={() => setResetKey((v) => v + 1)}>重置日期范围</Button>}
+        footer={<div className="market-chart-actions"><Button icon={<ReloadOutlined />} onClick={() => setResetKey((v) => v + 1)}>重置日期范围</Button></div>}
         width="calc(100vw - 32px)"
         style={{
           top: 16, margin: '0 auto', maxWidth: 'calc(100vw - 32px)', paddingBottom: 0,

@@ -3,7 +3,8 @@
 .theme-review-overview > span { display: inline-flex; align-items: baseline; }
 .theme-review-overview strong { margin-left: 8px; color: var(--color-black); font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .theme-review-overview small { margin-left: 4px; font-size: 12px; }
-.theme-review-filter { width: 240px; }
+.theme-review-filter.ant-select { width: 240px; min-width: 240px; max-width: 240px; flex: 0 0 240px; }
+.theme-review-filter.ant-select .ant-select-selection-item { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .theme-review .theme-review-filter.ant-select-single .ant-select-selector { display: flex; align-items: center; }
 .theme-review .theme-review-filter.ant-select-single .ant-select-selector .ant-select-selection-item { line-height: 22px; }
 .theme-review-group { margin-top: 16px; }
@@ -63,7 +64,7 @@
   .theme-review-group-heading { flex-wrap: wrap; }
   .theme-review .limits-table-toolbar > .ant-space { width: 100%; }
   .theme-review .limits-table-toolbar > .ant-space > .ant-space-item:first-child { flex: 1; min-width: 0; }
-  .theme-review-filter { width: 100%; }
+  .theme-review-filter.ant-select { width: 100%; min-width: 0; max-width: 100%; flex-basis: auto; }
   .theme-review-overview { gap: 16px; }
   .theme-review-overview strong { font-size: 20px; }
 }
