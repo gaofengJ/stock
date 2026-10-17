@@ -33,8 +33,8 @@ export function BasicShell({ title, path, children }: { title?: string; path: st
 }
 export function useWorkbench(endpoint: string, params: Record<string, unknown>, active?: boolean, dataScope?: string) {
   const enabled = active ?? true;
-  const [result, setResult] = useState<{ key: string; scope: string; data: any; error: string; loading: boolean; pollingStopped: boolean }>({
-    key: '', scope: '', data: null, error: '', loading: true, pollingStopped: false,
+  const [result, setResult] = useState<{ key: string; scope: string; data: any; error: string; loading: boolean; pollingStopped: boolean; recovering: boolean }>({
+    key: '', scope: '', data: null, error: '', loading: true, pollingStopped: false, recovering: false,
   });
   const [attempt, setAttempt] = useState(0);
   const key = JSON.stringify([endpoint, params]);
@@ -43,15 +43,19 @@ export function useWorkbench(endpoint: string, params: Record<string, unknown>, 
   useEffect(() => {
     if (!enabled) return undefined;
     setResult((old) => ({
-      key, scope, data: old.scope === scope ? old.data : null, error: dataScope !== undefined && old.scope === scope ? old.error : '', loading: true, pollingStopped: false,
+      key, scope, data: old.scope === scope ? old.data : null, error: dataScope !== undefined && old.scope === scope ? old.error : '', loading: true, pollingStopped: false, recovering: false,
     }));
     return startWorkbenchPolling<any>({
       read: async (signal) => (await request.get<any>(`/basic/workbench/${endpoint}`, { params: JSON.parse(key)[1], signal, autoShowError: false })).data,
+      recoverSources: endpoint === 'risk',
+      onRetry: () => setResult((old) => ({
+        ...old, error: '', loading: true, recovering: true,
+      })),
       onValue: (data) => setResult({
-        key, scope, data, error: '', loading: false, pollingStopped: false,
+        key, scope, data, error: '', loading: false, pollingStopped: false, recovering: false,
       }),
       onError: (error) => setResult((old) => ({
-        ...old, error: errorMessage(error, '加载失败，请重试'), loading: false, pollingStopped: true,
+        ...old, error: errorMessage(error, '加载失败，请重试'), loading: false, pollingStopped: true, recovering: false,
       })),
       onStopped: () => setResult((old) => ({ ...old, pollingStopped: true })),
     });
@@ -63,6 +67,7 @@ export function useWorkbench(endpoint: string, params: Record<string, unknown>, 
     error: compatible && (current || dataScope !== undefined) ? result.error : '',
     loading: enabled && (!current || result.loading),
     pollingStopped: current && result.pollingStopped,
+    recovering: current && result.recovering,
     retry: () => setAttempt((v) => v + 1),
   };
 }

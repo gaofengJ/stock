@@ -1,5 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { Permit } from '@/modules/auth/permissions';
+import { Throttle } from '@nestjs/throttler';
+import { readThrottleTracker } from '@/modules/auth/read-throttle-tracker';
 import { WorkbenchService } from './workbench.service';
 import { WorkbenchQuery } from './workbench.dto';
 
@@ -12,6 +14,10 @@ export class WorkbenchController {
   }
 
   @Get('risk')
+  // Lists, stock previews and background polls share this read endpoint.
+  @Throttle({
+    default: { limit: 30, ttl: 10000, getTracker: readThrottleTracker },
+  })
   @Permit(
     'basic:stock',
     'basic:daily',
@@ -24,6 +30,9 @@ export class WorkbenchController {
   }
 
   @Get('risk-detail')
+  @Throttle({
+    default: { limit: 30, ttl: 10000, getTracker: readThrottleTracker },
+  })
   @Permit(
     'basic:stock',
     'basic:daily',

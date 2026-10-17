@@ -15,9 +15,134 @@ const display = load('app/basic/stock/detail/profile-display.ts');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 function polling() {
   let timer;
-  const api = load('app/basic/components/workbench-polling.ts', { setTimeout: fn => { timer = fn; return 1; }, clearTimeout: () => { timer = undefined; } });
-  return { ...api, next: () => { const fn = timer; timer = undefined; return fn?.(); }, scheduled: () => !!timer };
+  let delay;
+  const api = load('app/basic/components/workbench-polling.ts', { setTimeout: (fn, ms) => { timer = fn; delay = ms; return 1; }, clearTimeout: () => { timer = undefined; } });
+  return { ...api, next: () => { const fn = timer; timer = undefined; return fn?.(); }, scheduled: () => !!timer, delay: () => delay };
 }
+
+test('a transient first read recovers without publishing a terminal error', async () => {
+  for (const error of [{ response: { status: 502 } }, { code: 'ERR_NETWORK' }, { code: 'ECONNABORTED' }]) {
+    const p = polling();
+    let calls = 0;
+    let recovering = 0;
+    const values = [];
+    p.startWorkbenchPolling({ read: async () => { if (++calls === 1) throw error; return { sources: [] }; }, onValue: value => values.push(value), onRetry: () => recovering++, onError: () => assert.fail(), onStopped: () => assert.fail() });
+    await flush();
+    assert.equal(recovering, 1);
+    assert.equal(values.length, 0);
+    await p.next();
+    assert.equal(calls, 2);
+    assert.equal(values.length, 1);
+    assert.equal(p.scheduled(), false);
+  }
+});
+
+test('429 waits for Retry-After instead of immediately repeating a throttled request', async () => {
+  const p = polling();
+  let calls = 0;
+  p.startWorkbenchPolling({ read: async () => { if (++calls === 1) throw { response: { status: 429, headers: { 'retry-after': '15' } } }; return { sources: [] }; }, onValue: () => {}, onError: () => assert.fail(), onStopped: () => assert.fail() });
+  await flush();
+  assert.equal(p.delay(), 15000);
+  await p.next();
+  assert.equal(calls, 2);
+  assert.equal(p.scheduled(), false);
+});
+
+test('retries are bounded and auth, validation, cancellation and business errors do not retry', async () => {
+  const p = polling();
+  let calls = 0;
+  let errors = 0;
+  p.startWorkbenchPolling({ read: async () => { calls++; throw { response: { status: 503 } }; }, onValue: () => assert.fail(), onError: () => errors++, onStopped: () => assert.fail() });
+  await flush();
+  for (let i = 0; i < 3; i++) await p.next();
+  assert.equal(calls, 4);
+  assert.equal(errors, 1);
+  assert.equal(p.scheduled(), false);
+  for (const error of [{ status: 401 }, { status: 403 }, { status: 422 }, { code: 'ERR_CANCELED' }, new Error('business error')]) {
+    const permanent = polling();
+    let count = 0;
+    permanent.startWorkbenchPolling({ read: async () => { throw error; }, onValue: () => assert.fail(), onError: () => count++, onStopped: () => assert.fail() });
+    await flush();
+    assert.equal(count, 1);
+    assert.equal(permanent.scheduled(), false);
+  }
+});
+
+test('stopping during request backoff cancels the timer and never requests the old date again', async () => {
+  const p = polling();
+  let calls = 0;
+  const stop = p.startWorkbenchPolling({ read: async () => { calls++; throw { code: 'ERR_NETWORK' }; }, onValue: () => assert.fail(), onError: () => assert.fail(), onStopped: () => assert.fail() });
+  await flush();
+  stop();
+  assert.equal(p.scheduled(), false);
+  await p.next();
+  assert.equal(calls, 1);
+});
+
+test('a request failure during source refresh preserves the previous value and resumes polling', async () => {
+  const p = polling();
+  let calls = 0;
+  let value;
+  p.startWorkbenchPolling({ read: async () => { calls++; if (calls === 2) throw { response: { status: 504 } }; return { date: '2026-10-16', items: [calls], sources: [{ state: calls < 3 ? 'loading' : 'ready' }] }; }, onValue: next => { value = next; }, onError: () => assert.fail(), onStopped: () => assert.fail() });
+  await flush();
+  await p.next();
+  assert.equal(value.items[0], 1);
+  await p.next();
+  assert.equal(value.items[0], 3);
+  assert.equal(p.scheduled(), false);
+});
+
+test('risk sources retry after their cooldown, while quotas and unbounded retries remain stopped', async () => {
+  const p = polling();
+  let calls = 0;
+  let stopped = 0;
+  p.startWorkbenchPolling({ recoverSources: true, read: async () => { calls++; return { sources: [{ source: 'reduction_plans', state: 'stale', message: '连接失败', nextRetryAt: new Date(Date.now() + 290000).toISOString() }] }; }, onValue: () => {}, onError: () => assert.fail(), onStopped: () => stopped++ });
+  await flush();
+  assert(p.delay() >= 289000 && p.delay() <= 291000);
+  await p.next();
+  await p.next();
+  assert.equal(calls, 3);
+  assert.equal(stopped, 1);
+  assert.equal(p.scheduled(), false);
+  const quota = polling();
+  quota.startWorkbenchPolling({ recoverSources: true, read: async () => ({ sources: [{ state: 'error', message: '日额度不足', nextRetryAt: new Date(Date.now() + 86400000).toISOString() }] }), onValue: () => {}, onError: () => assert.fail(), onStopped: () => assert.fail() });
+  await flush();
+  assert.equal(quota.scheduled(), false);
+});
+
+test('a source recovering after cooldown publishes its new result and leaves no scheduled read', async () => {
+  const p = polling();
+  let calls = 0;
+  const values = [];
+  p.startWorkbenchPolling({ recoverSources: true, read: async () => (++calls === 1 ? { sources: [{ state: 'error', message: '连接失败', nextRetryAt: new Date(Date.now() + 1000).toISOString() }] } : { sources: [{ state: 'ready' }] }), onValue: value => values.push(value), onError: () => assert.fail(), onStopped: () => assert.fail() });
+  await flush();
+  await p.next();
+  assert.equal(values[1].sources[0].state, 'ready');
+  assert.equal(p.scheduled(), false);
+});
+
+test('risk query errors show a safe reason and distinguish unloaded from preserved data', () => {
+  const React = require('react');
+  const { renderToStaticMarkup } = require('react-dom/server');
+  const errors = load('api/errors.ts');
+  const RiskStatus = load('app/analysis/limits/RiskStatus.tsx', { require: name => {
+    if (name === '@/api/errors') return errors;
+    if (name === '@/utils/format') return { beijingTime: value => value };
+    if (name === '../../basic/components/source-display') return { sourceNames: {} };
+    return require(name);
+  } }).default;
+  const props = { data: null, error: '操作过于频繁，请稍后重试', loading: false, retry: () => {} };
+  let html = renderToStaticMarkup(React.createElement(RiskStatus, props));
+  assert.match(html, /风险资料查询失败/);
+  assert.match(html, /操作过于频繁/);
+  assert.match(html, /风险资料尚未加载/);
+  html = renderToStaticMarkup(React.createElement(RiskStatus, { ...props, data: { sources: [] } }));
+  assert.match(html, /保留已获取资料/);
+  html = renderToStaticMarkup(React.createElement(RiskStatus, { ...props, error: '', recovering: true, loading: true }));
+  assert.match(html, /正在自动重试/);
+  html = renderToStaticMarkup(React.createElement(RiskStatus, { ...props, error: 'SELECT password FROM secret' }));
+  assert.doesNotMatch(html, /SELECT|password|secret/);
+});
 
 test('observation date links survive reload and retain the selected stock', () => {
   const url = new URL(display.profileDateHref('code=600081.SH&date=2026-09-30', '2026-08-31'), 'http://localhost');
