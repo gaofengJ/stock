@@ -14,6 +14,7 @@ import { trendDefaults } from '@/app/strategy/strategy-options';
 import { copyText } from '@/utils/clipboard';
 import { stockDate, stockSymbol, validStockCode } from '@/utils/stock-interaction';
 import { ChartSelection, StockActionContext } from './context';
+import { stockChartNavigation } from './list-navigation';
 
 const StockChart = dynamic(() => import('@/app/strategy/StockChart'), { ssr: false, loading: () => <Loading height={160} /> });
 
@@ -26,8 +27,8 @@ export default function StockActionProvider({ children }: { children: React.Reac
   const fallback = useDefaultTradeDate(!!selection && !selection.date);
   const date = selection?.date || (fallback.ready ? fallback.tradeDate : '');
   useEffect(() => { setSelection(null); setManual(null); }, [path]);
-  const openChart = useCallback((stock: ChartSelection) => {
-    if (validStockCode(stock.code)) setSelection({ ...stock, date: stockDate(stock.date) });
+  const openChart = useCallback((stock: ChartSelection, rows: readonly unknown[] = []) => {
+    if (validStockCode(stock.code)) setSelection({ ...stock, date: stockDate(stock.date), navigation: stockChartNavigation(rows, stock) });
   }, []);
   const copyCode = useCallback(async (code: string) => {
     if (!validStockCode(code)) return;
@@ -41,7 +42,18 @@ export default function StockActionProvider({ children }: { children: React.Reac
       {children}
       {contextHolder}
       {selection && date && (
-        <StockChart key={`${selection.code}-${date}`} neutral stock={{ tsCode: selection.code, name: selection.name }} date={date} strategy="fiveMaUp" options={trendDefaults} onClose={() => setSelection(null)} />
+        <StockChart
+          neutral
+          stock={{ tsCode: selection.code, name: selection.name, date: selection.date }}
+          date={date}
+          navigation={selection.navigation?.map((row) => ({ ...row, tsCode: row.code, date: row.date || date }))}
+          onNavigate={(row) => setSelection((current) => current && ({
+            ...current, code: row.tsCode, name: row.name, date: row.date || date, navigation: current.navigation?.map((entry) => ({ ...entry, date: entry.date || date })),
+          }))}
+          strategy="fiveMaUp"
+          options={trendDefaults}
+          onClose={() => setSelection(null)}
+        />
       )}
       <Modal open={!!selection && !date} title="查看K线" footer={null} onCancel={() => setSelection(null)}>
         {fallback.error ? <Alert type="error" message={fallback.error} action={<Button onClick={fallback.retry}>重试交易日期</Button>} /> : <Loading height={160} />}

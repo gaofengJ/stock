@@ -135,7 +135,7 @@ function StrategyPage() {
       ...column,
       fixed: 'left' as const,
       width: column.key === 'tsCode' ? 116 : 145,
-      render: (value: string, row: any) => <StockLink code={row.tsCode} name={row.name} label={column.key === 'tsCode' ? value.split('.')[0] : value} date={date} onChart={() => openStock(row)} />,
+      render: (value: string, row: any) => <StockLink code={row.tsCode} name={row.name} label={column.key === 'tsCode' ? value.split('.')[0] : value} date={date} onChart={(rows) => openStock(row, rows.length ? rows : undefined)} />,
     })),
     {
       title: <Tooltip title="所选交易日之前已披露的最近三个财报期扣非盈亏及最新业绩预告，悬停查看金额">近期业绩</Tooltip>, key: 'profit', width: 260, render: (_: any, row: any) => <CandidateProfit row={financials.rows.get(row.tsCode)} error={financials.error} stopped={financials.stopped} retry={financials.retry} />,

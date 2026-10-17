@@ -85,7 +85,7 @@ export default function Holdings({ date, candidates, onResult }: { date: string;
       <p role="status" className="review-caption">{feedback}</p>
       {error && <Alert type="error" message={error} action={<Button onClick={analyze}>重试分析</Button>} />}
       {result?.items.map((r: any) => (
-        <Card key={r.code} size="small" title={<StockLink code={r.code} name={r.name} label={`${r.name} ${r.code}`} date={date} />} className="review-holding-result" extra={<RiskInspect code={r.code} name={r.name} date={date} />}>
+        <Card key={r.code} size="small" title={<StockLink code={r.code} name={r.name} label={`${r.name} ${r.code}`} date={date} navigation={result.items} />} className="review-holding-result" extra={<RiskInspect code={r.code} name={r.name} date={date} />}>
           <p>{`持有 ${r.heldDays ?? '未知'} 个交易日，收盘 ${numberText(r.close)} 元，成本价格差 ${numberText(r.profitPct)}%`}</p>
           <p>{`${r.ma5.label}；${r.basis} MA5：${numberText(r.ma5.ma5)}`}</p>
           <p>{r.timeReview}</p>

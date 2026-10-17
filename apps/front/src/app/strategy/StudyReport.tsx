@@ -239,7 +239,7 @@ export default function StudyReport({ strategy, active, onStock }: { strategy: s
           return (
             <span key={key}>
               <span>{label}</span>
-              <strong>{row ? <StockLink code={row.code} name={row.name} label={`${row.name} ${row.code.split('.')[0]}`} date={row.date || report.end} /> : '—'}</strong>
+              <strong>{row ? <StockLink code={row.code} name={row.name} label={`${row.name} ${row.code.split('.')[0]}`} date={row.date || report.end} navigation={[extreme?.best, extreme?.worst].filter(Boolean)} /> : '—'}</strong>
               <span>
                 {changed(row?.value ?? null)}
                 {row?.value == null ? '' : '%'}
@@ -351,7 +351,7 @@ export default function StudyReport({ strategy, active, onStock }: { strategy: s
           }}
           scroll={{ x: 1000 }}
           columns={[
-            { title: '信号日期', dataIndex: 'date', width: 130 }, { title: '股票', width: 200, render: (_, row) => <StockLink code={row.code} name={row.name} label={`${row.name} ${row.code.split('.')[0]}`} date={row.date} onChart={() => preview(row)} /> },
+            { title: '信号日期', dataIndex: 'date', width: 130 }, { title: '股票', width: 200, render: (_, row) => <StockLink code={row.code} name={row.name} label={`${row.name} ${row.code.split('.')[0]}`} date={row.date} onChart={(rows) => preview(row, rows.length ? rows : filtered)} /> },
             { title: '观察日期', width: 130, render: (_, row) => row.outcomes[horizon].date || '未到期' },
             {
               title: `后${horizon}日涨跌(%)`, width: 140, align: 'right', sorter: (a, b) => (a.outcomes[horizon].value ?? -Infinity) - (b.outcomes[horizon].value ?? -Infinity), render: (_, row) => changed(row.outcomes[horizon].value),

@@ -18,6 +18,7 @@ import { lightMovingAverageColors, movingAverageColors, quoteColors } from '@/co
 import { movingAverage } from '@/app/analysis/components/market-display';
 import ExpandedChart from '@/app/analysis/components/ExpandedChart';
 import { createChartLoader } from './chart-loader';
+import { chartShortcut } from './chart-shortcuts';
 import StockQuotePanel, { StockPoint, StockQuoteHandle } from './StockQuotePanel';
 import { hoverAverageLabel } from '../analysis/components/overview-chart';
 import type { TrendOptions } from './TrendParameters';
@@ -52,6 +53,7 @@ export default function StockChart({
     params, signal, timeout: 30000, autoShowError: false,
   })), []);
   const quoteRef = useRef<StockQuoteHandle>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
   const onAxisHover = useCallback((hoverDate: string | null) => quoteRef.current?.select(hoverDate), []);
   const code = stock?.tsCode;
   const optionKey = JSON.stringify(options);
@@ -98,7 +100,7 @@ export default function StockChart({
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; task.release(); };
   }, [code, date, strategy, queryOptions, viewMode, anchor, page, attempt, loader]);
-  const nextStock = navigation[position + 1];
+  const nextStock = position >= 0 ? navigation[position + 1] : undefined;
   const nextCode = nextStock?.tsCode;
   const nextDate = nextStock?.date || date;
   const nextStrategy = nextStock?.strategies?.[0]?.key || strategy;
@@ -110,26 +112,20 @@ export default function StockChart({
     task.promise.catch(() => {}).finally(task.release);
     return task.release;
   }, [code, loading, data, nextCode, nextDate, nextStrategy, queryOptions, loader, onNavigate]);
-  useEffect(() => {
-    if (!code || !onNavigate) return undefined;
-    const navigate = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement;
-      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || target.closest('input, textarea, select, [contenteditable="true"], [role="combobox"]')) return;
-      const direction = ({ ArrowUp: -1, ArrowDown: 1 } as Record<string, number>)[event.key] || 0;
-      if (direction && position >= 0 && navigation[position + direction]) { event.preventDefault(); onNavigate(navigation[position + direction]); }
-    };
-    window.addEventListener('keydown', navigate);
-    return () => window.removeEventListener('keydown', navigate);
-  }, [code, onNavigate, navigation, position]);
   const onZoomChange = useCallback((start: number, end: number) => {
     const last = (data?.series.length || 1) - 1;
     const next = { start: Math.round((start * last) / 100), end: Math.round((end * last) / 100) };
     setRange((current) => (current.start === next.start && current.end === next.end ? current : next));
   }, [data]);
-  const moveTime = (direction: number) => {
+  const canMoveEarlier = !!data?.series.length && !loading && (range.start > 0 || !!data.hasEarlier);
+  const canMoveLater = !!data?.series.length && !loading && (range.end < data.series.length - 1 || !!data.hasLater);
+  const moveTime = useCallback((direction: number) => {
     if (!data?.series.length || loading) return;
-    const edge = direction < 0 ? range.start <= 120 && data.hasEarlier : range.end === data.series.length - 1;
+    if ((direction < 0 && !canMoveEarlier) || (direction > 0 && !canMoveLater)) return;
+    const edge = direction < 0 ? range.start <= 120 && data.hasEarlier : range.end === data.series.length - 1 && data.hasLater;
     if (edge) {
+      chartRef.current?.focus({ preventScroll: true });
+      setLoading(true);
       setView({
         identity, mode: direction < 0 ? 'before' : 'after', anchor: data.series[direction < 0 ? range.start : range.end].date, page: { data, range, direction },
       });
@@ -137,13 +133,39 @@ export default function StockChart({
       setRange(shiftedChartRange(range, data.series.length, direction));
       quoteRef.current?.select(null);
     }
-  };
+  }, [data, loading, canMoveEarlier, canMoveLater, range, identity]);
+  const navigateStock = useCallback((direction: number) => {
+    const next = position >= 0 ? navigation[position + direction] : undefined;
+    if (!next || !onNavigate) return;
+    // A navigation button may become disabled at the boundary; keep keys in the dialog.
+    chartRef.current?.focus({ preventScroll: true });
+    onNavigate(next);
+  }, [position, navigation, onNavigate]);
+  useEffect(() => {
+    if (!code) return undefined;
+    const navigate = (event: KeyboardEvent) => {
+      // Only the focused chart handles keys, never a background chart, form or popup.
+      const action = chartShortcut(event, chartRef.current);
+      if (action?.kind === 'time') {
+        event.preventDefault();
+        moveTime(action.direction);
+      } else if (action?.kind === 'stock' && onNavigate && position >= 0) {
+        event.preventDefault();
+        navigateStock(action.direction);
+      }
+    };
+    window.addEventListener('keydown', navigate);
+    return () => window.removeEventListener('keydown', navigate);
+  }, [code, onNavigate, position, moveTime, navigateStock]);
   const focusTime = (modeName: 'signal' | 'latest') => {
     const dates = data?.series.map((row) => row.date) || [];
     const within = modeName === 'signal' ? dates.includes(date) : dates.at(-1) === data?.latestDate;
     if (within) {
       setRange(initialChartRange(dates, date, modeName));
-    } else setView({ identity, mode: modeName });
+    } else {
+      chartRef.current?.focus({ preventScroll: true });
+      setView({ identity, mode: modeName });
+    }
   };
   const candles = (data?.series || []).map((row) => ({
     date: row.date,
@@ -168,7 +190,7 @@ export default function StockChart({
           <span className="strategy-chart-stock-title" title={chartTitle}>{chartTitle}</span>
           {onNavigate && navigation.length > 1 && (
             <span className="strategy-chart-stock-navigation">
-              <Button size="small" aria-label="上一只股票" title="上一只股票" icon={<LeftOutlined />} disabled={position <= 0} onClick={() => onNavigate(navigation[position - 1])} />
+              <Button size="small" aria-label="上一只股票" title="上一只股票（↑）" icon={<LeftOutlined />} disabled={position <= 0} onClick={() => navigateStock(-1)} />
               <span className="strategy-chart-position" title="按 ↑ / ↓ 切换股票" aria-live="polite">
                 {position + 1}
                 {' '}
@@ -176,7 +198,7 @@ export default function StockChart({
                 {' '}
                 {navigation.length}
               </span>
-              <Button size="small" aria-label="下一只股票" title="下一只股票" icon={<RightOutlined />} disabled={position < 0 || position >= navigation.length - 1} onClick={() => onNavigate(navigation[position + 1])} />
+              <Button size="small" aria-label="下一只股票" title="下一只股票（↓）" icon={<RightOutlined />} disabled={position < 0 || position >= navigation.length - 1} onClick={() => navigateStock(1)} />
             </span>
           )}
         </div>
@@ -208,12 +230,12 @@ export default function StockChart({
         <span className="strategy-chart-visible-range" aria-live="polite">
           {data && !loading ? `${data.series[range.start]?.date || ''} ～ ${data.series[range.end]?.date || ''}` : '正在加载行情'}
         </span>
-        <span>两侧箭头每次移动1个交易日，拖动下方滑块缩放；高低点随范围更新，悬停查看行情</span>
+        <span>{onNavigate && navigation.length > 1 ? '↑ / ↓ 切换股票，← / → 平移1个交易日；拖动下方滑块缩放，悬停查看行情。' : '← / → 平移1个交易日；拖动下方滑块缩放，悬停查看行情。'}</span>
       </div>
       {stockInfo}
-      <div className="strategy-chart-stage has-navigation">
-        <Button className="strategy-chart-nav strategy-chart-prev" aria-label="查看更早K线" title="查看更早K线" icon={<LeftOutlined />} disabled={loading || !data || (!range.start && !data.hasEarlier)} onClick={() => moveTime(-1)} />
-        <Button className="strategy-chart-nav strategy-chart-next" aria-label="查看更新K线" title="查看更新K线" icon={<RightOutlined />} disabled={loading || !data || (range.end === data.series.length - 1 && !data.hasLater)} onClick={() => moveTime(1)} />
+      <div ref={chartRef} tabIndex={-1} role="region" aria-label="个股K线图" className="strategy-chart-stage has-navigation">
+        <Button className="strategy-chart-nav strategy-chart-prev" aria-label="查看更早K线" title="更早1个交易日（←）" icon={<LeftOutlined />} disabled={!canMoveEarlier} onClick={() => moveTime(-1)} />
+        <Button className="strategy-chart-nav strategy-chart-next" aria-label="查看更新K线" title="更新1个交易日（→）" icon={<RightOutlined />} disabled={!canMoveLater} onClick={() => moveTime(1)} />
         {!!stock && (
         <ExpandedChart render={(height) => (
           <>

@@ -2,9 +2,9 @@
 
 import { createContext, useContext } from 'react';
 
-export interface ChartSelection { code: string; name?: string; date?: string }
+export interface ChartSelection { code: string; name?: string; date?: string; navigation?: ChartSelection[] }
 interface Actions {
-  openChart: (stock: ChartSelection) => void;
+  openChart: (stock: ChartSelection, rows?: readonly unknown[]) => void;
   copyCode: (code: string) => Promise<void>;
 }
 export const StockActionContext = createContext<Actions | null>(null);
