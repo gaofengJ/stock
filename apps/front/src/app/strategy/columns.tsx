@@ -1,6 +1,7 @@
 import { numberText, scaledNumber, changeClass } from '@/utils/format';
 import type { ColumnsType } from 'antd/es/table/interface';
 import SectorLinks from '@/components/SectorLinks';
+import { StockIdentity } from '@/components/StockActions';
 import Link, { InteractionButton } from '@/components/Interaction';
 import { Popover, Space } from 'antd';
 import { useAccount } from '@/auth/Boundary';
@@ -81,18 +82,11 @@ const numericSort = (get: (row: any) => unknown) => (a: any, b: any) => {
 
 export const strategyColumns: ColumnsType = [
   {
-    title: '股票代码',
-    dataIndex: 'tsCode',
-    key: 'tsCode',
-    width: 80,
+    title: '股票',
+    key: 'stock',
+    width: 180,
     fixed: 'left',
-    render: (val) => val.split('.')[0],
-  },
-  {
-    title: '股票名称',
-    dataIndex: 'name',
-    key: 'name',
-    width: 80,
+    render: (_, row) => <StockIdentity code={row.tsCode} name={row.name} date={row.tradeDate} />,
   },
   {
     title: '涨跌幅(%)',

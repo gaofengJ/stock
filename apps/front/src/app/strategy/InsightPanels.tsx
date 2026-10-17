@@ -1,7 +1,7 @@
 'use client';
 
 import { InteractionButton } from '@/components/Interaction';
-import { StockLink } from '@/components/StockActions';
+import { StockIdentity } from '@/components/StockActions';
 
 import { useRef, useState } from 'react';
 import { QuestionCircleOutlined } from '@ant-design/icons';
@@ -77,11 +77,11 @@ export function CandidateComparison({
         dataSource={rows}
         scroll={{ x: 'max-content' }}
         maxBodyHeight={520}
-        minBodyHeight={160}
+        minBodyHeight={240}
         bottomSpacing={8}
         columns={[
           {
-            title: '股票', key: 'stock', fixed: 'left', width: 180, render: (_, r) => <StockLink code={r.tsCode} name={r.name} label={`${r.name} ${r.tsCode.split('.')[0]}`} date={date} onChart={(list) => onStock(r, list.length ? list : orderedRows(sortedRows.current, rows))} />,
+            title: '股票', key: 'stock', fixed: 'left', width: 180, render: (_, r) => <StockIdentity code={r.tsCode} name={r.name} date={date} onChart={(list) => onStock(r, list.length ? list : orderedRows(sortedRows.current, rows))} />,
           },
           { title: '所属行业', dataIndex: 'industry', width: 110 },
           {
@@ -315,7 +315,7 @@ function LiveSignalPerformance({
             columns={[
               { title: '信号日期', dataIndex: 'date', width: 130 },
               {
-                title: '股票', key: 'stock', width: 210, render: (_, r) => <StockLink code={r.code} name={r.name} label={`${r.name} ${r.code.split('.')[0]}`} date={r.date} onChart={(list) => onStock(r, list.length ? list : orderedRows(sortedRows.current, rows))} />,
+                title: '股票', key: 'stock', width: 210, render: (_, r) => <StockIdentity code={r.code} name={r.name} date={r.date} onChart={(list) => onStock(r, list.length ? list : orderedRows(sortedRows.current, rows))} />,
               },
               {
                 title: '观察截至', key: 'end', width: 150, render: (_, r) => r.outcomes[horizon].date || '未到期',

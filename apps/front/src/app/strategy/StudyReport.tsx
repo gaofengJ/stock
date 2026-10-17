@@ -8,7 +8,7 @@ import {
 } from 'antd';
 import { QuestionCircleOutlined } from '@ant-design/icons';
 import { InteractionButton } from '@/components/Interaction';
-import { StockLink } from '@/components/StockActions';
+import { StockIdentity, StockLink } from '@/components/StockActions';
 import Table from '@/components/DataTable';
 import Loading from '@/components/Loading';
 import { changeClass, numberText } from '@/utils/format';
@@ -315,7 +315,7 @@ export default function StudyReport({ strategy, active, onStock }: { strategy: s
           dataSource={peaks}
           scroll={{ x: 780 }}
           columns={[
-            { title: '排名', dataIndex: 'kind', width: 70 }, { title: '股票', width: 180, render: (_, row) => <StockLink code={row.code} name={row.name} label={`${row.name} ${row.code.split('.')[0]}`} date={row.date || report.end} /> },
+            { title: '排名', dataIndex: 'kind', width: 70 }, { title: '股票', width: 180, render: (_, row) => <StockIdentity code={row.code} name={row.name} date={row.date || report.end} /> },
             { title: ranking === 'signal' ? '信号日期' : '最近信号日', dataIndex: 'date', width: 130 },
             {
               title: ranking === 'signal' ? '涨跌(%)' : '平均涨跌(%)', dataIndex: 'value', align: 'right', width: 120, render: changed,
@@ -351,7 +351,7 @@ export default function StudyReport({ strategy, active, onStock }: { strategy: s
           }}
           scroll={{ x: 1000 }}
           columns={[
-            { title: '信号日期', dataIndex: 'date', width: 130 }, { title: '股票', width: 200, render: (_, row) => <StockLink code={row.code} name={row.name} label={`${row.name} ${row.code.split('.')[0]}`} date={row.date} onChart={(rows) => preview(row, rows.length ? rows : filtered)} /> },
+            { title: '信号日期', dataIndex: 'date', width: 130 }, { title: '股票', width: 200, render: (_, row) => <StockIdentity code={row.code} name={row.name} date={row.date} onChart={(rows) => preview(row, rows.length ? rows : filtered)} /> },
             { title: '观察日期', width: 130, render: (_, row) => row.outcomes[horizon].date || '未到期' },
             {
               title: `后${horizon}日涨跌(%)`, width: 140, align: 'right', sorter: (a, b) => (a.outcomes[horizon].value ?? -Infinity) - (b.outcomes[horizon].value ?? -Infinity), render: (_, row) => changed(row.outcomes[horizon].value),

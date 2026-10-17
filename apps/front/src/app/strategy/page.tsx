@@ -22,6 +22,7 @@ import { NSGetStrategyList, NSGetStrategyTabsList } from '@/api/services.types';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { useDefaultTradeDate } from '@/hooks/useDefaultTradeDate';
 import SectorFilter from '@/components/SectorFilter';
+import { StockIdentity } from '@/components/StockActions';
 import useInsight from './useInsight';
 import { strategyColumns, trendColumns } from './columns';
 import TrendParameters, { isTrendStrategy, trendDefaults } from './TrendParameters';
@@ -33,7 +34,7 @@ import CandidateEnvironment from './CandidateEnvironment';
 import StrategyRules from './StrategyRules';
 import StockChart from './StockChart';
 import CandidateProfit, { useCandidateProfit } from './CandidateProfit';
-import { RiskTags, StockLink, useWorkbench } from '../basic/components/workbench';
+import { RiskTags, useWorkbench } from '../basic/components/workbench';
 import RiskInspect from '../basic/components/RiskInspect';
 import { CandidateComparison, SignalPerformance } from './InsightPanels';
 import './strategy.sass';
@@ -131,11 +132,10 @@ function StrategyPage() {
     if (params.get('view') === 'popularity' && date && allowedPath(user, '/analysis/senti')) window.location.replace(`/analysis/senti/?date=${date}&scope=all&view=popularity${linkedCode ? `&code=${linkedCode}` : ''}#popularity`);
   }, [params, date, user, linkedCode]);
   const columns = [
-    ...strategyColumns.slice(0, 2).map((column) => ({
+    ...strategyColumns.slice(0, 1).map((column) => ({
       ...column,
       fixed: 'left' as const,
-      width: column.key === 'tsCode' ? 116 : 145,
-      render: (value: string, row: any) => <StockLink code={row.tsCode} name={row.name} label={column.key === 'tsCode' ? value.split('.')[0] : value} date={date} onChart={(rows) => openStock(row, rows.length ? rows : undefined)} />,
+      render: (_: unknown, row: any) => <StockIdentity code={row.tsCode} name={row.name} date={date} onChart={(rows) => openStock(row, rows.length ? rows : undefined)} />,
     })),
     {
       title: <Tooltip title="所选交易日之前已披露的最近三个财报期扣非盈亏及最新业绩预告，悬停查看金额">近期业绩</Tooltip>, key: 'profit', width: 260, render: (_: any, row: any) => <CandidateProfit row={financials.rows.get(row.tsCode)} error={financials.error} stopped={financials.stopped} retry={financials.retry} />,
@@ -147,7 +147,7 @@ function StrategyPage() {
       title: '风险核验', key: 'riskCheck', width: 125, render: (_: any, row: any) => <RiskInspect code={row.tsCode} date={date} />,
     },
     ...trendColumns(strategy),
-    ...strategyColumns.slice(2).filter((column) => visibleColumns.includes(String(column.key))),
+    ...strategyColumns.slice(1).filter((column) => visibleColumns.includes(String(column.key))),
   ];
   return (
     <Layout showAsideMenu={false} headerMenuActive={EHeaderMenuKey.strategy}>
@@ -188,7 +188,7 @@ function StrategyPage() {
               )}
               <Input aria-label="搜索股票" allowClear placeholder="股票代码 / 名称" value={keyword} style={{ width: 220 }} onChange={(event) => updateQuery({ q: event.target.value })} />
             </Space>
-            {view === 'candidates' && <Select aria-label="展示列" mode="multiple" maxTagCount={0} maxTagPlaceholder={() => '展示列'} style={{ width: 150 }} value={visibleColumns} onChange={setVisibleColumns} options={strategyColumns.slice(2).map((column) => ({ value: String(column.key), label: String(column.title) }))} />}
+            {view === 'candidates' && <Select aria-label="展示列" mode="multiple" maxTagCount={0} maxTagPlaceholder={() => '展示列'} style={{ width: 150 }} value={visibleColumns} onChange={setVisibleColumns} options={strategyColumns.slice(1).map((column) => ({ value: String(column.key), label: String(column.title) }))} />}
           </div>
           {linkedCode && <Alert className="mb-16" type="info" message={`定位股票 ${linkedCode}`} action={<Button onClick={() => updateQuery({ code: undefined })}>显示全部</Button>} />}
           {view === 'candidates' && (loadingCandidates ? <Loading height={240} /> : (

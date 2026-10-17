@@ -3,6 +3,13 @@
 
 .strategy-page.bg-bg-white
   padding-bottom: 32px
+  .data-table:not(.is-loading)
+    .ant-table-body:has(.ant-table-placeholder)
+      min-height: 240px
+      overflow-y: hidden !important
+    .ant-table-placeholder > .ant-table-cell
+      height: 240px
+      vertical-align: middle
   .strategy-environment.ant-card, .strategy-asof-environment.ant-collapse
     margin-bottom: 16px
   .strategy-asof-environment .strategy-environment
