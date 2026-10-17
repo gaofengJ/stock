@@ -39,7 +39,7 @@ export const useStockFilterConfigs = (): IFormItemProps[] => {
       label: '市场类型',
       attrs: {
         options: allOptions.marketTypes || [],
-        placeholder: '市场类型',
+        placeholder: '全部',
         allowClear: true,
         style: {
           width: 120,
@@ -52,7 +52,7 @@ export const useStockFilterConfigs = (): IFormItemProps[] => {
       label: '上市状态',
       attrs: {
         options: allOptions.listStatus || [],
-        placeholder: '上市状态',
+        placeholder: '全部',
         allowClear: true,
         style: {
           width: 120,
@@ -65,7 +65,7 @@ export const useStockFilterConfigs = (): IFormItemProps[] => {
       label: '沪深港通',
       attrs: {
         options: allOptions.isHs || [],
-        placeholder: '沪深港通',
+        placeholder: '全部',
         allowClear: true,
         style: {
           width: 120,

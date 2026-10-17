@@ -6,6 +6,7 @@ import {
   Button, DatePicker, Empty, Input, Select,
 } from 'antd';
 import dayjs from 'dayjs';
+import SelectField from '@/components/SelectField';
 import Layout from '@/components/Layout';
 import { basicSiderMenuItems } from '@/components/Layout/config';
 import { EBasicAsideMenuKey, EHeaderMenuKey } from '@/components/Layout/enum';
@@ -51,7 +52,7 @@ function BrokerPicksPage() {
             <span>金股月份</span>
             <DatePicker id="broker-picks-month" aria-label="金股月份" picker="month" allowClear={false} value={dayjs(`${month}-01`)} disabledDate={(date) => date.format('YYYY-MM') > current} onChange={(date) => { if (date) change({ month: date.format('YYYY-MM'), broker: '' }); }} />
           </div>
-          <Select className="broker-picks-broker" aria-label="推荐券商" showSearch allowClear optionFilterProp="label" placeholder="全部券商" value={broker || undefined} onChange={(value) => change({ broker: value || '' })} options={[...brokers, ...(broker && !brokers.includes(broker) ? [broker] : [])].map((value) => ({ label: value, value }))} />
+          <SelectField label="推荐券商"><Select className="broker-picks-broker" aria-label="推荐券商" showSearch allowClear optionFilterProp="label" placeholder="全部券商" value={broker || undefined} onChange={(value) => change({ broker: value || '' })} options={[...brokers, ...(broker && !brokers.includes(broker) ? [broker] : [])].map((value) => ({ label: value, value }))} /></SelectField>
           <Input.Search className="broker-picks-search" aria-label="搜索金股名称或代码" allowClear placeholder="股票名称／代码" value={keyword} onChange={(event) => change({ q: event.target.value })} />
           <Button onClick={state.retry} loading={state.loading}>刷新资料</Button>
           {(broker || keyword) && <Button onClick={() => change({ broker: '', q: '' })}>重置筛选</Button>}

@@ -66,10 +66,10 @@ export default function FocusDrawer({
       )}
     >
       <p className={styles.note}>关注设置随账号保存。股票按代码、简称和公司全称匹配，可能有遗漏。</p>
-      <p id="news-follow-keywords-label">关注关键词（最多 20 个）</p>
-      <Select id="news-follow-keywords" aria-label="关注关键词" disabled={saving} mode="tags" tokenSeparators={[',', '，']} className={styles.focusSelect} value={draft.keywords} maxCount={20} placeholder="输入关键词后按回车，如半导体、降息" onChange={(keywords) => change({ keywords: keywords.map((word: string) => word.slice(0, 40)) })} />
-      <p id="news-watch-stocks-label">自选股票（最多 50 只）</p>
-      <Select id="news-watch-stocks" aria-label="自选股票" disabled={saving} mode="multiple" showSearch filterOption={false} loading={searching} maxCount={50} value={draft.stocks} className={styles.focusSelect} onSearch={setSearch} placeholder="输入 A 股代码或名称" notFoundContent={searching ? '搜索中…' : '输入代码或名称搜索'} options={[...options.map((stock) => ({ value: stock.tsCode, label: `${stock.name} ${stock.tsCode}` })), ...draft.stocks.filter((code) => !options.some((stock) => stock.tsCode === code)).map((code) => ({ value: code, label: code }))]} onChange={(stocks) => change({ stocks })} />
+      <p id="news-follow-keywords-label" className={styles.focusLabel}>关注关键词（最多 20 个）</p>
+      <Select id="news-follow-keywords" aria-labelledby="news-follow-keywords-label" disabled={saving} mode="tags" tokenSeparators={[',', '，']} className={styles.focusSelect} value={draft.keywords} maxCount={20} placeholder="输入关键词后按回车，如半导体、降息" onChange={(keywords) => change({ keywords: keywords.map((word: string) => word.slice(0, 40)) })} />
+      <p id="news-watch-stocks-label" className={styles.focusLabel}>自选股票（最多 50 只）</p>
+      <Select id="news-watch-stocks" aria-labelledby="news-watch-stocks-label" disabled={saving} mode="multiple" showSearch filterOption={false} loading={searching} maxCount={50} value={draft.stocks} className={styles.focusSelect} onSearch={setSearch} placeholder="输入 A 股代码或名称" notFoundContent={searching ? '搜索中…' : '输入代码或名称搜索'} options={[...options.map((stock) => ({ value: stock.tsCode, label: `${stock.name} ${stock.tsCode}` })), ...draft.stocks.filter((code) => !options.some((stock) => stock.tsCode === code)).map((code) => ({ value: code, label: code }))]} onChange={(stocks) => change({ stocks })} />
     </Drawer>
   );
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import SelectField from '@/components/SelectField';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { errorMessage } from '@/api/errors';
 import {
@@ -193,9 +194,9 @@ export default function Page() {
       </Typography.Paragraph>
       <div className="account-toolbar sync-filters" aria-label="任务筛选">
         <Input.Search className="sync-search" placeholder="搜索任务编号或触发人" aria-label="搜索任务编号或触发人" maxLength={100} value={search} allowClear onChange={(e) => { setSearch(e.target.value); if (!e.target.value) filter({ keyword: undefined }); }} onSearch={(v) => filter({ keyword: v.trim() || undefined })} />
-        <Select className="sync-filter-select" aria-label="原始执行结果" placeholder="全部执行结果" value={query.status} allowClear options={Object.entries(labels).map(([value, label]) => ({ value, label }))} onChange={(status) => filter({ status })} />
-        <Select className="sync-filter-select" aria-label="处理情况" placeholder="全部处理情况" value={query.handling} allowClear options={[...Object.entries(handlingLabels).map(([value, label]) => ({ value, label })), { value: 'history', label: '全部历史接续' }]} onChange={(handling) => filter({ handling })} />
-        <Select className="sync-mode" aria-label="任务类型" placeholder="全部任务类型" value={query.mode} allowClear options={modes} popupMatchSelectWidth={280} onChange={(mode) => filter({ mode })} />
+        <SelectField label="执行结果"><Select className="sync-filter-select" aria-label="原始执行结果" placeholder="全部执行结果" value={query.status} allowClear options={Object.entries(labels).map(([value, label]) => ({ value, label }))} onChange={(status) => filter({ status })} /></SelectField>
+        <SelectField label="处理情况"><Select className="sync-filter-select" aria-label="处理情况" placeholder="全部处理情况" value={query.handling} allowClear options={[...Object.entries(handlingLabels).map(([value, label]) => ({ value, label })), { value: 'history', label: '全部历史接续' }]} onChange={(handling) => filter({ handling })} /></SelectField>
+        <SelectField label="任务类型"><Select className="sync-mode" aria-label="任务类型" placeholder="全部任务类型" value={query.mode} allowClear options={modes} popupMatchSelectWidth={280} onChange={(mode) => filter({ mode })} /></SelectField>
         <DatePicker.RangePicker
           aria-label="任务日期范围"
           value={dates}

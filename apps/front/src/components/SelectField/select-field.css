@@ -1,0 +1,9 @@
+.select-field { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; vertical-align: middle; }
+.select-field-label { flex: 0 0 auto; color: var(--text-secondary); font-size: 14px; line-height: 22px; white-space: nowrap; cursor: pointer; }
+.select-field > .ant-select { flex: 1 1 auto; min-width: 112px; max-width: 100%; }
+@media (max-width: 767px) {
+  .select-field > .ant-select { min-width: 0; }
+  .ant-space-item:has(> .select-field), .ant-space-item:has(> .sector-filter) { min-width: 0; max-width: 100%; }
+  .sector-filter > .ant-space-item:has(> .select-field) { flex: 1; }
+  .review-filters > .select-field { width: 100%; }
+}

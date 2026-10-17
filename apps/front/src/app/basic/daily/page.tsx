@@ -1,6 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
+import SelectField from '@/components/SelectField';
 import SectorFilter from '@/components/SectorFilter';
 import SectorLinks from '@/components/SectorLinks';
 import { errorMessage } from '@/api/errors';
@@ -157,10 +158,10 @@ function BasicDailyPage() {
           />
         </div>
         <Space className="mb-16" wrap>
-          <Select aria-label="市场范围" value={scope} onChange={(v) => { setScope(v); setSearchParams((s) => ({ ...s, pageNum: 1 })); }} options={[{ value: 'all', label: '全部A股' }, { value: 'hs', label: '沪深' }, { value: 'main', label: '主板' }, { value: 'gem', label: '创业板' }, { value: 'star', label: '科创板' }, { value: 'bj', label: '北交所' }]} />
+          <SelectField label="市场范围"><Select aria-label="市场范围" value={scope} onChange={(v) => { setScope(v); setSearchParams((s) => ({ ...s, pageNum: 1 })); }} options={[{ value: 'all', label: '全部A股' }, { value: 'hs', label: '沪深' }, { value: 'main', label: '主板' }, { value: 'gem', label: '创业板' }, { value: 'star', label: '科创板' }, { value: 'bj', label: '北交所' }]} /></SelectField>
           <SectorFilter value={sector} onChange={(v) => { setSector(v); setSearchParams((s) => ({ ...s, pageNum: 1 })); }} />
-          <Select aria-label="成交状态" value={tradingState} onChange={(v) => { setTradingState(v); setSearchParams((s) => ({ ...s, pageNum: 1 })); }} options={[{ value: 'traded', label: '有成交记录' }, { value: 'all', label: '全部已取得记录' }]} />
-          <Select mode="multiple" aria-label="显示列" maxTagCount={1} style={{ minWidth: 220 }} value={visible} options={dailyColumns.map((c) => ({ label: c.title as string, value: String(c.key) }))} onChange={(v) => { setVisible(v); try { localStorage.setItem('basic-daily-columns', JSON.stringify(v)); } catch { /* storage unavailable */ } }} />
+          <SelectField label="成交状态"><Select aria-label="成交状态" value={tradingState} onChange={(v) => { setTradingState(v); setSearchParams((s) => ({ ...s, pageNum: 1 })); }} options={[{ value: 'traded', label: '有成交记录' }, { value: 'all', label: '全部已取得记录' }]} /></SelectField>
+          <SelectField label="显示列"><Select placeholder="请选择" mode="multiple" aria-label="显示列" maxTagCount={0} maxTagPlaceholder={(omitted) => `已选 ${omitted.length} 项`} style={{ minWidth: 220 }} value={visible} options={dailyColumns.map((c) => ({ label: c.title as string, value: String(c.key) }))} onChange={(v) => { setVisible(v); try { localStorage.setItem('basic-daily-columns', JSON.stringify(v)); } catch { /* storage unavailable */ } }} /></SelectField>
         </Space>
         <p className="basic-muted mb-16">按全部查询结果排序；不把缺失行情补成0。无成交记录不等于停牌，停复牌请查看风险与交易状态。</p>
         <Table

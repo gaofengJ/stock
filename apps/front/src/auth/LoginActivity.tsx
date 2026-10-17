@@ -7,6 +7,7 @@ import {
   Alert, Button, DatePicker, Input, Modal, Select, Tag, message,
 } from 'antd';
 import type { Dayjs } from 'dayjs';
+import SelectField from '@/components/SelectField';
 import Table from '@/components/DataTable';
 import HelpTooltip from '@/components/HelpTooltip';
 import { errorMessage } from '@/api/errors';
@@ -145,22 +146,26 @@ export default function LoginActivity() {
           placeholder={['开始日期', '结束日期']}
           onChange={(value) => { setDates(value); setPage(1); }}
         />
-        <Select
-          aria-label="事件类型"
-          placeholder="全部事件"
-          value={event}
-          allowClear
-          options={[{ value: 'login', label: '登录成功' }, { value: 'register', label: '注册并登录' }]}
-          onChange={(value) => { setEvent(value); setPage(1); }}
-        />
-        <Select
-          aria-label="已读状态"
-          placeholder="全部状态"
-          value={status}
-          allowClear
-          options={[{ value: 'unread', label: '未读' }, { value: 'read', label: '已读' }]}
-          onChange={(value) => { setStatus(value); setPage(1); }}
-        />
+        <SelectField label="事件类型">
+          <Select
+            aria-label="事件类型"
+            placeholder="全部"
+            value={event}
+            allowClear
+            options={[{ value: 'login', label: '登录成功' }, { value: 'register', label: '注册并登录' }]}
+            onChange={(value) => { setEvent(value); setPage(1); }}
+          />
+        </SelectField>
+        <SelectField label="已读状态">
+          <Select
+            aria-label="已读状态"
+            placeholder="全部状态"
+            value={status}
+            allowClear
+            options={[{ value: 'unread', label: '未读' }, { value: 'read', label: '已读' }]}
+            onChange={(value) => { setStatus(value); setPage(1); }}
+          />
+        </SelectField>
         <Button
           disabled={!filtered && !search}
           onClick={() => {

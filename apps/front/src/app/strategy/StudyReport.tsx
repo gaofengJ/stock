@@ -7,6 +7,7 @@ import {
   Alert, Button, Grid, Input, Popover, Segmented, Select, Space, Tabs, Tag,
 } from 'antd';
 import { QuestionCircleOutlined } from '@ant-design/icons';
+import SelectField from '@/components/SelectField';
 import { InteractionButton } from '@/components/Interaction';
 import { StockIdentity, StockLink } from '@/components/StockActions';
 import Table from '@/components/DataTable';
@@ -178,8 +179,7 @@ export default function StudyReport({ strategy, active, onStock }: { strategy: s
       </div>
       <div className="strategy-study-selection">
         <Space wrap>
-          <strong>报告策略</strong>
-          <Select aria-label="报告策略" value={selected.key} onChange={setFocus} options={report.strategies.map((row) => ({ value: row.key, label: row.label }))} />
+          <SelectField label="报告策略"><Select aria-label="报告策略" value={selected.key} onChange={setFocus} options={report.strategies.map((row) => ({ value: row.key, label: row.label }))} /></SelectField>
         </Space>
         <span className="strategy-caption">{`${selected.signals.toLocaleString()}次信号，${selected.stocks.toLocaleString()}只股票，基准：上证指数`}</span>
       </div>
@@ -301,8 +301,7 @@ export default function StudyReport({ strategy, active, onStock }: { strategy: s
           <Segmented aria-label="个股排名口径" value={ranking} onChange={(value) => setRanking(String(value))} options={[{ label: '单次信号', value: 'signal' }, { label: '个股平均', value: 'average' }]} />
           {ranking === 'average' && (
           <Space>
-            <span>至少有效信号</span>
-            <Select aria-label="个股最少有效信号数" value={minimum} onChange={setMinimum} options={[1, 3, 5, 10].map((value) => ({ value, label: `${value}次` }))} />
+            <SelectField label="至少有效信号"><Select aria-label="个股最少有效信号数" value={minimum} onChange={setMinimum} options={[1, 3, 5, 10].map((value) => ({ value, label: `${value}次` }))} /></SelectField>
           </Space>
           )}
         </div>
@@ -335,8 +334,8 @@ export default function StudyReport({ strategy, active, onStock }: { strategy: s
         <div className="strategy-result-toolbar">
           <Space wrap>
             <Input aria-label="报告股票搜索" placeholder="股票代码／名称" value={keyword} onChange={(event) => setKeyword(event.target.value)} allowClear />
-            <Select aria-label="信号月份" value={month} onChange={setMonth} options={[{ value: 'all', label: '全部月份' }, ...selected.monthly.map((row) => ({ value: row.month, label: row.month }))]} />
-            <Select aria-label="报告信号状态" value={filter} onChange={setFilter} options={[{ value: 'all', label: '全部状态' }, ...Object.entries(states).map(([value, label]) => ({ value, label }))]} />
+            <SelectField label="信号月份"><Select aria-label="信号月份" value={month} onChange={setMonth} options={[{ value: 'all', label: '全部月份' }, ...selected.monthly.map((row) => ({ value: row.month, label: row.month }))]} /></SelectField>
+            <SelectField label="信号状态"><Select aria-label="报告信号状态" value={filter} onChange={setFilter} options={[{ value: 'all', label: '全部状态' }, ...Object.entries(states).map(([value, label]) => ({ value, label }))]} /></SelectField>
           </Space>
           <Button size="small" disabled={!details || loadingDetails} onClick={downloadSignals}>下载当前策略全量明细</Button>
         </div>

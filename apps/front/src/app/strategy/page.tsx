@@ -1,5 +1,6 @@
 'use client';
 
+import SelectField from '@/components/SelectField';
 import Link from '@/components/Interaction';
 
 import {
@@ -188,7 +189,7 @@ function StrategyPage() {
               )}
               <Input aria-label="搜索股票" allowClear placeholder="股票代码 / 名称" value={keyword} style={{ width: 220 }} onChange={(event) => updateQuery({ q: event.target.value })} />
             </Space>
-            {view === 'candidates' && <Select aria-label="展示列" mode="multiple" maxTagCount={0} maxTagPlaceholder={() => '展示列'} style={{ width: 150 }} value={visibleColumns} onChange={setVisibleColumns} options={strategyColumns.slice(1).map((column) => ({ value: String(column.key), label: String(column.title) }))} />}
+            {view === 'candidates' && <SelectField label="显示列"><Select placeholder="请选择" aria-label="展示列" mode="multiple" maxTagCount={0} maxTagPlaceholder={(omitted) => `已选 ${omitted.length} 项`} style={{ width: 150 }} value={visibleColumns} onChange={setVisibleColumns} options={strategyColumns.slice(1).map((column) => ({ value: String(column.key), label: String(column.title) }))} /></SelectField>}
           </div>
           {linkedCode && <Alert className="mb-16" type="info" message={`定位股票 ${linkedCode}`} action={<Button onClick={() => updateQuery({ code: undefined })}>显示全部</Button>} />}
           {view === 'candidates' && (loadingCandidates ? <Loading height={240} /> : (

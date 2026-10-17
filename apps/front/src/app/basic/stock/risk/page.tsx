@@ -6,6 +6,7 @@ import {
   DatePicker, Input, Select, Space,
 } from 'antd';
 import dayjs from 'dayjs';
+import SelectField from '@/components/SelectField';
 import Loading from '@/components/Loading';
 import Table from '@/components/DataTable';
 import SectorFilter from '@/components/SectorFilter';
@@ -35,7 +36,7 @@ function Risk() {
         <DatePicker aria-label="交易日期" value={date ? dayjs(date) : null} allowClear={false} onChange={(value) => { if (value) { setSelected(value.format('YYYY-MM-DD')); setPage(1); } }} />
         <Input.Search placeholder="股票代码／名称" defaultValue={keyword} allowClear onSearch={(value) => { setKeyword(value); setPage(1); }} />
         <SectorFilter value={sector} onChange={(value) => { setSector(value); setPage(1); }} />
-        <Select allowClear placeholder="风险类型" value={type} onChange={(value) => { setType(value); setPage(1); }} style={{ width: 150 }} options={['ST', '减持', '停牌', '复牌', '异常波动', '严重异常波动', '交易所提示'].map((value) => ({ label: riskTypeLabel(value), value }))} />
+        <SelectField label="风险类型"><Select aria-label="风险类型" allowClear placeholder="全部" value={type} onChange={(value) => { setType(value); setPage(1); }} style={{ width: 150 }} options={['ST', '减持', '停牌', '复牌', '异常波动', '严重异常波动', '交易所提示'].map((value) => ({ label: riskTypeLabel(value), value }))} /></SelectField>
       </Space>
       <div className="risk-list-context">
         <SourceState data={state.data} error={state.error} retry={state.retry} pollingStopped={state.pollingStopped} />

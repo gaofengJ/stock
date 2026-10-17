@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Button, Col, Empty, Row, Select,
 } from 'antd';
+import SelectField from '@/components/SelectField';
 import Link from '@/components/Interaction';
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import { MarketSeries } from '@/api/market';
@@ -106,7 +107,7 @@ export default function OverviewPage() {
             <div className="market-section-toolbar">
               <div className="market-chart-selection">
                 <SectionTitle title="指数图表" description="上方K线、下方成交量，共用日期与缩放。周/月由日线汇总。" />
-                <Select aria-label="选择K线指数" value={selected?.code || 'all'} onChange={(value) => setIndex(value === 'all' ? null : value)} options={[{ value: 'all', label: '全部指数' }, ...indexes.map((i) => ({ value: i.code, label: i.name }))]} style={{ minWidth: 160 }} />
+                <SelectField label="指数"><Select aria-label="选择K线指数" value={selected?.code || 'all'} onChange={(value) => setIndex(value === 'all' ? null : value)} options={[{ value: 'all', label: '全部指数' }, ...indexes.map((i) => ({ value: i.code, label: i.name }))]} style={{ minWidth: 160 }} /></SelectField>
                 {selected && <Button size="small" onClick={() => setIndex(null)}>显示全部指数</Button>}
               </div>
               <ChartRange value={window} onChange={setWindow} />

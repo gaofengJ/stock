@@ -1,5 +1,6 @@
 'use client';
 
+import SelectField from '@/components/SelectField';
 import Link, { InteractionButton } from '@/components/Interaction';
 
 import { useEffect, useRef, useState } from 'react';
@@ -201,7 +202,7 @@ function LimitsPage() {
         <div className="limits-filters">
           <SectorFilter value={sector} onChange={setSector} />
           <Input.Search className="limits-keyword" allowClear placeholder="股票名称／代码" value={search} onChange={(e) => { setSearch(e.target.value); if (!e.target.value) setKeyword(''); }} onSearch={setKeyword} />
-          {type === 'U' && <Select className="limits-height-filter" aria-label="连板数筛选" allowClear placeholder="连板数" value={height} onChange={setHeight} options={[{ value: 1, label: '首板' }, { value: 2, label: '二板' }, { value: 3, label: '三板' }, { value: 4, label: '四板及以上' }]} />}
+          {type === 'U' && <SelectField label="连板数"><Select className="limits-height-filter" aria-label="连板数筛选" allowClear placeholder="全部" value={height} onChange={setHeight} options={[{ value: 1, label: '首板' }, { value: 2, label: '二板' }, { value: 3, label: '三板' }, { value: 4, label: '四板及以上' }]} /></SelectField>}
         </div>
         {themeView ? <ThemeReview key={`${date}:${scope}`} keyword={keyword} height={height} sector={sector} /> : (
           <>
@@ -209,7 +210,7 @@ function LimitsPage() {
             <div className="limits-table-toolbar">
               <SectionTitle title="股票列表" description="非ST样本；涨停与炸板按收盘状态区分。缺失封板信息显示“—”；可通过展示列查看其他指标。" />
               <Space wrap>
-                <Select aria-label="展示列" mode="multiple" maxTagCount={0} maxTagPlaceholder={() => '展示列'} style={{ width: 150 }} value={visibleColumns.filter((key) => optionalFields.some(([field]) => field === key))} onChange={(keys) => setVisibleColumns([...keys, ...visibleColumns.filter((key) => !optionalFields.some(([field]) => field === key))])} options={optionalFields.map(([value, label]) => ({ value, label }))} />
+                <SelectField label="显示列"><Select placeholder="请选择" aria-label="展示列" mode="multiple" maxTagCount={0} maxTagPlaceholder={(omitted) => `已选 ${omitted.length} 项`} style={{ width: 150 }} value={visibleColumns.filter((key) => optionalFields.some(([field]) => field === key))} onChange={(keys) => setVisibleColumns([...keys, ...visibleColumns.filter((key) => !optionalFields.some(([field]) => field === key))])} options={optionalFields.map(([value, label]) => ({ value, label }))} /></SelectField>
                 <Button size="small" onClick={() => setVisibleColumns(defaultColumns)}>恢复默认列</Button>
               </Space>
             </div>

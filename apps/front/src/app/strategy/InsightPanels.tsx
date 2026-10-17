@@ -1,5 +1,6 @@
 'use client';
 
+import SelectField from '@/components/SelectField';
 import { InteractionButton } from '@/components/Interaction';
 import { StockIdentity } from '@/components/StockActions';
 
@@ -64,7 +65,7 @@ export function CandidateComparison({
           <span>比较周期</span>
           <Segmented aria-label="比较周期" value={period} onChange={(v) => setPeriod(Number(v))} options={[{ label: '20日', value: 20 }, { label: '60日', value: 60 }]} />
         </Space>
-        <Select className="strategy-comparison-select" aria-label="多策略交集" placeholder="同时命中策略（标准参数）" mode="multiple" allowClear maxTagCount="responsive" value={selected} onChange={setSelected} options={strategies.map((s) => ({ value: s.key, label: s.label }))} />
+        <SelectField label="同时命中策略"><Select className="strategy-comparison-select" aria-label="多策略交集" placeholder="请选择，可多选" mode="multiple" allowClear maxTagCount="responsive" value={selected} onChange={setSelected} options={strategies.map((s) => ({ value: s.key, label: s.label }))} /></SelectField>
         <HelpTooltip label="横向比较口径" title="涨幅强度表示同期涨幅在全市场有效样本中的百分位（0–100），数值越高，相对排名越靠前。领先行业为个股涨幅减同花顺行业指数涨幅。多策略命中按标准参数计算。" />
       </div>
       <p className="strategy-caption">默认按涨幅强度排序，数值越高，同期涨幅在全市场的排名越靠前。</p>

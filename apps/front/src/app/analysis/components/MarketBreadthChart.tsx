@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   Alert, Button, Card, Empty, Segmented, Select,
 } from 'antd';
+import SelectField from '@/components/SelectField';
 import { BreadthSeries } from '@/api/market';
 import CChart from '@/components/CChart';
 import HelpTooltip from '@/components/HelpTooltip';
@@ -47,7 +48,7 @@ export default function MarketBreadthChart({ range }: { range: string }) {
       extra={(
         <div className="market-chart-controls">
           <Segmented aria-label="均线广度周期" value={period} onChange={(value) => setPeriod(value as 'ma20' | 'ma60')} options={[{ value: 'ma20', label: 'MA20' }, { value: 'ma60', label: 'MA60' }]} />
-          <Select aria-label="均线广度日期范围" value={days} onChange={setDays} options={environmentRanges} />
+          <SelectField label="日期范围"><Select aria-label="均线广度日期范围" value={days} onChange={setDays} options={environmentRanges} /></SelectField>
         </div>
       )}
     >

@@ -6,6 +6,7 @@ import {
   Button, Segmented, Select, Space,
 } from 'antd';
 import { Lunar } from 'lunar-typescript';
+import SelectField from '@/components/SelectField';
 import { NSGetBasicTradeCalList } from '@/api/services.types';
 import { monthDates } from './calendar-display';
 
@@ -35,7 +36,7 @@ export default function TradeCalendarGrid({
           {!annual && (
           <Space>
             <Button aria-label="上一个月" disabled={month === 0} onClick={() => { setMonth((v) => v - 1); if (events) onSelect(`${year}-${String(month).padStart(2, '0')}-01`); }}>‹</Button>
-            <Select aria-label="选择月份" value={month} onChange={(v) => { setMonth(v); if (events) onSelect(`${year}-${String(v + 1).padStart(2, '0')}-01`); }} options={Array.from({ length: 12 }, (_, i) => ({ value: i, label: `${i + 1}月` }))} />
+            <SelectField label="月份"><Select aria-label="选择月份" value={month} onChange={(v) => { setMonth(v); if (events) onSelect(`${year}-${String(v + 1).padStart(2, '0')}-01`); }} options={Array.from({ length: 12 }, (_, i) => ({ value: i, label: `${i + 1}月` }))} /></SelectField>
             <Button aria-label="下一个月" disabled={month === 11} onClick={() => { setMonth((v) => v + 1); if (events) onSelect(`${year}-${String(month + 2).padStart(2, '0')}-01`); }}>›</Button>
           </Space>
           )}

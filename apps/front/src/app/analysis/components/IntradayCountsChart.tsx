@@ -5,6 +5,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import { useCallback, useEffect, useState } from 'react';
+import SelectField from '@/components/SelectField';
 import { marketRequest } from '@/api/market';
 import type { IntradayCounts } from '@/api/intraday-counts';
 import { errorMessage } from '@/api/errors';
@@ -87,13 +88,15 @@ export default function IntradayCountsChart() {
           <Button size="small" type={!date ? 'primary' : 'default'} onClick={() => { setDate(''); retry(); }}>
             实时
           </Button>
-          <Select
-            size="small"
-            aria-label="盘中上涨家数交易日范围"
-            value={days}
-            onChange={setDays}
-            options={[1, 5, 10, 20, 30].map((value) => ({ value, label: value === 1 ? '最近1个交易日' : `近${value}个交易日` }))}
-          />
+          <SelectField label="交易日范围">
+            <Select
+              size="small"
+              aria-label="盘中上涨家数交易日范围"
+              value={days}
+              onChange={setDays}
+              options={[1, 5, 10, 20, 30].map((value) => ({ value, label: value === 1 ? '最近1个交易日' : `近${value}个交易日` }))}
+            />
+          </SelectField>
         </Space>
         <p className="market-note">
           <span>

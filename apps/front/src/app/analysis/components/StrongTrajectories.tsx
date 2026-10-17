@@ -1,5 +1,6 @@
 'use client';
 
+import SelectField from '@/components/SelectField';
 import { StockIdentity, StockLink } from '@/components/StockActions';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -92,8 +93,8 @@ export default function StrongTrajectories({ sector, onSectorChange, active }: {
       <div className="chains-trajectory-filters">
         <SectorFilter value={sector} onChange={onSectorChange} />
         <Input.Search aria-label="搜索轨迹股票" allowClear placeholder="股票名称／代码" value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ width: 190 }} />
-        <Select aria-label="轨迹范围" value={count} onChange={setCount} options={[5, 10, 20].map((value) => ({ value, label: `近${value}个交易日` }))} />
-        <Select aria-label="所选日状态" value={state} onChange={setState} style={{ width: 148 }} options={[{ value: 'all', label: '所选日全部状态' }, ...['连板', '首板', '断板', '炸板', '跌停', '交易', '无成交', '待补齐'].map((value) => ({ value, label: value === '交易' ? '普通交易（未涨停）' : value }))]} />
+        <SelectField label="轨迹范围"><Select aria-label="轨迹范围" value={count} onChange={setCount} options={[5, 10, 20].map((value) => ({ value, label: `近${value}个交易日` }))} /></SelectField>
+        <SelectField label="所选日状态"><Select aria-label="所选日状态" value={state} onChange={setState} style={{ width: 148 }} options={[{ value: 'all', label: '全部状态' }, ...['连板', '首板', '断板', '炸板', '跌停', '交易', '无成交', '待补齐'].map((value) => ({ value, label: value === '交易' ? '普通交易（未涨停）' : value }))]} /></SelectField>
         {allowedPath(user, '/strategy') && <Checkbox checked={showSignals} onChange={(e) => setShowSignals(e.target.checked)}>显示策略命中</Checkbox>}
         {!!keyword && <Button size="small" onClick={() => setKeyword('')}>清除股票筛选</Button>}
       </div>

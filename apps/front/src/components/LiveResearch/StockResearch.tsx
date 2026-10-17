@@ -4,6 +4,7 @@ import { useState } from 'react';
 import {
   Button, Card, Descriptions, Drawer, Segmented, Select, Tabs,
 } from 'antd';
+import SelectField from '@/components/SelectField';
 import Link, { InteractionButton } from '@/components/Interaction';
 import { beijingTime, numberText } from '@/utils/format';
 import {
@@ -142,7 +143,7 @@ function StockPanel({ code, date, section }: { code: string; date: string; secti
   return (
     <>
       <div className="live-research-filters">
-        {section === 'financial' && <Select style={{ width: 180 }} aria-label="报告期类型" value={reportPeriod} onChange={(v) => setReportPeriod(String(v))} options={[{ label: '全部报告期', value: 'all' }, { label: '年报', value: '1231' }, { label: '半年报', value: '0630' }, { label: '一季报', value: '0331' }, { label: '三季报', value: '0930' }]} />}
+        {section === 'financial' && <SelectField label="报告期类型"><Select style={{ width: 180 }} aria-label="报告期类型" value={reportPeriod} onChange={(v) => setReportPeriod(String(v))} options={[{ label: '全部报告期', value: 'all' }, { label: '年报', value: '1231' }, { label: '半年报', value: '0630' }, { label: '一季报', value: '0331' }, { label: '三季报', value: '0930' }]} /></SelectField>}
         {section === 'business' && <Segmented aria-label="主营分类" options={[{ label: '按产品', value: 'P' }, { label: '按地区', value: 'D' }, { label: '按行业', value: 'I' }]} value={businessType} onChange={(v) => setBusinessType(String(v))} />}
         {section === 'institutions' && (
           <Link href={`/basic/stock/broker-picks/?${new URLSearchParams({ month: date.slice(0, 7), q: code })}`}>查看该股券商月度金股</Link>

@@ -1,5 +1,6 @@
 'use client';
 
+import SelectField from '@/components/SelectField';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { errorMessage } from '@/api/errors';
 import {
@@ -191,7 +192,7 @@ export default function Page() {
           onChange={(e) => { setSearch(e.target.value); if (!e.target.value) { setKeyword(''); setPage(1); } }}
           onSearch={(v) => { setKeyword(v.trim()); setPage(1); }}
         />
-        <Select className="roles-type" placeholder="角色类型" aria-label="角色类型" value={builtin} allowClear options={[{ value: 1, label: '内置角色' }, { value: 0, label: '自定义角色' }]} onChange={(v) => { setBuiltin(v); setPage(1); }} />
+        <SelectField label="角色类型"><Select className="roles-type" placeholder="全部" aria-label="角色类型" value={builtin} allowClear options={[{ value: 1, label: '内置角色' }, { value: 0, label: '自定义角色' }]} onChange={(v) => { setBuiltin(v); setPage(1); }} /></SelectField>
         <Button disabled={!search && builtin === undefined} onClick={() => { setSearch(''); setKeyword(''); setBuiltin(undefined); setPage(1); }}>重置筛选</Button>
         <Button type="primary" disabled={busy || loading || !!loadError} onClick={() => openEditor('new')}>创建角色</Button>
         <Button loading={loading} disabled={busy} onClick={() => { setOperationError(''); load(); }}>刷新</Button>
