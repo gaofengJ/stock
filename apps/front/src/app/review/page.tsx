@@ -84,7 +84,11 @@ function Report({
   const financials = useCandidateProfit(date, rows.map((row) => row.tsCode), !!data && !loading);
   const ordered = [...filtered].sort((a, b) => (sortOrder ? (sortOrder === 'ascend' ? 1 : -1) * compareCap(a.circMv, b.circMv) : 0));
   const chartRows = useRef<any[]>([]);
-  const openStock = (row: any) => { chartRows.current = ordered.some((r) => r.tsCode === row.tsCode) ? ordered : rows; setStock(row); };
+  const openStock = (row: any, source?: any[]) => {
+    const fallbackRows = ordered.some((r) => r.tsCode === row.tsCode) ? ordered : rows;
+    chartRows.current = source?.length ? source : fallbackRows;
+    setStock(row);
+  };
   const closeStock = () => {
     const index = ordered.findIndex((row) => row.tsCode === stock?.tsCode);
     if (index >= 0) {
@@ -299,7 +303,7 @@ function Report({
                   render: (_, r: any) => (
                     <div className="review-stock-cell">
                       <div className="review-stock-heading">
-                        <StockLink code={r.tsCode} name={r.name} date={date} onChart={() => openStock(r)} />
+                        <StockLink code={r.tsCode} name={r.name} date={date} onChart={(list) => openStock(r, list)} />
                         <span className="review-caption">{r.tsCode}</span>
                       </div>
                       <div className="review-stock-actions">
@@ -363,7 +367,7 @@ function Report({
                   <div key={tsCode} className="review-pick">
                     <div className="review-pick-summary">
                       <div className="review-pick-heading">
-                        <StockLink code={tsCode} name={row?.name || name} date={date} onChart={row ? () => openStock(row) : undefined} />
+                        <StockLink code={tsCode} name={row?.name || name} date={date} navigation={chosen.map((pick) => pick.row || pick)} onChart={row ? (list) => openStock(row, list) : undefined} />
                         <Button size="small" aria-label={`将${name}移出观察名单`} onClick={() => remove(tsCode)}>移出</Button>
                       </div>
                       <span className="review-caption">{tsCode}</span>

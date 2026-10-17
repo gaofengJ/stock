@@ -133,8 +133,11 @@ export default function FeedbackFloating() {
         )}
         content={(
           <div className="feedback-floating-actions" id={panelId}>
-            <Link href="/feedback" onClick={() => setOpen(false)} onKeyDown={closeOnEscape}>打开反馈页面</Link>
-            <small>关闭后可从账户菜单进入</small>
+            <Link href="/feedback" onClick={() => setOpen(false)} onKeyDown={closeOnEscape}>
+              <CommentOutlined />
+              <span>打开反馈页面</span>
+            </Link>
+            <small>关闭后仍可从账户菜单进入。</small>
           </div>
         )}
       >

@@ -172,7 +172,7 @@ export default function Page() {
   const relatedSources = (item: NewsItem) => Array.from(new Set((item.related || []).map((related) => sources.sources.find((s) => s.code === related.source)?.name || related.source)));
   const stockTags = (item: NewsItem) => (item.stocks || []).map((symbol) => (
     <Tag key={symbol.tsCode} color={preferences.stocks.includes(symbol.tsCode) ? 'blue' : 'default'}>
-      <StockLink code={symbol.tsCode} name={symbol.name} />
+      <StockLink code={symbol.tsCode} name={symbol.name} navigation={item.stocks} />
       <InteractionButton intent="select" selected={stock === symbol.tsCode} aria-label={`筛选${symbol.name}资讯`} title="筛选该股票资讯" onClick={() => { setStock(symbol.tsCode); setPage(1); }}>筛选资讯</InteractionButton>
     </Tag>
   ));

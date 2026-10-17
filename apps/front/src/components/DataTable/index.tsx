@@ -4,9 +4,11 @@
 
 import { Table, TableProps } from 'antd';
 import {
-  CSSProperties, useEffect, useRef, useState,
+  CSSProperties, useCallback, useEffect, useRef, useState,
 } from 'react';
 import { LoadingOverlay } from '@/components/Loading';
+import { StockListContext } from '@/components/StockActions/ListScope';
+import { tableNavigationRows, TableView } from './navigation';
 import './table.css';
 
 type Props<Row extends object> = Omit<TableProps<Row>, 'loading' | 'scroll'> & {
@@ -23,6 +25,12 @@ export default function DataTable<Row extends object = any>({
   loading = false, scroll, locale, maxBodyHeight = Number.POSITIVE_INFINITY, minBodyHeight = 240, bottomSpacing = 0, autoHeight = false, ...props
 }: Props<Row>) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const tableView = useRef<TableView<Row>>();
+  const stockRows = useCallback(() => tableNavigationRows(props.dataSource || [], props.columns, tableView.current), [props.dataSource, props.columns]);
+  const onChange: NonNullable<TableProps<Row>['onChange']> = (pagination, filters, sorter, extra) => {
+    tableView.current = { filters, sorter };
+    props.onChange?.(pagination, filters, sorter, extra);
+  };
   const [height, setHeight] = useState(minBodyHeight);
   useEffect(() => {
     const root = rootRef.current;
@@ -72,12 +80,15 @@ export default function DataTable<Row extends object = any>({
   return (
     <div ref={rootRef} className={`data-table${autoHeight ? ' data-table-auto-height' : ''}${loading ? ' is-loading' : ''}`} aria-busy={loading} style={{ '--table-body-height': `${height}px` } as CSSProperties}>
       <div className="data-table-content" aria-hidden={loading || undefined}>
-        <Table<Row>
-          {...props}
-          scroll={{ x: 'max-content', ...scroll, ...(autoHeight ? {} : { y: height }) }}
-          loading={false}
-          locale={{ ...locale, ...(loading ? { emptyText: <div className="data-table-loading-space" /> } : {}) }}
-        />
+        <StockListContext.Provider value={stockRows}>
+          <Table<Row>
+            {...props}
+            onChange={onChange}
+            scroll={{ x: 'max-content', ...scroll, ...(autoHeight ? {} : { y: height }) }}
+            loading={false}
+            locale={{ ...locale, ...(loading ? { emptyText: <div className="data-table-loading-space" /> } : {}) }}
+          />
+        </StockListContext.Provider>
       </div>
       {loading && <LoadingOverlay regionSelector={autoHeight ? '.ant-table-content' : '.ant-table-body'} />}
     </div>
