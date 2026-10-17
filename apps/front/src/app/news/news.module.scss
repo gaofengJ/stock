@@ -7,6 +7,7 @@
 .auto { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--text-secondary); }
 .filters { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 16px; border-radius: 8px; background: var(--color-surface); border: 1px solid var(--color-border); }
 .sourceSelect { width: 140px; }
+.focusLabel { display: block; margin: 16px 0 8px; color: var(--text-secondary); }
 .filters .search { width: 240px; }
 .summary { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 16px 0; font-size: 12px; color: var(--text-secondary); }
 .alert { margin: 12px 0; }

@@ -1,5 +1,6 @@
 'use client';
 
+import SelectField from '@/components/SelectField';
 import { InteractionButton } from '@/components/Interaction';
 import { StockIdentity, StockLink } from '@/components/StockActions';
 import {
@@ -151,7 +152,7 @@ export default function Page() {
           <SectorFilter value={sector} onChange={(value) => { setSector(value); changeFilters({ sector: value || '' }); }} />
           <Input.Search allowClear aria-label="搜索龙虎榜股票" placeholder="股票名称／代码" value={keyword} onChange={(e) => { scrollPending.current = false; setKeyword(e.target.value); }} onSearch={(value) => changeFilters({ keyword: value })} style={{ width: 230 }} />
           <Segmented aria-label="龙虎榜资金方向" options={[{ label: '全部方向', value: 'all' }, { label: '净买入', value: 'buy' }, { label: '净卖出', value: 'sell' }]} value={flow} onChange={(v) => changeFilters({ flow: String(v) })} />
-          <Select aria-label="资金统计期间" value={period} onChange={(value) => changeFilters({ period: value })} style={{ width: 140 }} options={Object.entries(periodLabels).map(([value, label]) => ({ value, label }))} />
+          <SelectField label="统计期间"><Select aria-label="资金统计期间" value={period} onChange={(value) => changeFilters({ period: value })} style={{ width: 140 }} options={Object.entries(periodLabels).map(([value, label]) => ({ value, label }))} /></SelectField>
           {(keyword || sector || flow !== 'all' || period !== 'all') && (
           <Button
             size="small"
@@ -169,7 +170,7 @@ export default function Page() {
           <SectionTitle title="上榜股票" description="每条记录对应一个上榜原因。资金按上榜期间分别展示，不合并重复股票或不同原因的金额。" />
           <Space wrap>
             <span className="dragon-board-count">{loading ? '更新中…' : `${new Set(rows.map((r) => r.tsCode)).size}只股票／${rows.length}条记录`}</span>
-            <Select mode="multiple" aria-label="龙虎榜补充列" placeholder="补充列" maxTagCount={0} maxTagPlaceholder={() => `补充列 ${extras.length}`} value={extras} onChange={setExtras} style={{ width: 150 }} options={Object.entries(extraFields).map(([value, label]) => ({ value, label }))} />
+            <SelectField label="补充列"><Select mode="multiple" aria-label="龙虎榜补充列" placeholder="请选择" maxTagCount={0} maxTagPlaceholder={(omitted) => `已选 ${omitted.length} 项`} value={extras} onChange={setExtras} style={{ width: 150 }} options={Object.entries(extraFields).map(([value, label]) => ({ value, label }))} /></SelectField>
           </Space>
         </div>
         <p className="interaction-hint">选择股票查看席位；当日与跨日累计资金按各自期间比较。</p>

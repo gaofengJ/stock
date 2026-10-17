@@ -1,5 +1,6 @@
 'use client';
 
+import SelectField from '@/components/SelectField';
 import { useLatestRequest } from '@/hooks/useLatestRequest';
 import { errorMessage } from '@/api/errors';
 import {
@@ -132,32 +133,36 @@ export default function Page() {
           }}
           allowClear
         />
-        <Select
-          className="users-select"
-          placeholder="账户状态"
-          aria-label="账户状态"
-          value={active}
-          allowClear
-          options={[
-            { value: 1, label: '已启用' },
-            { value: 0, label: '已禁用' },
-          ]}
-          onChange={(v) => {
-            setActive(v);
-            setPage(1);
-          }}
-        />
-        <Select
-          className="users-select"
-          placeholder="角色"
-          aria-label="筛选角色"
-          value={roleId}
-          allowClear
-          loading={rolesLoading}
-          disabled={rolesLoading || !!rolesError}
-          options={roles.map((r) => ({ value: r.id, label: r.name }))}
-          onChange={(v) => { setRoleId(v); setPage(1); }}
-        />
+        <SelectField label="账户状态">
+          <Select
+            className="users-select"
+            placeholder="全部"
+            aria-label="账户状态"
+            value={active}
+            allowClear
+            options={[
+              { value: 1, label: '已启用' },
+              { value: 0, label: '已禁用' },
+            ]}
+            onChange={(v) => {
+              setActive(v);
+              setPage(1);
+            }}
+          />
+        </SelectField>
+        <SelectField label="角色">
+          <Select
+            className="users-select"
+            placeholder="全部"
+            aria-label="筛选角色"
+            value={roleId}
+            allowClear
+            loading={rolesLoading}
+            disabled={rolesLoading || !!rolesError}
+            options={roles.map((r) => ({ value: r.id, label: r.name }))}
+            onChange={(v) => { setRoleId(v); setPage(1); }}
+          />
+        </SelectField>
         <Button
           disabled={!search && active === undefined && roleId === undefined}
           onClick={() => {

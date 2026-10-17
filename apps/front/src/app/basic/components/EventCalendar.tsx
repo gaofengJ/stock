@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import SelectField from '@/components/SelectField';
 import Link from '@/components/Interaction';
 import {
   Button, DatePicker, Input, Modal, Popover, Select, Space, Tag,
@@ -23,10 +24,10 @@ export default function EventCalendar({ date, onDate, code }: { date: string; on
     <section className="calendar-events">
       <Space className="calendar-filters" wrap>
         <DatePicker aria-label="公司事件起始日期" value={dayjs(date)} allowClear={false} onChange={(v) => { if (v) onDate(v.format('YYYY-MM-DD')); }} />
-        <Select value={days} onChange={setDays} options={[{ value: '7', label: '未来7天' }, { value: '30', label: '未来30天' }]} />
+        <SelectField label="时间范围"><Select aria-label="时间范围" value={days} onChange={setDays} options={[{ value: '7', label: '未来7天' }, { value: '30', label: '未来30天' }]} /></SelectField>
         <Input.Search placeholder="股票名称／代码" defaultValue={keyword} allowClear onSearch={setKeyword} />
         <SectorFilter value={sector} onChange={setSector} />
-        <Select allowClear placeholder="事件类型" style={{ width: 140 }} value={type} onChange={setType} options={['解禁', '财报披露', '业绩预告', '业绩快报', '除权除息'].map((v) => ({ label: v, value: v }))} />
+        <SelectField label="事件类型"><Select aria-label="事件类型" allowClear placeholder="全部" style={{ width: 140 }} value={type} onChange={setType} options={['解禁', '财报披露', '业绩预告', '业绩快报', '除权除息'].map((v) => ({ label: v, value: v }))} /></SelectField>
       </Space>
       <SourceState data={state.data} error={state.error} retry={state.retry} pollingStopped={state.pollingStopped} />
       <div className="calendar-meta">

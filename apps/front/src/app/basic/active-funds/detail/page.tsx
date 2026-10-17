@@ -4,6 +4,7 @@
 
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import SelectField from '@/components/SelectField';
 import Link from '@/components/Interaction';
 import {
   DatePicker, Select, Space, Tag,
@@ -26,7 +27,7 @@ function Seat() {
       <Space className="mb-16" wrap>
         <Link href={`/basic/active-funds/?org=${encodeURIComponent(org)}`}>游资名录</Link>
         <DatePicker value={date ? dayjs(date) : null} allowClear={false} onChange={(v) => { if (v) setSelected(v.format('YYYY-MM-DD')); }} />
-        <Select value={days} onChange={setDays} options={[{ label: '近7个交易日', value: '7' }, { label: '近30个交易日', value: '30' }]} />
+        <SelectField label="统计范围"><Select aria-label="统计范围" value={days} onChange={setDays} options={[{ label: '近7个交易日', value: '7' }, { label: '近30个交易日', value: '30' }]} /></SelectField>
       </Space>
       <SourceState data={state.data} error={state.error} retry={state.retry} pollingStopped={state.pollingStopped} />
       <Space wrap className="mb-16">

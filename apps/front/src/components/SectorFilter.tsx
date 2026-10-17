@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import {
   Alert, Button, Select, Space,
 } from 'antd';
+import SelectField from '@/components/SelectField';
 import { marketRequest } from '@/api/market';
 import { SectorOptions } from '@/api/sectors';
 import { errorMessage } from '@/api/errors';
@@ -29,7 +30,7 @@ export default function SectorFilter({ value, onChange }: { value?: string; onCh
   }, [attempt]);
   return (
     <Space className="sector-filter" size={6} align="center" wrap>
-      <Select className="sector-filter-select" allowClear showSearch optionFilterProp="label" aria-label="同花顺行业或概念" placeholder="行业／概念" value={value} onChange={onChange} loading={!data && !error} style={{ width: 230 }} popupMatchSelectWidth={300} options={['I', 'N'].map((type) => ({ label: `同花顺${sectorKindLabel(type)}`, options: (data?.items || []).filter((s) => s.type === type).map((s) => ({ label: s.name, value: s.code })) }))} />
+      <SelectField label="行业／概念"><Select className="sector-filter-select" allowClear showSearch optionFilterProp="label" aria-label="同花顺行业或概念" placeholder="全部" value={value} onChange={onChange} loading={!data && !error} style={{ width: 230 }} popupMatchSelectWidth={300} options={['I', 'N'].map((type) => ({ label: `同花顺${sectorKindLabel(type)}`, options: (data?.items || []).filter((s) => s.type === type).map((s) => ({ label: s.name, value: s.code })) }))} /></SelectField>
       <HelpTooltip label="行业和概念口径" title={`${sectorDefinition}统一使用同花顺成分${data?.asOf ? `，最近快照${String(data.asOf).slice(0, 10)}` : ''}。历史日期按可用快照筛选。`} />
       {error && <Alert type="error" message={error} action={<Button size="small" onClick={() => setAttempt((v) => v + 1)}>重试</Button>} />}
     </Space>

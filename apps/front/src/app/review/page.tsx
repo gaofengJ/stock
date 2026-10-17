@@ -7,6 +7,7 @@ import {
   Alert, Button, Card, Collapse, DatePicker, Input, Modal, Select, Space, Tag, Tooltip,
 } from 'antd';
 import dayjs from 'dayjs';
+import SelectField from '@/components/SelectField';
 import Layout from '@/components/Layout';
 import { StockLink } from '@/components/StockActions';
 import { EHeaderMenuKey } from '@/components/Layout/enum';
@@ -257,9 +258,9 @@ function Report({
             </p>
           </div>
           <div className="review-filters">
-            <Select aria-label="候选范围" value={filter} onChange={setFilter} options={[{ value: 'selected', label: `已加入观察（${selected.length}）` }, { value: 'within', label: '可加入观察的股票' }, { value: 'all', label: '全部策略命中' }, { value: 'excluded', label: '已知风险排除' }, { value: 'missing', label: '市值资料缺失' }]} />
+            <SelectField label="候选范围"><Select aria-label="候选范围" value={filter} onChange={setFilter} options={[{ value: 'selected', label: `已加入观察（${selected.length}）` }, { value: 'within', label: '可加入观察的股票' }, { value: 'all', label: '全部策略命中' }, { value: 'excluded', label: '已知风险排除' }, { value: 'missing', label: '市值资料缺失' }]} /></SelectField>
             <Input allowClear aria-label="搜索候选股票" placeholder="输入股票名称或代码" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
-            <Select aria-label="筛选策略" value={strategy} onChange={setStrategy} options={[{ value: 'all', label: '全部策略' }, ...(data?.strategies || []).map((s: any) => ({ value: s.key, label: s.label, disabled: s.state !== 'ready' }))]} />
+            <SelectField label="策略"><Select aria-label="筛选策略" value={strategy} onChange={setStrategy} options={[{ value: 'all', label: '全部策略' }, ...(data?.strategies || []).map((s: any) => ({ value: s.key, label: s.label, disabled: s.state !== 'ready' }))]} /></SelectField>
             <Button disabled={filter === 'within' && strategy === 'all' && !keyword} onClick={() => { setFilter('within'); setStrategy('all'); setKeyword(''); }}>重置筛选</Button>
           </div>
           <div className="review-selection" role="status">

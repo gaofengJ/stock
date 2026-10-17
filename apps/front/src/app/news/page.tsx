@@ -1,5 +1,6 @@
 'use client';
 
+import SelectField from '@/components/SelectField';
 import { ExternalLink, InteractionButton } from '@/components/Interaction';
 import { StockLink } from '@/components/StockActions';
 
@@ -210,12 +211,12 @@ export default function Page() {
           <div className={styles.filters}>
             <Segmented value={kind} options={[{ label: '全部资讯', value: '' }, { label: '快讯', value: 'flash' }, { label: '报道', value: 'article' }]} onChange={(v) => { setKind(String(v)); setPage(1); }} />
             <Space size={0}>
-              <Select aria-label="资讯来源" showSearch optionFilterProp="label" value={source} popupMatchSelectWidth={240} className={styles.sourceSelect} options={[{ label: '全部来源', value: '' }, ...availableSources.map((s) => ({ label: s.name, value: s.code }))]} onChange={(v) => { setSource(v); setPage(1); }} />
+              <SelectField label="资讯来源"><Select aria-label="资讯来源" showSearch optionFilterProp="label" value={source} popupMatchSelectWidth={240} className={styles.sourceSelect} options={[{ label: '全部来源', value: '' }, ...availableSources.map((s) => ({ label: s.name, value: s.code }))]} onChange={(v) => { setSource(v); setPage(1); }} /></SelectField>
               <Tooltip title={sourceTip} trigger={['hover', 'click']}>
                 <Button type="text" size="small" aria-label="来源内容说明" icon={<InfoCircleOutlined />} />
               </Tooltip>
             </Space>
-            <Select aria-label="资讯时间范围" value={range} className={styles.sourceSelect} options={[{ label: '最近一小时', value: 'hour' }, { label: '今天', value: 'today' }, { label: '最近三天', value: 'three-days' }, { label: '指定日期', value: 'date' }]} onChange={(value) => { setRange(value); setPage(1); }} />
+            <SelectField label="时间范围"><Select aria-label="资讯时间范围" value={range} className={styles.sourceSelect} options={[{ label: '最近一小时', value: 'hour' }, { label: '今天', value: 'today' }, { label: '最近三天', value: 'three-days' }, { label: '指定日期', value: 'date' }]} onChange={(value) => { setRange(value); setPage(1); }} /></SelectField>
             {range === 'date' && <DatePicker aria-label="资讯日期" allowClear={false} value={dayjs(date)} disabledDate={(d) => d.format('YYYY-MM-DD') > chinaDate()} onChange={(d) => { if (d) { setDate(d.format('YYYY-MM-DD')); setPage(1); } }} />}
             <Input.Search placeholder="搜索标题或正文" aria-label="搜索资讯" allowClear maxLength={80} className={styles.search} onSearch={(v) => { setKeyword(v.trim()); setPage(1); }} />
             <Checkbox checked={important} onChange={(e) => { setImportant(e.target.checked); setPage(1); }}>仅重点</Checkbox>
@@ -452,8 +453,7 @@ export default function Page() {
             {manager && s.availabilityNote && <p className={styles.note}>{s.availabilityNote}</p>}
             {manager && (
             <div className={styles.interval}>
-              采集间隔
-              <Select aria-label={`${s.name}采集间隔`} value={s.intervalSeconds} disabled={Boolean(configBusy)} options={[60, 120, 300, 600, 1800, 3600].map((n) => ({ value: n, label: `${n / 60} 分钟` }))} onChange={(v) => updateSource(s, { intervalSeconds: v })} />
+              <SelectField label="采集间隔"><Select aria-label={`${s.name}采集间隔`} value={s.intervalSeconds} disabled={Boolean(configBusy)} options={[60, 120, 300, 600, 1800, 3600].map((n) => ({ value: n, label: `${n / 60} 分钟` }))} onChange={(v) => updateSource(s, { intervalSeconds: v })} /></SelectField>
             </div>
             )}
           </section>

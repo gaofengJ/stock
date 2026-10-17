@@ -4,6 +4,7 @@ import { useState } from 'react';
 import {
   Card, Col, Empty, Row, Segmented, Select, Table,
 } from 'antd';
+import SelectField from '@/components/SelectField';
 import type { MarketSeries } from '@/api/market';
 import CChart from '@/components/CChart';
 import HelpTooltip from '@/components/HelpTooltip';
@@ -35,7 +36,7 @@ export default function IndexComparisonChart({ indexes, dates }: { indexes: Mark
       extra={(
         <div className="market-chart-controls">
           {hasSizes && <Segmented aria-label="指数比较组" value={group} onChange={(value) => setGroup(String(value))} options={[{ value: 'size', label: '大小盘' }, { value: 'all', label: '全部指数' }]} />}
-          <Select aria-label="指数比较日期范围" value={days} onChange={setDays} options={environmentRanges} />
+          <SelectField label="日期范围"><Select aria-label="指数比较日期范围" value={days} onChange={setDays} options={environmentRanges} /></SelectField>
         </div>
       )}
     >

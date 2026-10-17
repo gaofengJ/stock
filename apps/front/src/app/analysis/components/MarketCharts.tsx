@@ -4,6 +4,7 @@ import {
   Alert, Button, Card, Col, Empty, Row, Select,
 } from 'antd';
 import { memo, useState } from 'react';
+import SelectField from '@/components/SelectField';
 import Link from '@/components/Interaction';
 import { LoadingOverlay } from '@/components/Loading';
 import CChart from '@/components/CChart';
@@ -23,7 +24,7 @@ export function TrendRange() {
   return (
     <div className="market-trend-control">
       <span>趋势范围</span>
-      <Select aria-label="趋势范围" value={days} onChange={(value) => select({ days: value })} options={[20, 60, 120, 250, 730].map((value) => ({ value, label: value === 730 ? '最近两年' : `近${value}个交易日` }))} />
+      <SelectField label="日期范围"><Select aria-label="趋势范围" value={days} onChange={(value) => select({ days: value })} options={[20, 60, 120, 250, 730].map((value) => ({ value, label: value === 730 ? '最近两年' : `近${value}个交易日` }))} /></SelectField>
     </div>
   );
 }
