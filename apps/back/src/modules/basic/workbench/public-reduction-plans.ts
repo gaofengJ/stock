@@ -382,12 +382,13 @@ async function scanReductionPlans(
       `${lastFailure || '计划公告正文暂不可用'}，保留已有快照`,
     );
   const candidates = plans.filter((p) =>
-    p.periods.some(
-      (period) =>
+    p.periods.some((period) =>
+      ['active', 'upcoming'].includes(
         reductionState(
           { ann_date: p.date, plan_start: period.start, plan_end: period.end },
           date,
-        ) === 'active',
+        ),
+      ),
     ),
   );
   const endings = await parallel(
@@ -423,7 +424,7 @@ async function scanReductionPlans(
         date,
       );
       let holders = [...plan.holders];
-      if (status === 'active') {
+      if (status === 'active' || status === 'upcoming') {
         endings
           .filter((n) => n.code === plan.code && n.date >= plan.date)
           .forEach((ending) => {

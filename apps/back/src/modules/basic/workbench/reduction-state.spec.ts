@@ -19,6 +19,27 @@ describe('current reduction periods across platform risk consumers', () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-10-06T04:00:00Z')),
   );
   afterEach(() => jest.useRealTimers());
+  it('flags an announced Shapuaisi plan before its start and stops after expiry or termination', () => {
+    const plan = {
+      tsCode: '603168.SH',
+      type: '减持',
+      recordKind: 'plan',
+      reductionState: 'upcoming',
+      announcementDate: '2026-09-22',
+      effectiveDate: '2026-10-21',
+      endDate: '2027-01-20',
+    };
+    expect(currentReduction(plan, '2026-10-19')).toBe(true);
+    expect(observedRisk([plan], '603168.SH', '', '2026-10-19').state).toBe(
+      'excluded',
+    );
+    expect(currentReduction(plan, '2026-09-21')).toBe(false);
+    expect(currentReduction(plan, '2027-01-20')).toBe(true);
+    expect(currentReduction(plan, '2027-01-21')).toBe(false);
+    expect(
+      currentReduction({ ...plan, reductionState: 'ended' }, '2026-10-19'),
+    ).toBe(false);
+  });
   it('requires disclosed valid dates and separates active, ended, upcoming and unknown', () => {
     expect(reductionState(period, date)).toBe('active');
     expect(
@@ -103,7 +124,7 @@ describe('current reduction periods across platform risk consumers', () => {
       {} as any,
     );
     const result = await service.risk({ date, code: '000001.SZ' });
-    expect(result.items).toHaveLength(1);
+    expect(result.items).toHaveLength(2);
     expect(result.items[0].holderName).toBe('股东乙');
     expect(new Set(result.items.map((r) => r.recordId)).size).toBe(
       result.items.length,
@@ -115,6 +136,7 @@ describe('current reduction periods across platform risk consumers', () => {
     ).toBe(false);
     expect(result.reductionCoverage).toEqual({
       active: 1,
+      upcoming: 1,
       unknown: 1,
       unknownCodes: ['000001.SZ'],
     });
@@ -138,6 +160,9 @@ describe('current reduction periods across platform risk consumers', () => {
     ).toBe('pending');
     expect(
       observedRisk(result.items, '000001.SZ', '', '2026-10-07').state,
+    ).toBe('excluded');
+    expect(
+      observedRisk([result.items[0]], '000001.SZ', '', '2026-10-07').state,
     ).toBe('pending');
     jest.setSystemTime(new Date('2026-10-06T16:01:00Z'));
     const tomorrow = await service.risk({ date, code: '000001.SZ' });

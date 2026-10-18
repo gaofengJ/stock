@@ -430,7 +430,9 @@ export class WorkbenchService implements OnModuleInit {
       })),
     );
     items.push(
-      ...latestReductions.filter((r) => r.reductionState === 'active'),
+      ...latestReductions.filter((r) =>
+        ['active', 'upcoming'].includes(r.reductionState),
+      ),
     );
     const identify = (
       r: Record<string, any>,
@@ -528,7 +530,12 @@ export class WorkbenchService implements OnModuleInit {
       sources: sourceStatus([...snapshots, ...reductions]),
       reductionDate,
       reductionCoverage: {
-        active: items.filter((r) => r.type === '减持').length,
+        active: items.filter(
+          (r) => r.type === '减持' && r.reductionState === 'active',
+        ).length,
+        upcoming: items.filter(
+          (r) => r.type === '减持' && r.reductionState === 'upcoming',
+        ).length,
         unknown: latestReductions.filter((r) => r.reductionState === 'unknown')
           .length,
         unknownCodes: Array.from(
@@ -540,7 +547,7 @@ export class WorkbenchService implements OnModuleInit {
         ),
       },
       checklist: RISK_CHECKLIST,
-      note: `ST及停复牌按所选日期展示；当前减持计划按今天（${reductionDate}）核验，与左侧日期无关。只展示计划起止日期明确且仍在期间内的计划，已完成、终止、到期及尚未开始的计划不计入。实际股份变动的起止日期不能当作计划期间，资料未核实不表示没有计划。`,
+      note: `ST及停复牌按所选日期展示；减持风险按今天（${reductionDate}）核验，与左侧日期无关。已公告且期间明确的待开始、进行中计划均计入减持风险，标注计划起止日期；已完成、终止及到期的计划不计入。实际股份变动的起止日期不能当作计划期间，资料未核实不表示没有计划。`,
     };
   }
 

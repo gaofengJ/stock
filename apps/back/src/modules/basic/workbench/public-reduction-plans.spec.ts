@@ -53,6 +53,24 @@ const rows = (result: any) =>
   );
 
 describe('original current reduction plans', () => {
+  it('checks termination notices for announced plans before their start date', async () => {
+    const get = fixture(
+      [
+        notice('AN996001', '股东减持计划预披露'),
+        notice('AN996002', '股东减持计划提前终止', '301272', '2026-09-30'),
+      ],
+      {
+        AN996001: original.replace('2026 年 9 月 21 日', '2026 年 10 月 21 日'),
+        AN996002: '股东甲和股东乙于2026年8月28日披露的减持计划已提前终止。',
+      },
+    );
+    expect(rows(await publicReductionPlans(get as any, date))).toEqual([]);
+    expect(
+      get.mock.calls.some(
+        ([, config]) => config.params.art_code === 'AN996002',
+      ),
+    ).toBe(true);
+  });
   it('retries a deferred cache write without downloading the same verified document again', async () => {
     const get = fixture([notice('AN995001', '股东减持计划预披露')], {
       AN995001: original,

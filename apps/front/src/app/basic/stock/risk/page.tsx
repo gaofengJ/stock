@@ -16,7 +16,7 @@ import {
   BasicShell, StockLink, SourceState, useWorkbench,
 } from '../../components/workbench';
 import {
-  currentReduction, riskDate, riskRowKey, riskTypeLabel,
+  currentReduction, reductionStateLabel, riskDate, riskRowKey, riskTypeLabel,
 } from '../../components/risk-display';
 
 function Risk() {
@@ -41,7 +41,7 @@ function Risk() {
       <div className="risk-list-context">
         <SourceState data={state.data} error={state.error} retry={state.retry} pollingStopped={state.pollingStopped} />
         <p className="basic-muted">{state.data?.note || 'ST及停复牌按所选日期展示；当前减持计划按今天核验，计划起止日期与实际交易发生区间分别核实。'}</p>
-        {!!state.data?.reductionCoverage?.unknown && <p className="basic-muted">部分计划的期间或后续状态尚待核实，未计入进行中列表。</p>}
+        {!!state.data?.reductionCoverage?.unknown && <p className="basic-muted">部分计划的期间或后续状态尚待核实，未计入已核实减持风险列表。</p>}
       </div>
       {/^[0-9]{6}\.(SH|SZ|BJ)$/.test(keyword) && <RiskInspect code={keyword} date={date} />}
       <Table
@@ -65,7 +65,7 @@ function Risk() {
             ),
           },
           {
-            title: '类型', dataIndex: 'type', width: 140, render: riskTypeLabel,
+            title: '类型', dataIndex: 'type', width: 140, render: (value: string, record: any) => (value === '减持' ? reductionStateLabel(record.reductionState) : riskTypeLabel(value)),
           },
           {
             title: '公告日', dataIndex: 'announcementDate', width: 115, render: riskDate, sorter: (a: any, b: any) => String(a.announcementDate || '').localeCompare(String(b.announcementDate || '')),

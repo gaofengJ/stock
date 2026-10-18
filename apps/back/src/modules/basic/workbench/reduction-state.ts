@@ -45,8 +45,8 @@ export function currentReduction(record: Record<string, any>, date: string) {
   return (
     record.type === '减持' &&
     record.recordKind === 'plan' &&
-    record.reductionState === 'active' &&
-    reductionState(record, date) === 'active'
+    ['active', 'upcoming'].includes(record.reductionState) &&
+    ['active', 'upcoming'].includes(reductionState(record, date))
   );
 }
 

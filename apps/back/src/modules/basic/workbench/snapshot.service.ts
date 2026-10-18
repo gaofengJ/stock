@@ -332,12 +332,16 @@ export class BasicSnapshotService implements OnModuleInit {
   ) {
     return (
       createHash('sha256')
-        // A new namespace forces refetch of legacy snapshots whose Chinese text was lost.
+        // Refetch legacy calendar encoding and reduction snapshots lacking upcoming termination checks.
         .update(
           JSON.stringify([
             source,
             params,
-            source === 'investment_calendar' ? 'gb18030-v2' : fields || '',
+            source === 'investment_calendar'
+              ? 'gb18030-v2'
+              : source === 'reduction_plans'
+              ? 'plans-upcoming-v2'
+              : fields || '',
           ]),
         )
         .digest('hex')

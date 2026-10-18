@@ -15,7 +15,7 @@ import { EHeaderMenuKey } from '@/components/Layout/enum';
 import './workbench.css';
 import { startWorkbenchPolling } from './workbench-polling';
 import {
-  currentReduction, riskEventSources, riskSourcesReady, riskTypeLabel, stockReductionUnknown,
+  currentReduction, reductionRiskLabel, riskEventSources, riskSourcesReady, riskTypeLabel, stockReductionUnknown,
 } from './risk-display';
 import { sourceStatusRows, sourceTimeRows } from './source-display';
 
@@ -156,8 +156,7 @@ export function RiskTags({
     briefIssues.push('该股减持期间待核实');
   }
   const reductionReady = riskSourcesReady(sources, ['reduction_plans']) && !stockReductionUnknown(data, code);
-  let reduction = reductionReady ? '暂无已核实的当前减持计划' : '减持资料待核验';
-  if (labels.includes('减持')) reduction = '减持计划进行中';
+  const reduction = reductionReady ? '暂无已核实的待开始或进行中减持计划' : '减持资料待核验';
   const acquired = statuses.filter((row) => row.available).map((row) => row.label);
   const completedCount = statuses.filter((row) => row.complete && row.available).length;
   let summary = '资料尚未取得';
@@ -170,10 +169,16 @@ export function RiskTags({
     eventSourcesReady && !labels.length ? '已获取的状态与事件中暂无相关记录。' : '',
     '标签仅覆盖已取得的风险记录，具体影响需结合公告正文核实。',
   ].join('');
-  const renderLabel = (label: string) => (canLink ? <Link key={label} href={`/basic/stock/risk/?code=${code}&date=${date || ''}`}><Tag color={label === '复牌' ? 'blue' : 'orange'}>{riskTypeLabel(label)}</Tag></Link> : <Tag color="orange" key={label}>{riskTypeLabel(label)}</Tag>);
+  const renderLabel = (label: string) => {
+    const texts = label === '减持' ? Array.from(new Set<string>(items.filter((r: any) => r.type === '减持').map(reductionRiskLabel))) : [riskTypeLabel(label)];
+    return texts.map((text) => {
+      const tag = <Tag color={label === '复牌' ? 'blue' : 'orange'} style={{ whiteSpace: 'normal', lineHeight: 1.6, maxWidth: '100%' }}>{text}</Tag>;
+      return canLink ? <Link key={text} href={`/basic/stock/risk/?code=${code}&date=${date || ''}`}>{tag}</Link> : <span key={text}>{tag}</span>;
+    });
+  };
   if (compact) {
     return labels.length ? (
-      <Space size={4}>
+      <Space size={4} wrap>
         {renderLabel(labels[0])}
         {labels.length > 1 && (
           <Popover trigger={['hover', 'click']} title="已识别风险事件" content={<Space wrap style={{ maxWidth: 280 }}>{labels.slice(1).map(renderLabel)}</Space>}>
@@ -190,7 +195,7 @@ export function RiskTags({
   return (
     <Space size={2} wrap>
       {prefix}
-      {showSourceState && <span className="basic-muted">{reduction}</span>}
+      {showSourceState && !labels.includes('减持') && <span className="basic-muted">{reduction}</span>}
       {labels.map(renderLabel)}
       {showSourceState && <Tooltip title={sourceTip}><span className="basic-muted">{summary}</span></Tooltip>}
     </Space>

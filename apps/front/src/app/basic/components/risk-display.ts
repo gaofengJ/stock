@@ -35,9 +35,9 @@ export function riskMissing(sources: WorkbenchSource[], source: string, stopped 
 
 export function riskCheckLabel(check: { key?: string; state: string; leads?: number; activeCount?: number }) {
   if (check.key === 'reduction') {
-    if (check.activeCount) return `${check.activeCount}项当前减持计划`;
+    if (check.activeCount) return `${check.activeCount}项已公告减持风险`;
     if (check.leads) return `${check.leads}条计划公告待核实`;
-    return check.state === 'incomplete' ? '当前减持资料不完整' : '暂无已核实的当前减持计划';
+    return check.state === 'incomplete' ? '减持资料不完整' : '暂无已核实的待开始或进行中减持计划';
   }
   if (check.leads) return `${check.leads}条待核实线索`;
   return check.state === 'incomplete' ? '资料不完整' : '未检索到相关线索';
@@ -48,11 +48,12 @@ export function currentReduction(record: any, date: string) {
   const start = riskDate(record.effectiveDate);
   const end = riskDate(record.endDate);
   const announcement = riskDate(record.announcementDate);
-  return record.type === '减持' && record.recordKind === 'plan' && record.reductionState === 'active' && start !== '—' && end !== '—' && announcement !== '—' && announcement <= today && start <= today && today <= end;
+  return record.type === '减持' && record.recordKind === 'plan' && ['active', 'upcoming'].includes(record.reductionState) && start !== '—' && end !== '—' && announcement !== '—' && announcement <= today && start <= end && today <= end;
 }
 
-export const riskTypeLabel = (type: string) => (type === '减持' ? '减持计划进行中' : type);
+export const riskTypeLabel = (type: string) => (type === '减持' ? '减持风险' : type);
 export const reductionStateLabel = (state: string) => ({
-  active: '减持计划进行中', ended: '已结束', upcoming: '尚未开始', unknown: '期间待核实', superseded: '已有后续披露',
+  active: '减持进行中', ended: '已结束', upcoming: '减持已公告，待开始', unknown: '期间待核实', superseded: '已有后续披露',
 }[state] || '期间待核实');
+export const reductionRiskLabel = (record: any) => `${reductionStateLabel(record.reductionState)}：${riskDate(record.effectiveDate)} 至 ${riskDate(record.endDate)}`;
 export const riskRowKey = (record: any) => record.recordId || JSON.stringify([record.tsCode, record.type, record.source, record.announcementDate, record.effectiveDate, record.endDate, record.statusDate, record.detail]);
