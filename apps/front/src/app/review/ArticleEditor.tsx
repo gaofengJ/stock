@@ -4,7 +4,7 @@
 /* eslint jsx-a11y/label-has-associated-control: ["error", { "assert": "htmlFor" }] */
 import { useRef, useState } from 'react';
 import {
-  Alert, Button, Checkbox, Collapse, Input, Modal, Space,
+  Alert, Button, Checkbox, Collapse, Input, Modal, Select, Space,
 } from 'antd';
 import BusinessAction from '@/components/PersonalAi/BusinessAction';
 import { Task } from '@/components/PersonalAi/client';
@@ -13,7 +13,7 @@ import {
   Article, ArticleImage, emptyArticle, illustratedText, validateArticle,
 } from './article-contract';
 import {
-  documentTemplate, NotebookContent, SavedNotebook, noteHtml, publicText, reviewDocument,
+  ArticleTarget, articlePlainText, documentTemplate, NotebookContent, SavedNotebook, noteHtml, publicText, reviewDocument,
 } from './notebook-model';
 import { readImage } from './article-media';
 import { materialSources, readResult, reviewPacket } from './article-handoff';
@@ -47,6 +47,10 @@ export default function ArticleEditor({
     date, revision, dirty, disabled,
   };
   const [preview, setPreview] = useState(false);
+  const [target, setTarget] = useState<ArticleTarget>('feishu');
+  const [copyNotice, setCopyNotice] = useState('');
+  const [copying, setCopying] = useState(false);
+  const targetNames = { feishu: '飞书云文档', wechat: '公众号', xueqiu: '雪球长文' };
   const [notice, setNotice] = useState('');
   const [handoffBusy, setHandoffBusy] = useState(false);
   const handoffLock = useRef(false);
@@ -59,7 +63,7 @@ export default function ArticleEditor({
   const [error, setError] = useState('');
   const upload = useRef<HTMLInputElement>(null);
   const text = article.body.trim() ? publicText(date, { ...content, article }, 'wechat') : illustratedText(documentTemplate(date, content), article.images);
-  const html = noteHtml(text, article.images);
+  const html = noteHtml(text, article.images, target);
   const update = (next: Article) => { try { onChange(validateArticle(next)); setError(''); } catch (e) { setError((e as Error).message); } };
   const add = (images: ArticleImage[]) => update({ ...current.current, images: [...current.current.images, ...images] });
   const addFiles = async (files: File[]) => {
@@ -71,10 +75,16 @@ export default function ArticleEditor({
   const replaceImage = (id: string, value: Partial<ArticleImage>) => update({ ...article, images: article.images.map((i) => (i.id === id ? { ...i, ...value } : i)) });
   const move = (index: number, offset: number) => { const images = [...article.images]; [images[index], images[index + offset]] = [images[index + offset], images[index]]; update({ ...article, images }); };
   const copy = async () => {
+    if (copying) return;
+    setCopying(true); setCopyNotice('');
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([text.replace(/!\[.*?\]\(review-image:[^)]+\)/g, '')], { type: 'text/plain' }) })]);
-      onStatus(article.images.length ? '图文已复制。粘贴后核对图片；目标编辑器若过滤图片，请在 Codex 中直接生成飞书文档。' : '文章已复制，可直接粘贴。');
-    } catch { onStatus(await copyText(text.replace(/!\[.*?\]\(review-image:[^)]+\)/g, '')) ? '已复制纯文字；浏览器未允许图文复制，请在预览中选中正文复制；图片可通过 Codex 直接写入飞书。' : '复制失败，请在预览中选中正文复制；图片可通过 Codex 直接写入飞书。'); }
+      await Promise.race([
+        navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([articlePlainText(text)], { type: 'text/plain' }) })]),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('Clipboard timed out')), 3000); }),
+      ]);
+      setCopyNotice(`已按${targetNames[target]}格式复制。粘贴后核对图片；缺失时可展开下方“原图”下载后插入。`);
+    } catch { setCopyNotice(await copyText(articlePlainText(text)) ? '已复制纯文字，未包含图片。可在下方下载原图，按原位置插入。' : '复制失败，请选中预览正文手动复制。'); } finally { clearTimeout(timer); setCopying(false); }
   };
   const importResult = (raw: string) => {
     try {
@@ -210,7 +220,7 @@ export default function ArticleEditor({
                 };
                 if (!saved) { setHandoffNotice('尚未完成保存，请检查页面提示后重试。新的修改会继续保留。'); return; }
                 const packet = reviewPacket(saved.date, saved.revision, saved.content, window.location.origin, saved.generation);
-                const prompt = `使用 $stock-review-feishu 生成 ${saved.date} 的飞书图文复盘。网站：${window.location.origin}/review/?date=${saved.date}，保存版本 ${saved.revision}。使用随任务附上的图文资料包（stock-review/v2）；如未附上，请先索取资料包。保留资料包 userNotes 的非空原文，并另外写 AI 独立分析，空白不能当作空仓或无交易。标题默认 ${saved.content.public.title || `${saved.date}复盘`}；优先使用已有平台图片；缺少市场概览、情绪指标、连板分析、20日板块轮动或全部涨停长图时，按资料链接补取五张暗色长图，不重复取已有图片。开头声明本文由AI生成，仅供参考。市场概览、情绪指标、连板分析、20日板块轮动各写简要解读，策略选股只列股票名和策略标签；闲聊默认空白；二级标题之间留空行；不单列明日计划。正常目标10分钟，20分钟硬停止并保留可续接进度。已有 ${saved.content.article?.images.length || 0} 张图片，仅在缺少必需图片时按 materials.links 补取，最终必须嵌入真实图片。完成后用同日期和版本的结果包在“准备 Codex 任务”弹窗中选择结果包回填，再保存记录。不得覆盖用户原文。执行记录授权：${saved.content.materials?.includeExecution ? '仅限私人飞书文档' : '未包含，不读取'}。本次任务由 Codex 执行并生成飞书云文档。\n\n用户记录：\n${JSON.stringify(packet.userNotes)}\n\n图片来源：\n${JSON.stringify(packet.materials.links)}`;
+                const prompt = `使用 $stock-review-feishu 生成 ${saved.date} 的飞书图文复盘。网站：${window.location.origin}/review/?date=${saved.date}，保存版本 ${saved.revision}。使用随任务附上的图文资料包（stock-review/v2）；如未附上，请先索取资料包。保留资料包 userNotes 的非空原文，并另外写 AI 独立分析，空白不能当作空仓或无交易。标题默认 ${saved.content.public.title || `${saved.date}复盘`}；优先使用已有平台图片；缺少市场概览、情绪指标、连板分析、20日板块轮动或全部涨停长图时，按资料链接补取五张暗色长图，不重复取已有图片。开头声明本文由AI生成，仅供参考。市场数据下依次设置市场概览、情绪指标、连板分析、20日板块轮动四个子节，各写简要解读；不设置独立的板块轮动大章。策略选股只列股票名和策略标签；闲聊默认空白；二级标题之间留空行；不单列明日计划。正常目标10分钟，20分钟硬停止并保留可续接进度。已有 ${saved.content.article?.images.length || 0} 张图片，仅在缺少必需图片时按 materials.links 补取，最终必须嵌入真实图片。完成后用同日期和版本的结果包在“准备 Codex 任务”弹窗中选择结果包回填，再保存记录。不得覆盖用户原文。执行记录授权：${saved.content.materials?.includeExecution ? '仅限私人飞书文档' : '未包含，不读取'}。本次任务由 Codex 执行并生成飞书云文档。\n\n用户记录：\n${JSON.stringify(packet.userNotes)}\n\n图片来源：\n${JSON.stringify(packet.materials.links)}`;
                 download(`${saved.date}-review-v${saved.revision}.json`, JSON.stringify(packet, null, 2), 'application/json');
                 const copied = await copyText(prompt);
                 const message = copied ? '任务已复制，资料包已发起下载。请在 Codex 粘贴任务并附上资料包后发送。' : '资料包已发起下载，任务未能自动复制。请在弹窗中复制，并将资料包一同交给 Codex。';
@@ -221,7 +231,7 @@ export default function ArticleEditor({
           >
             准备 Codex 任务
           </Button>
-          <Button disabled={previewDisabled || handoffBusy} onClick={() => setPreview(true)}>预览</Button>
+          <Button disabled={previewDisabled || handoffBusy} onClick={() => { setCopyNotice(''); setPreview(true); }}>预览</Button>
           <Button disabled={disabled || !dirty || pending || handoffBusy} loading={saving} onClick={() => onSave()}>保存</Button>
           {article.feishuUrl && <a href={article.feishuUrl} target="_blank" rel="noopener noreferrer">打开飞书文档</a>}
         </Space>
@@ -260,14 +270,21 @@ export default function ArticleEditor({
         width={1000}
         onCancel={() => setPreview(false)}
         footer={(
-          <Space>
+          <Space wrap>
             <Button onClick={() => setPreview(false)}>关闭</Button>
-            <Button type="primary" onClick={copy}>复制图文到飞书</Button>
+            <Button type="primary" loading={copying} onClick={copy}>{`复制到${targetNames[target]}`}</Button>
           </Space>
 )}
       >
         {!article.body.trim() && <Alert type="info" message="当前只包含记录与配图。点击“智能复盘”即可生成正文。" />}
+        <div className="notebook-copy-target">
+          <label htmlFor="review-copy-target">粘贴到</label>
+          <Select id="review-copy-target" value={target} disabled={copying} style={{ width: 160 }} options={Object.entries(targetNames).map(([value, label]) => ({ value, label }))} onChange={(value: ArticleTarget) => { setTarget(value); setCopyNotice(''); }} />
+          <span className="review-caption">预览和复制使用相同排版，图片保持原比例。</span>
+        </div>
+        {!!copyNotice && <Alert type="info" message={<span role="status">{copyNotice}</span>} />}
         <div className="notebook-article-preview" dangerouslySetInnerHTML={{ __html: html }} />
+        {!!article.images.length && <Collapse ghost items={[{ key: 'originals', label: `原图（${article.images.length} 张，粘贴缺图时使用）`, children: <Space direction="vertical">{article.images.map((image, index) => <a key={image.id} href={image.data} download={`${date}-${index + 1}.${image.data.startsWith('data:image/png') ? 'png' : 'jpg'}`}>{`${index + 1}. ${image.caption || '配图'}：下载原图`}</a>)}</Space> }]} />}
       </Modal>
     </div>
   );

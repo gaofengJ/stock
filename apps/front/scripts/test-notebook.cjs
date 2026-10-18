@@ -149,9 +149,16 @@ test('a result from before history reset cannot be imported into the same date a
  assert.throws(()=>handoff.readResult(JSON.stringify(p),p.date,1,undefined,1),/清空前/);
 });
 
-test('compact template has declaration, three fixed chart groups, simple candidates and empty chat',()=>{
+test('compact template groups all four market charts under market data, with simple candidates and empty chat',()=>{
  const c=exp.emptyNotebook();c.private.toolEvidence='研究日期：2026-10-13\n\n测试股份 001206.SZ\n策略：连续三日收阳\n观察与触发：未填写';
  const body=exp.documentTemplate('2026-10-13',c);
+ const market=body.split('## 市场数据\n')[1].split('\n## 涨停板复盘')[0];
+ assert.deepEqual(market.match(/^### .+$/gm),['### 市场概览','### 情绪指标','### 连板分析','### 20日板块轮动']);
+ assert(!body.includes('\n## 板块轮动'));
+ const previousBody=body.replace('### 20日板块轮动','## 板块轮动\n\n### 20日板块轮动');
+ assert.equal(exp.noteHtml(previousBody),exp.noteHtml(body));
+ assert.equal(exp.articlePlainText(previousBody),exp.articlePlainText(body));
+ assert(previousBody.includes('## 板块轮动')); // Rendering must not mutate the saved original.
  assert.ok(body.includes('本文由 AI 生成，仅供参考'));assert.ok(body.includes('测试股份｜连续三日收阳'));
  assert.ok(!body.includes('未填写'));assert.ok(body.endsWith('## 闲聊\n\n'));
  assert.deepEqual(platformImages.captureSources.map(s=>s.charts.length),[4,8,4,1,1]);
@@ -227,6 +234,18 @@ test('AI document adds interpretations and five images while preserving user not
  assert(!body.includes('PRIVATE TRADE'));assert(!body.includes('明日计划'));
  const text=contract.illustratedText(body,c.article.images);assert.equal((text.match(/review-image:/g)||[]).length,5);
  const html=exp.noteHtml(text,c.article.images);assert.equal((html.match(/<img /g)||[]).length,5);assert(html.includes('<strong>AI 独立分析</strong>'));
+ for(const target of ['feishu','wechat','xueqiu']) {
+  const rendered=exp.noteHtml(text,c.article.images,target);
+  assert.equal((rendered.match(/<img /g)||[]).length,5);
+  assert.equal((rendered.match(/height:auto/g)||[]).length,5);
+  assert(!rendered.includes('<figure'));assert(!rendered.includes('review-image:'));
+  assert(rendered.includes('overflow-wrap:anywhere'));assert(rendered.includes(c.private.marketFacts));
+  if(target==='xueqiu') { assert(!/<h[123]/.test(rendered));assert(rendered.includes('<strong>20日板块轮动</strong>')); }
+  else { assert(rendered.includes('<h3'));assert(!/>板块轮动<\//.test(rendered)); }
+ }
+ const plain=exp.articlePlainText(text);
+ assert(!plain.includes('review-image:'));assert(!/^#{1,3} /m.test(plain));assert(!plain.includes('**AI'));
+ assert(plain.includes(c.private.marketJudgment));assert(plain.includes('20日板块轮动'));
  assert.throws(()=>exp.reviewDocument('2026-10-16',c,'不完整结果'),/缺少必要章节/);
  const packet=handoff.reviewPacket('2026-10-16',1,c);packet.article.body=body;
  // Full tool evidence remains required on the external Skill path.

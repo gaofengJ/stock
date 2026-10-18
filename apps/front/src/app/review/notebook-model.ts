@@ -48,7 +48,7 @@ export function documentTemplate(date: string, value: NotebookContent) {
   return [
     `# ${value.public.title || `${date}复盘`}`, '> 本文由 AI 生成，仅供参考。',
     '## 市场数据', '### 市场概览', '### 情绪指标', '### 连板分析',
-    '## 板块轮动', '### 20日板块轮动', '## 涨停板复盘', '## 策略选股', ...picks,
+    '### 20日板块轮动', '## 涨停板复盘', '## 策略选股', ...picks,
     ...(notes.length ? ['## 用户记录', ...notes] : []),
     ...(value.materials?.showCalendar && value.materials.calendar.length ? ['## 投资日历', ...value.materials.calendar.map((event) => `### ${event.date} ${event.title}\n\n${event.detail}\n\n来源：${event.source}`)] : []),
     '## 闲聊', value.private.lesson || '',
@@ -89,16 +89,34 @@ export function publicText(date: string, value: NotebookContent, _channel: 'wech
 }
 export const escapeHtml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
   .replace(/'/g, '&#39;');
-export function noteHtml(text: string, images: ArticleImage[] = []) {
-  return `<article style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.8;color:#222;max-width:720px;margin:auto">${text.split('\n').map((line) => {
+export type ArticleTarget = 'feishu' | 'wechat' | 'xueqiu';
+// Adapt the earlier generated heading without rewriting the saved article or notes.
+function marketSectionLayout(text: string) {
+  return text.replace(/(^## 市场数据\r?\n(?:(?!^## )[^\n]*\n)*)## 板块轮动\r?\n\s*(?=### 20日板块轮动(?:\r?\n|$))/gm, '$1');
+}
+export function articlePlainText(text: string) {
+  return marketSectionLayout(text).replace(/^!\[.*?\]\((?:review-image:[^)]+|data:image\/[^)]+)\)\s*$/gm, '')
+    .replace(/^#{1,6} /gm, '')
+    .replace(/^> /gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+export function noteHtml(text: string, images: ArticleImage[] = [], target: ArticleTarget = 'feishu') {
+  const paragraphStyle = `margin:0 0 ${target === 'wechat' ? 16 : 12}px;font-size:${target === 'wechat' ? 16 : 15}px;line-height:1.8;color:#222;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;`;
+  return `<section style="font-family:Arial,'Microsoft YaHei',sans-serif;font-size:15px;line-height:1.8;color:#222;background-color:#fff;width:100%;max-width:720px;margin:0 auto;box-sizing:border-box;overflow-wrap:anywhere;word-break:break-word;">${marketSectionLayout(text).split('\n').map((line) => {
     const imageId = line.match(/^!\[.*\]\(review-image:([a-zA-Z0-9_-]+)\)$/)?.[1];
     const embedded = line.match(/^!\[(.*)\]\((data:image\/(?:png|jpeg);base64,[a-zA-Z0-9+/]+={0,2})\)$/);
     const media = images.find((item) => item.id === imageId) || (embedded ? { data: embedded[2], caption: embedded[1], source: '' } : null);
-    if (media && /^data:image\/(png|jpeg);base64,[a-zA-Z0-9+/]+={0,2}$/.test(media.data)) return `<figure style="margin:24px 0"><img src="${media.data}" alt="${escapeHtml(media.caption)}" style="max-width:100%;height:auto"/><figcaption>${escapeHtml(media.caption)}${media.source ? `<br/>来源：${escapeHtml(media.source)}` : ''}</figcaption></figure>`;
-    if (line.startsWith('# ')) return `<h1 style="font-size:24px">${escapeHtml(line.slice(2))}</h1>`;
-    if (line.startsWith('## ')) return `<h2 style="font-size:18px;margin-top:40px">${escapeHtml(line.slice(3))}</h2>`;
-    if (line.startsWith('### ')) return `<h3>${escapeHtml(line.slice(4))}</h3>`;
+    if (media && /^data:image\/(png|jpeg);base64,[a-zA-Z0-9+/]+={0,2}$/.test(media.data)) return `<p style="margin:16px 0 8px;padding:0;line-height:0;"><img src="${media.data}" alt="${escapeHtml(media.caption)}" style="display:block;width:100%;max-width:100%;height:auto;margin:0;border:0;"/></p><p style="${paragraphStyle}font-size:12px;color:#666;">${escapeHtml(media.caption)}${media.source ? `<br/>来源：${escapeHtml(media.source)}` : ''}</p>`;
+    const heading = line.match(/^(#{1,3}) (.*)$/);
+    if (heading) {
+      const level = heading[1].length;
+      const label = escapeHtml(heading[2]);
+      if (target === 'xueqiu') return `<p style="${paragraphStyle}margin-top:${level < 3 ? 24 : 16}px;"><strong>${label}</strong></p>`;
+      return `<h${level} style="margin:${level === 1 ? 0 : 24}px 0 12px;font-size:${[24, 20, 17][level - 1]}px;font-weight:700;line-height:1.5;color:#222;overflow-wrap:anywhere;">${label}</h${level}>`;
+    }
     const inline = escapeHtml(line.replace(/^> /, '')).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    return line ? `<p style="margin:8px 0">${inline}</p>` : '';
-  }).join('')}</article>`;
+    return line ? `<p style="${paragraphStyle}">${inline}</p>` : '';
+  }).join('')}</section>`;
 }
