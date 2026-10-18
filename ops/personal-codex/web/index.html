@@ -1,0 +1,17 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>个人 AI 控制台</title><link rel="stylesheet" href="/personal-ai/style.css"><script type="module" src="/personal-ai/app.js"></script></head><body>
+<header><div><span class="eyebrow">PERSONAL WORKSPACE</span><h1>个人 AI 控制台</h1><p>复盘、对比与追问，由你手动发起。</p></div><a href="/admin/ai/">返回管理后台</a></header>
+<main><div id="notice" role="status" class="notice">正在验证本人管理员身份…</div>
+<div class="metrics"><div><span>当前身份</span><strong id="owner">—</strong></div><div><span>今日任务</span><strong id="calls">—</strong></div><div><span>今日 Token / 预算占用</span><strong id="tokens">—</strong></div><div><span>订阅额度</span><strong id="quota">尚未查询</strong></div></div>
+<div class="grid"><section class="panel"><h2>新任务</h2><form id="task-form">
+<label for="skill">业务 Skill</label><select id="skill"><option value="market-review">候选复盘分析，v1</option><option value="candidate-compare">候选股对比，v1</option></select>
+<div class="row"><div><label for="date">数据日期</label><input id="date" type="date" required></div><div><label for="model">模型</label><select id="model"><option value="gpt-6.1-sol">GPT-6.1 Sol</option><option value="gpt-6-astra">GPT-6 Astra</option></select></div></div>
+<label for="effort">思考档位</label><select id="effort"><option>low</option><option>medium</option><option selected>high</option><option>xhigh</option><option>max</option><option>ultra</option></select>
+<label for="codes">股票代码（对比时必填，最多3只）</label><input id="codes" placeholder="例如 600519.SH, 000001.SZ" autocomplete="off">
+<label for="message">问题或分析要求</label><textarea id="message" maxlength="2000" rows="5" required>请根据所选日期的数据，分析候选概况、主要风险和需要人工核验的事项。</textarea>
+<p id="context" class="hint">新会话，只发送所选业务数据及本轮问题</p>
+<div class="actions"><button id="submit" type="submit">开始分析</button><button id="new-chat" type="button" class="secondary">新会话</button></div>
+</form><hr><button id="refresh-account" class="secondary">刷新登录、模型与额度</button><p class="hint">刷新状态不发起推理。每次分析最多运行180秒，同时只运行1个任务。模型目录可见不代表已完成实际调用验证。</p>
+<details><summary>使用与隐私说明</summary><p class="hint">仅绑定的本人管理员可用。凭据由服务器加密保存，不发送到浏览器。固定代理节点；不自动切换模型、不使用 API Key、不购买或重置 credits。额度低于安全余量时停止新任务。</p><p class="hint">Codex 有额外系统上下文开销；首次测试输入为11,022 Token。每日预算是应用准入控制，单次任务仍可能超出预留量。取消不能撤销已发生用量。仅限制自动购买，不代表能够保证已有 credits 永不被服务端使用。</p></details>
+</section><section class="panel result-panel"><div class="section-top"><h2>结果与对话</h2><button id="cancel" class="secondary" disabled>停止任务</button></div><div id="task-info" class="hint">选择任务或开始一次分析。</div><div id="messages" class="messages"><div class="empty">你的分析结果将在这里出现。<br>打开页面不会调用模型。</div></div><button id="followup" class="secondary" disabled>基于此结果继续追问</button></section></div>
+<section class="panel history"><h2>最近任务</h2><div id="history">暂无任务</div></section>
+</main><footer>所有结果仅保存为私人分析。请核对数据日期、覆盖范围和缺失项后再采纳。</footer></body></html>

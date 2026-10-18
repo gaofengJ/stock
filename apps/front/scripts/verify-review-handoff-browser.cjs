@@ -45,6 +45,9 @@ async function verify(browser, mode) {
   page.on('pageerror',e=>errors.push(e.message));
   page.on('dialog',async dialog=>{dialogs.push(dialog.message());await dialog.dismiss();});
   await page.goto(`${base}/review/?date=${date}`,{waitUntil:'networkidle'});
+  const topGap = await page.evaluate(()=>document.querySelector('.review-page').getBoundingClientRect().top-document.querySelector('.platform-content').getBoundingClientRect().top);
+  assert.equal(Math.round(topGap),16,'review surface keeps padding above it without offsetting the sticky header');
+  assert.equal(await page.getByRole('button',{name:'智能复盘',exact:true}).count(),0,'non-owner cannot see AI controls');
   const input = page.locator('#note-marketJudgment');
   await input.fill('必须保留的最新用户原文');
   await page.locator('#review-candidate-table .ant-pagination-item-2 a').click();

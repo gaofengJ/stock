@@ -12,6 +12,7 @@ import {
 import dayjs from 'dayjs';
 import { useAccount } from '@/auth/Boundary';
 import { allowedPath } from '@/auth/client';
+import BusinessAction from '@/components/PersonalAi/BusinessAction';
 import { useSearchParams } from 'next/navigation';
 import { errorMessage } from '@/api/errors';
 import Table from '@/components/DataTable';
@@ -154,6 +155,26 @@ function StrategyPage() {
     <Layout showAsideMenu={false} headerMenuActive={EHeaderMenuKey.strategy}>
       <div className="strategy-page p-16 rounded-[6px] bg-bg-white">
         <h1 className="page-heading">策略选股</h1>
+        <BusinessAction
+          skill="candidate-compare"
+          date={date}
+          strategy={{
+            type: strategy,
+            parameters: {
+              ...(isTrendStrategy(strategy) ? options : {}),
+              ...(hasTurnoverFilter ? { minTurnoverRateF } : {}),
+            },
+            ...(sector ? { sector } : {}),
+            ...(keyword ? { keyword } : {}),
+          }}
+          disabled={view === 'performance' || loadingCandidates || !decorated.length}
+          disabledReason={[
+            view === 'performance' && '请切换到候选列表或横向比较，再使用智能对比。',
+            loadingCandidates && '候选数据加载中，完成后即可使用。',
+            '当前没有候选股票，请调整策略、日期或筛选条件。',
+          ].find(Boolean) as string}
+          candidates={decorated.map((row) => ({ code: row.tsCode, name: row.name }))}
+        />
         {dateError && !date && <Alert type="error" message={dateError} showIcon action={<Button onClick={retryDate}>重试</Button>} />}
         {loadError && <Alert type="error" message={loadError} showIcon action={<Button onClick={() => { if (navList.length) getList(true); else getTabs(); }}>重试</Button>} />}
         <Tabs size={screens.md ? 'middle' : 'small'} activeKey={strategy} items={navList} onChange={switchStrategy} />
