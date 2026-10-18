@@ -1,0 +1,138 @@
+diff --git a/apps/front/src/app/admin/layout.tsx b/apps/front/src/app/admin/layout.tsx
+index 7c7de6f8..2dfc7ff6 100644
+--- a/apps/front/src/app/admin/layout.tsx
++++ b/apps/front/src/app/admin/layout.tsx
+@@ -1,12 +1,13 @@
+ 'use client';
+ 
+ import {
+-  TeamOutlined, SafetyCertificateOutlined, SyncOutlined, FileSearchOutlined, BellOutlined,
++  TeamOutlined, SafetyCertificateOutlined, SyncOutlined, FileSearchOutlined, BellOutlined, RobotOutlined,
+ } from '@ant-design/icons';
+ import { usePathname } from 'next/navigation';
+ import CommonLayout from '@/components/Layout';
+ 
+ const items = [
++  { key: '/admin/ai', label: '个人 AI 控制台', icon: <RobotOutlined /> },
+   { key: '/admin/users', label: '用户管理', icon: <TeamOutlined /> },
+   { key: '/admin/users/activity', label: '登录动态', icon: <BellOutlined /> },
+   { key: '/admin/roles', label: '角色管理', icon: <SafetyCertificateOutlined /> },
+diff --git a/apps/front/src/auth/client.ts b/apps/front/src/auth/client.ts
+index 1c80834c..66888f2e 100644
+--- a/apps/front/src/auth/client.ts
++++ b/apps/front/src/auth/client.ts
+@@ -91,8 +91,13 @@ export async function api<T = any>(
+     throw userError(error);
+   }
+ }
++export function isPersonalAiOwner(user: Account | null): boolean {
++  return !!user && user.id === 1 && !user.guest && !user.mustChangePassword
++    && !!user.roles?.some((role) => role.code === 'admin');
++}
+ export function allowedPath(user: Account | null, path: string): boolean {
+   const p = path.replace(/\/$/, '') || '/';
++  if (p === '/admin/ai' || p.startsWith('/admin/ai/')) return isPersonalAiOwner(user);
+   if (p === '/trading-system' || p.startsWith('/trading-system/')
+     || p === '/admin/playbook' || p.startsWith('/admin/playbook/')) {
+     return !!user && !user.guest && !!user.roles?.some((role) => role.code === 'admin');
+diff --git a/apps/front/src/app/admin/ai/page.tsx b/apps/front/src/app/admin/ai/page.tsx
+index e69de29b..e47b7edb 100644
+--- /dev/null
++++ b/apps/front/src/app/admin/ai/page.tsx
+@@ -0,0 +1,57 @@
++'use client';
++
++import { useEffect, useRef, useState } from 'react';
++import { Alert, Button, Space, Typography } from 'antd';
++import { useAccount } from '@/auth/Boundary';
++import { isPersonalAiOwner } from '@/auth/client';
++
++export default function PersonalAiPage() {
++  const { user } = useAccount();
++  const frame = useRef<HTMLIFrameElement>(null);
++  const [attempt, setAttempt] = useState(0);
++  const [status, setStatus] = useState('loading');
++  const [height, setHeight] = useState(1400);
++  const permitted = isPersonalAiOwner(user);
++
++  useEffect(() => {
++    if (!permitted) return undefined;
++    setStatus('loading');
++    const timeout = window.setTimeout(() => setStatus((current) => (current === 'ready' ? current : 'error')), 20000);
++    const receive = (event: MessageEvent) => {
++      if (event.origin !== window.location.origin || event.source !== frame.current?.contentWindow) return;
++      if (event.data?.type !== 'personal-ai-view') return;
++      if (event.data.status === 'ready' || event.data.status === 'error') {
++        window.clearTimeout(timeout);
++        setStatus(event.data.status);
++      }
++      if (Number.isFinite(event.data.height)) setHeight(Math.min(12000, Math.max(600, event.data.height)));
++    };
++    window.addEventListener('message', receive);
++    return () => { window.clearTimeout(timeout); window.removeEventListener('message', receive); };
++  }, [permitted, attempt]);
++
++  if (!permitted) return <Alert type="error" message="此控制台仅限绑定的本人管理员使用。" />;
++  return (
++    <section>
++      <Typography.Title level={3}>个人 AI 控制台</Typography.Title>
++      <Typography.Paragraph type="secondary">沿用网站登录，仅你本人可用。打开页面、选择模型和新建会话不会调用模型。</Typography.Paragraph>
++      {status !== 'ready' && (
++        <Alert
++          style={{ marginBottom: 16 }}
++          type={status === 'error' ? 'warning' : 'info'}
++          message={status === 'error' ? '控制台尚未就绪，请重试；如登录失效，请重新登录网站。' : '正在加载个人控制台…'}
++          action={status === 'error' ? <Button size="small" onClick={() => setAttempt((value) => value + 1)}>重新加载</Button> : undefined}
++        />
++      )}
++      <iframe
++        key={attempt}
++        ref={frame}
++        src="/personal-ai/?embedded=1"
++        title="个人 AI 分析与对话"
++        referrerPolicy="no-referrer"
++        style={{ display: 'block', width: '100%', height, border: 0, borderRadius: 12 }}
++      />
++      <Space style={{ marginTop: 12 }}><Typography.Text type="secondary">仅点击“开始分析”才会提交任务。</Typography.Text></Space>
++    </section>
++  );
++}
+diff --git a/apps/front/scripts/verify-export.cjs b/apps/front/scripts/verify-export.cjs
+index 3efc0473..d6a9a05a 100644
+--- a/apps/front/scripts/verify-export.cjs
++++ b/apps/front/scripts/verify-export.cjs
+@@ -2,7 +2,7 @@ const { existsSync, readFileSync, readdirSync } = require('node:fs');
+ const { join } = require('node:path');
+ 
+ // Static hosting cannot recover a route omitted from the build context.
+-const routes = ['login', 'register', 'profile', 'feedback', 'admin/playbook', 'trading-system', 'admin/users', 'admin/users/activity', 'admin/roles', 'admin/sync', 'admin/logs', 'analysis/overview', 'analysis/senti', 'analysis/limits', 'analysis/chains', 'analysis/dragon', 'analysis/sectors', 'basic/stock/broker-picks'];
++const routes = ['login', 'register', 'profile', 'feedback', 'admin/ai', 'admin/playbook', 'trading-system', 'admin/users', 'admin/users/activity', 'admin/roles', 'admin/sync', 'admin/logs', 'analysis/overview', 'analysis/senti', 'analysis/limits', 'analysis/chains', 'analysis/dragon', 'analysis/sectors', 'basic/stock/broker-picks'];
+ const files = [
+   'index.html', 'robots.txt', 'sitemap.xml', 'guides/index.html',
+   ...['daily-review', 'strategy-screening', 'signal-performance', 'broker-monthly-picks'].map((slug) => `guides/${slug}/index.html`),
+diff --git a/apps/front/scripts/test-personal-ai.cjs b/apps/front/scripts/test-personal-ai.cjs
+index e69de29b..55aa5c62 100644
+--- /dev/null
++++ b/apps/front/scripts/test-personal-ai.cjs
+@@ -0,0 +1,21 @@
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const fs = require('node:fs');
++const path = require('node:path');
++const ts = require('typescript');
++const source = fs.readFileSync(path.join(__dirname, '../src/auth/client.ts'), 'utf8');
++const loaded = {};
++new Function('exports', 'require', ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText)(loaded, () => ({}));
++
++test('personal console entry and direct route require the immutable owner ID and admin role', () => {
++  const owner = { id: 1, username: 'mufeng', roles: [{ code: 'admin' }], permissions: ['admin'], catalog: [{ code: 'admin', route: '/admin' }], mustChangePassword: false };
++  for (const route of ['/admin/ai', '/admin/ai/', '/admin/ai/history']) {
++    assert.equal(loaded.allowedPath(owner, route), true);
++    for (const user of [null, { ...owner, id: 2 }, { ...owner, roles: [{ code: 'user' }] }, { ...owner, guest: true }, { ...owner, mustChangePassword: true }]) {
++      assert.equal(loaded.allowedPath(user, route), false);
++    }
++    assert.equal(loaded.allowedPath({ ...owner, username: 'renamed' }, route), true);
++    assert.equal(loaded.allowedPath({ ...owner, id: 3, username: 'mufeng' }, route), false);
++  }
++  assert.equal(loaded.allowedPath({ ...owner, id: 2 }, '/admin/users'), true);
++});

@@ -91,8 +91,13 @@ export async function api<T = any>(
     throw userError(error);
   }
 }
+export function isPersonalAiOwner(user: Account | null): boolean {
+  return !!user && user.id === 1 && !user.guest && !user.mustChangePassword
+    && !!user.roles?.some((role) => role.code === 'admin');
+}
 export function allowedPath(user: Account | null, path: string): boolean {
   const p = path.replace(/\/$/, '') || '/';
+  if (p === '/admin/ai' || p.startsWith('/admin/ai/')) return isPersonalAiOwner(user);
   if (p === '/trading-system' || p.startsWith('/trading-system/')
     || p === '/admin/playbook' || p.startsWith('/admin/playbook/')) {
     return !!user && !user.guest && !!user.roles?.some((role) => role.code === 'admin');

@@ -17,11 +17,13 @@
     "test:market-environment": "node --test scripts/test-market-environment.cjs",
     "test:errors": "node --test scripts/test-errors.cjs",
     "dev": "next dev -p 8081",
-    "build": "next build && node scripts/verify-export.cjs && node --test scripts/test-macd.cjs scripts/test-select-labels.cjs scripts/test-strategy-state.cjs scripts/test-dragon.cjs scripts/test-calendar.cjs scripts/test-review-draft.cjs scripts/test-notebook.cjs scripts/test-theme-review.cjs scripts/test-admin-polling.cjs scripts/test-sync-handling.cjs scripts/test-stock-actions.cjs scripts/test-clipboard.cjs scripts/test-client-resilience.cjs scripts/test-guest-access.cjs && node --test scripts/test-discovery.cjs",
+    "build": "next build && node scripts/verify-export.cjs && node --test scripts/test-macd.cjs scripts/test-select-labels.cjs scripts/test-strategy-state.cjs scripts/test-dragon.cjs scripts/test-calendar.cjs scripts/test-review-draft.cjs scripts/test-notebook.cjs scripts/test-theme-review.cjs scripts/test-admin-polling.cjs scripts/test-sync-handling.cjs scripts/test-stock-actions.cjs scripts/test-clipboard.cjs scripts/test-client-resilience.cjs scripts/test-guest-access.cjs && node --test scripts/test-discovery.cjs && pnpm run test:personal-ai",
     "start": "next start -p 8081",
     "lint": "next lint .",
     "test:strategy": "node --test scripts/test-strategy-state.cjs",
-    "test:discovery": "node --test scripts/test-discovery.cjs"
+    "test:discovery": "node --test scripts/test-discovery.cjs",
+    "test:personal-ai": "node --test scripts/test-personal-ai.cjs scripts/test-personal-ai-native.cjs",
+    "test:clipboard": "node --test scripts/test-clipboard.cjs"
   },
   "dependencies": {
     "@ant-design/icons": "^5.4.0",

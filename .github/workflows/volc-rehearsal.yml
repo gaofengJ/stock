@@ -22,6 +22,7 @@ jobs:
         run: |
           node .github/scripts/check-env-secrets.cjs apps/back/.env.production
           node --test .github/scripts/test-release-tools.cjs .github/scripts/test-publish-verified-image.cjs .github/scripts/test-indexnow.cjs
+          node --test ops/personal-codex/*.test.mjs
   frontend:
     runs-on: ubuntu-24.04
     steps:

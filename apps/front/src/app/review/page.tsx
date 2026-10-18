@@ -8,6 +8,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import SelectField from '@/components/SelectField';
+import BusinessAction from '@/components/PersonalAi/BusinessAction';
 import Layout from '@/components/Layout';
 import { StockLink } from '@/components/StockActions';
 import { EHeaderMenuKey } from '@/components/Layout/enum';
@@ -559,6 +560,7 @@ export default function Page() {
     <Layout showAsideMenu={false} headerMenuActive={EHeaderMenuKey.review}>
       <main className="review-page rounded-[6px] bg-bg-white">
         <h1 className="page-heading">每日复盘</h1>
+        <BusinessAction skill="market-review" date={date} />
         <p className="review-intro">网站记录复盘与图文素材，Skill 补充分析并生成飞书文档。</p>
         <Space className="mb-16" wrap>
           <span>复盘交易日期</span>

@@ -112,7 +112,7 @@ body:has(.review-preview-open) .platform-content:has(.review-page) { overflow: h
 /* Keep the default feedback control in the empty gutter below the final card. */
 .platform-layout:has(.review-page) .feedback-floating:not([style]) { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
 /* Avoid a second page scroll container from the watermark wrapper. */
-.platform-watermark:has(> .review-page) { overflow: clip !important; padding-bottom: 64px; }
+.platform-watermark:has(> .review-page) { overflow: clip !important; padding-top: 16px; padding-bottom: 64px; }
 
 .review-selection { background: var(--color-surface); border: 1px solid var(--color-border); }
 .review-chart-evidence { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; padding: 8px 12px; }
