@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {reviewFixture} from './review-fixtures.mjs';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {mkdtempSync,rmSync} from 'node:fs';
@@ -19,7 +20,8 @@ const fixtures=path=>{
  if(url.pathname==='/strategy/candidate-context')return [{tsCode:code,sectorContextReady:true,sectorPerformance:Array.from({length:22},(_,i)=>({code:String(i),name:'标签'+i,type:i?'N':'I',asOf:date,day:i/7,five:2,twenty:3,maxHeight:1}))}];
  if(url.pathname==='/strategy/candidate-financials')return {items:[{tsCode:code,sourceState:'ready',history:[{announcedAt:'2026-10-01',reportDate:'2026-06-30',status:'profit',amount:100},{announcedAt:'2026-10-20',amount:999}],forecast:{announcedAt:'2026-10-20',profitMin:999}}]};
  if(url.pathname==='/analysis/market/candidate-environment')return {date,market:{amount:10000,upRatio:60,up:3000,total:5000},breadth:{ma20:{ratio:60},ma60:{ratio:50}}};
- if(url.pathname==='/analysis/market/overview'){assert.equal(url.searchParams.get('days'),'60');return {indexes:[{code:'000001.SH',name:'上证指数',series:bars}]};}
+ if(url.pathname==='/analysis/market/overview' && url.searchParams.get('days')==='60')return {indexes:[{code:'000001.SH',name:'上证指数',series:bars}]};
+ if (reviewFixture(path)) return reviewFixture(path);
  if(url.pathname==='/review/report')return {date,complete:true,counts:{unique:20},strategies:[{key:'volumeBreakout',label:'放量突破',state:'ready',count:20}],items:Array.from({length:20},(_,i)=>({...daily,tsCode:String(i)}))};
  throw Error('unexpected read '+url.pathname);
 };
@@ -48,13 +50,21 @@ test('core market failures stop both business contexts instead of producing a mi
  for(const endpoint of ['candidate-environment','overview']) {
   const read=async path=>{if(path.includes('/analysis/market/'+endpoint))throw Object.assign(Error('HTTP 404'),{status:503});return fixtures(path);};
   await assert.rejects(()=>candidateSnapshot(input(),read),/HTTP 404/);
-  await assert.rejects(()=>reviewSnapshot({date},read),/HTTP 404/);
+  if(endpoint==='overview')await assert.rejects(()=>reviewSnapshot({date},read),/HTTP 404/);
  }
 });
-test('review uses all candidates for structure, discloses sample bias and keeps actual per-stock strategies',async()=>{
- const s=await reviewSnapshot({date},async path=>fixtures(path));assert.equal(s.total,20);assert.equal(s.included,12);assert.equal(s.omitted,8);assert.equal(s.candidateStructure.industries[0].count,20);assert.deepEqual(s.items[0].strategies,['volumeBreakout']);assert(s.market);assert(s.indexes.length);
- await assert.rejects(()=>reviewSnapshot({date},async path=>path.includes('/review/')?{date:'2026-10-15',items:[]}:fixtures(path)),/日期/);
+test('document review uses real market, sentiment, feedback and 20-day rotation with exact dates',async()=>{
+ const s=await reviewSnapshot({date},async path=>fixtures(path));
+ assert.equal(s.version,'review/v3');assert.equal(s.feedback.groups[0].average,-2);
+ assert.equal(s.market.previousAmount,10000);assert.equal(s.market.recent[0].amount,10000);
+ assert.equal(s.sectors20.items[0].ranks[1].rank,3);assert.equal(s.themes.groups[0].count,10);
+ assert(Buffer.byteLength(JSON.stringify(s))<18000);
+ assert(!JSON.stringify(s).includes('候选行业'));
+ await assert.rejects(()=>reviewSnapshot({date},async path=>path.includes('/overview')?{date:'2026-10-15'}:fixtures(path)),/日期/);
+ const partial=await reviewSnapshot({date},async path=>path.includes('/sectors')?{date:'2026-10-19',items:[]}:fixtures(path));
+ assert.equal(partial.sectors20.items.length,0);assert(partial.gaps.some(g=>g.includes('sectors20')));
 });
+
 test('preview endpoints authenticate, consume no model calls or task budget; submit/followup preserve strategy, skill and timings',async()=>{
  const dir=mkdtempSync(join(tmpdir(),'context-flow-')), token='b'.repeat(64),origin='https://example.test';let runs=0,metadataReads=0,lastPrompt='';
  const runner={metadata:async()=>{metadataReads++;return {models:[{model:'gpt-6.1-sol',efforts:['high']}],quota:{ordinaryUsageAllowed:true,primary:{usedPercent:2}}};},run:async(t,p)=>{runs++;lastPrompt=p;return{success:true,completedTurns:1,answer:'## 结果\n完成',usage:{input_tokens:100,output_tokens:20},metrics:{firstEventMs:1,firstAnswerMs:2,processMs:3}};},stop(){}};

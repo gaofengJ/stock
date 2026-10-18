@@ -115,7 +115,7 @@ export class Store {
       const parent = this.tasks.find(t => t.id === input.parentId);
       if (!parent || parent.status !== 'completed') fail(409, '只能追问已完成的任务');
       if (parent.snapshot?.sources?.some(s => ['market','indexes'].includes(s.name) && s.state!=='ready')) fail(409,'原记录的大盘数据读取失败，请新建分析，不能沿用不完整快照追问');
-      if (input.skill==='market-review' && parent.snapshot?.version!=='review/v2') fail(409,'旧复盘缺少完整大盘上下文，请新建分析');
+      if (input.skill==='market-review' && parent.snapshot?.version!=='review/v3') fail(409,'旧复盘缺少完整大盘上下文，请新建分析');
       if (parent.skill !== input.skill || parent.date !== input.date || JSON.stringify(parent.codes) !== JSON.stringify(input.codes)) fail(400, '追问须沿用原日期、Skill和股票范围');
       if (input.skill === 'candidate-compare' && parent.snapshot?.version !== 'candidate/v2') fail(409, '旧记录缺少完整策略上下文，请新建分析');
       if (input.strategy && JSON.stringify(input.strategy) !== JSON.stringify(parent.strategy)) fail(400, '追问不能改变策略参数，请新建分析');
@@ -124,7 +124,7 @@ export class Store {
       snapshot = parent.snapshot;
     }
     const task = { ...input, id: randomUUID(), requestHash: sha(JSON.stringify(input)), day: dayKey(), createdAt: new Date().toISOString(),
-      skillVersion: 'v2', status: 'preparing', reservedTokens: reserve, history, snapshot, usage: null, answer: '',
+      skillVersion: input.skill === 'market-review' ? 'v3' : 'v2', status: 'preparing', reservedTokens: reserve, history, snapshot, usage: null, answer: '',
       ...(input.parentId && snapshot?.strategy ? { strategy: strategySpec(snapshot.strategy.type ? { type:snapshot.strategy.type, parameters:snapshot.strategy.parameters, sector:snapshot.strategy.sector, keyword:snapshot.strategy.keyword } : input.strategy) } : {}) };
     this.tasks.push(task); this.save();
     return { task, duplicate: false };
@@ -133,5 +133,5 @@ export class Store {
 export function publicTask(t) {
   const { key, requestHash, history, snapshot, ...safe } = t;
   return { ...safe, historyTurns: history.length, dataDate: snapshot?.date, dataBytes: snapshot ? Buffer.byteLength(JSON.stringify(snapshot)) : 0,
-    contextSummary: snapshot?.version === 'candidate/v2' ? { strategy:snapshot.strategy.name, stocks:snapshot.stocks.map(s=>({code:s.code,name:s.name})), gaps:snapshot.gaps, sources:snapshot.sources, limitations:snapshot.limitations } : snapshot?.version==='review/v2' ? {strategy:'每日复盘',stocks:snapshot.items.map(s=>({code:s.code,name:s.name})),gaps:snapshot.gaps,sources:snapshot.sources,limitations:snapshot.limitations,total:snapshot.total,included:snapshot.included,omitted:snapshot.omitted}:null };
+    contextSummary: snapshot?.version === 'candidate/v2' ? { strategy:snapshot.strategy.name, stocks:snapshot.stocks.map(s=>({code:s.code,name:s.name})), gaps:snapshot.gaps, sources:snapshot.sources, limitations:snapshot.limitations } : ['review/v2','review/v3'].includes(snapshot?.version) ? {strategy:'每日复盘',stocks:snapshot.items.map(s=>({code:s.code,name:s.name})),gaps:snapshot.gaps,sources:snapshot.sources,limitations:snapshot.limitations,total:snapshot.total,included:snapshot.included,omitted:snapshot.omitted}:null };
 }

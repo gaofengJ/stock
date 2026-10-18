@@ -19,13 +19,13 @@ export interface Metadata {
 }
 export interface Task extends ModelChoice {
   id: string; skill: Skill; date: string; codes: string[]; message: string; answer?: string;
-  error?: string; status: string; historyTurns: number; createdAt: string;
+  error?: string; stage?: string; status: string; historyTurns: number; createdAt: string;
   strategy?: StrategyContext; skillVersion?: string; contextSummary?: DataSummary;
   timings?: Record<string, number>; executionMetrics?: {firstEventMs?:number;firstAnswerMs?:number;processMs?:number};
   usage?: { input_tokens?: number; output_tokens?: number; cached_input_tokens?: number; reasoning_output_tokens?: number };
 }
 export interface ConsoleState {
-  enabled: boolean; metadata: Metadata | null; tasks: Task[];
+  enabled: boolean; capabilities?: { streaming?: boolean; reviewDocument?: boolean }; metadata: Metadata | null; tasks: Task[];
   today: { calls: number; tokens: number };
   limits: { dailyCalls: number; dailyTokens: number; maxContextBytes: number; timeoutSeconds: number };
 }

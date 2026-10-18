@@ -39,7 +39,7 @@ export default function Page() {
   const kind = params.get('kind') === 'N' ? 'N' : 'I';
   const kindLabel = sectorKindLabel(kind);
   const code = /^88[156]\d{3}\.TI$/.test(params.get('code') || '') ? params.get('code') || undefined : undefined;
-  const [keyword, setKeyword] = useState(''); const [period, setPeriod] = useState<1 | 5 | 20>(1);
+  const [keyword, setKeyword] = useState(''); const [period, setPeriod] = useState<1 | 5 | 20>(() => { const value = Number(params.get('period')); return value === 5 || value === 20 ? value : 1; });
   const [window, setWindow] = useState<ChartWindow>({ period: 'day', count: 60 });
   const { colors } = useSiteTheme(); const detailRef = useRef<HTMLDivElement>(null);
   const request = useMarketData<SectorBoard>('sectors', {

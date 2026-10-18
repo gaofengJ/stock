@@ -106,3 +106,17 @@ node --test apps/front/scripts/test-personal-ai-native.cjs
 2026-10-18发现v2大盘取数遗漏`analysis`模块前缀，两个业务场景均错误调用`/api/market/...`，返回404后被当成可选数据缺失，导致不完整上下文仍进入模型。已统一改为`/api/analysis/market/candidate-environment`及`/api/analysis/market/overview`。大盘和指数的接口错误现在会在推理之前停止；成功响应中的真实数据缺项仍按实际情况披露。不完整历史快照禁止继续追问，原结果不改写。
 
 修复服务镜像为`stock-personal-console:market-route-fix-20261018`，脚本`deploy-market-route-fix.py`；前端不变。增加真实前端客户端/后端嵌套路由契约检查，避免测试与实现共同采用错误URL；本地25项测试、服务器24项隔离模拟测试。已从服务器验证旧路由404、正确路由401（匿名访问被保护）；不把此检查称为带登录凭据的数据端到端验收。发布前后业务任务记录不变，不发起模型调用。
+
+## 2026-10-19 图文复盘与流式回复
+
+复盘文档集中保留智能复盘、准备 Codex 任务、预览、保存。五组平台暗色图含20日行业轮动；更新按钮复用已有素材。分析要求可留空，结果按固定章节与原始用户记录合并，预览提供 HTML/纯文字剪贴板。飞书若过滤粘贴图片，Codex + lark-cli 可直接写入真实图片。
+
+独立服务使用 `review/v3`：市场量能与指数、均线广度、情绪晋级、昨日强势股反馈、20日行业排名及涨停题材。候选对比继续使用 `candidate/v2`。真实 app-server `item/agentMessage/delta` 通过同源 SSE 到达前端，断线只重连读取，不重提推理。任务、预算、模型选择、身份与 CSRF 限制继续生效。部署脚本 `deploy-review-stream.py` 只替换独立服务并保留回滚容器，前端走正常 master CI/CD。
+
+### 飞书直连调研
+
+官方 lark-cli 支持云文档创建、编辑、读取和素材操作，也提供嵌入自研平台的扩展方式：
+- https://github.com/larksuite/cli/blob/main/README.zh.md
+- https://open.larkoffice.com/document/mcp_open_tools/embed-feishu-cli-in-agent.md
+
+可在服务器增加私有后台任务：同日期/版本资料包 → lark-cli 写正文与真实图片 → 回读核验 → 回填文档 URL。以用户 ID、日期、保存版本和 generation 做幂等键，失败保留 doc ID 续接，禁止重复创建或覆盖更新后的原文。CLI 放在服务端，浏览器不执行 shell；只允许固定命令参数，正文和图片通过文件传递。需服务器独立的飞书 OAuth/应用配置、最小文档权限及凭据加密存储，本机授权不能直接复制。此次完成调研与现有 Codex 交接流程，不把直连显示成已经可用。

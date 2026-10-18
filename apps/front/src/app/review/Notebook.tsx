@@ -6,7 +6,7 @@ import {
   ReactNode, useCallback, useEffect, useRef, useState,
 } from 'react';
 import {
-  Alert, Button, Card, Checkbox, Collapse, Image, Input, Space,
+  Alert, Button, Card, Checkbox, Image, Input, Space,
 } from 'antd';
 import Link from 'next/link';
 import request from '@/api/request';
@@ -145,22 +145,21 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
       {error && <Alert type="warning" message={error} action={!snapshot && <Button onClick={() => setAttempt((x) => x + 1)}>重新读取</Button>} />}
       {evidenceError && evidenceError !== error && <Alert type="warning" message={evidenceError} />}
       <div className="notebook-start">
-        <p className="review-caption">先查看资料，按需写下自己的判断。记录可以留空；网站负责保存，AI 整理在 Codex 中完成。</p>
+        <p className="review-caption">查看图表，按需记录判断，再用智能复盘生成图文。记录可以留空，已有原文会保留。</p>
         <nav className="notebook-flow" aria-label="每日复盘四步">
           {eveningFlow.map((stage) => <Button key={stage.id} onClick={() => document.getElementById(`evening-${stage.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{stage.title}</Button>)}
         </nav>
         <Space wrap size={12}>
-          <Button disabled={!snapshot} loading={researchBusy} onClick={() => importMarket(true)}>准备图文资料</Button>
+          <Button disabled={!snapshot} loading={researchBusy} onClick={() => importMarket(!(content.article?.images || []).some((image) => image.id.startsWith('platform-')))}>{(content.article?.images || []).some((image) => image.id.startsWith('platform-')) ? '更新图文资料' : '准备图文资料'}</Button>
           {researchBusy && <Button onClick={() => captureAbort.current?.abort()}>停止准备</Button>}
-          <Collapse ghost items={[{ key: 'refresh', label: '图片更新选项', children: <Button disabled={!snapshot || researchBusy} onClick={() => importMarket()}>重新生成全部图片</Button> }]} />
-          <span className="review-caption">补齐四张平台长图，已有图片会保留。</span>
+          <span className="review-caption">包含市场、情绪、连板、涨停和20日板块轮动；更新保留个人配图。</span>
           <Link href="/trading-system/" target="_blank" rel="noopener noreferrer">复盘方法</Link>
         </Space>
       </div>
       <div className="notebook-stages">
         {eveningFlow.map((stage) => {
           const prefix = ({ market: '市场数据', themes: '涨停板复盘', candidates: '策略选股' } as Record<string, string>)[stage.id];
-          const images = (content.article?.images || []).filter((item) => item.id.startsWith('platform-') && (item.after === prefix || (stage.id === 'market' && ['市场概览', '情绪指标', '连板分析'].includes(item.after))));
+          const images = (content.article?.images || []).filter((item) => item.id.startsWith('platform-') && (item.after === prefix || (stage.id === 'market' && ['市场概览', '情绪指标', '连板分析', '20日板块轮动'].includes(item.after))));
           return (
             <Card id={`evening-${stage.id}`} key={stage.id} title={stage.title}>
               <p className="review-caption">{stage.guidance}</p>
@@ -185,7 +184,6 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
               )}
               {stage.id === 'candidates' && snapshot && <div className="notebook-tools">{renderTools(captureCandidates, undefined, snapshot.generation || 0, sourceRefresh)}</div>}
               {stage.keys.map(renderField)}
-              {stage.optional.length > 0 && <Collapse ghost items={[{ key: 'details', label: '补充说明（可选）', children: <div className="notebook-detail-fields">{stage.optional.map(renderField)}</div> }]} />}
             </Card>
           );
         })}
@@ -195,7 +193,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
           <label htmlFor="review-document-title">文章名称</label>
           <Input id="review-document-title" value={content.public.title || `${date}复盘`} disabled={!snapshot} maxLength={200} onChange={(e) => changed({ ...current.current, public: { ...current.current.public, title: e.target.value }, ...(current.current.article?.body ? { article: { ...current.current.article, body: current.current.article.body.replace(/^# [^\n]+/, `# ${e.target.value || `${date}复盘`}`) } } : {}) })} />
         </div>
-        <ArticleEditor date={date} generation={snapshot?.generation || 0} revision={snapshot?.revision || 0} content={content} disabled={!snapshot || researchBusy || busy} saving={busy} onSave={save} previewDisabled={!snapshot} dirty={dirty} onStatus={setStatus} onMaterials={changeMaterials} onChange={(article) => changed({ ...current.current, article })} />
+        <ArticleEditor prepareImages={async () => { const warning = await importMarket(true); if (warning) throw Error(warning); }} date={date} generation={snapshot?.generation || 0} revision={snapshot?.revision || 0} content={content} disabled={!snapshot || researchBusy || busy} saving={busy} onSave={save} previewDisabled={!snapshot} dirty={dirty} onStatus={setStatus} onMaterials={changeMaterials} onChange={(article) => changed({ ...current.current, article })} />
       </Card>
     </div>
   );

@@ -6,12 +6,12 @@ import { RobotOutlined } from '@ant-design/icons';
 import { useAccount } from '@/auth/Boundary';
 import { isPersonalAiOwner } from '@/auth/client';
 import AnalysisPanel, { Candidate } from './AnalysisPanel';
-import { Skill, StrategyContext } from './client';
+import { Skill, StrategyContext, Task } from './client';
 
 export default function BusinessAction({
-  skill, date, candidates = [], disabled = false, disabledReason, strategy,
+  skill, date, candidates = [], disabled = false, disabledReason, strategy, compact = false, beforeStart, onComplete,
 }: {
-  skill: Skill; date: string; candidates?: Candidate[]; disabled?: boolean; disabledReason?: string; strategy?: StrategyContext;
+  skill: Skill; date: string; candidates?: Candidate[]; disabled?: boolean; disabledReason?: string; strategy?: StrategyContext; compact?: boolean; beforeStart?: () => Promise<void>; onComplete?: (task: Task) => void;
 }) {
   const { user } = useAccount();
   const [context, setContext] = useState<{ date: string; candidates: Candidate[]; strategy?: StrategyContext } | null>(null);
@@ -24,19 +24,21 @@ export default function BusinessAction({
     : '选择策略和日期，点击智能对比，在侧栏选择1至3只股票后开始分析。';
   return (
     <>
-      <section className="personal-ai-entry" aria-label={`${title}入口`}>
-        <div>
-          <strong>{title}</strong>
-          <p>
-            {instructions}
-            打开侧栏不会调用模型。
-          </p>
-          {unavailable && <p role="status">{unavailable}</p>}
-        </div>
-        <Button type="primary" icon={<RobotOutlined />} disabled={!!unavailable} onClick={() => setContext({ date, candidates: [...candidates], strategy })}>{title}</Button>
-      </section>
-      <Drawer title={title} open={!!context} onClose={() => setContext(null)} width={680} styles={{ wrapper: { maxWidth: '100vw' } }} destroyOnClose>
-        {context && <AnalysisPanel ownerId={user!.id} skill={skill} date={context.date} candidates={context.candidates} strategy={context.strategy} />}
+      {compact ? <Button type="primary" icon={<RobotOutlined />} disabled={!!unavailable} onClick={() => setContext({ date, candidates: [...candidates], strategy })}>{title}</Button> : (
+        <section className="personal-ai-entry" aria-label={`${title}入口`}>
+          <div>
+            <strong>{title}</strong>
+            <p>
+              {instructions}
+              打开侧栏不会调用模型。
+            </p>
+            {unavailable && <p role="status">{unavailable}</p>}
+          </div>
+          <Button type="primary" icon={<RobotOutlined />} disabled={!!unavailable} onClick={() => setContext({ date, candidates: [...candidates], strategy })}>{title}</Button>
+        </section>
+      )}
+      <Drawer className="personal-ai-drawer" title={title} open={!!context} onClose={() => setContext(null)} width={760} styles={{ wrapper: { maxWidth: '100vw' } }} destroyOnClose>
+        {context && <AnalysisPanel ownerId={user!.id} skill={skill} date={context.date} candidates={context.candidates} strategy={context.strategy} beforeStart={beforeStart} onComplete={onComplete} />}
       </Drawer>
     </>
   );

@@ -4,7 +4,7 @@ import {
   useCallback, useEffect, useRef, useState,
 } from 'react';
 import {
-  Alert, Button, Card, Collapse, Empty, Form, Input, Select, Space, Tag, Typography,
+  Alert, Button, Card, Collapse, Empty, Form, Input, Select, Space, Spin, Tag, Typography,
 } from 'antd';
 import ModelControls from './ModelControls';
 import ResultText from './ResultText';
@@ -17,14 +17,14 @@ export interface Candidate { code: string; name?: string }
 const failText = (error: unknown) => (error instanceof Error ? error.message : '操作未完成，请重试。');
 
 export default function AnalysisPanel({
-  ownerId, skill, date, candidates = [], strategy,
+  ownerId, skill, date, candidates = [], strategy, beforeStart, onComplete,
 }: {
-  ownerId: number; skill: Skill; date: string; candidates?: Candidate[]; strategy?: StrategyContext;
+  ownerId: number; skill: Skill; date: string; candidates?: Candidate[]; strategy?: StrategyContext; beforeStart?: () => Promise<void>; onComplete?: (task: Task) => void;
 }) {
   const [state, setState] = useState<ConsoleState | null>(null);
   const [choice, setChoice] = useState<ModelChoice>(defaultChoice);
   const [codes, setCodes] = useState<string[]>([]);
-  const [question, setQuestion] = useState(skill === 'market-review' ? '请分析候选概况、主要风险和需要人工核验的事项。' : '请比较所选股票的特点、风险与需要核验的信息。');
+  const [question, setQuestion] = useState('');
   const [chosen, setChosen] = useState<Task | null>(null);
   const [parent, setParent] = useState<Task | null>(null);
   const [error, setError] = useState('');
@@ -33,6 +33,10 @@ export default function AnalysisPanel({
   const [refreshing, setRefreshing] = useState(false);
   const [preview, setPreview] = useState<{summary:DataSummary;bytes:number;signature:string} | null>(null);
   const [checking, setChecking] = useState(false);
+  const completion = useRef(onComplete); completion.current = onComplete;
+  const applied = useRef(new Set<string>());
+  const submitted = useRef(new Set<string>());
+  const [elapsed, setElapsed] = useState(0);
   const pending = useRef(false);
   const mounted = useRef(true);
   const requestKey = useRef<{ body: string; key: string } | null>(null);
@@ -46,23 +50,38 @@ export default function AnalysisPanel({
     setChoice(readChoice(ownerId));
     refresh().then(async (value) => {
       const current = value.tasks.find((task) => task.skill === skill && task.date === date && activeTask(task.status));
-      if (current) { const result = await consoleRequest<Task>(`/tasks/${current.id}`); if (mounted.current) setChosen(result); }
+      if (current) { const result = await consoleRequest<Task>(`/tasks/${current.id}`); if (mounted.current) { submitted.current.add(result.id); setChosen(result); } }
     }).catch((reason) => { if (mounted.current) setError(failText(reason)); });
     return () => { mounted.current = false; };
   }, [date, ownerId, refresh, skill]);
+  const chosenId = chosen?.id; const chosenStatus = chosen?.status; const createdAt = chosen?.createdAt;
   useEffect(() => {
-    if (!chosen || !activeTask(chosen.status)) return undefined;
-    let alive = true;
+    if (!chosenId || !activeTask(chosenStatus || '')) return undefined;
+    let alive = true; let stream: EventSource | null = null;
+    const accept = (result: Task) => { if (alive) { setChosen(result); if (!activeTask(result.status)) { stream?.close(); refresh().catch(() => {}); } } };
+    if (state?.capabilities?.streaming) {
+      stream = new EventSource(`/personal-ai/api/tasks/${chosenId}/events`);
+      stream.onmessage = (event) => { try { accept(JSON.parse(event.data)); } catch { setError('回复读取失败，请重新打开面板恢复。'); } };
+      stream.onerror = () => { if (alive) setNotice('连接暂时中断，正在恢复；不会重复提交任务。'); };
+      stream.onopen = () => { if (alive) setNotice(''); };
+    }
     const timer = window.setInterval(async () => {
-      if (document.hidden || pending.current) return;
+      if (stream?.readyState === EventSource.OPEN || document.hidden || pending.current) return;
       pending.current = true;
-      try {
-        const result = await consoleRequest<Task>(`/tasks/${chosen.id}`);
-        if (alive) { setChosen(result); if (!activeTask(result.status)) await refresh(); }
-      } catch (reason) { if (alive) setError(failText(reason)); } finally { pending.current = false; }
+      try { accept(await consoleRequest<Task>(`/tasks/${chosenId}`)); } catch (reason) { if (alive) setError(failText(reason)); } finally { pending.current = false; }
     }, 5000);
-    return () => { alive = false; window.clearInterval(timer); };
-  }, [chosen, refresh]);
+    return () => { alive = false; stream?.close(); window.clearInterval(timer); };
+  }, [chosenId, chosenStatus, state?.capabilities?.streaming, refresh]);
+  useEffect(() => {
+    if (!chosen || chosen.status !== 'completed' || !submitted.current.has(chosen.id) || applied.current.has(chosen.id)) return;
+    applied.current.add(chosen.id);
+    try { completion.current?.(chosen); if (skill === 'market-review') setNotice('图文已生成。关闭面板后可预览、复制和保存。'); } catch (reason) { setError(failText(reason)); }
+  }, [chosen, skill]);
+  useEffect(() => {
+    if (!createdAt || !activeTask(chosenStatus || '')) return undefined;
+    const tick = () => setElapsed(Math.max(0, Math.floor((Date.now() - Date.parse(createdAt)) / 1000)));
+    tick(); const timer = window.setInterval(tick, 1000); return () => window.clearInterval(timer);
+  }, [createdAt, chosenStatus]);
   const running = !!state?.tasks.some((task) => activeTask(task.status)) || (!!chosen && activeTask(chosen.status));
   const recent = state?.tasks.filter((task) => task.skill === skill && task.date === date) || [];
   const selectedCodes = parent ? parent.codes : codes;
@@ -73,20 +92,22 @@ export default function AnalysisPanel({
   const currentPreview = preview?.signature === dataSignature ? preview : null;
   const options = Array.from(new Map<string, Candidate>([...candidates, ...(parent?.codes || []).map((code) => ({ code }))].map((item) => [item.code, item])).values());
   async function submit() {
-    if (pending.current || disabled || !question.trim()) return;
+    if (pending.current || disabled) return;
+    if (skill === 'market-review' && !state?.capabilities?.reviewDocument) { setError('复盘文档服务正在更新，请稍后重试。'); return; }
     if (skill === 'candidate-compare' && (selectedCodes.length < 1 || selectedCodes.length > 3)) { setError('请选择1至3只股票。'); return; }
     pending.current = true; setBusy(true); setError(''); setNotice('');
     const payload = {
-      parentId: parent?.id || null, skill, date, codes: selectedCodes, message: question.trim(), ...choice, ...(skill === 'candidate-compare' ? { strategy: activeStrategy } : {}),
+      parentId: parent?.id || null, skill, date, codes: selectedCodes, message: question.trim() || (skill === 'market-review' ? '生成简洁、有证据的图文复盘解读。' : '比较所选股票的特点、风险及需要核验的信息。'), ...choice, ...(skill === 'candidate-compare' ? { strategy: activeStrategy } : {}),
     };
     const signature = JSON.stringify(payload);
     // If a network response is lost, a manual retry with unchanged input reuses its request ID.
     if (requestKey.current?.body !== signature) requestKey.current = { body: signature, key: crypto.randomUUID() };
     try {
+      if (beforeStart) { setNotice('正在补齐文档配图，完成后开始分析。'); await beforeStart(); }
       const task = await consoleRequest<Task>('/tasks', 'POST', { ...payload, key: requestKey.current.key });
       requestKey.current = null;
       if (!mounted.current) return;
-      setChosen(task); setNotice('任务已提交，可以留在当前页面查看结果。');
+      submitted.current.add(task.id); setChosen(task); setNotice('任务已提交，可以留在当前页面查看结果。');
       await refresh();
     } catch (reason) { if (mounted.current) setError(failText(reason)); } finally { pending.current = false; if (mounted.current) setBusy(false); }
   }
@@ -114,11 +135,11 @@ export default function AnalysisPanel({
   }
   async function view(task: Task) {
     setError('');
-    try { const result = await consoleRequest<Task>(`/tasks/${task.id}`); if (mounted.current) setChosen(result); } catch (reason) { if (mounted.current) setError(failText(reason)); }
+    try { const result = await consoleRequest<Task>(`/tasks/${task.id}`); if (mounted.current) { submitted.current.add(result.id); setChosen(result); } } catch (reason) { if (mounted.current) setError(failText(reason)); }
   }
   const usage = chosen?.usage;
   let contextCaption = skill === 'market-review'
-    ? '结合当日大盘、主要指数、策略候选与行业题材分布。不发送个人持仓和私人笔记，也不会自动改写复盘。'
+    ? '根据市场、情绪、连板、20日板块轮动和涨停资料生成图文。用户记录原文保留，AI 解读单独标注。'
     : '从当前候选中选择最多3只股票，使用该日的数据进行分析。';
   if (parent) contextCaption = '追问沿用原任务的数据快照，不重新获取行情。';
   return (
@@ -126,7 +147,7 @@ export default function AnalysisPanel({
       <div className="personal-ai-context">
         <Space wrap>
           <strong>{date}</strong>
-          <Tag>{skill === 'market-review' ? '候选复盘' : '候选对比'}</Tag>
+          <Tag>{skill === 'market-review' ? '图文复盘' : '候选对比'}</Tag>
           <Typography.Text type="secondary">仅本人可用</Typography.Text>
         </Space>
         <p className="personal-ai-caption">{contextCaption}</p>
@@ -140,20 +161,20 @@ export default function AnalysisPanel({
       {error && <Alert type="error" showIcon message={error} />}
       {notice && <Alert type="info" showIcon message={notice} />}
       {!state && <Button loading={!error} onClick={() => { setError(''); refresh().catch((reason) => setError(failText(reason))); }}>读取状态</Button>}
-      {running && <Alert type="info" showIcon message="已有任务正在执行，完成或停止后才能开始下一次分析。" />}
+
       <Form layout="vertical" onFinish={() => submit()}>
         <div className="personal-ai-stack">
           {skill === 'candidate-compare' && <Form.Item label="对比股票" style={{ marginBottom: 0 }}><Select aria-label="对比股票" mode="multiple" showSearch optionFilterProp="label" placeholder="选择1至3只股票" value={selectedCodes} disabled={busy || running || !!parent} onChange={(values) => { if (values.length <= 3) setCodes(values); else setError('每次最多选择3只股票。'); }} options={options.map((item) => ({ value: item.code, label: item.name ? `${item.name} ${item.code}` : item.code, disabled: selectedCodes.length >= 3 && !selectedCodes.includes(item.code) }))} /></Form.Item>}
-          <ModelControls value={choice} onChange={setChoice} metadata={state?.metadata} disabled={busy || running} />
+          <Collapse ghost items={[{ key: 'model', label: `模型：${modelNames[choice.model]} / ${choice.effort}`, children: <ModelControls value={choice} onChange={setChoice} metadata={state?.metadata} disabled={busy || running} /> }]} />
           {!supported && <Alert type="warning" message="当前账号目录不支持这组模型和档位，请重新选择。" />}
           <Form.Item label={parent ? `继续追问（第${parent.historyTurns + 1}次，最多6次）` : '分析要求'} style={{ marginBottom: 0 }}>
-            <Input.TextArea aria-label="分析要求" value={question} onChange={(event) => setQuestion(event.target.value)} rows={4} maxLength={2000} showCount disabled={busy || running} placeholder="输入希望重点分析的问题" />
+            <Input.TextArea aria-label="分析要求" value={question} onChange={(event) => setQuestion(event.target.value)} rows={3} maxLength={2000} showCount disabled={busy || running} placeholder="可留空。填写你希望重点分析的方向、篇幅或特殊要求" />
           </Form.Item>
           <div className="personal-ai-actions">
             <Space wrap>
               {!parent && <Button onClick={() => checkData()} loading={checking} disabled={busy || running || checking || (skill === 'candidate-compare' && (!selectedCodes.length || !activeStrategy))}>检查分析数据</Button>}
-              <Button type="primary" htmlType="submit" loading={busy} disabled={disabled || !question.trim() || (skill === 'candidate-compare' && !selectedCodes.length)}>{parent ? '发送追问' : '开始分析'}</Button>
-              <Button disabled={busy || running} onClick={() => { setParent(null); setQuestion(''); setNotice(''); setError(''); requestKey.current = null; }}>新建会话</Button>
+              <Button type="primary" htmlType="submit" loading={busy} disabled={disabled || (skill === 'candidate-compare' && !selectedCodes.length)}>{parent ? '发送追问' : { 'market-review': '生成复盘文档', 'candidate-compare': '开始对比' }[skill]}</Button>
+              <Button type="text" disabled={busy || running} onClick={() => { setParent(null); setQuestion(''); setNotice(''); setError(''); requestKey.current = null; }}>新建会话</Button>
             </Space>
             <span className="personal-ai-caption">点击分析才消耗订阅用量</span>
           </div>
@@ -186,7 +207,21 @@ export default function AnalysisPanel({
               {chosen.effort}
             </div>
             <div>
-              <div className="personal-ai-question">{chosen.message}</div>
+              {activeTask(chosen.status) && (
+              <div className="personal-ai-progress" role="status">
+                <Spin size="small" />
+                <span>
+                  {({
+                    identity: '核验登录', data: '整理当日资料', accountBefore: '检查模型与额度', model: chosen.answer ? '正在生成正文' : '正在分析资料', accountAfter: '整理完成结果',
+                  } as Record<string, string>)[chosen.stage || ''] || '准备分析'}
+                  ，已用
+                  {' '}
+                  {elapsed}
+                  {' '}
+                  秒
+                </span>
+              </div>
+              )}
               {chosen.answer ? <ResultText text={chosen.answer} /> : <div className="personal-ai-result">{chosen.error || '正在准备数据和分析，请稍候。'}</div>}
               {chosen.answer && chosen.error && <Alert type="warning" message={chosen.error} />}
             </div>
@@ -194,7 +229,7 @@ export default function AnalysisPanel({
             {chosen.timings && (
             <div className="personal-ai-caption">
               {[['data', '数据准备'], ['accountBefore', '调用前检查'], ['model', '模型进程'], ['accountAfter', '结束检查'], ['total', '总耗时']].filter(([key]) => chosen.timings?.[key] != null).map(([key, label]) => `${label} ${(chosen.timings![key] / 1000).toFixed(1)} 秒`).join('，')}
-              {chosen.executionMetrics?.firstAnswerMs != null ? `；首次完整答复 ${(chosen.executionMetrics.firstAnswerMs / 1000).toFixed(1)} 秒（不等于首 Token）` : ''}
+              {chosen.executionMetrics?.firstAnswerMs != null ? `；首次正文 ${(chosen.executionMetrics.firstAnswerMs / 1000).toFixed(1)} 秒` : ''}
             </div>
             )}
             {usage && (
@@ -210,11 +245,11 @@ export default function AnalysisPanel({
             </div>
             )}
             <Space wrap>
-              <Button disabled={running || chosen.status !== 'completed' || chosen.historyTurns >= 6 || chosen.skillVersion !== 'v2'} onClick={() => { setParent(chosen); setChoice({ model: chosen.model, effort: chosen.effort }); setQuestion(''); setNotice('已沿用该结果的数据，请在上方输入追问。'); }}>继续追问</Button>
+              <Button disabled={running || chosen.status !== 'completed' || chosen.historyTurns >= 6 || chosen.skillVersion !== (skill === 'market-review' ? 'v3' : 'v2')} onClick={() => { setParent(chosen); setChoice({ model: chosen.model, effort: chosen.effort }); setQuestion(''); setNotice('已沿用该结果的数据，请在上方输入追问。'); }}>继续追问</Button>
               {activeTask(chosen.status) && <Button danger onClick={async () => { try { setChosen(await consoleRequest<Task>(`/tasks/${chosen.id}/cancel`, 'POST', {})); } catch (reason) { setError(failText(reason)); } }}>停止任务</Button>}
             </Space>
             {chosen.historyTurns >= 6 && <div className="personal-ai-caption">已达到追问上限，请新建会话。</div>}
-            {chosen.skillVersion !== 'v2' && <div className="personal-ai-caption">此记录使用旧版数据范围，可查看原结果；请新建分析以使用完整上下文。</div>}
+            {chosen.skillVersion !== (skill === 'market-review' ? 'v3' : 'v2') && <div className="personal-ai-caption">此记录使用旧版数据范围，可查看原结果；请新建分析以使用完整上下文。</div>}
           </div>
         ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="尚未发起分析" />}
       </Card>

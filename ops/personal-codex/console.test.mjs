@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {reviewFixture} from './review-fixtures.mjs';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -39,7 +40,7 @@ test('idempotency, budget reservation, restart and conversation controls survive
     assert.throws(() => s.admit({ ...input, message: 'changed' }));
     assert.throws(() => s.admit(task()));
     assert.equal(s.usedToday().tokens, 32000);
-    first.status = 'completed'; first.snapshot = { date: input.date, version:'review/v2' }; first.answer = '结论'; first.usage = { input_tokens: 100, output_tokens: 20 }; s.save();
+    first.status = 'completed'; first.snapshot = { date: input.date, version:'review/v3' }; first.answer = '结论'; first.usage = { input_tokens: 100, output_tokens: 20 }; s.save();
     assert.equal(s.usedToday().tokens, 120);
     assert.throws(() => s.admit(task(), { maxCalls: 1 }));
     assert.throws(() => s.admit(task(), { dailyTokens: 32000 }));
@@ -65,15 +66,15 @@ test('review compaction discloses omitted rows and excludes unrelated fields', (
   const r = compactReview({ date: '2026-10-16', items: Array.from({ length: 20 }, (_, i) => ({ tsCode: `${i}`, secret: 'never-send' })) });
   assert.equal(r.included, 12); assert.equal(r.omitted, 8); assert(!JSON.stringify(r).includes('never-send'));
 });
-async function harness(fn, { user = owner, quota = meta, data = { date: '2026-10-16', items: [] }, run, fetchStatus = () => 200 } = {}) {
+async function harness(fn, { user = owner, quota = meta, data = null, run, fetchStatus = () => 200 } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'stock-console-http-'));
   const calls = { models: 0, stops: 0, metadata: 0, paths: [] };
-  const runner = { metadata: async () => { calls.metadata++; return quota; }, stop: () => { calls.stops++; }, run: async (t, prompt) => {
+  const runner = { metadata: async () => { calls.metadata++; return quota; }, stop: () => { calls.stops++; }, run: async (t, prompt, onText) => {
     calls.models++; assert(!prompt.includes(token)); assert(!prompt.includes('OPENAI_API_KEY'));
-    return run ? run(t, prompt) : { success: true, answer: '<script>not executable</script>', completedTurns: 1, usage: { input_tokens: 100, output_tokens: 5 } };
+    return run ? run(t, prompt, onText) : { success: true, answer: '<script>not executable</script>', completedTurns: 1, usage: { input_tokens: 100, output_tokens: 5 } };
   } };
   const { server, store } = createConsole({ ownerId: 17, origin, backend: 'http://backend/api', enabled: true, dataDir: dir }, {
-    runner, fetch: async (url, options) => { calls.paths.push(url); assert.equal(options.headers.Cookie, headers.Cookie); return new Response(JSON.stringify({ data: url.endsWith('/auth/me') ? user : data }), { status: fetchStatus(url) }); },
+    runner, fetch: async (url, options) => { calls.paths.push(url); assert.equal(options.headers.Cookie, headers.Cookie); return new Response(JSON.stringify({ data: url.endsWith('/auth/me') ? user : data || reviewFixture(url) }), { status: fetchStatus(url) }); },
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -169,7 +170,7 @@ test('oversized business snapshot is blocked before calling a model', async () =
     await req('/api/tasks', 'POST', task());
     for (let i = 0; i < 30 && store.tasks[0].status !== 'failed'; i++) await new Promise(r => setTimeout(r, 5));
     assert.equal(calls.models, 0); assert.equal(store.tasks[0].status, 'failed');
-  }, { data: { date: '2026-10-16', items: [{tsCode:'000099.SZ',name:'large'.repeat(6000)}] } });
+  }, { data: { date: '2026-10-16', snapshot: {unexpected:'large'.repeat(6000)},items: [] } });
 });
 
 test('market HTTP errors stop before metadata/inference, release reservations and fail preview clearly', async () => {
@@ -181,3 +182,23 @@ test('market HTTP errors stop before metadata/inference, release reservations an
     assert.equal(store.tasks[0].status,'failed');assert.equal(calls.models,0);assert.equal(calls.metadata,0);assert.equal(store.usedToday().tokens,0);
   }, {fetchStatus:url=>url.includes('/analysis/market/')?status:200});
 });
+
+test('SSE delivers partial text before completion, reconnects without resubmission and protects owner access', async () => {
+  let release;
+  await harness(async ({req,calls,store}) => {
+    const task = await (await req('/api/tasks','POST', taskInput())).json();
+    for(let i=0;i<50&&!calls.models;i++) await new Promise(r=>setTimeout(r,5));
+    const response = await req(`/api/tasks/${task.id}/events`);
+    assert.equal(response.headers.get('content-type'),'text/event-stream; charset=utf-8');
+    const reader = response.body.getReader(), first = await reader.read();
+    const partial = JSON.parse(new TextDecoder().decode(first.value).split('data: ')[1].trim());
+    assert.equal(partial.answer,'第一段'); assert.equal(partial.status,'running');
+    await reader.cancel();
+    assert.equal((await req(`/api/tasks/${task.id}/events`,'GET',undefined,{Cookie:''})).status,401);
+    release();
+    for(let i=0;i<50&&store.tasks[0].status!=='completed';i++)await new Promise(r=>setTimeout(r,5));
+    const final = await (await req(`/api/tasks/${task.id}/events`)).text();
+    assert.match(final,/第一段完成/); assert.equal(calls.models,1);
+  }, {run:(_task,_prompt,onText)=>new Promise(resolve=>{onText('第一段');release=()=>resolve({success:true,answer:'第一段完成',completedTurns:1,usage:{input_tokens:10,output_tokens:5}});})});
+});
+const taskInput=task;

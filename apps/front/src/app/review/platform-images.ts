@@ -1,4 +1,4 @@
-/* eslint-disable no-restricted-syntax, no-await-in-loop, no-loop-func -- Four bounded captures reuse platform pages; callbacks only read DOM node types. */
+/* eslint-disable no-restricted-syntax, no-await-in-loop, no-loop-func -- Five bounded captures reuse platform pages; callbacks only read DOM node types. */
 import { Article, ArticleImage, validateArticle } from './article-contract';
 
 export const captureSources = [
@@ -13,6 +13,9 @@ export const captureSources = [
   },
   {
     key: 'limits', title: '涨停板复盘', path: '/analysis/limits/', query: '', charts: ['themes'],
+  },
+  {
+    key: 'sectors20', title: '20日板块轮动', path: '/analysis/sectors/', query: '&kind=I&period=20', charts: ['sectors'],
   },
 ];
 export const imageId = (key: string) => `platform-dark-v1-${key}-0`;
