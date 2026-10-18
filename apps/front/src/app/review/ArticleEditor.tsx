@@ -200,7 +200,7 @@ export default function ArticleEditor({
             disabled={disabled || pending}
             onClick={async () => {
               if (handoffLock.current) return;
-              handoffLock.current = true; setHandoffBusy(true); setHandoffNotice('正在生成任务');
+              handoffLock.current = true; setHandoffBusy(true); setNotice(''); setHandoffNotice('正在生成任务');
               try {
                 const saved = dirty || !revision ? await onSave() : {
                   date, revision, generation, content: { ...content, article },
@@ -211,7 +211,7 @@ export default function ArticleEditor({
                 download(`${saved.date}-review-v${saved.revision}.json`, JSON.stringify(packet, null, 2), 'application/json');
                 const copied = await copyText(prompt);
                 const message = copied ? '任务已复制，资料包已发起下载。请在 Codex 粘贴任务并附上资料包后发送。' : '资料包已发起下载，任务未能自动复制。请在弹窗中复制，并将资料包一同交给 Codex。';
-                setHandoffNotice(message); onStatus(message);
+                setHandoffNotice(message); reportStatus(message);
                 if (!copied) setManualTask(prompt);
               } catch (e) { setHandoffNotice(`任务生成失败：${(e as Error).message}`); } finally { handoffLock.current = false; setHandoffBusy(false); }
             }}

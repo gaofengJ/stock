@@ -74,6 +74,7 @@ async function verify(browser, mode) {
   const downloadPromise = page.waitForEvent('download');
   await handoff.getByRole('button',{name:'准备 Codex 任务',exact:true}).click();
   await handoff.getByText('任务已复制，资料包已发起下载。请在 Codex 粘贴任务并附上资料包后发送。',{exact:true}).waitFor();
+  assert.equal(await page.locator('.notebook-panel .ant-alert').filter({hasText:'任务已复制，资料包已发起下载。'}).count(),1);
   assert.equal(writes.length,1);
   const packetDownload = await downloadPromise;
   assert.equal(packetDownload.suggestedFilename(),`${date}-review-v${initialRevision+1}.json`);
