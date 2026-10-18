@@ -197,9 +197,7 @@ function Report({
     <>
       <div className="review-toolbar">
         <span role="status" className="review-caption">
-          {status}
-          {' '}
-          ，按账号和交易日期分别保存
+          {capture ? '候选操作会暂存在当前浏览器；整篇复盘请在底部保存。' : `${status}，按账号和交易日期分别保存`}
         </span>
         <Space wrap>
           <Button onClick={() => setHelpOpen(true)}>页面说明</Button>
@@ -284,7 +282,7 @@ function Report({
               }}
               rowClassName={(r: any) => (selected.includes(r.tsCode) ? 'interaction-selected-row' : '')}
               autoHeight
-              sticky={scrollContainer ? { getContainer: () => scrollContainer, offsetHeader: 76 } : false}
+              sticky={scrollContainer ? { getContainer: () => scrollContainer, offsetHeader: 0 } : false}
               onChange={(pagination, _filters, sorter, extra) => {
                 setPage(extra.action === 'paginate' ? pagination.current || 1 : 1);
                 setPageSize(pagination.pageSize || 10);
@@ -447,7 +445,7 @@ function Report({
                 )}
               </div>
               <p role="status" className="review-caption">
-                {capture && interacted.current ? '选股与文字改动会同步到本页，请保存顶部记录。' : status}
+                {capture && interacted.current ? '选股与文字改动已带入本页，请在底部保存复盘。' : status}
               </p>
             </div>
           </Card>
