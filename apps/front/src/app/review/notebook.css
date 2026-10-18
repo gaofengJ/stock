@@ -67,6 +67,7 @@
 .notebook-preview-modal .ant-modal-body { max-height: calc(100dvh - 200px); overflow-y: auto; overscroll-behavior: contain; padding-right: 12px; }
 body:has(.notebook-preview-open) .platform-content:has(.review-page) { overflow: hidden; }
 .notebook-preview-modal .ant-modal-body > .ant-alert { margin-bottom: 16px; }
+.notebook-copy-target { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
 @media (max-width: 767px) {
   .notebook-evidence-grid, .notebook-media-grid { grid-template-columns: minmax(0, 1fr); }
   .notebook-article-preview { padding: 16px; }
