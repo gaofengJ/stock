@@ -35,7 +35,7 @@ function RiskRecords({ items = [] }: { items?: any[] }) {
       {items.map((record: any) => (
         <div className="risk-record" key={riskRowKey(record)}>
           <Space wrap size={6}>
-            <Tag color={record.type !== '减持' || record.reductionState === 'active' ? 'orange' : undefined}>{record.type === '减持' ? reductionStateLabel(record.reductionState) : record.type}</Tag>
+            <Tag color={record.type !== '减持' || ['active', 'upcoming'].includes(record.reductionState) ? 'orange' : undefined}>{record.type === '减持' ? reductionStateLabel(record.reductionState) : record.type}</Tag>
             {record.statusDate && (
             <span>
               状态日期：
@@ -115,7 +115,7 @@ export function RiskDetails({ code, date }: { code: string; date: string }) {
   const currentReductions = (data.items || []).filter((r: any) => currentReduction(r, date));
   let reductionEmpty = riskMissing(sources, 'reduction_plans', state.pollingStopped);
   const reductionReady = riskSourcesReady(sources, ['reduction_plans']) && !data.reductionCoverage?.unknown;
-  if (reductionReady) reductionEmpty = '暂无已核实的当前减持计划';
+  if (reductionReady) reductionEmpty = '暂无已核实的待开始或进行中减持计划';
   if (data.reductionCoverage?.unknown) reductionEmpty = '计划资料尚有待核实项';
   const otherEvents = (data.items || []).filter((r: any) => r.type !== '减持');
   const eventsReady = riskSourcesReady(sources, riskEventSources);
@@ -149,12 +149,12 @@ export function RiskDetails({ code, date }: { code: string; date: string }) {
           label: '资料概览',
           children: (
             <>
-              <Card size="small" title={riskSectionTitle('当前减持计划', currentReductions.length, '项', reductionReady)}>
+              <Card size="small" title={riskSectionTitle('已公告减持风险', currentReductions.length, '项', reductionReady)}>
                 {currentReductions.length ? <RiskRecords items={currentReductions} /> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={reductionEmpty} />}
                 <p className="basic-muted">
                   核验日期：
                   {riskDate(data.reductionDate)}
-                  （今天）。展示公告中的计划起止日期，与交易观察日期无关；已完成、终止及到期的计划不展示。未核实资料不表示没有计划。
+                  （今天）。已公告的待开始及进行中计划均展示起止日期，与交易观察日期无关；已完成、终止及到期的计划不展示。未核实资料不表示没有计划。
                 </p>
               </Card>
               <div className="risk-financial-grid">

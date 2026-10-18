@@ -236,7 +236,7 @@ test('risk title matches are review leads and missing evidence never claims no r
   assert.equal(riskDisplay.riskCheckLabel({ state: 'no_matches', leads: 0 }), '未检索到相关线索');
 });
 
-test('platform reduction tags require an original plan active today, independently of the historical date', () => {
+test('platform reduction tags include announced upcoming plans, independently of the historical date', () => {
   const row = { type: '减持', recordKind: 'plan', reductionState: 'active', announcementDate: '2026-09-01', effectiveDate: '2026-09-02', endDate: '2026-09-30' };
   assert.equal(riskDisplay.currentReduction(row, '2026-09-30'), true);
   assert.equal(riskDisplay.currentReduction(row, '2026-10-01'), false);
@@ -247,9 +247,13 @@ test('platform reduction tags require an original plan active today, independent
   const plan = { ...row, announcementDate: '2026-08-28', effectiveDate: '2026-09-21', endDate: '2026-12-20', reductionDate: '2026-10-06' };
   assert.equal(riskDisplay.currentReduction(plan, '2026-09-30'), true);
   assert.equal(riskDisplay.currentReduction({ ...plan, recordKind: undefined }, '2026-09-30'), false);
-  assert.equal(riskDisplay.currentReduction({ ...plan, effectiveDate: '2026-10-07' }, '2026-09-30'), false);
-  assert.equal(riskDisplay.riskTypeLabel('减持'), '减持计划进行中');
-  assert.equal(riskDisplay.riskCheckLabel({ key: 'reduction', state: 'leads', activeCount: 1, leads: 9 }), '1项当前减持计划');
+  assert.equal(riskDisplay.currentReduction({ ...plan, effectiveDate: '2026-10-07' }, '2026-09-30'), true);
+  const upcoming = { ...plan, reductionState: 'upcoming', announcementDate: '2026-09-22', effectiveDate: '2026-10-21', endDate: '2027-01-20', reductionDate: '2026-10-19' };
+  assert.equal(riskDisplay.currentReduction(upcoming, '2026-09-30'), true);
+  assert.equal(riskDisplay.reductionRiskLabel(upcoming), '减持已公告，待开始：2026-10-21 至 2027-01-20');
+  assert.equal(riskDisplay.currentReduction({ ...upcoming, effectiveDate: '2027-01-21' }, '2026-10-19'), false);
+  assert.equal(riskDisplay.riskTypeLabel('减持'), '减持风险');
+  assert.equal(riskDisplay.riskCheckLabel({ key: 'reduction', state: 'leads', activeCount: 1, leads: 9 }), '1项已公告减持风险');
   assert.equal(riskDisplay.riskCheckLabel({ key: 'reduction', state: 'leads', activeCount: 0, leads: 2 }), '2条计划公告待核实');
   assert.equal(riskDisplay.reductionStateLabel('superseded'), '已有后续披露');
 });
@@ -298,7 +302,7 @@ test('risk sections use only their own dependencies and unknown counts never mas
   assert.equal(riskDisplay.riskSourcesReady(sources, ['reduction_plans']), false);
   assert.equal(riskDisplay.riskSourcesReady(sources.slice(1), riskDisplay.riskEventSources), false);
   assert.equal(riskDisplay.riskSourcesReady([...sources, { source: 'stock_st', state: 'error' }], riskDisplay.riskEventSources), false);
-  assert.equal(riskDisplay.riskSectionTitle('当前减持计划', 0, '项', false), '当前减持计划（资料待补全）');
+  assert.equal(riskDisplay.riskSectionTitle('已公告减持风险', 0, '项', false), '已公告减持风险（资料待补全）');
   assert.equal(riskDisplay.riskSectionTitle('当前减持计划', 2, '项', false), '当前减持计划（已获取2项，资料待补全）');
   assert.equal(riskDisplay.riskSectionTitle('其他状态与事件', 0, '条', true), '其他状态与事件（0条）');
 });
@@ -358,12 +362,12 @@ test('risk UI renders successful sources and cached records when reduction refre
   assert.match(html, /-3.56 亿元/);
   assert.match(html, /其他状态与事件（0条）/);
   assert.match(html, /资料已获取，暂无其他状态或事件记录/);
-  assert.match(html, /当前减持计划（资料待补全）/);
-  assert.doesNotMatch(html, /当前减持计划（0项）|状态资料尚未完整取得/);
+  assert.match(html, /已公告减持风险（资料待补全）/);
+  assert.doesNotMatch(html, /已公告减持风险（0项）|状态资料尚未完整取得/);
   data.items.push({ type: '减持', tsCode: data.code, recordId: 'cached-plan', recordKind: 'plan', reductionState: 'active', reductionDate: data.reductionDate, announcementDate: '2026-09-01', effectiveDate: '2026-09-21', endDate: '2026-12-20', detail: '已获取的减持计划内容' });
   html = renderToStaticMarkup(React.createElement(details.RiskDetails, { code: data.code, date: data.date }));
   assert.match(html, /已获取的减持计划内容/);
-  assert.match(html, /当前减持计划（已获取1项，资料待补全）/);
+  assert.match(html, /已公告减持风险（已获取1项，资料待补全）/);
 });
 test('source timestamps group batches and show their full range in Beijing time', () => {
   const rows = sourceDisplay.sourceTimeRows([
