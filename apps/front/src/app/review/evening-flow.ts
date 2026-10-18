@@ -2,7 +2,7 @@
 export const eveningFlow = [
   {
     id: 'market',
-    title: '1 市场数据',
+    title: '1 看市场',
     time: '建立背景',
     keys: ['marketJudgment'],
     optional: ['marketFacts', 'dataState'],
@@ -12,7 +12,7 @@ export const eveningFlow = [
   },
   {
     id: 'themes',
-    title: '2 涨停复盘',
+    title: '2 梳理涨停',
     time: '梳理方向',
     keys: ['themes'],
     optional: [],
@@ -22,7 +22,7 @@ export const eveningFlow = [
   },
   {
     id: 'candidates',
-    title: '3 策略选股',
+    title: '3 筛选股票',
     time: '看图与记录',
     keys: [],
     optional: [],
@@ -32,12 +32,12 @@ export const eveningFlow = [
   },
   {
     id: 'execution',
-    title: '4 闲聊',
+    title: '4 随手记录',
     time: '回顾与反思',
     keys: ['lesson'],
     optional: ['execution'],
     evidence: [],
     links: [],
-    guidance: '默认留空，需要时自己填写。持仓与操作保留在可选补充中，未授权不交接给 Skill。',
+    guidance: '闲聊、经验或反思都可以写在这里，也可以留空。持仓与操作可在下方补充，只有勾选授权后才会交给 AI。',
   },
 ];

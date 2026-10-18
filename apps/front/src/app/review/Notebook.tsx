@@ -138,21 +138,22 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
     <div className="review-notebook notebook-panel">
       <div className="notebook-toolbar">
         <Space wrap size={12}>
-          <Button type="primary" loading={busy} disabled={!snapshot || !dirty || researchBusy} onClick={save}>保存复盘</Button>
+          <Button onClick={() => document.getElementById('review-document')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>查看文档与保存</Button>
           <span role="status">{researchBusy ? status : visibleStatus}</span>
         </Space>
       </div>
       {error && <Alert type="warning" message={error} action={!snapshot && <Button onClick={() => setAttempt((x) => x + 1)}>重新读取</Button>} />}
       {evidenceError && evidenceError !== error && <Alert type="warning" message={evidenceError} />}
       <div className="notebook-start">
+        <p className="review-caption">先查看资料，按需写下自己的判断。记录可以留空；网站负责保存，AI 整理在 Codex 中完成。</p>
         <nav className="notebook-flow" aria-label="每日复盘四步">
           {eveningFlow.map((stage) => <Button key={stage.id} onClick={() => document.getElementById(`evening-${stage.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{stage.title}</Button>)}
         </nav>
         <Space wrap size={12}>
           <Button disabled={!snapshot} loading={researchBusy} onClick={() => importMarket(true)}>准备图文资料</Button>
           {researchBusy && <Button onClick={() => captureAbort.current?.abort()}>停止准备</Button>}
-          <Button disabled={!snapshot || researchBusy} onClick={() => importMarket()}>重新生成全部图片</Button>
-          <span className="review-caption">准备四张暗色长图后，可直接保存并复制 Skill 任务。文字记录可留空。</span>
+          <Collapse ghost items={[{ key: 'refresh', label: '图片更新选项', children: <Button disabled={!snapshot || researchBusy} onClick={() => importMarket()}>重新生成全部图片</Button> }]} />
+          <span className="review-caption">补齐四张平台长图，已有图片会保留。</span>
           <Link href="/trading-system/" target="_blank" rel="noopener noreferrer">复盘方法</Link>
         </Space>
       </div>
@@ -189,12 +190,12 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
           );
         })}
       </div>
-      <Card title="复盘文档" className="notebook-document">
+      <Card id="review-document" title="复盘文档" className="notebook-document">
         <div className="notebook-field">
           <label htmlFor="review-document-title">文章名称</label>
           <Input id="review-document-title" value={content.public.title || `${date}复盘`} disabled={!snapshot} maxLength={200} onChange={(e) => changed({ ...current.current, public: { ...current.current.public, title: e.target.value }, ...(current.current.article?.body ? { article: { ...current.current.article, body: current.current.article.body.replace(/^# [^\n]+/, `# ${e.target.value || `${date}复盘`}`) } } : {}) })} />
         </div>
-        <ArticleEditor date={date} generation={snapshot?.generation || 0} revision={snapshot?.revision || 0} content={content} disabled={!snapshot || researchBusy || busy} saving={busy} onSave={save} previewDisabled={!snapshot} onPreparePreview={() => importMarket(true)} dirty={dirty} onStatus={setStatus} onMaterials={changeMaterials} onChange={(article) => changed({ ...current.current, article })} />
+        <ArticleEditor date={date} generation={snapshot?.generation || 0} revision={snapshot?.revision || 0} content={content} disabled={!snapshot || researchBusy || busy} saving={busy} onSave={save} previewDisabled={!snapshot} dirty={dirty} onStatus={setStatus} onMaterials={changeMaterials} onChange={(article) => changed({ ...current.current, article })} />
       </Card>
     </div>
   );
