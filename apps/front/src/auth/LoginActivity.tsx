@@ -31,7 +31,7 @@ interface Activity {
   items: ActivityItem[];
 }
 const emptyActivity: Activity = {
-  unread: 0, latestId: 0, total: 0, page: 1, pageSize: 20, items: [],
+  unread: 0, latestId: 0, total: 0, page: 1, pageSize: 10, items: [],
 };
 const formatTime = (value: string) => new Date(value).toLocaleString('zh-CN', {
   timeZone: 'Asia/Shanghai', hour12: false,
@@ -89,7 +89,7 @@ export const LoginActivityContext = createContext<ReturnType<typeof useLoginActi
 export default function LoginActivity() {
   const navigation = useContext(LoginActivityContext);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(10);
   const [search, setSearch] = useState('');
   const [keyword, setKeyword] = useState('');
   const [status, setStatus] = useState<string>();
@@ -228,10 +228,12 @@ export default function LoginActivity() {
           pageSize,
           total: data.total,
           showSizeChanger: true,
-          hideOnSinglePage: true,
-          pageSizeOptions: [20, 50, 100],
+          showQuickJumper: true,
+          responsive: true,
+          hideOnSinglePage: false,
+          pageSizeOptions: [10, 20, 50, 100],
           onChange: (next, size) => { setPage(size === pageSize ? next : 1); setPageSize(size); },
-          showTotal: (total) => `共 ${total} 条`,
+          showTotal: (total, range) => (total ? `第 ${range[0]}–${range[1]} 条，共 ${total} 条` : '共 0 条'),
         }}
         columns={[
           {
