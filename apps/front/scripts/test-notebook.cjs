@@ -131,7 +131,7 @@ test('complete dark groups replace legacy platform slices but partial capture an
  const partial=platformImages.mergePlatformImages(old,fresh.slice(0,1));
  assert.equal(partial.images.length,4);
  const complete=platformImages.mergePlatformImages(partial,fresh.slice(1));
- assert.equal(complete.images.length,5);
+ assert.equal(complete.images.length,6);
  assert.ok(complete.images.some(i=>i.id==='upload-1'));
  assert.ok(!complete.images.some(i=>i.id==='platform-themes-1'));
  assert.deepEqual(platformImages.missingPlatformImages(complete.images),[]);
@@ -154,7 +154,7 @@ test('compact template has declaration, three fixed chart groups, simple candida
  const body=exp.documentTemplate('2026-10-13',c);
  assert.ok(body.includes('本文由 AI 生成，仅供参考'));assert.ok(body.includes('测试股份｜连续三日收阳'));
  assert.ok(!body.includes('未填写'));assert.ok(body.endsWith('## 闲聊\n\n'));
- assert.deepEqual(platformImages.captureSources.map(s=>s.charts.length),[4,8,4,1]);
+ assert.deepEqual(platformImages.captureSources.map(s=>s.charts.length),[4,8,4,1,1]);
  const image={id:'overview',data:png,caption:'概览',source:'',after:'市场概览'};
  const text=contract.illustratedText('# 复盘\n\n## 市场数据\n\n### 市场概览\n\n简要解读\n\n独立解读。',[image]);
  assert.ok(text.indexOf('review-image:overview')<text.indexOf('简要解读'));
@@ -214,4 +214,22 @@ test('missing, invalid and canceled images never produce an editable partial not
  await assert.rejects(loadNotebookImages(c,new AbortController().signal,async()=>'https://external/image'));
  const abort=new AbortController();abort.abort();let reads=0;
  await assert.rejects(loadNotebookImages(c,abort.signal,async()=>{reads++;return png;}));assert.equal(reads,0);
+});
+
+test('AI document adds interpretations and five images while preserving user notes, selection and privacy',()=>{
+ const c=exp.emptyNotebook();c.private.marketJudgment='我的原文\n不要改写';c.private.marketFacts='旧字段原文';c.private.execution='PRIVATE TRADE';
+ c.private.lesson='我的闲聊';c.private.toolEvidence='测试股份 000001.SZ\n策略：放量突破';
+ c.article={body:'',feishuUrl:'',images:platformImages.captureSources.map(source=>({id:platformImages.imageId(source.key),data:png,caption:source.title,source:'',after:source.title}))};
+ const headings=['市场概览','情绪指标','连板分析','20日板块轮动','涨停板复盘'];
+ const answer=headings.map(h=>'### '+h+'\n\n证据与局限：'+h).join('\n\n');
+ const body=exp.reviewDocument('2026-10-16',c,answer);
+ assert(body.includes(c.private.marketJudgment));assert(body.includes(c.private.marketFacts));assert(body.includes(c.private.lesson));assert(body.includes('测试股份｜放量突破'));
+ assert(!body.includes('PRIVATE TRADE'));assert(!body.includes('明日计划'));
+ const text=contract.illustratedText(body,c.article.images);assert.equal((text.match(/review-image:/g)||[]).length,5);
+ const html=exp.noteHtml(text,c.article.images);assert.equal((html.match(/<img /g)||[]).length,5);assert(html.includes('<strong>AI 独立分析</strong>'));
+ assert.throws(()=>exp.reviewDocument('2026-10-16',c,'不完整结果'),/缺少必要章节/);
+ const packet=handoff.reviewPacket('2026-10-16',1,c);packet.article.body=body;
+ // Full tool evidence remains required on the external Skill path.
+ packet.article.body+='\n\n'+c.private.toolEvidence;
+ assert(handoff.readResult(JSON.stringify(packet),'2026-10-16',1,c));
 });

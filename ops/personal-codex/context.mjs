@@ -76,7 +76,7 @@ function compactMarket(environment,date) {
   return {date,stats:numeric(environment.market,['amount','up','down','flat','total','upRatio','limitUp','limitDown','maxHeight','sealRate','brokenRate']),breadth:environment.breadth?{ma20:pick(environment.breadth.ma20,['ratio','eligible','missing','insufficient']),ma60:pick(environment.breadth.ma60,['ratio','eligible','missing','insufficient'])}:null};
 }
 export function compactIndexes(raw,date) {
-  return (raw?.indexes||[]).slice(0,5).map(index=>{
+  return (raw?.indexes||[]).slice(0,9).map(index=>{
     const rows=(index.series||[]).filter(p=>p.date<=date).sort((a,b)=>a.date.localeCompare(b.date));
     const last=rows.at(-1), at=n=>rows.length>n?pct(num(last?.close),num(rows.at(-n-1)?.close)):null;
     return {code:index.code,name:index.name,asOf:last?.date||null,close:num(last?.close),dayPct:num(last?.pctChg),fivePct:at(5),twentyPct:at(20)};
@@ -128,34 +128,39 @@ export async function candidateSnapshot(task, read) {
     sources,fetchMs:Date.now()-started};
 }
 
-export async function reviewSnapshot(task,read) {
-  const date=task.date,started=Date.now(),sources=[];
-  const get=async(name,path,required=false)=>{const at=Date.now();try{const data=await read(path);sources.push({name,state:'ready',ms:Date.now()-at});return data;}catch(e){sources.push({name,state:'unavailable',ms:Date.now()-at});if(required||[401,403,429].includes(e.status))throw e;return null;}};
-  const raw=await get('review','/review/report?'+query({date}),true);
-  if(raw?.date!==date || !Array.isArray(raw.items)) throw Error('复盘日期或数据格式不匹配');
-  const [environment,indexes]=await Promise.all([get('market','/analysis/market/candidate-environment?'+query({date}),true),get('indexes','/analysis/market/overview?'+query({date,days:60,scope:'all'}),true)]);
-  const groups=key=>{
-    const counts=new Map();
-    for(const row of raw.items) for(const label of new Set((row[key]||[]).filter(x=>!x.asOf||x.asOf<=date).map(x=>x.name))) if(label)counts.set(label,(counts.get(label)||0)+1);
-    return [...counts].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])).slice(0,8).map(([name,count])=>({name,count}));
+export async function reviewSnapshot(task, read) {
+  const date = task.date, started = Date.now(), sources = [], gaps = [];
+  const get = async (name, endpoint, extra = {}) => {
+    const at = Date.now();
+    try {
+      const data = await read('/analysis/market/' + endpoint + '?' + query({ date, scope: 'all', ...extra }));
+      if (data?.date !== date) throw Error('日期不匹配');
+      sources.push({ name, state: 'ready', ms: Date.now() - at }); return data;
+    } catch (e) {
+      if (['market', 'sentiment'].includes(name) || [401, 403, 429].includes(e.status)) throw e;
+      sources.push({ name, state: 'unavailable', ms: Date.now() - at }); gaps.push(name + '资料缺失或日期不匹配'); return null;
+    }
   };
-  const sample=raw.items.slice(0,12).map(r=>({code:r.tsCode,name:r.name,...numeric(r,['close','pctChg','amount','turnoverRateF','volumeRatio','totalMv','circMv']),
-    strategies:(r.strategies||[]).map(s=>s.key),industry:r.industry||null,capState:r.capState,
-    risk:pick(r.risk,['state','reasons','note']),trendEvidence:pick(r,['breakoutPrice','breakoutPct','volumeMultiple','aboveMa5Pct','streak'])}));
-  const gaps=[];
-  if(!raw.complete)gaps.push('部分策略未完成，候选总数不是完整结果');
-  if(!environment?.market)gaps.push('大盘统计缺失');
-  if(!environment?.breadth)gaps.push('市场均线广度缺失');
-  if(raw.items.some(r=>!(r.industries?.length)))gaps.push('部分候选行业标签缺失');
-  const indexData=compactIndexes(indexes,date);
-  if(!indexData.length || indexData.some(x=>x.asOf!==date))gaps.push('部分主要指数行情缺失或日期不齐');
-  return {version:'review/v2',date,fetchedAt:new Date().toISOString(),complete:raw.complete,counts:raw.counts,
-    strategies:(raw.strategies||[]).map(s=>pick(s,['key','label','state','count'])),
-    market:compactMarket(environment,date),indexes:indexData,
-    candidateStructure:{industries:groups('industries'),topics:groups('topics'),scope:'仅当日候选集合，按覆盖候选数排序，不是全市场热点排行；同一股票可属于多个题材',industryCovered:raw.items.filter(r=>r.industries?.length).length,topicCovered:raw.items.filter(r=>r.topics?.length).length},
-    total:raw.items.length,included:sample.length,omitted:Math.max(0,raw.items.length-sample.length),sampleRule:'现有复盘接口按流通市值升序的前12只，不代表最强股票或推荐排序',items:sample,
-    riskNote:typeof raw.riskNote==='string'?raw.riskNote.slice(0,700):null,
-    profile:{source:'网站全部策略，使用各策略默认参数；不是策略页面自定义筛选',sorting:'流通市值升序'},
-    units:{price:'元',amount:'千元；market.stats.amount为亿元',marketValue:'totalMv/circMv为万元',percent:'pctChg、turnoverRateF、涨跌幅及广度均为%；volumeRatio为倍',indexes:'dayPct为当日涨幅%，fivePct/twentyPct为5/20交易日收盘累计涨幅%'},
-    gaps,limitations:['候选行业题材分布不代表全市场热度或资金流向','未发送个人持仓、成本、笔记；未读取实时新闻或公告原文','复盘不逐一获取全部候选的长周期K线和完整财务，深入分析请到策略选股选择个股'],sources,fetchMs:Date.now()-started};
+  // Two requests at a time, bounded data, exact historical date; never substitute today's data.
+  const [overview, breadth] = await Promise.all([get('market', 'overview', { days: 20 }), get('breadth', 'breadth', { days: 20 })]);
+  const [sentiment, feedback] = await Promise.all([get('sentiment', 'sentiment', { days: 20 }), get('feedback', 'feedback')]);
+  const [sectors, themes] = await Promise.all([get('sectors20', 'sectors', { kind: 'I', period: 20, days: 20 }), get('themes', 'theme-review')]);
+  if (!overview?.snapshot || !sentiment?.snapshot) throw Error('市场或情绪核心数据缺失');
+  const dayRows = rows => (rows || []).filter(r => r.date <= date).slice(-5);
+  const ranks = dayRows(sectors?.rotation);
+  const sectorRows = [...(sectors?.items || [])].filter(r => r.asOf === date && num(r.twenty) !== null).sort((a,b) => b.twenty-a.twenty).slice(0,12);
+  const unavailable = [!breadth?.snapshot && '均线广度尚未就绪', !feedback?.ready && '昨日强势股反馈尚未就绪', !sectorRows.length && '20日板块排行尚未就绪', !themes?.ready && '涨停题材尚未就绪'].filter(Boolean);
+  gaps.push(...unavailable);
+  return { version: 'review/v3', date, fetchedAt: new Date().toISOString(),
+    market: { snapshot: overview.snapshot, previousAmount:overview.previousAmount ?? null, fiveDayAmount:overview.fiveDayAmount ?? null, twentyDayAmount:overview.twentyDayAmount ?? null, recent: dayRows(overview.series).map(r => ({date:r.date, ...pick(r.data, ['amount','up','down','flat','total'])})) },
+    indexes: compactIndexes(overview,date), breadth: breadth?.snapshot || null,
+    sentiment: { snapshot: sentiment.snapshot, recent: dayRows(sentiment.series).map(r => ({date:r.date,...pick(r.data,['limitUp','limitDown','broken','maxHeight','sealRate','upgrades'])})) },
+    feedback: feedback?.ready ? { previousDate: feedback.previousDate, groups: (feedback.groups || []).map(g => pick(g,['name','ready','sample','average','riseRate'])) } : null,
+    sectors20: { period:20, scope:'全市场行业，按20日涨幅排名；排名是相对位置，不等同资金净流入', total:sectors?.items?.length || 0,
+      items:sectorRows.map(r => ({ ...pick(r,['name','day','five','twenty','upRatio','limitUp','maxHeight','asOf']), ranks:ranks.map(day => ({ date:day.date, rank:day.values.find(v=>v.code===r.code)?.rank ?? null, total:day.total })) })) },
+    themes: themes?.ready ? { total:themes.total, classified:themes.classified, groups:(themes.groups || []).slice(0,12).map(g=>({name:g.name,count:g.count,maxHeight:g.maxHeight,names:(g.items || []).slice(0,4).map(r=>r.name)})) } : null,
+    total:0,included:0,omitted:0,items:[],
+    units:{amount:'市场成交额单位亿元',percent:'涨幅、广度、封板率、晋级率单位%；必须区分各自有效样本分母'},
+    gaps, limitations:['只使用截止复盘日的数据；空值不代表0','不读取个人持仓或私人笔记；用户记录和策略名单由页面按原文合并','行业排行仅列20日最强12个；涨停题材列前12组，不可当作全部市场'],
+    sources, fetchMs:Date.now()-started };
 }

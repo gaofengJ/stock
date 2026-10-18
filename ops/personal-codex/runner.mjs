@@ -1,7 +1,9 @@
 import { spawn } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Fault, fail, parseEvent, quotaView, MODELS, sha } from './core.mjs';
+import { Fault, fail, quotaView, MODELS, sha } from './core.mjs';
+
+import { streamTurn } from './stream.mjs';
 
 export class Runner {
   constructor({ bin = '/usr/local/bin/codex', home = '/home/codex/.codex', proxyFile = '/run/connection/proxy', timeout = 180000, spawnFn = spawn } = {}) {
@@ -75,40 +77,32 @@ export class Runner {
     const timer = setTimeout(() => { try { process.kill(-child.pid, 'SIGKILL'); } catch { child.kill('SIGKILL'); } }, 1500);
     timer.unref();
   }
-  async run(task, prompt) {
+  async run(task, prompt, onText = () => {}) {
     if (this.child || this.metaPending) fail(409, '执行器忙，请稍后重试');
-    const args = ['exec', '--json', '--ephemeral', '--skip-git-repo-check', '--sandbox', 'read-only', '--color', 'never', '-C', '/workspace',
-      '-m', task.model, '-c', `model_reasoning_effort="${task.effort}"`, '-c', 'forced_login_method="chatgpt"', '-c', 'approval_policy="never"', '-c', 'web_search="disabled"'];
-    for (const f of ['shell_tool', 'unified_exec', 'multi_agent', 'sleep_tool', 'shell_snapshot']) args.push('--disable', f);
-    args.push('-');
+    const args = ['app-server', '--listen', 'stdio://', '-c', 'forced_login_method="chatgpt"', '-c', 'approval_policy="never"', '-c', 'web_search="disabled"'];
+    for (const f of ['shell_tool', 'unified_exec', 'multi_agent', 'sleep_tool', 'shell_snapshot']) args.push('-c', `features.${f}=false`);
     const report = { completedTurns: 0, answer: '', usage: null, failed: false, toolAttempt: false };
     const child = this.spawnFn(this.bin, args, { env: this.env(), cwd: '/workspace', detached: true, stdio: ['pipe', 'pipe', 'ignore'] });
-    this.child = child; let buffer = '', bytes = 0, timeout = false, overflow = false;
+    this.child = child; let bytes = 0, timeout = false, overflow = false;
     const started = Date.now(), metrics={firstEventMs:null, firstAnswerMs:null, processMs:null, eventCount:0, streamBytes:0};
     child.stdout.setEncoding('utf8');
     const timer = setTimeout(() => { timeout = true; this.stop(); }, this.timeout);
     child.stdout.on('data', data => {
-      bytes += Buffer.byteLength(data);
-      if (bytes > 512000) { overflow = true; this.stop(); return; }
-      buffer += data.toString(); let index;
-      while ((index = buffer.indexOf('\n')) >= 0) {
-        const line = buffer.slice(0, index); buffer = buffer.slice(index + 1);
-        try {
-          const event=JSON.parse(line); metrics.eventCount++; metrics.firstEventMs ??= Date.now()-started;
-          if (event.type==='item.completed' && event.item?.type==='agent_message') metrics.firstAnswerMs ??= Date.now()-started;
-          parseEvent(report,event);
-        } catch { /* never expose raw diagnostic lines */ }
-        if (report.toolAttempt || report.answer.length > 16000) { overflow = true; this.stop(); }
-      }
+      bytes += Buffer.byteLength(data); metrics.eventCount++; metrics.firstEventMs ??= Date.now()-started;
+      if (bytes > 512000) { overflow = true; this.stop(); }
     });
     child.stdin.on('error', () => {});
     try {
       const closed = new Promise(resolve => { child.once('error', () => resolve(-1)); child.once('close', code => resolve(code)); });
-      child.stdin.end(prompt);
+      const protocol = streamTurn(child, task, prompt, report, text => {
+        if (text) metrics.firstAnswerMs ??= Date.now()-started;
+        onText(text);
+      }, () => this.stop());
       const code = await closed;
+      await protocol;
       metrics.processMs=Date.now()-started; metrics.streamBytes=bytes;
-      return { ...report, metrics, success: code === 0 && report.completedTurns === 1 && !report.failed && !overflow && !timeout && !!report.answer,
-        timeout, error: timeout ? '任务超时，已停止；已发生用量无法撤销' : overflow ? '工具请求或输出超限，已停止' : code !== 0 || report.failed ? '模型调用失败，未自动重提任务；请查看账号状态' : null };
+      return { ...report, metrics, success: code === 0 && report.completedTurns === 1 && !report.failed && !report.toolAttempt && !overflow && !timeout && !!report.answer,
+        timeout, error: timeout ? '任务超时，已停止；已发生用量无法撤销' : overflow || report.toolAttempt ? '工具请求或输出超限，已停止' : code !== 0 || report.failed ? '模型调用失败，未自动重提任务；请查看账号状态' : null };
     } finally { clearTimeout(timer); this.child = null; this.checkpoint(); }
   }
 }

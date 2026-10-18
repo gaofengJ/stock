@@ -90,14 +90,14 @@ export function createConsole(config, dependencies = {}) {
       if (task.status === 'cancelling' || stopping) return;
       task.status = 'running'; task.startedAt = new Date().toISOString(); task.quotaBefore = metadata.quota;
       task.invocationStarted = true; store.save();
-      const result = await timed('model', () => runner.run(task, prompt));
+      const result = await timed('model', () => runner.run(task, prompt, text => { task.answer = text.slice(0, 16000); }));
       task.executionMetrics = result.metrics || null;
       task.usage = result.usage;
       task.answer = result.answer.slice(0, 16000);
       task.completedTurns = result.completedTurns;
+      try { metadata = await timed('accountAfter', () => runner.metadata()); task.quotaAfter = metadata.quota; } catch { task.quotaCheckFailed = true; }
       if (task.status === 'cancelling') { task.status = 'cancelled'; task.error = '已取消；已经产生的用量无法撤销'; }
       else { task.status = result.success ? 'completed' : 'failed'; task.error = result.error || (result.success ? null : '没有收到完整结果'); }
-      try { metadata = await timed('accountAfter', () => runner.metadata()); task.quotaAfter = metadata.quota; } catch { task.quotaCheckFailed = true; }
     } catch (error) {
       task.status = task.status === 'cancelling' ? 'cancelled' : 'failed';
       task.error = error instanceof Fault ? error.message : '执行失败，未自动重提任务；凭据及原始诊断已隐藏';
@@ -144,7 +144,7 @@ export function createConsole(config, dependencies = {}) {
       }
       if (path === '/personal-ai/api/status' && req.method === 'GET') {
         send(res, 200, { user: { id: user.id, username: user.username }, enabled: config.enabled && !existsSync('/data/disabled'),
-          defaults: { model: 'gpt-6.1-sol', effort: 'high' }, metadata,
+          capabilities: { streaming: true, reviewDocument: true }, defaults: { model: 'gpt-6.1-sol', effort: 'high' }, metadata,
           limits: { dailyCalls: 20, dailyTokens: 200000, reserveTokens: 32000, maxContextBytes: 24000, concurrency: 1, timeoutSeconds: 180 },
           today: store.usedToday(), tasks: store.tasks.slice(-30).reverse().map(t => { const v = publicTask(t); delete v.answer; return v; }) }); return;
       }
@@ -180,6 +180,26 @@ export function createConsole(config, dependencies = {}) {
           if (!duplicate) void execute(task, token);
         } finally { submitBusy = false; }
         return;
+      }
+      const stream = path.match(/^\/personal-ai\/api\/tasks\/([a-f0-9-]{36})\/events$/);
+      if (stream && req.method === 'GET') {
+        const task = store.tasks.find(t => t.id === stream[1]);
+        if (!task) fail(404, '任务不存在');
+        res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'X-Accel-Buffering': 'no', Connection: 'keep-alive' });
+        res.flushHeaders();
+        let previous = '', checking = false;
+        const sendTask = () => {
+          const data = JSON.stringify(publicTask(task));
+          if (data !== previous) { res.write(`data: ${data}\n\n`); previous = data; }
+          if (!ACTIVE.has(task.status)) res.end();
+        };
+        const updates = setInterval(sendTask, 250);
+        const auth = setInterval(async () => {
+          if (checking) return; checking = true;
+          try { await identity(token, true); res.write(': heartbeat\n\n'); } catch { res.end(); } finally { checking = false; }
+        }, 15000);
+        res.on('close', () => { clearInterval(updates); clearInterval(auth); });
+        sendTask(); return;
       }
       const match = path.match(/^\/personal-ai\/api\/tasks\/([a-f0-9-]{36})(\/cancel)?$/);
       if (match) {

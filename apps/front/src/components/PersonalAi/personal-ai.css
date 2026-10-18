@@ -21,3 +21,15 @@
 @media(max-width:600px){.personal-ai-metrics{grid-template-columns:1fr}.personal-ai-models{grid-template-columns:1fr}.personal-ai-history{align-items:flex-start}}
 
 .personal-ai-result p{margin:0 0 10px;white-space:pre-wrap}.personal-ai-result h4{margin:16px 0 8px;font-weight:600}.personal-ai-result ul{padding-left:22px;list-style:disc}.personal-ai-result code{padding:1px 4px;background:var(--color-surface-muted);border-radius:3px}.personal-ai-table-scroll{max-width:100%;overflow:auto;margin:12px 0}.personal-ai-result table{width:100%;border-collapse:collapse;font-size:13px}.personal-ai-result th,.personal-ai-result td{border:1px solid var(--color-border);padding:8px 10px;min-width:88px;vertical-align:top;text-align:left}.personal-ai-result th{background:var(--color-surface-muted)}
+
+.personal-ai-drawer .ant-drawer-body{padding:24px;background:var(--color-surface)}
+.personal-ai-drawer .ant-drawer-header{padding:20px 24px;border-bottom:1px solid var(--color-border)}
+.personal-ai-drawer .ant-card{border-radius:12px;overflow:hidden}
+.personal-ai-drawer .ant-card-head{min-height:48px}
+.personal-ai-drawer .ant-card-body{padding:20px}
+.personal-ai-drawer .personal-ai-context{padding:16px 20px;border-radius:12px}
+.personal-ai-drawer .personal-ai-result{font-size:15px;line-height:1.9}
+.personal-ai-drawer .ant-form{padding:20px;border:1px solid var(--color-border);border-radius:12px}
+.personal-ai-progress{display:flex;align-items:center;gap:12px;padding:14px 16px;margin-bottom:20px;background:var(--color-primary-soft);border-radius:8px;color:var(--text-secondary);font-size:13px}
+.personal-ai-drawer .ant-collapse-content-box{padding-bottom:16px!important}
+@media(max-width:600px){.personal-ai-drawer .ant-drawer-body{padding:16px}.personal-ai-drawer .ant-form,.personal-ai-drawer .ant-card-body{padding:16px}}

@@ -42,15 +42,35 @@ export function documentTemplate(date: string, value: NotebookContent) {
     const match = block.match(/^(.+?) \d{6}\.(?:SH|SZ|BJ)\n策略：([^\n]+)/m);
     return match ? [`${match[1]}｜${match[2]}`] : [];
   });
-  const notes = ['marketJudgment', 'themes', 'candidates', 'normalPlan', 'strongPlan', 'weakPlan', ...(value.materials?.includeExecution ? ['execution', 'holdingEvidence', 'yesterday'] : [])]
+  const manualCandidateNotes = /观察与触发：(?!未填写)|风险核验：(?!未记录)|此前浏览器计划/.test(evidence);
+  const notes = [...(manualCandidateNotes ? ['toolEvidence'] : []), 'dataState', 'marketFacts', 'marketJudgment', 'themes', 'candidates', 'normalPlan', 'strongPlan', 'weakPlan', ...(value.materials?.includeExecution ? ['execution', 'holdingEvidence', 'yesterday'] : [])]
     .filter((key) => value.private[key]?.trim()).map((key) => `### 用户记录：${internalFields.find(([name]) => name === key)?.[1] || key}\n\n${value.private[key]}`);
   return [
     `# ${value.public.title || `${date}复盘`}`, '> 本文由 AI 生成，仅供参考。',
     '## 市场数据', '### 市场概览', '### 情绪指标', '### 连板分析',
-    '## 涨停板复盘', '## 策略选股', ...picks,
+    '## 板块轮动', '### 20日板块轮动', '## 涨停板复盘', '## 策略选股', ...picks,
     ...(notes.length ? ['## 用户记录', ...notes] : []),
+    ...(value.materials?.showCalendar && value.materials.calendar.length ? ['## 投资日历', ...value.materials.calendar.map((event) => `### ${event.date} ${event.title}\n\n${event.detail}\n\n来源：${event.source}`)] : []),
     '## 闲聊', value.private.lesson || '',
   ].join('\n\n');
+}
+/** Merge model interpretation with the current original notes, never model-rewritten notes. */
+export function reviewDocument(date: string, value: NotebookContent, answer: string) {
+  const headings = ['市场概览', '情绪指标', '连板分析', '20日板块轮动', '涨停板复盘'];
+  const sections = new Map<string, string>();
+  answer.split(/^### /m).slice(1).forEach((section) => {
+    const index = section.indexOf('\n');
+    if (index > 0) sections.set(section.slice(0, index).trim(), section.slice(index).trim());
+  });
+  if (headings.some((heading) => !sections.get(heading))) throw Error('分析正文缺少必要章节，已保留结果和原文，请在面板中重新生成。');
+  let body = documentTemplate(date, value);
+  headings.forEach((heading) => {
+    const marker = heading === '涨停板复盘' ? `## ${heading}` : `### ${heading}`;
+    body = body.replace(`${marker}\n`, `${marker}\n\n**AI 独立分析**\n\n${sections.get(heading)}\n`);
+  });
+  const legacy = publicFields.filter(([key]) => key !== 'title' && value.public[key]?.trim()).map(([key, label]) => `### ${label}\n\n${value.public[key]}`);
+  if (legacy.length) body += `\n\n## 用户公开记录\n\n${legacy.join('\n\n')}`;
+  return body;
 }
 // Both destinations use the same Feishu article; retain the channel argument for callers.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -78,6 +98,7 @@ export function noteHtml(text: string, images: ArticleImage[] = []) {
     if (line.startsWith('# ')) return `<h1 style="font-size:24px">${escapeHtml(line.slice(2))}</h1>`;
     if (line.startsWith('## ')) return `<h2 style="font-size:18px;margin-top:40px">${escapeHtml(line.slice(3))}</h2>`;
     if (line.startsWith('### ')) return `<h3>${escapeHtml(line.slice(4))}</h3>`;
-    return line ? `<p style="margin:8px 0">${escapeHtml(line)}</p>` : '';
+    const inline = escapeHtml(line.replace(/^> /, '')).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    return line ? `<p style="margin:8px 0">${inline}</p>` : '';
   }).join('')}</article>`;
 }

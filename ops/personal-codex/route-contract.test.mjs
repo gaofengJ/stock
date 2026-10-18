@@ -12,7 +12,9 @@ test('AI market URLs match the existing frontend client and nested backend route
  assert.equal(prefix,'/analysis/market/');assert.match(router,/path: 'analysis'/);assert.match(controller,/@Controller\('market'\)/);
  for(const endpoint of ['candidate-environment','overview']) {
   assert(controller.includes("@Get('"+endpoint+"')"));
-  assert.equal(source.split("'"+prefix+endpoint+'?').length-1,2,'both business contexts must use website route');
+  assert(source.includes("'"+prefix+endpoint+'?'),'candidate endpoints must use website route');
  }
+ for(const endpoint of ['overview','breadth','sentiment','feedback','sectors'])assert(controller.includes("@Get('"+endpoint+"')"));
+ assert(source.includes("'/analysis/market/' + endpoint"));
  assert.doesNotMatch(source,/'\/market\//);
 });

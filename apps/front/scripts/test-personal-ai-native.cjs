@@ -47,7 +47,7 @@ test('business entry is absent for non-owner accounts and uses four-character bu
 test('analysis panel is native, begins with Sol High, and opening its render never sends a task', () => {
   const Panel = load('components/PersonalAi/AnalysisPanel').default;
   const html = renderToStaticMarkup(React.createElement(Panel, { ownerId: 1, skill: 'candidate-compare', date: '2026-10-16', candidates: [{ code: '600519.SH', name: '示例股票' }] }));
-  assert.match(html, /2026-10-16/); assert.match(html, /GPT-6.1 Sol/); assert.match(html, /High/);
+  assert.match(html, /2026-10-16/); assert.match(html, /GPT-6.1 Sol/); assert.match(html, /high/);
   assert.match(html, /对比股票/); assert.match(html, /尚未发起分析/); assert.doesNotMatch(html, /<iframe/);
 });
 
