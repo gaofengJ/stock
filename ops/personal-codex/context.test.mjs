@@ -30,14 +30,17 @@ test('strategy validation binds only effective typed parameters; rejects injecti
  for(const patch of [{type:'../../x'},{type:'volumeBreakout',parameters:{url:'https://evil'}},{type:'volumeBreakout',parameters:{breakoutDays:'20'}},{type:'volumeBreakout',sector:'x&code=1'}])assert.throws(()=>strategySpec(patch));
  assert.throws(()=>validateTask({...input(),strategy:undefined}));
 });
-test('candidate snapshot verifies membership, preserves market/stock/evidence, removes future data and redundant topics',async()=>{
+test('candidate snapshot verifies membership, preserves market/stock/evidence, removes future data and redundant topics',async(t)=>{
+ t.mock.timers.enable({apis:['Date'],now:new Date('2026-10-19T12:00:00Z')});
  const data=await candidateSnapshot(input(),async path=>fixtures(path));
  assert.equal(data.stocks[0].selection.matched,true);assert.equal(data.stocks[0].quote.close,10);
  assert.equal(data.stocks[0].trend.ma[120],10);assert.equal(data.stocks[0].trend.returnsPct.five,0);
  assert.equal(data.stocks[0].sectors.items.length,5);assert.equal(data.stocks[0].sectors.omittedTopics,17);
  assert.equal(data.stocks[0].financial.history.length,1);assert.equal(data.stocks[0].financial.forecast,null);
  assert.equal(data.market.stats.upRatio,60);assert.equal(data.indexes.length,1);
- assert(!JSON.stringify(data).includes('2026-10-19'));assert(!JSON.stringify(data).includes('2026-10-20'));
+ const {fetchedAt,...research}=data;
+ assert.equal(fetchedAt,'2026-10-19T12:00:00.000Z');
+ assert(!JSON.stringify(research).includes('2026-10-19'));assert(!JSON.stringify(research).includes('2026-10-20'));
  assert(Buffer.byteLength(JSON.stringify(data))<10000);
  await assert.rejects(()=>candidateSnapshot({...input(),codes:['999999.SZ']},async path=>fixtures(path)),/当前策略候选/);
 });
