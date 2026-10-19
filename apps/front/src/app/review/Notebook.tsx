@@ -163,7 +163,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
           return (
             <Card id={`evening-${stage.id}`} key={stage.id} title={stage.title}>
               <p className="review-caption">{stage.guidance}</p>
-              <Space wrap size={12} className="notebook-links">{stage.links.map(([path, label]) => <Link key={path} href={`${path}?date=${date}`} target="_blank" rel="noopener noreferrer">{label}</Link>)}</Space>
+              <Space wrap size={12} className="notebook-links">{stage.links.map(([path, label]) => <Link key={path} href={`${path}${path.includes('?') ? '&' : '?'}date=${date}`} target="_blank" rel="noopener noreferrer">{label}</Link>)}</Space>
               {!!images.length && (
               <Image.PreviewGroup>
                 <div className="notebook-platform-images">
