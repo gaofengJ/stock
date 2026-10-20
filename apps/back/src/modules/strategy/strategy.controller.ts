@@ -3,6 +3,8 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiResult } from '@/decorators/api-result.decorator';
 import { QueryTimeout } from '@/decorators/query-timeout.decorator';
+import { Throttle } from '@nestjs/throttler';
+import { readThrottleTracker } from '@/modules/auth/read-throttle-tracker';
 
 import { CandidateFinancialService } from './candidate-financial.service';
 import { StrategyService } from './strategy.service';
@@ -91,6 +93,10 @@ export class StrategyController {
 
   @Permit('strategy:read', 'basic:stock', 'review:read')
   @Get('/chart')
+  // Continuous stock navigation and prefetch are normal authenticated reads.
+  @Throttle({
+    default: { limit: 60, ttl: 10000, getTracker: readThrottleTracker },
+  })
   @QueryTimeout(60000)
   @ApiOperation({ summary: '选股信号对应的个股日K与成交量' })
   chart(@Query() dto: StrategyChartQueryDto) {

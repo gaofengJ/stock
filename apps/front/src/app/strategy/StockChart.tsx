@@ -4,7 +4,7 @@ import {
   ReactNode, useCallback, useEffect, useMemo, useRef, useState,
 } from 'react';
 import {
-  Alert, Button, Empty, Modal,
+  Alert, Button, Empty, Modal, Radio,
 } from 'antd';
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import request from '@/api/request';
@@ -21,6 +21,7 @@ import { lightMovingAverageColors, movingAverageColors, quoteColors } from '@/co
 import { movingAverage } from '@/app/analysis/components/market-display';
 import ExpandedChart from '@/app/analysis/components/ExpandedChart';
 import { createChartLoader } from './chart-loader';
+import { chartPriceView, ChartPriceMode } from './chart-prices';
 import { chartShortcut } from './chart-shortcuts';
 import StockQuotePanel, { StockPoint, StockQuoteHandle } from './StockQuotePanel';
 import { hoverAverageLabel } from '../analysis/components/overview-chart';
@@ -45,8 +46,11 @@ export default function StockChart({
   stock: any; date: string; strategy: string; options: TrendOptions; onClose: () => void; neutral?: boolean; navigation?: any[]; onNavigate?: (stock: any) => void;
 }) {
   const [data, setData] = useState<StockChartData | null>(null);
+  const [priceMode, setPriceMode] = useState<ChartPriceMode>('raw');
+  const priceView = useMemo(() => (data ? chartPriceView(data, priceMode) : null), [data, priceMode]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const [attempt, setAttempt] = useState(0);
   const [reset, setReset] = useState(0);
   const [range, setRange] = useState<ChartRange>({ start: 0, end: 0 });
@@ -67,6 +71,15 @@ export default function StockChart({
   const page = view?.identity === identity ? view.page : undefined;
   const position = navigation.findIndex((row) => row.tsCode === code && (!stock?.date || row.date === stock.date));
   const chartTitle = [stock?.name, code, neutral ? '日K' : '信号形态'].filter(Boolean).join(' ');
+  let chartStatus = '正在加载行情';
+  if (error) chartStatus = '行情加载失败';
+  else if (cooldownSeconds > 0) chartStatus = `请求较多，${cooldownSeconds} 秒后自动继续`;
+  else if (data && !loading) chartStatus = `${data.series[range.start]?.date || ''} ～ ${data.series[range.end]?.date || ''}`;
+  useEffect(() => {
+    if (!code || (!loading && !error)) { setCooldownSeconds(0); return undefined; }
+    const timer = setInterval(() => setCooldownSeconds(loader.cooldownSeconds()), 250);
+    return () => clearInterval(timer);
+  }, [code, loading, error, loader]);
   useEffect(() => { setView(null); setAttempt(0); }, [identity]);
   useEffect(() => {
     if (!code) return undefined;
@@ -80,7 +93,7 @@ export default function StockChart({
       ...(viewMode === 'latest' ? { chartLatest: true } : {}),
       ...(viewMode === 'before' ? { chartBefore: anchor } : {}),
       ...(viewMode === 'after' ? { chartAfter: anchor } : {}),
-    }, attempt > 0);
+    }, attempt > 0, 120);
     setLoading(true); setError(''); setData(null); quoteRef.current?.select(null);
     task.promise.then((response) => {
       if (!active) return;
@@ -111,7 +124,7 @@ export default function StockChart({
     if (!code || loading || !data || !nextCode || !onNavigate) return undefined;
     const task = loader.acquire({
       date: nextDate, code: nextCode, strategyType: nextStrategy, ...queryOptions, chartAroundSignal: true,
-    });
+    }, false, 400);
     task.promise.catch(() => {}).finally(task.release);
     return task.release;
   }, [code, loading, data, nextCode, nextDate, nextStrategy, queryOptions, loader, onNavigate]);
@@ -170,7 +183,7 @@ export default function StockChart({
       setView({ identity, mode: modeName });
     }
   };
-  const candles = (data?.series || []).map((row) => ({
+  const candles = (priceView?.series || []).map((row) => ({
     date: row.date,
     start: row.date,
     end: row.date,
@@ -181,7 +194,7 @@ export default function StockChart({
   const lineColors = [palette[0], palette[1], palette[2], palette[4], palette[5]];
   const ma = periods.map((period) => movingAverage(candles, period));
   const markerLines: any[] = [{ name: neutral ? '观察日' : '信号日', xAxis: date, label: { formatter: neutral ? '观察日' : '信号日', position: 'insideEndTop' } }];
-  if (!neutral && data?.evidence?.breakoutPrice != null) markerLines.push({ name: '突破位', yAxis: data.evidence.breakoutPrice, label: { formatter: '突破位 {c}', position: 'insideEndTop' } });
+  if (!neutral && priceView?.evidence?.breakoutPrice != null) markerLines.push({ name: '突破位', yAxis: priceView.evidence.breakoutPrice, label: { formatter: priceMode === 'raw' ? '突破位（信号日口径）{c}' : '突破位 {c}', position: 'insideEndTop' } });
   if (!neutral && data?.evidence?.breakoutDate) markerLines.push({ name: '突破日', xAxis: data.evidence.breakoutDate, label: { formatter: '突破日', position: 'insideEndTop' } });
   return (
     <Modal
@@ -226,14 +239,24 @@ export default function StockChart({
         </span>
         {data && (
         <span>
-          {data.basis}
+          {priceView?.basis}
           价格
         </span>
+        )}
+        {data && data.basis !== '不复权' && (
+        <Radio.Group
+          size="small"
+          aria-label="K线价格口径"
+          optionType="button"
+          value={priceMode}
+          onChange={(event) => setPriceMode(event.target.value)}
+          options={[{ label: '实际价格', value: 'raw' }, { label: '策略复权', value: 'strategy' }]}
+        />
         )}
         <Button size="small" disabled={loading || !data} onClick={() => focusTime('signal')}>{neutral ? '回到观察日' : '回到信号日'}</Button>
         <Button size="small" disabled={loading || !data} onClick={() => focusTime('latest')}>查看最新</Button>
         <span className="strategy-chart-visible-range" aria-live="polite">
-          {data && !loading ? `${data.series[range.start]?.date || ''} ～ ${data.series[range.end]?.date || ''}` : '正在加载行情'}
+          {chartStatus}
         </span>
         <span>{onNavigate && navigation.length > 1 ? '↑ / ↓ 切换股票，← / → 平移1个交易日；拖动下方滑块缩放，悬停查看行情。' : '← / → 平移1个交易日；拖动下方滑块缩放，悬停查看行情。'}</span>
       </div>
@@ -244,11 +267,12 @@ export default function StockChart({
         {!!stock && (
         <ExpandedChart render={(height) => (
           <>
+            {loading && cooldownSeconds > 0 && <Alert type="info" message={`请求较多，${cooldownSeconds} 秒后自动继续加载，可继续切换股票。`} />}
             {loading && <Loading height={height} />}
-            {!loading && error && <Alert type="error" message={error} action={<Button onClick={() => setAttempt((v) => v + 1)}>重试</Button>} />}
+            {!loading && error && <Alert type="error" message={error} action={<Button disabled={cooldownSeconds > 0} onClick={() => setAttempt((v) => v + 1)}>{cooldownSeconds > 0 ? `${cooldownSeconds} 秒后可重试` : '重试'}</Button>} />}
             {!loading && !error && !candles.some((c) => c.value) && <Empty description="暂无可用行情" />}
             {!loading && !error && candles.some((c) => c.value) && (
-            <StockQuotePanel key={`${code}-${date}`} ref={quoteRef} series={data?.series || []} basis={data?.basis || ''}>
+            <StockQuotePanel key={`${code}-${date}`} ref={quoteRef} series={priceView?.series || []} basis={priceView?.basis || ''}>
               <CChart
                 key={`${code}-${date}-${reset}`}
                 height={height}
@@ -277,7 +301,7 @@ export default function StockChart({
                     },
                   ],
                   yAxis: [{
-                    scale: true, boundaryGap: ['12%', '12%'], name: `${data?.basis}（元）`, splitNumber: 5,
+                    scale: true, boundaryGap: ['12%', '12%'], name: `${priceView?.basis}（元）`, splitNumber: 5,
                   }, {
                     scale: true, min: 0, gridIndex: 1, name: '成交量（万手）', nameGap: 16, splitNumber: 1,
                   }, {
@@ -306,7 +330,7 @@ export default function StockChart({
                       type: 'line' as const, name: `MA${n}`, data: ma[i], symbol: 'none', connectNulls: false, lineStyle: { width: 1, color: lineColors[i] }, itemStyle: { color: lineColors[i] },
                     })),
                     {
-                      type: 'bar', name: '成交量', xAxisIndex: 1, yAxisIndex: 1, data: (data?.series || []).map((row) => ({ value: row.vol == null ? null : row.vol / 10000, itemStyle: { color: Number(row.close) >= Number(row.open) ? quoteColors.up : quoteColors.down } })),
+                      type: 'bar', name: '成交量', xAxisIndex: 1, yAxisIndex: 1, data: (priceView?.series || []).map((row) => ({ value: row.vol == null ? null : row.vol / 10000, itemStyle: { color: Number(row.close) >= Number(row.open) ? quoteColors.up : quoteColors.down } })),
                     },
                     ...macdSeries(macd),
                   ],
