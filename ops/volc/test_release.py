@@ -176,6 +176,14 @@ class ReleaseTest(unittest.TestCase):
         self.assertFalse(worker.MAINTENANCE.exists())
         self.assertTrue((self.root / 'releases' / ('cd-' + 'a' * 32) / 'rollback-healthy').exists())
 
+    def test_ops_rollback_failure_keeps_maintenance_even_if_app_recovers(self):
+        self.prepare_worker()
+        worker.ops_release.transaction.return_value.__exit__.side_effect = worker.ops_release.RollbackError('pointer restore failed')
+        with patch.object(worker, 'apply'):
+            with self.assertRaisesRegex(RuntimeError, 'Ops rollback failed'):
+                worker.deploy(request(), '5' * 32)
+        self.assertTrue(worker.MAINTENANCE.exists())
+
     def test_failed_rollback_keeps_maintenance(self):
         self.prepare_worker()
         with patch.object(worker, 'apply', side_effect=RuntimeError('unhealthy')):

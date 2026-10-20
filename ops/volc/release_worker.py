@@ -210,13 +210,16 @@ def deploy(request, identity, rehearsal=False, dry_run=False):
                 (history / 'ops-previous').write_text(str(previous_ops) + '\n')
                 verify_ci(request, rehearsal)
             apply(candidate, production)
-    except BaseException:
+    except BaseException as error:
         try:
             apply(previous, production)
         except BaseException:
             (history / 'rollback-failed').touch()
             # Preserve maintenance if both deployment and rollback fail.
             raise RuntimeError('Deployment and rollback failed; maintenance retained') from None
+        if isinstance(error, ops_release.RollbackError):
+            (history / 'rollback-failed').touch()
+            raise RuntimeError('Ops rollback failed; maintenance retained') from None
         if created_maintenance:
             MAINTENANCE.unlink()
         (history / 'rollback-healthy').touch()

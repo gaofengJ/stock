@@ -28,6 +28,10 @@ LOCKS = (Path('/opt/stock-news/scheduler/state/dispatch.lock'),
 LIMIT = 512 * 1024
 
 
+class RollbackError(RuntimeError):
+    pass
+
+
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
@@ -141,15 +145,17 @@ def transaction(folder, root=ROOT, locks=LOCKS):
                     if time.monotonic() >= deadline:
                         raise TimeoutError('Ops scheduler lock busy')
                     time.sleep(0.2)
-        point(root, folder)
         try:
+            point(root, folder)
             yield str(previous)
-        except BaseException:
-            point(root, previous)
-            raise
-        else:
             # Retain previous immutable files for manual rollback; no automatic deletion.
             temporary = root / '.previous-next'
             temporary.unlink(missing_ok=True)
             temporary.symlink_to(previous)
             temporary.replace(root / 'previous')
+        except BaseException:
+            try:
+                point(root, previous)
+            except BaseException:
+                raise RollbackError('Ops pointer rollback failed; keep maintenance enabled') from None
+            raise

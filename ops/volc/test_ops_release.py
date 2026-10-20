@@ -55,6 +55,18 @@ class OpsReleaseTest(unittest.TestCase):
         with ops.transaction(candidate, self.root, locks=()): pass
         self.assertEqual((self.root / 'previous').resolve(), previous)
 
+    def test_pointer_metadata_failure_restores_current(self):
+        previous = self.prepare()
+        ops.point(self.root, previous)
+        candidate = self.prepare('b' * 40)
+        real_symlink = Path.symlink_to
+        def fail_metadata(path, target, *args, **kwargs):
+            if path.name == '.previous-next': raise OSError('disk error')
+            return real_symlink(path, target, *args, **kwargs)
+        with patch.object(Path, 'symlink_to', fail_metadata), self.assertRaises(OSError):
+            with ops.transaction(candidate, self.root, locks=()): pass
+        self.assertEqual((self.root / 'current').resolve(), previous)
+
     def test_invalid_commit_and_outside_pointer_rejected(self):
         with self.assertRaises(ValueError): self.prepare('../bad')
         with self.assertRaises(ValueError): ops.point(self.root, self.root.parent)
