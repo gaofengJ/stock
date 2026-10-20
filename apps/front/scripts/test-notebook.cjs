@@ -94,6 +94,44 @@ test('transient chart failure retries once; business and auth failures are never
  for(const status of [401,403,409,502]){let count=0;const loader=createChartLoader(async()=>{count++;throw {response:{status}};});const task=loader.acquire({code:'A'});await assert.rejects(task.promise);task.release();assert.equal(count,status===502?2:1);const next=loader.acquire({code:'A'});await assert.rejects(next.promise);next.release();assert.equal(count,status===502?4:2);}
 });
 
+const flushChartTasks = async () => { for(let i=0;i<12;i++) await Promise.resolve(); };
+test('chart 429 honors Retry-After for retries and newly selected stocks',async(t)=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ let time=0;const calls=[];
+ const loader=createChartLoader(async({code})=>{
+  calls.push(code);
+  if(calls.length===1)throw {response:{status:429,headers:{'retry-after':'2'}}};
+  return code;
+ },()=>time);
+ const a=loader.acquire({code:'A'});await flushChartTasks();
+ assert.equal(loader.cooldownSeconds(),2);
+ const b=loader.acquire({code:'B'});
+ time=1999;t.mock.timers.tick(1999);await flushChartTasks();assert.deepEqual(calls,['A']);
+ time=2000;t.mock.timers.tick(1);await flushChartTasks();
+ assert.equal(await a.promise,'A');assert.equal(await b.promise,'B');assert.equal(calls.length,3);
+ a.release();b.release();
+});
+test('rapid stock switching discards obsolete requests before they reach the server',async(t)=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ const calls=[];const loader=createChartLoader(async({code})=>{calls.push(code);return code;});
+ for(let i=0;i<63;i++){const task=loader.acquire({code:String(i)},false,120);task.promise.catch(()=>{});task.release();}
+ await flushChartTasks();
+ const last=loader.acquire({code:'last'},false,120);
+ t.mock.timers.tick(120);await flushChartTasks();
+ assert.equal(await last.promise,'last');assert.deepEqual(calls,['last']);last.release();
+});
+test('closing a throttled chart cancels its delayed retry and repeated 429 is bounded',async(t)=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ let time=0,count=0;
+ const loader=createChartLoader(async()=>{count++;throw {response:{status:429,headers:{'retry-after':'1'}}};},()=>time);
+ const a=loader.acquire({code:'A'});const cancelled=assert.rejects(a.promise,{code:'ERR_CANCELED'});
+ await flushChartTasks();a.release();await cancelled;
+ time=1000;t.mock.timers.tick(1000);await flushChartTasks();assert.equal(count,1);
+ const b=loader.acquire({code:'B'});const failed=assert.rejects(b.promise,e=>e.response.status===429);
+ await flushChartTasks();time=2000;t.mock.timers.tick(1000);await failed;
+ assert.equal(count,3,'only one automatic retry');assert.equal(loader.cooldownSeconds(),1);b.release();
+});
+
 test('v2 result import preserves original notes and images and requires independent analysis',()=>{
  const c=illustrated();c.private.lesson='我的经验，原样保留';
  const p=handoff.reviewPacket('2026-09-30',4,c);
