@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 """Root-owned application-only deployment; no uploaded scripts, DDL, data restore or shell."""
 import argparse
+from contextlib import nullcontext
+import ops_release
 from backup_database import restore_proof_matches
 import datetime as dt
 import fcntl
@@ -180,9 +182,15 @@ def deploy(request, identity, rehearsal=False, dry_run=False):
     candidate = ''.join(key + '=' + value + '\n' for key, value in values.items())
     if dry_run:
         return {'id': identity, 'state': 'preflight-passed', 'commit': request['commit'], 'databaseChanged': False}
+    ops_version = ops_release.prepare(request['commit']) if production else None
     if all(values[key] == previous_values.get(key)
            for key in ('BACK_IMAGE', 'FRONT_IMAGE', 'ARTICLE_IMAGE', 'RELEASE_SHA') if key in values):
-        return {'id': identity, 'state': 'already-current', 'commit': request['commit'], 'databaseChanged': False}
+        if production:
+            verify_ci(request, rehearsal)
+            with ops_release.transaction(ops_version):
+                pass
+        return {'id': identity, 'state': 'already-current', 'commit': request['commit'], 'databaseChanged': False,
+                'opsCommit': request['commit'] if production else None}
     # Pull/schema validation can take minutes; fail before changing services if superseded or disabled.
     if not rehearsal:
         if not all(p.is_file() for p in (PRODUCTION, ENABLED)) or MAINTENANCE.exists():
@@ -197,14 +205,21 @@ def deploy(request, identity, rehearsal=False, dry_run=False):
     if created_maintenance:
         MAINTENANCE.touch(mode=0o644)
     try:
-        apply(candidate, production)
-    except BaseException:
+        with (ops_release.transaction(ops_version) if production else nullcontext()) as previous_ops:
+            if production:
+                (history / 'ops-previous').write_text(str(previous_ops) + '\n')
+                verify_ci(request, rehearsal)
+            apply(candidate, production)
+    except BaseException as error:
         try:
             apply(previous, production)
         except BaseException:
             (history / 'rollback-failed').touch()
             # Preserve maintenance if both deployment and rollback fail.
             raise RuntimeError('Deployment and rollback failed; maintenance retained') from None
+        if isinstance(error, ops_release.RollbackError):
+            (history / 'rollback-failed').touch()
+            raise RuntimeError('Ops rollback failed; maintenance retained') from None
         if created_maintenance:
             MAINTENANCE.unlink()
         (history / 'rollback-healthy').touch()
@@ -213,6 +228,7 @@ def deploy(request, identity, rehearsal=False, dry_run=False):
         MAINTENANCE.unlink()
     report = {'id': identity, 'state': 'deployed', 'commit': request['commit'],
               'databaseChanged': False, 'production': production,
+              'opsCommit': request['commit'] if production else None,
               'completedAt': dt.datetime.now(dt.timezone.utc).isoformat()}
     (history / 'deployment.json').write_text(json.dumps(report, indent=2) + '\n')
     return report

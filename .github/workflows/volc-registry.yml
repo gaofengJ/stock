@@ -15,7 +15,7 @@ on:
         required: true
         type: string
       queue_release:
-        description: Queue application-only deployment after the approved production cutover (master only)
+        description: Queue application and verified operations deployment after the approved production cutover (master only)
         required: false
         type: boolean
         default: false
@@ -118,7 +118,7 @@ jobs:
           path: /tmp/registry-receipt/
           retention-days: 30
           if-no-files-found: error
-      - name: Validate or queue the fixed release through restricted SSH
+      - name: Validate or queue application and operations release through restricted SSH
         env:
           UPLOAD_KEY: ${{ secrets.VOLC_REHEARSAL_UPLOAD_KEY }}
           REGISTRY_USER: ${{ secrets.DOCKER_USERNAME }}
@@ -132,4 +132,5 @@ jobs:
           printf '%s\n' "$UPLOAD_KEY" > "$key"
           python3 ops/volc/upload_release.py --receipt /tmp/registry-receipt --run-id "$VERIFIED_RUN" --key "$key" --known-hosts ops/volc/known_hosts --mode "$RELEASE_MODE"
       # Validation is the default. Queue mode additionally requires master and two server-side flags.
+      # Ops sources are pulled by the root worker from the verified commit, never uploaded via SSH.
       # No latest tag, old-host operation, uploaded shell, DDL, or database restore.

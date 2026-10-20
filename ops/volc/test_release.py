@@ -150,6 +150,8 @@ class ReleaseTest(unittest.TestCase):
                            ('MAINTENANCE', self.root / 'maintenance'), ('PRODUCTION', self.root / 'production'),
                            ('ENABLED', self.root / 'enabled')]:
             patcher = patch.object(worker, key, value); patcher.start(); self.addCleanup(patcher.stop)
+        for name in ('prepare', 'transaction'):
+            patcher = patch.object(worker.ops_release, name); patcher.start(); self.addCleanup(patcher.stop)
         for name in ('verify_ci', 'check_backup', 'pull_and_verify', 'check_schema'):
             patcher = patch.object(worker, name); patcher.start(); self.addCleanup(patcher.stop)
         patcher = patch.object(worker.shutil, 'disk_usage')
@@ -173,6 +175,14 @@ class ReleaseTest(unittest.TestCase):
         self.assertIn('previous-back', apply.call_args_list[1].args[0])
         self.assertFalse(worker.MAINTENANCE.exists())
         self.assertTrue((self.root / 'releases' / ('cd-' + 'a' * 32) / 'rollback-healthy').exists())
+
+    def test_ops_rollback_failure_keeps_maintenance_even_if_app_recovers(self):
+        self.prepare_worker()
+        worker.ops_release.transaction.return_value.__exit__.side_effect = worker.ops_release.RollbackError('pointer restore failed')
+        with patch.object(worker, 'apply'):
+            with self.assertRaisesRegex(RuntimeError, 'Ops rollback failed'):
+                worker.deploy(request(), '5' * 32)
+        self.assertTrue(worker.MAINTENANCE.exists())
 
     def test_failed_rollback_keeps_maintenance(self):
         self.prepare_worker()

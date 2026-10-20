@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import health_dispatch as h
 
@@ -89,6 +90,48 @@ class HealthDispatchTest(unittest.TestCase):
             self.check()
         self.assertNotIn('pendingAt', json.loads(self.path.read_text()))
         self.assertEqual(self.check()['outcome'], 'backoff')
+
+    def test_repeated_post_failure_keeps_exponential_backoff(self):
+        self.error = h.ApiError(403)
+        with self.assertRaises(h.ApiError): self.check()
+        self.now += 301
+        with self.assertRaises(h.ApiError): self.check()
+        state = json.loads(self.path.read_text())
+        self.assertEqual(state['failures'], 2)
+        self.assertEqual(state['retryAfter'], self.now + 600)
+
+    def test_recovery_clears_error_and_inactive_run_but_preserves_pending(self):
+        self.path.write_text(json.dumps({'lastError': 'old', 'activeRunId': 999,
+                                        'failures': 2, 'retryAfter': 0, 'pendingAt': self.now - 30}))
+        self.runs = [self.run_record(age=100)]
+        result = self.check()
+        self.assertEqual(result['outcome'], 'awaiting_dispatch_confirmation')
+        self.assertNotIn('lastError', result)
+        self.assertNotIn('activeRunId', result)
+        self.assertIn('pendingAt', result)
+        self.assertEqual(result['failures'], 0)
+
+    def test_transport_recovery_diagnostics_and_post_uncertainty(self):
+        class Response(io.BytesIO):
+            status = 200
+            headers = {'Content-Length': '2', 'X-GitHub-Request-Id': 'SAFE:123'}
+        for bad in [b'{', b'xx']:
+            opener = type('Opener', (), {})()
+            from unittest.mock import Mock
+            opener.open = Mock(side_effect=[Response(bad), Response(b'{}')])
+            log = io.StringIO()
+            with patch.object(h.urllib.request, 'build_opener', return_value=opener), patch.object(h.time, 'sleep'), contextlib.redirect_stdout(log):
+                self.assertEqual(h.request('/runs', 'SECRET'), {})
+            self.assertEqual(opener.open.call_count, 2)
+            self.assertNotIn('SECRET', log.getvalue())
+            self.assertIn('SAFE:123', log.getvalue())
+        opener.open = Mock(return_value=Response(b'{'))
+        with patch.object(h.urllib.request, 'build_opener', return_value=opener), contextlib.redirect_stdout(io.StringIO()):
+            with self.assertRaises(h.ApiError) as error:
+                h.request('/dispatches', 'SECRET', {'ref': 'master'})
+        self.assertTrue(error.exception.uncertain)
+        self.assertEqual(error.exception.category, 'incomplete_response')
+        self.assertEqual(opener.open.call_count, 1)
 
     def test_corrupt_state_does_not_dispatch(self):
         self.path.write_text('{')
