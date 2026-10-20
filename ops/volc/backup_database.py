@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 """Create and retain checked local MySQL snapshots. Off-host copying is separate."""
+import argparse
 import datetime as dt
 import fcntl
 import gzip
@@ -50,12 +51,27 @@ def query(sql):
     return subprocess.check_output(CLIENT, input=sql.encode()).decode().strip()
 
 
+def wait_for_lock(lock, timeout=600):
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return
+        except BlockingIOError:
+            if time.monotonic() >= deadline:
+                raise TimeoutError('Maintenance lock busy; preserve backups and retry later') from None
+            time.sleep(5)
+
+
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--keep-all', action='store_true', help='Preserve every existing backup during repair')
+    args = parser.parse_args()
     os.umask(0o077)
     ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
     # Every future schema migration and release must share this maintenance lock.
     with open('/run/lock/stock-maintenance.lock', 'a') as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        wait_for_lock(lock)
         version = query('SELECT VERSION();')
         assert version.startswith('8.4.'), 'Unexpected target database engine'
         assert query("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='stock' AND TABLE_TYPE='BASE TABLE' AND ENGINE<>'InnoDB';") == '0', 'Snapshot requires InnoDB tables'
@@ -101,7 +117,7 @@ def main():
         (folder / 'backup.json').write_text(json.dumps(record, indent=2) + '\n')
         # Delete only this tool's fully completed, older snapshots, after a new valid snapshot exists.
         completed = sorted(p.parent for p in ROOT.glob('????????T??????Z/backup.json'))
-        for old in completed[:-2]:
+        for old in ([] if args.keep_all else completed[:-2]):
             if old != folder:
                 preserve_restore_proof(old, ROOT.parent / 'restore-proofs')
                 shutil.rmtree(old)
