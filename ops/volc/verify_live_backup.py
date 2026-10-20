@@ -52,6 +52,23 @@ def backup_info(folder):
     return archive, metadata, tables
 
 
+def check_tables(client, tables, progress):
+    rows, checksums = {}, {}
+    for table in sorted(tables):
+        qualified = '`stock`.`' + table + '`'
+        def query(sql):
+            return run(client, input=sql.encode(), timeout=900)
+        check = query('CHECK TABLE ' + qualified + ';').splitlines()
+        if not check or any(not line.endswith('\tstatus\tOK') for line in check):
+            raise ValueError('Restored table integrity failed: ' + table)
+        rows[table] = int(query('SELECT COUNT(*) FROM ' + qualified + ';'))
+        checksums[table] = query('CHECKSUM TABLE ' + qualified + ' EXTENDED;').split('\t')[-1]
+        if checksums[table] == 'NULL':
+            raise ValueError('Restored table checksum unavailable: ' + table)
+        progress('checking', tables=len(tables), checked=len(rows), currentTable=table)
+    return rows, checksums
+
+
 def verify(folder):
     os.umask(0o077)
     archive, metadata, tables = backup_info(folder)
@@ -123,16 +140,7 @@ def verify(folder):
         if restored != tables:
             raise ValueError('Restored table set differs from dump')
         progress('checking', tables=len(tables))
-        rows, checksums = {}, {}
-        for table in sorted(tables):
-            qualified = '`stock`.`' + table + '`'
-            check = query('CHECK TABLE ' + qualified + ';').splitlines()
-            if not check or any(not line.endswith('\tstatus\tOK') for line in check):
-                raise ValueError('Restored table integrity failed: ' + table)
-            rows[table] = int(query('SELECT COUNT(*) FROM ' + qualified + ';'))
-            checksums[table] = query('CHECKSUM TABLE ' + qualified + ' EXTENDED;').split('\t')[-1]
-            if checksums[table] == 'NULL':
-                raise ValueError('Restored table checksum unavailable: ' + table)
+        rows, checksums = check_tables(client, tables, progress)
         result = {'state': 'backup-restore-verified', 'sha256': metadata['sha256'], 'rows': rows,
                   'checksums': checksums, 'version': metadata['version'], 'isolatedContainer': True,
                   'productionModified': False, 'liveComparison': False, 'tableSetMatchesDump': True,

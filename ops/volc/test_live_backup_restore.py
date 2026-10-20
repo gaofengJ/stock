@@ -9,6 +9,13 @@ import verify_live_backup as verifier
 
 
 class LiveRestoreTests(unittest.TestCase):
+    def test_large_table_checks_have_bounded_longer_timeout_and_progress(self):
+        progress = Mock()
+        with patch.object(verifier, 'run', side_effect=['stock.example\tcheck\tstatus\tOK', '12', 'stock.example\t123']) as run:
+            self.assertEqual(verifier.check_tables(['isolated-client'], {'example'}, progress), ({'example': 12}, {'example': '123'}))
+        self.assertTrue(all(call.kwargs['timeout'] == 900 for call in run.call_args_list))
+        progress.assert_called_once_with('checking', tables=1, checked=1, currentTable='example')
+
     def test_checksum_and_dump_table_set_are_checked_before_restore(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp); folder = root / '20261020T010000Z'; folder.mkdir()
