@@ -82,10 +82,19 @@ def container_images():
 def successful_refs(deploy):
     refs = set()
     for path in (deploy / 'releases').glob('cd-*/deployment.json'):
+        if path.is_symlink() or path.parent.is_symlink():
+            raise ValueError('Symlinked release history')
         value = json.loads(path.read_text())
         if value.get('state') == 'deployed' and value.get('production') is True:
             for name in ('candidate.env', 'previous.env'):
-                values = release_values(path.parent / name)
+                try:
+                    values = release_values(path.parent / name)
+                except ValueError as error:
+                    # Legacy history cannot grant immediate cleanup eligibility.
+                    # Active/rollback manifests remain strictly checked by release_pair.
+                    if str(error) != 'Incomplete immutable release manifest':
+                        raise
+                    continue
                 refs.update(values[k] for k in KEYS)
     return refs
 

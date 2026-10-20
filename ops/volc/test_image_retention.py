@@ -16,6 +16,18 @@ def image(digit, role='back', tags=None):
 
 
 class RetentionTests(unittest.TestCase):
+    def test_incomplete_legacy_history_cannot_grant_cleanup_eligibility(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); folder = root / 'releases/cd-old'; folder.mkdir(parents=True)
+            (folder / 'deployment.json').write_text(json.dumps({'state': 'deployed', 'production': True}))
+            (folder / 'previous.env').write_text('BACK_IMAGE=' + ref('back', '9'))
+            manifest = '\n'.join(k + '=' + ref(role, str(i)) for i, (k, role) in enumerate(zip(retain.KEYS, ('back', 'front', 'blog')), 1)) + '\nRELEASE_SHA=' + 'a' * 40
+            (folder / 'candidate.env').write_text(manifest)
+            eligible = retain.successful_refs(root)
+            self.assertEqual(eligible, {ref('back', '1'), ref('front', '2'), ref('blog', '3')})
+            self.assertNotIn(ref('back', '9'), eligible)
+            with self.assertRaises(ValueError): retain.release_values(folder / 'previous.env')
+
     def test_maintenance_and_pending_release_block_before_any_docker_call(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp); prod = root / 'prod'; maintenance = root / 'maintenance'
