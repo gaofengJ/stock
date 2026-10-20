@@ -25,6 +25,7 @@ STATUS = Path('/srv/stock/deploy-status')
 MAINTENANCE = Path('/srv/stock/state/maintenance')
 PRODUCTION = Path('/etc/stock/production.enabled')
 ENABLED = Path('/srv/stock/state/cd.enabled')
+LOCK = Path('/run/lock/stock-maintenance.lock')
 REGISTRY = 'registry.cn-hangzhou.aliyuncs.com'
 
 
@@ -239,8 +240,12 @@ def main():
         parser.error('--apply requires --rehearsal')
     if not args.rehearsal and not all(p.is_file() for p in (PRODUCTION, ENABLED)):
         print(json.dumps({'state': 'deferred_until_cutover'})); return
-    with open('/run/lock/stock-maintenance.lock', 'a') as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    with LOCK.open('a') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print(json.dumps({'state': 'deferred-maintenance-lock'}))
+            return
         if args.rehearsal:
             identity = uuid.uuid4().hex
             with args.rehearsal.open('rb') as stream:

@@ -1,0 +1,161 @@
+#!/usr/bin/python3
+"""Supplement GitHub cron; never perform a deployment or modify the monitored host."""
+import datetime as dt
+import fcntl
+import json
+import os
+from pathlib import Path
+import tempfile
+import time
+import urllib.error
+import urllib.request
+
+API = 'https://api.github.com/repos/gaofengJ/stock/actions/workflows/volc-health.yml'
+ACTIVE = {'queued', 'in_progress', 'waiting', 'pending', 'requested'}
+STALE = 20 * 60
+STATE = Path('/var/lib/stock-health-dispatch/status.json')
+
+
+class ApiError(Exception):
+    def __init__(self, status=None, uncertain=False):
+        self.uncertain = uncertain
+        super().__init__('GitHub HTTP {}'.format(status) if status else 'GitHub network or response error')
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def request(suffix, token, payload=None):
+    data = json.dumps(payload).encode() if payload is not None else None
+    opener = urllib.request.build_opener(NoRedirect())
+    for attempt in range(3 if data is None else 1):
+        req = urllib.request.Request(API + suffix, data=data, headers={
+            'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json',
+            'Content-Type': 'application/json', 'User-Agent': 'stock-health-dispatch',
+            'X-GitHub-Api-Version': '2022-11-28'})
+        try:
+            with opener.open(req, timeout=15) as response:
+                raw = response.read(2 * 1024 * 1024 + 1)
+                if len(raw) > 2 * 1024 * 1024:
+                    raise ValueError('Oversize response')
+                return json.loads(raw) if raw else {}
+        except urllib.error.HTTPError as error:
+            transient = error.code in (429, 500, 502, 503, 504) or (
+                error.code == 403 and error.headers.get('X-RateLimit-Remaining') == '0')
+            if data is None and transient and attempt < 2:
+                time.sleep(2 ** attempt)
+                continue
+            raise ApiError(error.code, uncertain=data is not None and error.code >= 500) from None
+        except (OSError, ValueError):
+            if data is None and attempt < 2:
+                time.sleep(2 ** attempt)
+                continue
+            raise ApiError(uncertain=data is not None) from None
+
+
+def stamp(value):
+    return dt.datetime.strptime(value, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=dt.timezone.utc).timestamp()
+
+
+def save(path, state):
+    fd, temporary = tempfile.mkstemp(dir=path.parent, prefix='.health-dispatch-')
+    try:
+        with os.fdopen(fd, 'w') as stream:
+            json.dump(state, stream)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def check(token, path=STATE, now=None, api=request):
+    now = time.time() if now is None else now
+    # Corrupt state must fail closed: it may contain an unconfirmed POST intent.
+    state = json.loads(path.read_text()) if path.exists() else {}
+    if not isinstance(state, dict):
+        raise ValueError('Invalid dispatch state')
+    state['checkedAt'] = now
+
+    def finish(outcome, **fields):
+        state.update(outcome=outcome, **fields)
+        save(path, state)
+        print(json.dumps(state))
+        return state
+
+    if now < state.get('retryAfter', 0):
+        return finish('backoff')
+    posting = False
+    try:
+        workflow = api('', token)
+        if workflow.get('state') != 'active':
+            raise ValueError('Health workflow is not active')
+        result = api('/runs?branch=master&per_page=100', token)
+        runs = result['workflow_runs']
+        if not isinstance(runs, list):
+            raise ValueError('Invalid run response')
+        runs = [r for r in runs if r['head_branch'] == 'master']
+        runs.sort(key=lambda r: stamp(r['created_at']), reverse=True)
+        latest = runs[0] if runs else None
+        completed = next((r for r in runs if r['status'] == 'completed'), None)
+        state.update(latestRunId=latest['id'] if latest else None,
+                     latestRunAgeSeconds=max(0, int(now - stamp(latest['created_at']))) if latest else None,
+                     latestCompletedRunId=completed['id'] if completed else None,
+                     latestConclusion=completed.get('conclusion') if completed else None)
+        pending = state.get('pendingAt')
+        if pending is not None:
+            confirmed = next((r for r in runs if r['event'] == 'workflow_dispatch'
+                              and stamp(r['created_at']) >= pending - 5), None)
+            if confirmed:
+                state.pop('pendingAt')
+                state['confirmedRunId'] = confirmed['id']
+            elif now - pending < STALE:
+                return finish('awaiting_dispatch_confirmation')
+            else:
+                state.pop('pendingAt')
+        active = next((r for r in runs if r['status'] in ACTIVE), None)
+        if active:
+            return finish('blocked_stale_active' if now - stamp(active['created_at']) > STALE
+                          else 'skipped_active_run', activeRunId=active['id'])
+        if latest and now - stamp(latest['created_at']) <= STALE:
+            return finish('skipped_recent_run', failures=0, retryAfter=0)
+        if now - state.get('lastDispatchAt', 0) < STALE:
+            return finish('skipped_recent_dispatch')
+        state['pendingAt'] = now
+        save(path, state)  # Durable intent before a potentially ambiguous POST.
+        posting = True
+        api('/dispatches', token, {'ref': 'master'})
+        return finish('dispatched', lastDispatchAt=now, failures=0, retryAfter=0)
+    except ApiError as error:
+        if posting and not error.uncertain:
+            state.pop('pendingAt', None)
+        failures = min(state.get('failures', 0) + 1, 4)
+        finish('dispatch_uncertain' if error.uncertain else 'api_failed',
+               failures=failures, retryAfter=now + min(300 * 2 ** (failures - 1), 1800),
+               lastError=str(error))
+        raise
+
+
+def main():
+    os.umask(0o077)
+    token = os.environ.get('NEWS_DISPATCH_TOKEN', '')
+    if not token:
+        raise ValueError('Missing dispatch credential')
+    with (STATE.parent / 'dispatch.lock').open('a') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print('health-dispatch skipped-local-lock')
+            return
+        check(token)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (ApiError, ValueError, KeyError, TypeError, OSError) as error:
+        print('HEALTH_DISPATCH_ERROR ' + (str(error) if isinstance(error, ApiError) else type(error).__name__))
+        raise SystemExit(1)
