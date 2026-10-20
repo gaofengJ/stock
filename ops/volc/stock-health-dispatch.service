@@ -1,0 +1,20 @@
+[Unit]
+Description=Supplement delayed GitHub health check schedules
+Wants=network-online.target
+After=network-online.target
+ConditionPathExists=/etc/stock/production.enabled
+
+[Service]
+Type=oneshot
+User=stock-news-dispatch
+Group=stock-news-dispatch
+EnvironmentFile=/etc/stock-news-dispatch.env
+StateDirectory=stock-health-dispatch
+StateDirectoryMode=0700
+ExecStart=/usr/bin/python3 -B /opt/stock/deploy/health_dispatch.py
+UMask=0077
+TimeoutStartSec=3min
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict

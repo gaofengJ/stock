@@ -1,0 +1,11 @@
+[Unit]
+Description=Check GitHub health run freshness every five minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=5min
+AccuracySec=10s
+Unit=stock-health-dispatch.service
+
+[Install]
+WantedBy=timers.target
