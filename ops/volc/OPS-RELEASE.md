@@ -3,7 +3,7 @@
 The existing root release worker now deploys a fixed operations bundle with the
 application release. It first verifies that the exact commit passed the master
 CI and is still master. It downloads only the source paths compiled into
-`ops_release.FILES` from GitHub at that immutable SHA, checks complete bounded
+`ops_release.FILES` through the GitHub Contents API at that immutable SHA (avoiding the unreliable raw-content route), verifies each Git blob hash and complete bounded
 responses, compiles the files, runs health/news unit tests and imports the worker
 as the unprivileged scheduler account without production credentials. SHA-256
 checksums are retained in the version's manifest. The CI release receipt is

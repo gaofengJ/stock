@@ -1,4 +1,7 @@
 import json
+import base64
+import hashlib
+import io
 from pathlib import Path
 import tempfile
 import unittest
@@ -23,6 +26,29 @@ class OpsReleaseTest(unittest.TestCase):
             return b'# trusted fixture\n'
         return ops.prepare(sha, self.root, download,
                            validate or (lambda folder, args: self.validations.append(args)))
+
+    def test_api_fetch_validates_fixed_path_size_and_git_blob_hash(self):
+        data = b'pass\n'
+        source = ops.FILES['health_dispatch.py']
+        record = {'type': 'file', 'path': source, 'encoding': 'base64',
+                  'content': base64.b64encode(data).decode(), 'size': len(data),
+                  'sha': hashlib.sha1(b'blob 5\0' + data).hexdigest()}
+        class Response(io.BytesIO):
+            def __init__(self, value):
+                raw = json.dumps(value).encode()
+                super().__init__(raw)
+                self.headers = {'Content-Length': str(len(raw))}
+        from unittest.mock import Mock
+        opener = Mock()
+        opener.open.side_effect = lambda *a, **k: Response(record)
+        with patch.object(ops.urllib.request, 'build_opener', return_value=opener), patch.object(ops.time, 'sleep'):
+            self.assertEqual(ops.fetch('a' * 40, source), data)
+            self.assertIn('api.github.com/repos/gaofengJ/stock/contents/', opener.open.call_args.args[0].full_url)
+            for field, bad in [('sha', '0' * 40), ('size', 999), ('path', 'other.py')]:
+                before = record[field]; record[field] = bad
+                with self.assertRaises(RuntimeError): ops.fetch('a' * 40, source)
+                record[field] = before
+            with self.assertRaises(ValueError): ops.fetch('a' * 40, '../other.py')
 
     def test_fixed_sources_validated_once_and_cached_by_checksum(self):
         folder = self.prepare()
