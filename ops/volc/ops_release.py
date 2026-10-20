@@ -5,6 +5,7 @@ No code, paths, commands or URLs are accepted from the SSH release request.
 """
 from contextlib import contextmanager, ExitStack
 import concurrent.futures
+import base64
 import fcntl
 import hashlib
 import json
@@ -38,17 +39,30 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def fetch(commit, source):
-    url = 'https://raw.githubusercontent.com/gaofengJ/stock/' + commit + '/' + source
+    if not re.fullmatch('[a-f0-9]{40}', commit) or source not in FILES.values():
+        raise ValueError('Invalid fixed ops source')
+    # Use the API route already used by the release gate; raw.githubusercontent.com
+    # can be unreachable from this host. Contents metadata also supplies a Git blob hash.
+    url = 'https://api.github.com/repos/gaofengJ/stock/contents/' + source + '?ref=' + commit
     for attempt in range(3):
         try:
-            with urllib.request.build_opener(NoRedirect()).open(url, timeout=20) as response:
-                data = response.read(LIMIT + 1)
+            req = urllib.request.Request(url, headers={'Accept': 'application/vnd.github+json',
+                'User-Agent': 'stock-ops-release', 'X-GitHub-Api-Version': '2022-11-28'})
+            with urllib.request.build_opener(NoRedirect()).open(req, timeout=20) as response:
+                raw = response.read(2 * LIMIT + 1)
                 length = response.headers.get('Content-Length')
-                if not data or len(data) > LIMIT or (length and int(length) != len(data)):
-                    raise ValueError('Invalid source size')
+                if not raw or len(raw) > 2 * LIMIT or (length and int(length) != len(raw)):
+                    raise ValueError('Invalid source response size')
+                record = json.loads(raw)
+                if record.get('type') != 'file' or record.get('path') != source or record.get('encoding') != 'base64':
+                    raise ValueError('Unexpected source metadata')
+                data = base64.b64decode(''.join(record['content'].split()), validate=True)
+                digest = hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
+                if not data or len(data) > LIMIT or record.get('size') != len(data) or record.get('sha') != digest:
+                    raise ValueError('Source Git blob mismatch')
                 compile(data, source, 'exec')
                 return data
-        except (OSError, ValueError, SyntaxError):
+        except (OSError, ValueError, SyntaxError, KeyError, TypeError):
             if attempt == 2:
                 raise RuntimeError('Cannot verify fixed ops source: ' + source) from None
             time.sleep(2 ** attempt)
