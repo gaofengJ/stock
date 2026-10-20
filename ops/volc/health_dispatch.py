@@ -3,6 +3,8 @@
 import datetime as dt
 import fcntl
 import json
+import http.client
+import re
 import os
 from pathlib import Path
 import tempfile
@@ -17,9 +19,10 @@ STATE = Path('/var/lib/stock-health-dispatch/status.json')
 
 
 class ApiError(Exception):
-    def __init__(self, status=None, uncertain=False):
+    def __init__(self, status=None, uncertain=False, category=None):
         self.uncertain = uncertain
-        super().__init__('GitHub HTTP {}'.format(status) if status else 'GitHub network or response error')
+        self.category = category or ('http' if status else 'network')
+        super().__init__('GitHub HTTP {}'.format(status) if status else 'GitHub ' + self.category + ' failure')
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -30,30 +33,52 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 def request(suffix, token, payload=None):
     data = json.dumps(payload).encode() if payload is not None else None
     opener = urllib.request.build_opener(NoRedirect())
-    for attempt in range(3 if data is None else 1):
-        req = urllib.request.Request(API + suffix, data=data, headers={
-            'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json',
-            'Content-Type': 'application/json', 'User-Agent': 'stock-health-dispatch',
-            'X-GitHub-Api-Version': '2022-11-28'})
+    req = urllib.request.Request(API + suffix, data=data, headers={
+        'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json', 'User-Agent': 'stock-health-dispatch',
+        'X-GitHub-Api-Version': '2022-11-28'})
+    attempts = 3 if data is None else 1
+    for attempt in range(attempts):
+        started = time.monotonic()
+        details = {'method': 'POST' if data is not None else 'GET',
+                   'stage': 'dispatch' if data is not None else ('runs' if suffix else 'workflow'),
+                   'attempt': attempt + 1}
+        category, status, retry = 'network', None, True
         try:
             with opener.open(req, timeout=15) as response:
-                raw = response.read(2 * 1024 * 1024 + 1)
-                if len(raw) > 2 * 1024 * 1024:
-                    raise ValueError('Oversize response')
-                return json.loads(raw) if raw else {}
+                headers = getattr(response, 'headers', {})
+                length = headers.get('Content-Length')
+                expected = int(length) if length and length.isdigit() else None
+                request_id = headers.get('X-GitHub-Request-Id', '')
+                details.update(status=getattr(response, 'status', None), expectedBytes=expected,
+                               requestId=request_id if re.match(r'^[A-Za-z0-9:-]{1,128}$', request_id) else None)
+                raw = response.read((2 * 1024 * 1024) + 1)
+                details['receivedBytes'] = len(raw)
+                if len(raw) > (2 * 1024 * 1024) or (expected is not None and expected > (2 * 1024 * 1024)):
+                    raise ApiError(uncertain=data is not None, category='response_too_large')
+                if expected is not None and len(raw) != expected:
+                    raise http.client.IncompleteRead(raw)
+                return json.loads(raw.decode('utf-8')) if raw else {}
         except urllib.error.HTTPError as error:
-            transient = error.code in (429, 500, 502, 503, 504) or (
-                error.code == 403 and error.headers.get('X-RateLimit-Remaining') == '0')
-            if data is None and transient and attempt < 2:
-                time.sleep(2 ** attempt)
-                continue
-            raise ApiError(error.code, uncertain=data is not None and error.code >= 500) from None
-        except (OSError, ValueError):
-            if data is None and attempt < 2:
-                time.sleep(2 ** attempt)
-                continue
-            raise ApiError(uncertain=data is not None) from None
-
+            status, category = error.code, 'http'
+            retry = status in (429, 500, 502, 503, 504) or (status == 403 and error.headers.get('X-RateLimit-Remaining') == '0')
+        except http.client.IncompleteRead:
+            category = 'incomplete_response'
+        except (urllib.error.URLError, OSError, http.client.HTTPException) as error:
+            details['exceptionType'] = type(error).__name__
+        except (ValueError, UnicodeError):
+            category = 'invalid_json'
+        except ApiError as error:
+            category, retry = error.category, False
+        details.update(category=category, status=status or details.get('status'),
+                       elapsedMs=int((time.monotonic() - started) * 1000))
+        # Never log request headers, bodies or arbitrary exception messages.
+        print('HEALTH_API_ERROR ' + json.dumps(details), flush=True)
+        if retry and attempt + 1 < attempts:
+            time.sleep(2 ** (attempt + 1))
+            continue
+        uncertain = data is not None and (status is None or status >= 500)
+        raise ApiError(status, uncertain=uncertain, category=category)
 
 def stamp(value):
     return dt.datetime.strptime(value, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=dt.timezone.utc).timestamp()
@@ -105,6 +130,9 @@ def check(token, path=STATE, now=None, api=request):
                      latestRunAgeSeconds=max(0, int(now - stamp(latest['created_at']))) if latest else None,
                      latestCompletedRunId=completed['id'] if completed else None,
                      latestConclusion=completed.get('conclusion') if completed else None)
+        state.pop('lastError', None)
+        state.pop('activeRunId', None)
+        state.update(failures=0, retryAfter=0)
         pending = state.get('pendingAt')
         if pending is not None:
             confirmed = next((r for r in runs if r['event'] == 'workflow_dispatch'

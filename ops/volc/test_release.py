@@ -150,6 +150,8 @@ class ReleaseTest(unittest.TestCase):
                            ('MAINTENANCE', self.root / 'maintenance'), ('PRODUCTION', self.root / 'production'),
                            ('ENABLED', self.root / 'enabled')]:
             patcher = patch.object(worker, key, value); patcher.start(); self.addCleanup(patcher.stop)
+        for name in ('prepare', 'transaction'):
+            patcher = patch.object(worker.ops_release, name); patcher.start(); self.addCleanup(patcher.stop)
         for name in ('verify_ci', 'check_backup', 'pull_and_verify', 'check_schema'):
             patcher = patch.object(worker, name); patcher.start(); self.addCleanup(patcher.stop)
         patcher = patch.object(worker.shutil, 'disk_usage')

@@ -45,7 +45,7 @@ def main():
         result = json.loads(subprocess.check_output(base + ['release status ' + identity], timeout=45))
         if result['state'] != 'pending':
             print(json.dumps(result), flush=True)
-            if result['state'] not in ('deployed', 'already-current'):
+            if result['state'] not in ('deployed', 'already-current') or result.get('opsCommit') != request['commit']:
                 raise SystemExit(1)
             return
     raise TimeoutError('Release status deadline exceeded; inspect this ID without resubmitting')
