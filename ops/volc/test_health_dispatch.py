@@ -91,6 +91,15 @@ class HealthDispatchTest(unittest.TestCase):
         self.assertNotIn('pendingAt', json.loads(self.path.read_text()))
         self.assertEqual(self.check()['outcome'], 'backoff')
 
+    def test_repeated_post_failure_keeps_exponential_backoff(self):
+        self.error = h.ApiError(403)
+        with self.assertRaises(h.ApiError): self.check()
+        self.now += 301
+        with self.assertRaises(h.ApiError): self.check()
+        state = json.loads(self.path.read_text())
+        self.assertEqual(state['failures'], 2)
+        self.assertEqual(state['retryAfter'], self.now + 600)
+
     def test_recovery_clears_error_and_inactive_run_but_preserves_pending(self):
         self.path.write_text(json.dumps({'lastError': 'old', 'activeRunId': 999,
                                         'failures': 2, 'retryAfter': 0, 'pendingAt': self.now - 30}))

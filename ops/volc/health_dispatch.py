@@ -114,6 +114,7 @@ def check(token, path=STATE, now=None, api=request):
     if now < state.get('retryAfter', 0):
         return finish('backoff')
     posting = False
+    prior_failures = state.get('failures', 0)
     try:
         workflow = api('', token)
         if workflow.get('state') != 'active':
@@ -160,7 +161,7 @@ def check(token, path=STATE, now=None, api=request):
     except ApiError as error:
         if posting and not error.uncertain:
             state.pop('pendingAt', None)
-        failures = min(state.get('failures', 0) + 1, 4)
+        failures = min(prior_failures + 1, 4)
         finish('dispatch_uncertain' if error.uncertain else 'api_failed',
                failures=failures, retryAfter=now + min(300 * 2 ** (failures - 1), 1800),
                lastError=str(error))
