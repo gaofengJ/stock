@@ -3,6 +3,7 @@
 import argparse
 import datetime as dt
 import json
+import http.client
 import os
 from pathlib import Path
 import re
@@ -20,10 +21,11 @@ MAX_BYTES = 2 * 1024 * 1024
 
 
 class ApiError(Exception):
-    def __init__(self, status=None, uncertain=False):
+    def __init__(self, status=None, uncertain=False, category=None):
         self.status = status
         self.uncertain = uncertain
-        super().__init__('GitHub API returned HTTP {}'.format(status) if status else 'GitHub API network request failed')
+        self.category = category or ('http' if status else 'network')
+        super().__init__('GitHub API returned HTTP {}'.format(status) if status else 'GitHub API ' + self.category + ' failure')
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -54,25 +56,46 @@ class GitHub:
         # GET is safe to retry. A failed POST may already have started a run.
         attempts = 3 if data is None else 1
         for attempt in range(attempts):
+            started = time.monotonic()
+            details = {'method': 'POST' if data is not None else 'GET',
+                       'stage': 'dispatch' if data is not None else ('runs' if suffix else 'workflow'),
+                       'attempt': attempt + 1}
+            category, status, retry = 'network', None, True
             try:
                 with self.opener.open(request, timeout=15) as response:
+                    headers = getattr(response, 'headers', {})
+                    length = headers.get('Content-Length')
+                    expected = int(length) if length and length.isdigit() else None
+                    request_id = headers.get('X-GitHub-Request-Id', '')
+                    details.update(status=getattr(response, 'status', None), expectedBytes=expected,
+                                   requestId=request_id if re.match(r'^[A-Za-z0-9:-]{1,128}$', request_id) else None)
                     raw = response.read(MAX_BYTES + 1)
-                    if len(raw) > MAX_BYTES:
-                        raise ValueError('GitHub API response exceeds size limit')
+                    details['receivedBytes'] = len(raw)
+                    if len(raw) > MAX_BYTES or (expected is not None and expected > MAX_BYTES):
+                        raise ApiError(uncertain=data is not None, category='response_too_large')
+                    if expected is not None and len(raw) != expected:
+                        raise http.client.IncompleteRead(raw)
                     return json.loads(raw.decode('utf-8')) if raw else {}
             except urllib.error.HTTPError as error:
-                retry = error.code in (429, 500, 502, 503, 504) or (error.code == 403 and error.headers.get('X-RateLimit-Remaining') == '0')
-                if retry and attempt + 1 < attempts:
-                    self.sleep(2 ** (attempt + 1))
-                    continue
-                raise ApiError(error.code, uncertain=data is not None and error.code >= 500)
-            except (urllib.error.URLError, OSError):
-                if attempt + 1 < attempts:
-                    self.sleep(2 ** (attempt + 1))
-                    continue
-                raise ApiError(uncertain=data is not None)
+                status, category = error.code, 'http'
+                retry = status in (429, 500, 502, 503, 504) or (status == 403 and error.headers.get('X-RateLimit-Remaining') == '0')
+            except http.client.IncompleteRead:
+                category = 'incomplete_response'
+            except (urllib.error.URLError, OSError, http.client.HTTPException) as error:
+                details['exceptionType'] = type(error).__name__
             except (ValueError, UnicodeError):
-                raise ApiError(uncertain=data is not None)
+                category = 'invalid_json'
+            except ApiError as error:
+                category, retry = error.category, False
+            details.update(category=category, status=status or details.get('status'),
+                           elapsedMs=int((time.monotonic() - started) * 1000))
+            # Never log request headers, bodies or arbitrary exception messages.
+            print('NEWS_API_ERROR ' + json.dumps(details), flush=True)
+            if retry and attempt + 1 < attempts:
+                self.sleep(2 ** (attempt + 1))
+                continue
+            uncertain = data is not None and (status is None or status >= 500)
+            raise ApiError(status, uncertain=uncertain, category=category)
 
     def runs(self):
         result = self.request('/runs?branch=master&per_page=30')
@@ -153,6 +176,7 @@ class Dispatcher:
             print('NEWS_DISPATCH ' + json.dumps({'outcome': outcome, 'runId': state.get('runId')}))
             return state
 
+        posting = False
         try:
             runs = self.api.runs()
             pending = state.get('pending')
@@ -173,11 +197,12 @@ class Dispatcher:
             state['pending'] = {'id': dispatch_id, 'sentAt': now}
             # Save the intent before POST, so a timeout/restart cannot blindly duplicate it.
             atomic_json(self.state_file, state)
+            posting = True
             result = self.api.dispatch(dispatch_id)
             state.pop('pending', None)
             return save('dispatched', lastDispatchAt=now, runId=result.get('workflow_run_id'))
         except ApiError as error:
-            if not error.uncertain:
+            if posting and not error.uncertain:
                 state.pop('pending', None)
             save('dispatch_uncertain' if error.uncertain else 'failed', lastError=str(error))
             raise

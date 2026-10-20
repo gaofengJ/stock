@@ -171,7 +171,47 @@ class DispatchTests(unittest.TestCase):
     def test_invalid_or_redirected_api_response_fails_closed(self):
         for response in [b'{}', b'{invalid', b'x' * (2 * 1024 * 1024 + 1), urllib.error.HTTPError('https://api.github.com', 302, '', {}, None)]:
             with self.assertRaises(ApiError):
-                GitHub(TOKEN, Opener([response])).runs()
+                GitHub(TOKEN, Opener([response] * 3), sleep=lambda _: None).runs()
+
+    def test_invalid_json_get_retries_but_post_stays_uncertain(self):
+        opener = Opener([b'{bad', b'{"workflow_runs": []}'])
+        self.assertEqual(GitHub(TOKEN, opener, sleep=lambda _: None).runs(), [])
+        self.assertEqual(len(opener.requests), 2)
+        opener = Opener([b'{bad'])
+        with self.assertRaises(ApiError) as raised:
+            GitHub(TOKEN, opener).dispatch('server-test')
+        self.assertTrue(raised.exception.uncertain)
+        self.assertEqual(raised.exception.category, 'invalid_json')
+        self.assertEqual(len(opener.requests), 1)
+
+    def test_pending_survives_failed_get_then_reconciles(self):
+        api = FakeApi(error=ApiError(uncertain=True))
+        with self.assertRaises(ApiError):
+            self.run_dispatch(api)
+        pending = read_json(self.state)['pending']
+        with patch.object(api, 'runs', side_effect=ApiError()):
+            with self.assertRaises(ApiError):
+                self.run_dispatch(api, NOW + 300)
+        self.assertEqual(read_json(self.state)['pending'], pending)
+        api.error = None
+        api.items = [{'id': 99, 'display_title': pending['id'], 'status': 'completed'}]
+        self.assertEqual(self.run_dispatch(api, NOW + 310)['outcome'], 'confirmed_dispatch')
+        self.assertEqual(len(api.calls), 1)
+
+    def test_incomplete_body_retried_and_oversize_not_retried(self):
+        class HeaderOpener(Opener):
+            def open(self, request, timeout):
+                result = super().open(request, timeout)
+                result.headers = {'Content-Length': '22'}
+                return result
+        opener = HeaderOpener([b'{', b'{"workflow_runs": []} '])
+        self.assertEqual(GitHub(TOKEN, opener, sleep=lambda _: None).runs(), [])
+        self.assertEqual(len(opener.requests), 2)
+        opener = Opener([b'x' * (2 * 1024 * 1024 + 1)])
+        with self.assertRaises(ApiError) as raised:
+            GitHub(TOKEN, opener).runs()
+        self.assertEqual(raised.exception.category, 'response_too_large')
+        self.assertEqual(len(opener.requests), 1)
 
     def test_invalid_credentials_fail_without_echoing_them(self):
         for token in ['', TOKEN + '\nsecret', TOKEN + '\n', TOKEN + '"']:

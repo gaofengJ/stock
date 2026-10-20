@@ -201,6 +201,8 @@ jobs:
         env:
           PYTHONPATH: .github/scripts
         run: python3 -B -m unittest discover -s ops/volc -p 'test_*.py'
+      - name: News scheduler recovery and installation
+        run: python3 -B -m unittest discover -s ops/news-dispatch -p 'test_*.py'
       - name: Feed and translation boundaries
         run: python3 -B -m unittest discover -s .github/scripts -p 'test_*.py'
       - name: Check isolated service topology
