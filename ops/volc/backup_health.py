@@ -12,7 +12,7 @@ import tempfile
 
 ROOT = Path('/srv/stock/backups/daily')
 STATE = Path('/srv/stock/state/backup-health.json')
-RESERVE = 8 * 1024**3
+RESERVE = 6 * 1024**3
 MAX_AGE = 36 * 3600
 
 
@@ -48,7 +48,7 @@ def assess(root, now, free_bytes, service_result, timer_enabled):
     elif (now - latest[0]).total_seconds() > MAX_AGE:
         issues.append('backup_older_than_36h')
     if free_bytes < RESERVE:
-        issues.append('less_than_8GiB_free')
+        issues.append('less_than_6GiB_free')
     if service_result != 'success':
         issues.append('backup_service_failed_or_unknown')
     if not timer_enabled:

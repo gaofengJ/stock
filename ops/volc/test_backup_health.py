@@ -57,7 +57,7 @@ class BackupHealthTest(unittest.TestCase):
         (folder / 'backup.json').unlink()
         issues = self.check(free_bytes=RESERVE - 1)['issues']
         self.assertIn('no_complete_backup', issues)
-        self.assertIn('less_than_8GiB_free', issues)
+        self.assertIn('less_than_6GiB_free', issues)
         self.assertIn('incomplete_backup:' + folder.name, issues)
 
     def test_active_incomplete_dump_is_not_prematurely_failed(self):
