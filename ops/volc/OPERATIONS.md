@@ -78,7 +78,7 @@ MySQL引擎升级和数据库DDL不属于普通应用发版。备份及后续发
 `stock-backup-health.timer` checks every 15 minutes after cutover; keep it disabled
 while `/etc/stock/production.enabled` is absent. It checks the latest completed
 archive's metadata and size, a 36-hour freshness limit, abandoned partial dumps,
-the backup service result, the enabled backup timer, and an 8 GiB free-space reserve.
+the backup service result, the enabled backup timer, and a 6 GiB backup-start free-space reserve.
 The check does not rehash 1+ GiB every 15 minutes; backup creation/restore validation
 provides that proof. A failure returns nonzero, appears in the systemd journal, and
 writes a private `/srv/stock/state/backup-health.json` for the migration monitor.
@@ -221,3 +221,22 @@ Fail2Ban只累计ssh日志的实际Failed password，10分钟8次失败封该来
 
 服务回滚使用该次部署目录的rollback.sh；该脚本需保留原文件存在性，
 仅恢复本次新增的SSH和Fail2Ban设置。工作流可回退对应代码提交；不回退资讯数据。
+
+### Deployment and daily-backup disk policy (2026-10-20)
+
+Application releases (with or without the article image) and daily backups require
+6 GiB available before starting. Both reserve 4 GiB while writing. Each Docker
+pull samples available space once per second and checks it again on completion;
+on low space it terminates the pull client, escalating to kill after 10 seconds,
+and refuses the release before any application switch. This is a sampled guard,
+not a filesystem quota: writes between samples and daemon cancellation can lag.
+`RELEASE_DISK` journal records include initial, minimum observed and final free
+bytes, duration and outcome. Existing images/containers are never pruned by the
+guard. Docker may retain incomplete cached layers; inspect them separately.
+
+Daily backup streams directly into gzip; on low space the partial archive remains
+for inspection, no completion metadata is written and existing backups are kept.
+Only a newly validated backup permits normal retention rotation. Backup health
+uses the same 6 GiB start threshold; restore/rehearsal and archive-upload limits
+are separate and unchanged. The installed backup scripts are separate from the
+versioned worker entry point and must be deployed together with this policy change.

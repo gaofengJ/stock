@@ -19,7 +19,8 @@ COMPOSE = ['docker', 'compose', '--env-file', '/opt/stock/deploy/release.env',
 CLIENT = COMPOSE + ['exec', '-T', 'mysql', 'mysql',
                     '--defaults-extra-file=/run/secrets/mysql-root-client',
                     '--batch', '--skip-column-names']
-RESERVE = 8 * 1024**3
+RESERVE = 6 * 1024**3
+RUN_RESERVE = 4 * 1024**3
 
 
 def restore_proof_matches(metadata, proof):
@@ -77,7 +78,7 @@ def main():
         assert query("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='stock' AND TABLE_TYPE='BASE TABLE' AND ENGINE<>'InnoDB';") == '0', 'Snapshot requires InnoDB tables'
         assert int(query("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='stock';")) > 0
         if shutil.disk_usage(ROOT).free < RESERVE:
-            raise RuntimeError('Less than 8 GiB free; preserve existing backups and alert')
+            raise RuntimeError('Less than 6 GiB free; preserve existing backups and alert')
         stamp = dt.datetime.now(dt.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
         folder = ROOT / stamp
         folder.mkdir(mode=0o700)
@@ -94,7 +95,7 @@ def main():
             try:
                 with gzip.open(archive, 'wb', compresslevel=1) as output:
                     for block in iter(lambda: process.stdout.read(1024 * 1024), b''):
-                        if shutil.disk_usage(ROOT).free < 2 * 1024**3:
+                        if shutil.disk_usage(ROOT).free < RUN_RESERVE:
                             raise RuntimeError('Disk reserve reached; incomplete backup retained for inspection')
                         output.write(block)
                 assert process.wait() == 0, 'mysqldump failed; existing backups retained'

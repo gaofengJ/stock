@@ -29,10 +29,63 @@ PRODUCTION = Path('/etc/stock/production.enabled')
 ENABLED = Path('/srv/stock/state/cd.enabled')
 LOCK = Path('/run/lock/stock-maintenance.lock')
 REGISTRY = 'registry.cn-hangzhou.aliyuncs.com'
+START_RESERVE = 6 * 1024**3
+RUN_RESERVE = 4 * 1024**3
 
 
 def run(command, **kwargs):
     return subprocess.check_output(command, stderr=subprocess.PIPE, timeout=kwargs.pop('timeout', 180), **kwargs)
+
+
+def monitored_pull(digest, environment, timeout):
+    """Cancel this pull on low disk; never prune images or stop running services."""
+    started = time.monotonic()
+    initial = shutil.disk_usage(DEPLOY).free
+    minimum = initial
+    process = None
+    outcome = 'failed'
+    try:
+        if initial < RUN_RESERVE:
+            raise ValueError('Less than 4 GiB free before image pull')
+        # Avoid pipe backpressure and unbounded in-memory Docker progress output.
+        with tempfile.TemporaryFile() as output:
+            process = subprocess.Popen(['docker', 'pull', digest], env=environment,
+                                       stdout=output, stderr=subprocess.STDOUT)
+            while True:
+                free = shutil.disk_usage(DEPLOY).free
+                minimum = min(minimum, free)
+                if free < RUN_RESERVE:
+                    outcome = 'low-disk'
+                    raise ValueError('Image pull reached 4 GiB reserve; services remain unchanged')
+                remaining = timeout - (time.monotonic() - started)
+                if remaining <= 0:
+                    outcome = 'timeout'
+                    raise TimeoutError('Image pull timed out')
+                try:
+                    code = process.wait(timeout=min(1, remaining))
+                except subprocess.TimeoutExpired:
+                    continue
+                free = shutil.disk_usage(DEPLOY).free
+                minimum = min(minimum, free)
+                if free < RUN_RESERVE:
+                    outcome = 'low-disk'
+                    raise ValueError('Image pull reached 4 GiB reserve; services remain unchanged')
+                if code:
+                    raise RuntimeError('Image pull failed; exit=' + str(code))
+                outcome = 'success'
+                return
+    finally:
+        if process is not None and process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=10)
+        print('RELEASE_DISK ' + json.dumps({'image': digest, 'outcome': outcome,
+              'freeBefore': initial, 'minFreeBytes': minimum,
+              'freeAfter': shutil.disk_usage(DEPLOY).free,
+              'sampleIntervalSeconds': 1, 'seconds': round(time.monotonic() - started, 2)}), flush=True)
 
 
 def compose(production, env=ENV):
@@ -62,7 +115,7 @@ def pull_and_verify(request, pull):
             run(['docker', 'login', REGISTRY, '-u', request['registryUsername'], '--password-stdin'],
                 input=request['registryPassword'].encode(), env=environment, timeout=60)
             for role in roles:
-                run(['docker', 'pull', request[role + 'Digest']], env=environment, timeout=1800 if role == 'article' else 600)
+                monitored_pull(request[role + 'Digest'], environment, timeout=1800 if role == 'article' else 600)
     for role in roles:
         digest = request[role + 'Digest']
         image = json.loads(run(['docker', 'image', 'inspect', digest]))[0]
@@ -164,11 +217,10 @@ def deploy(request, identity, rehearsal=False, dry_run=False):
         raise ValueError('Another maintenance operation is active')
     verify_ci(request, rehearsal)
     check_backup()
-    reserve = (8 if 'articleDigest' in request else 4) * 1024**3
-    if shutil.disk_usage(DEPLOY).free < reserve:
+    if shutil.disk_usage(DEPLOY).free < START_RESERVE:
         raise ValueError('Insufficient free space to stage the verified release')
     pull_and_verify(request, pull=not dry_run)
-    if shutil.disk_usage(DEPLOY).free < 4 * 1024**3:
+    if shutil.disk_usage(DEPLOY).free < RUN_RESERVE:
         raise ValueError('Image staging consumed the disk reserve; services remain unchanged')
     # Discard authentication before parsing images or writing durable deployment history.
     request['registryPassword'] = request['registryUsername'] = ''
