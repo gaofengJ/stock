@@ -34,3 +34,9 @@ bash -n ops/news-dispatch/install.sh
 ```
 
 程序兼容生产服务器 Python 3.5，仅使用标准库，不新增数据库、常驻容器或公网接口。
+
+### API 失败恢复
+
+GET 的网络、响应不完整和 JSON 解析失败最多尝试三次，间隔 2、4 秒；权限错误和超大响应不重试。POST 仍只发送一次，不确定结果通过原有 dispatch ID 核对。GET 失败不会清除之前的待确认记录。
+
+`NEWS_API_ERROR` 只记录请求方法、阶段、尝试次数、错误分类、耗时、响应长度和经过格式校验的 GitHub Request ID，不记录凭据、响应正文或原始异常消息。部署验收应观察至少三个自然定时周期，检查每个 dispatch ID 对应的 GitHub run、采集结果和两路资讯的 `generated_at`，并确认重复执行时跳过活动任务或近期触发。
