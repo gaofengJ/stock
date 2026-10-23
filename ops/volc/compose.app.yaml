@@ -10,6 +10,10 @@ x-app: &app
 services:
   back:
     <<: *app
+    mem_limit: 2g
+    mem_reservation: 768m
+    cpus: 2.0
+    pids_limit: 512
     image: ${BACK_IMAGE:?Set the verified backend image digest}
     init: true
     stop_grace_period: 60s
@@ -63,12 +67,18 @@ services:
 
   front:
     <<: *app
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 128
     image: ${FRONT_IMAGE:?Set the verified frontend image digest}
     ports: [127.0.0.1:8081:80]
     networks: [application]
 
   articles:
     <<: *app
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 128
     image: ${ARTICLE_IMAGE:?Set the verified article image digest}
     depends_on:
       back: {condition: service_healthy}
@@ -86,6 +96,8 @@ services:
     image: ${RSSHUB_IMAGE:?Set the verified RSSHub image digest}
     init: true
     mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 256
     environment:
       NODE_ENV: production
       TZ: Asia/Shanghai

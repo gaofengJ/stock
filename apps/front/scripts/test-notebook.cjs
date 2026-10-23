@@ -290,3 +290,19 @@ test('AI document adds interpretations and five images while preserving user not
  packet.article.body+='\n\n'+c.private.toolEvidence;
  assert(handoff.readResult(JSON.stringify(packet),'2026-10-16',1,c));
 });
+
+// Saved exports must never silently combine material from different data revisions.
+test('retry keeps current-version images and uploads, replacing stale platform material', () => {
+ const sample=illustrated().article.images[0];
+ const old={body:'',feishuUrl:'',images:[
+  {...sample,id:'upload-1',source:'user'},
+  {...sample,id:platformImages.imageId('overview'),source:'https://stock.invalid/analysis/overview/?dataRevision=old'},
+  {...sample,id:platformImages.imageId('emotion'),source:'https://stock.invalid/analysis/senti/?dataRevision=current'},
+ ]};
+ const current=platformImages.currentPlatformImages(old.images,'current');
+ assert.deepEqual(current.map(i=>i.id),['upload-1',platformImages.imageId('emotion')]);
+ const merged=platformImages.mergePlatformImages(old,[{...sample,id:platformImages.imageId('overview'),source:'https://stock.invalid/analysis/overview/?dataRevision=current'}],'current');
+ assert.equal(merged.images.length,3);
+ assert.ok(merged.images.every(i=>!i.id.startsWith('platform-')||i.source.endsWith('dataRevision=current')));
+ assert.deepEqual(platformImages.missingPlatformImages(merged.images),['ladder','limits','sectors20']);
+});

@@ -2,6 +2,11 @@ name: mufengtongxue-stock-db
 
 services:
   mysql:
+    # 3.48 GiB observed during daily sync; preserve headroom for backup/query peaks.
+    mem_limit: 4608m
+    mem_reservation: 3g
+    cpus: 2.5
+    pids_limit: 512
     image: ${MYSQL_IMAGE:?Set an approved MySQL 8.4 image digest}
     restart: unless-stopped
     stop_grace_period: 90s

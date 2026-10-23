@@ -18,7 +18,7 @@ class LiveRestoreTests(unittest.TestCase):
 
     def test_checksum_and_dump_table_set_are_checked_before_restore(self):
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp); folder = root / '20261020T010000Z'; folder.mkdir()
+            root = Path(tmp).resolve(); folder = root / '20261020T010000Z'; folder.mkdir()
             archive = folder / 'stock.sql.gz'
             with gzip.open(archive, 'wb') as output:
                 output.write(b'CREATE TABLE `example` (\n id int\n);\n')

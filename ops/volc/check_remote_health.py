@@ -22,6 +22,7 @@ def assess(value, now, production, offhost_policy='required'):
         if value.get('production') is not True or value.get('maintenance') is not False:
             issues.append('production_not_open')
         if value.get('backupHealthy') is not True: issues.append('local_backup_unhealthy')
+        issues.extend(value.get('operationalIssues', []))
         if offhost_policy == 'required' and value.get('recurringOffhostVerified') is not True:
             issues.append('recurring_offhost_unverified')
     elif value.get('production') is not False or value.get('maintenance') is not True:

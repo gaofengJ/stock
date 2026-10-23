@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import * as dotenv from 'dotenv';
 import { DataSource } from 'typeorm';
+import { NewsIndexQueue1792756800000 } from './migrations/1792756800000-NewsIndexQueue';
 import { StrategyFactorRead1792454400000 } from './migrations/1792454400000-StrategyFactorRead';
 import { ReviewAssets1792368000000 } from './migrations/1792368000000-ReviewAssets';
 import { ReviewNotebook1792195200000 } from './migrations/1792195200000-ReviewNotebook';
@@ -75,6 +76,7 @@ export default new DataSource({
     ReviewGeneration1792281600000,
     ReviewAssets1792368000000,
     StrategyFactorRead1792454400000,
+    NewsIndexQueue1792756800000,
   ],
   migrationsTransactionMode: 'none',
   logging: false,

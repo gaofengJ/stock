@@ -60,6 +60,8 @@ async function notebookTest(browser) {
   await text.fill('未保存的复盘原文应在网络恢复后继续保留');
   const initialReads = reads;
   failure = true;
+  await page.clock.install();
+  await page.clock.fastForward(2100);
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await page.getByText('访问状态暂时无法更新，当前编辑内容已保留').waitFor();
   assert.equal(await text.inputValue(), '未保存的复盘原文应在网络恢复后继续保留');
@@ -72,6 +74,7 @@ async function notebookTest(browser) {
   assert.equal(await text.inputValue(), '未保存的复盘原文应在网络恢复后继续保留');
   assert.equal(reads, initialReads);
   signedOut = true;
+  await page.clock.fastForward(2100);
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await page.waitForURL('**/login/**');
   assert.equal(await text.count(), 0);

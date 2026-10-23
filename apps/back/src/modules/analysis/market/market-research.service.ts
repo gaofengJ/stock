@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, Optional } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  Optional,
+} from '@nestjs/common';
 import { TrendService } from '@/modules/strategy/trend.service';
 import { TREND_KEYS } from '@/modules/strategy/trend-rules';
 import { DataSource, In, LessThanOrEqual } from 'typeorm';
@@ -26,6 +31,10 @@ import {
 @Injectable()
 export class MarketResearchService {
   private cache = new AsyncTtlCache(30000);
+
+  private readonly sectorCache = new AsyncTtlCache(30000, 32);
+
+  private readonly logger = new Logger(MarketResearchService.name);
 
   constructor(
     private db: DataSource,
@@ -228,15 +237,21 @@ export class MarketResearchService {
       ]),
     );
     if (trend) {
+      const byStockDate = new Map(
+        items.map((item) => [`${item.date}:${item.tsCode}`, item]),
+      );
       Object.assign(readyByStrategy, trend.readyByStrategy);
       trend.items.forEach(({ date, key: strategy, rows }) =>
         rows.forEach((row) => {
           if (!inScope(row.tsCode, q.scope)) return;
-          const item = items.find(
-            (r) => r.date === date && r.tsCode === row.tsCode,
-          );
+          const stockDate = `${date}:${row.tsCode}`;
+          const item = byStockDate.get(stockDate);
           if (item) item.strategies.push(strategy);
-          else items.push({ date, tsCode: row.tsCode, strategies: [strategy] });
+          else {
+            const added = { date, tsCode: row.tsCode, strategies: [strategy] };
+            items.push(added);
+            byStockDate.set(stockDate, added);
+          }
         }),
       );
     }
@@ -253,11 +268,47 @@ export class MarketResearchService {
   }
 
   async sectorSignals(q: MarketQueryDto) {
+    if (!q.date) throw new BadRequestException('请选择交易日');
+    normalizeDate(q.date);
+    const started = Date.now();
+    const [runs, policies] = await Promise.all([
+      this.db.query(
+        'SELECT task,MAX(updated_at) revision,COUNT(*) count FROM t_sync_run WHERE trade_date<=? GROUP BY task ORDER BY task',
+        [q.date],
+      ),
+      this.db.query(
+        'SELECT trade_date FROM t_sync_day_policy WHERE trade_date<=? ORDER BY trade_date',
+        [q.date],
+      ),
+    ]);
+    const key = JSON.stringify([
+      'sector-signals-v2',
+      { ...q, scope: 'all', trajectoryDays: 1 },
+      runs,
+      policies,
+    ]);
+    const result = await this.sectorCache.getOrCreate(key, () =>
+      this.computeSectorSignals(q),
+    );
+    this.logger.log(
+      JSON.stringify({
+        event: 'sector-signals',
+        date: q.date,
+        durationMs: Date.now() - started,
+        items: result.items.length,
+      }),
+    );
+    return result;
+  }
+
+  private async computeSectorSignals(q: MarketQueryDto) {
+    const started = Date.now();
     const signals = await this.signals({
       ...q,
       scope: 'all',
       trajectoryDays: 1,
     });
+    const signalMs = Date.now() - started;
     const counts = Object.values(signals.readyByStrategy).some((dates) =>
       dates.includes(q.date!),
     )
@@ -266,6 +317,14 @@ export class MarketResearchService {
           new Map(signals.items.map((r) => [r.tsCode, r.strategies])),
         )
       : [];
+    this.logger.log(
+      JSON.stringify({
+        event: 'sector-signals-compute',
+        date: q.date,
+        signalMs,
+        sectorMs: Date.now() - started - signalMs,
+      }),
+    );
     return { ...signals, date: q.date, counts };
   }
 

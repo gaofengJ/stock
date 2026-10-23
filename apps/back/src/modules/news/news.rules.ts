@@ -16,8 +16,14 @@ export interface RuleCandidate {
 
 export const hashText = (text: string) =>
   createHash('sha256').update(text).digest('hex');
+export function newsHeadline(title: string) {
+  // Sina embeds a full headline in brackets, then appends the article body.
+  // Only extract a substantive headline; short provider labels remain labels.
+  const match = title.normalize('NFKC').match(/^\s*【([^】]{12,160})】\s*\S/);
+  return match ? match[1] : title;
+}
 export function comparableTitle(title: string) {
-  return title
+  return newsHeadline(title)
     .normalize('NFKC')
     .toLowerCase()
     .replace(/^(?:【[^】]{1,16}】|\[[^\]]{1,16}\])\s*/, '')
@@ -40,8 +46,8 @@ export function similarNews(a: string, b: string) {
   if (
     left.length < 12 ||
     right.length < 12 ||
-    numbers(a) !== numbers(b) ||
-    directions(a) !== directions(b)
+    numbers(newsHeadline(a)) !== numbers(newsHeadline(b)) ||
+    directions(newsHeadline(a)) !== directions(newsHeadline(b))
   )
     return false;
   if (left === right) return true;

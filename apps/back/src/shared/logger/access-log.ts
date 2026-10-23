@@ -56,7 +56,7 @@ export function registerAccessLogging(
   write: (entry: AccessLogEntry) => void,
   prefix = '/api',
 ) {
-  server.decorateRequest('logContext', null);
+  server.decorateRequest('logContext');
   server.addHook('onRequest', (req, reply, done) => {
     const pathname = req.url.split('?')[0];
     if (pathname !== prefix && !pathname.startsWith(`${prefix}/`)) {

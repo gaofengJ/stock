@@ -10,6 +10,7 @@ import {
 } from 'antd';
 import Link from 'next/link';
 import request from '@/api/request';
+import { marketRequest, MarketStatus } from '@/api/market';
 import { errorMessage } from '@/api/errors';
 import { fetchNotebookImage, loadNotebookImages } from './notebook-images';
 import ArticleEditor from './ArticleEditor';
@@ -24,7 +25,7 @@ import { eveningFlow } from './evening-flow';
 import { emptyArticle } from './article-contract';
 import { notebookPayload, toolEvidenceError } from './notebook-limits';
 import {
-  capturePlatform, captureSources, mergePlatformImages, missingPlatformImages,
+  capturePlatform, captureSources, currentPlatformImages, mergePlatformImages, missingPlatformImages,
 } from './platform-images';
 import './notebook.css';
 
@@ -59,7 +60,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
       autoShowError: false,
     })
       .then(async ({ data }) => ({ ...data, content: await loadNotebookImages(data.content, abort.signal, (hash) => fetchNotebookImage(hash, abort.signal)) }))
-      .then((data) => { if (active) { setSnapshot(data); setContent(data.content || emptyNotebook()); setDirty(false); setError(''); setStatus(data.revision ? '已读取保存的记录' : '当天尚未保存'); } })
+      .then((data) => { if (active) { setSnapshot(data); setContent(data.content || emptyNotebook()); setDirty(false); setError(''); setStatus(data.revision ? `已读取服务器记录，版本 ${data.revision}` : '当天尚未保存到服务器'); } })
       .catch((e) => { if (active) { setError(errorMessage(e)); setStatus('读取失败，重试后可编辑'); } });
     return () => { active = false; abort.abort(); };
   }, [date, attempt]);
@@ -86,11 +87,14 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
       setSnapshot({ ...snapshot, revision: data.revision, content: saved });
       if (editCounter.current !== edit) { setStatus('已保存先前内容，新的修改仍需保存。'); return null; }
       setDirty(false);
-      setStatus('记录与图片已保存');
+      setStatus(`记录与图片已保存到服务器，版本 ${data.revision}`);
       return {
         date, revision: data.revision, generation: snapshot.generation || 0, content: saved,
       };
-    } catch (e) { setError(errorMessage(e)); return null; } finally { saving.current = false; setBusy(false); }
+    } catch (e) {
+      setError((e as { status?: number }).status === 409 ? '服务器记录已变化，本页修改仍保留。请先复制原文，再重新读取并合并，避免覆盖其他设备的记录。' : errorMessage(e));
+      return null;
+    } finally { saving.current = false; setBusy(false); }
   };
   const captureCandidates = useCallback((text: string) => {
     if (current.current.private.toolEvidence === text) return;
@@ -98,7 +102,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
     const next = { ...current.current, private: { ...current.current.private, toolEvidence: text } };
     current.current = next; setContent(next); setDirty(true);
   }, []);
-  const visibleStatus = dirty ? '有未保存的记录或图片' : status;
+  const visibleStatus = dirty ? '本页有未保存的修改，尚未同步到服务器' : status;
   const evidenceError = toolEvidenceError(content.private.toolEvidence);
   const materials = content.materials || emptyMaterials();
   const changeMaterials = (value: Materials) => {
@@ -107,16 +111,20 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
   const importMarket = useCallback((onlyMissing = false): Promise<string> => {
     if (captureTask.current) return captureTask.current;
     if (!snapshot) return Promise.resolve('复盘记录尚未读取完成，请稍后重试。');
-    const keys = onlyMissing ? missingPlatformImages(current.current.article?.images || []) : captureSources.map((item) => item.key);
-    if (!keys.length) return Promise.resolve('');
     const abort = new AbortController(); captureAbort.current = abort;
     if (!onlyMissing) setSourceRefresh((value) => value + 1);
     setResearchBusy(true); setError(''); setStatus('正在读取当日资料并生成平台图片');
     const task = (async () => {
       try {
-        const [research, captured] = await Promise.all([onlyMissing && current.current.research ? Promise.resolve(current.current.research) : loadResearch(date), capturePlatform(date, abort.signal, setStatus, keys)]);
-        if (abort.signal.aborted && !captured.images.length) { setStatus('已停止，原有记录保留'); return ''; }
-        changed({ ...current.current, research: abort.signal.aborted ? current.current.research : research, article: mergePlatformImages(current.current.article || emptyArticle(), captured.images) });
+        const { data: before } = await marketRequest<MarketStatus>('status', {}, { signal: abort.signal, autoShowError: false });
+        if (!before.revision) throw new Error('暂时无法确认数据版本，请稍后重试');
+        const keys = onlyMissing ? missingPlatformImages(currentPlatformImages(current.current.article?.images || [], before.revision)) : captureSources.map((item) => item.key);
+        if (!keys.length) return '';
+        const [research, captured] = await Promise.all([loadResearch(date), capturePlatform(date, abort.signal, setStatus, keys, before.revision)]);
+        if (abort.signal.aborted) { setStatus('已停止，原有记录保留'); return ''; }
+        const { data: after } = await marketRequest<MarketStatus>('status', {}, { signal: abort.signal, autoShowError: false });
+        if (before.revision !== after.revision) throw new Error('准备期间数据已更新，原有记录已保留。请重新准备，避免混用不同版本的数据。');
+        changed({ ...current.current, research, article: mergePlatformImages(current.current.article || emptyArticle(), captured.images, before.revision) });
         setStatus(`已将 ${captured.images.length} 张平台图片加入文档模板，请保存记录。`);
         const warning = captured.failures.length ? `以下图片暂未取得：${captured.failures.join('、')}。已保留成功图片与原有记录，可再次更新重试。` : '';
         setError(warning); return warning;
@@ -151,6 +159,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
         </nav>
         <Space wrap size={12}>
           <Button disabled={!snapshot} loading={researchBusy} onClick={() => importMarket(!(content.article?.images || []).some((image) => image.id.startsWith('platform-')))}>{(content.article?.images || []).some((image) => image.id.startsWith('platform-')) ? '更新图文资料' : '准备图文资料'}</Button>
+          {!researchBusy && !!(content.article?.images || []).some((image) => image.id.startsWith('platform-')) && missingPlatformImages(content.article?.images || []).length > 0 && <Button onClick={() => importMarket(true)}>补取缺失图片</Button>}
           {researchBusy && <Button onClick={() => captureAbort.current?.abort()}>停止准备</Button>}
           <span className="review-caption">包含市场、情绪、连板、涨停和20日板块轮动；更新保留个人配图。</span>
           <Link href="/trading-system/" target="_blank" rel="noopener noreferrer">复盘方法</Link>

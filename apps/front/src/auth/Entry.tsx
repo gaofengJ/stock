@@ -12,7 +12,6 @@ import {
 } from '@ant-design/icons';
 import { ThemeToggle, useSiteTheme } from '@/components/SiteTheme';
 import ImgFengye from '@/assets/imgs/fengye.png';
-import { useRouter } from 'next/navigation';
 import { api } from './client';
 import { useAccount } from './Boundary';
 
@@ -31,7 +30,6 @@ export default function Entry({ register = false }: { register?: boolean }) {
   useEffect(() => {
     if (!busy && form.getFieldError('username').length) usernameInput.current?.focus();
   }, [busy, form]);
-  const router = useRouter();
   const {
     refresh, user, trialRemaining, trialExpired,
   } = useAccount();
@@ -47,7 +45,7 @@ export default function Entry({ register = false }: { register?: boolean }) {
         </div>
         <div className="entry-shell">
           <section className="entry-intro">
-            <div className="entry-eyebrow">行情 · 选股 · 复盘</div>
+            <div className="entry-eyebrow">行情、选股与复盘</div>
             <h1>
               看清市场变化，
               <br />
@@ -130,7 +128,6 @@ export default function Entry({ register = false }: { register?: boolean }) {
                   );
                   if (register) message.success('注册成功，已自动登录');
                   await refresh();
-                  router.replace('/');
                 } catch (e) {
                   const detail = errorMessage(e);
                   if (register && /^(用户名|该用户名)/.test(detail)) {
@@ -210,7 +207,7 @@ export default function Entry({ register = false }: { register?: boolean }) {
             )}
           </section>
         </div>
-        <div className="entry-footnote">木风同学的投资小站 · 记录、观察、思考</div>
+        <div className="entry-footnote">木风同学的投资小站：记录、观察、思考</div>
       </main>
     </ConfigProvider>
   );

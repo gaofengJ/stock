@@ -9,12 +9,14 @@ import { guideSections } from '@/discovery/content';
 
 export const dynamicParams = false;
 export function generateStaticParams() { return guides.map((guide) => ({ slug: guide.slug })); }
-export function generateMetadata({ params }: { params: { slug: string } }) {
-  const guide = guides.find((item) => item.slug === params.slug);
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const guide = guides.find((item) => item.slug === slug);
   return guide ? publicMetadata(guide.title, guide.description, `/guides/${guide.slug}/`) : {};
 }
-export default function Page({ params }: { params: { slug: string } }) {
-  const guide = guides.find((item) => item.slug === params.slug);
+export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const guide = guides.find((item) => item.slug === slug);
   if (!guide) notFound();
   const url = `${siteUrl}/guides/${guide.slug}/`;
   return (

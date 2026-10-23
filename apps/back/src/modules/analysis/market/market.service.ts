@@ -61,13 +61,18 @@ export class MarketService {
     const [backfill] = await this.db.query(
       "SELECT id,status,stage,error FROM t_admin_job WHERE mode='missing' ORDER BY (actor_id IS NULL) DESC,(status IN ('queued','running','pending')) DESC,id DESC LIMIT 1",
     );
+    const revisions = await this.db.query(
+      'SELECT task,MAX(updated_at) revision,COUNT(*) count FROM t_sync_run GROUP BY task ORDER BY task',
+    );
     return {
       latestDate: rows[0]?.date || null,
       dates: rows.map((r) => r.date),
       dateUpdates: Object.fromEntries(
         rows.map((r) => [r.date, r.updatedAt.toISOString()]),
       ),
-      revision: createHash('sha256').update(JSON.stringify(rows)).digest('hex'),
+      revision: createHash('sha256')
+        .update(JSON.stringify([rows, revisions]))
+        .digest('hex'),
       expectedDate: expected?.calDate || null,
       stages: stages.map((r) => ({
         task: r.task,

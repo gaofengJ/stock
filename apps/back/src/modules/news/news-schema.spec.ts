@@ -3,6 +3,7 @@ import { NEWS_SOURCES } from './news.sources';
 
 const indexes = [
   ...[
+    ['t_news_index_queue', 'news_id'],
     ['t_news_rule', 'news_id'],
     ['t_news_stock', 'news_id'],
     ['t_news_stock', 'ts_code'],
