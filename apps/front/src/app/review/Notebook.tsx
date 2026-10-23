@@ -231,7 +231,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
           <Button onClick={() => document.getElementById('review-document')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>查看文档与保存</Button>
           <strong>{date}</strong>
           {isPersonalAiOwner(user) && <Button type="primary" disabled={!snapshot || researchBusy || busy} onClick={() => setAiOpenRequest((value) => value + 1)}>生成复盘</Button>}
-          <Button disabled={!dirty || busy || researchBusy} loading={busy} onClick={save}>保存复盘</Button>
+          <Button aria-label="保存复盘" aria-busy={busy} disabled={!dirty || busy || researchBusy} loading={busy} onClick={save}>保存复盘</Button>
           <span role="status">{researchBusy ? status : visibleStatus}</span>
         </Space>
         <nav className="notebook-flow" aria-label="每日复盘四步">
