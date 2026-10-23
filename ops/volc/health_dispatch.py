@@ -106,6 +106,8 @@ def check(token, path=STATE, now=None, api=request):
     state['checkedAt'] = now
 
     def finish(outcome, **fields):
+        if outcome not in ('backoff', 'api_failed', 'dispatch_uncertain'):
+            state['successfulCheckAt'] = now
         state.update(outcome=outcome, **fields)
         save(path, state)
         print(json.dumps(state))
@@ -128,7 +130,6 @@ def check(token, path=STATE, now=None, api=request):
         latest = runs[0] if runs else None
         completed = next((r for r in runs if r['status'] == 'completed'), None)
         state.update(latestRunId=latest['id'] if latest else None,
-                     successfulCheckAt=now,
                      latestRunAgeSeconds=max(0, int(now - stamp(latest['created_at']))) if latest else None,
                      latestCompletedRunId=completed['id'] if completed else None,
                      latestConclusion=completed.get('conclusion') if completed else None)

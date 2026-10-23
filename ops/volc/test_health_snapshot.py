@@ -11,6 +11,7 @@ class OperationalHealthTest(unittest.TestCase):
         stale = {**data, 'latestTradeDate': '2026-10-21', 'staleNewsSources': 'fixture'}
         self.assertEqual(operational_issues(stale, {}, now), ['daily_data_stale', 'news_sources_stale', 'health_dispatch_stale'])
         self.assertIn('data_freshness_unavailable', operational_issues({}, {}, now))
+        self.assertEqual(operational_issues(data, {'successfulCheckAt': now.timestamp(), 'outcome': 'blocked_stale_active'}, now), ['health_workflow_stalled'])
 
 
 if __name__ == '__main__':

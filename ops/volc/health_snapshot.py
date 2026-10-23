@@ -23,6 +23,8 @@ def operational_issues(data, dispatch, now):
     age = now.timestamp() - dispatch.get('successfulCheckAt', 0)
     if not 0 <= age <= 30 * 60:
         issues.append('health_dispatch_stale')
+    if dispatch.get('outcome') == 'blocked_stale_active':
+        issues.append('health_workflow_stalled')
     return issues
 
 

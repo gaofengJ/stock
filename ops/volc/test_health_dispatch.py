@@ -155,6 +155,20 @@ class HealthDispatchTest(unittest.TestCase):
         self.assertIn('/runs?branch=master&per_page=10', calls)
         self.assertNotIn('/dispatches', calls)
 
+    def test_failed_active_query_does_not_refresh_last_success(self):
+        prior = self.now - 3600
+        self.path.write_text(json.dumps({'successfulCheckAt': prior}))
+        def api(suffix, token, payload=None):
+            if not suffix: return {'state': 'active'}
+            if 'status=' in suffix: raise h.ApiError(503)
+            return {'workflow_runs': [self.run_record(age=3600)]}
+        with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(h.ApiError):
+            h.check('fixture', self.path, self.now, api)
+        state = json.loads(self.path.read_text())
+        self.assertEqual(state['successfulCheckAt'], prior)
+        self.assertEqual(state['outcome'], 'api_failed')
+        self.assertEqual(self.check()['successfulCheckAt'], prior)
+
 
 if __name__ == '__main__':
     unittest.main()
