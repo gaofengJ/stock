@@ -6,7 +6,7 @@ const n = (value: unknown) => numberText(value);
 const count = (value: unknown) => numberText(value, 0);
 const points = (items: { label: string; value: unknown }[]) => items.filter((p) => p.value !== null && p.value !== undefined && Number.isFinite(Number(p.value))).map((p) => ({ label: p.label, value: Number(p.value) }));
 // Each source is independent: partial failures must not discard usable evidence.
-export async function loadResearch(date: string): Promise<Research> {
+export async function loadResearch(date: string, signal?: AbortSignal): Promise<Research> {
   const definitions = [
     {
       key: 'market',
@@ -82,13 +82,14 @@ export async function loadResearch(date: string): Promise<Research> {
   const sections: Evidence[] = await Promise.all(definitions.map(async (def) => {
     const source = `${def.path}?date=${date}`;
     try {
-      const response = await marketRequest<any>(def.endpoint, { date, ...(def.endpoint === 'sectors' ? { kind: 'N', period: 1 } : {}) }, { autoShowError: false });
+      const response = await marketRequest<any>(def.endpoint, { date, ...(def.endpoint === 'sectors' ? { kind: 'N', period: 1 } : {}) }, { signal, autoShowError: false });
       const { data } = response;
       if (data.date !== date) throw new Error('返回日期与所选日期不一致');
       return {
         key: def.key, title: def.title, source, unit: def.unit, state: 'ready' as const, ...def.read(data),
       };
     } catch (e) {
+      if (signal?.aborted) throw new DOMException('资料准备已停止', 'AbortError');
       return {
         key: def.key, title: def.title, source, unit: def.unit, state: 'missing' as const, text: e instanceof Error ? e.message.slice(0, 400) : '资料暂不可用', points: [],
       };

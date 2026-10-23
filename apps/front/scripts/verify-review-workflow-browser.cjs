@@ -36,6 +36,7 @@ if(!['127.0.0.1','localhost'].includes(new URL(base).hostname))throw Error('Loca
   assert.equal(state.writes.length,0,'viewing a result never saves or applies it');
   await drawer.getByRole('button',{name:'预览并应用到复盘',exact:true}).click();
   await page.getByRole('button',{name:'应用到当前复盘',exact:true}).click();
+  await page.getByRole('dialog',{name:'核对 AI 结果后应用',exact:true}).waitFor({state:'hidden'});
   await page.getByRole('dialog').getByRole('button',{name:/^(Close|关闭)$/}).click();
   await note.fill('应用后继续编辑的新原文');
   await page.getByRole('button',{name:'保存复盘',exact:true}).click();
@@ -72,6 +73,10 @@ if(!['127.0.0.1','localhost'].includes(new URL(base).hostname))throw Error('Loca
   assert.equal(await page.getByPlaceholder('搜索标题或正文').inputValue(),'测试股份');
   await page.getByRole('link',{name:'返回本日复盘',exact:true}).click();
   await page.getByText('已收录素材（1）',{exact:true}).waitFor();
+  await page.setViewportSize({width:390,height:844});
+  await page.waitForTimeout(300);
+  const mobile=await page.evaluate(()=>({overflow:document.documentElement.scrollWidth>innerWidth,height:document.querySelector('.notebook-toolbar').getBoundingClientRect().height}));
+  assert.equal(mobile.overflow,false);assert.ok(mobile.height<260,JSON.stringify(mobile));
   assert.deepEqual(errors,[]);
   if(process.env.TEST_ARTIFACT_DIR){fs.mkdirSync(process.env.TEST_ARTIFACT_DIR,{recursive:true});await page.screenshot({path:`${process.env.TEST_ARTIFACT_DIR}/review-workflow.png`});}
   console.log('PASS workflow: navigation recovery, AI draft/selection, readonly history, explicit apply/undo, latest original text, cancellation, global task release, news filters and collection');

@@ -1,5 +1,5 @@
 const test=require('node:test'), assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),ts=require('typescript');
-function load(relative, mocks={}) { const file=path.resolve(__dirname,relative), exp={}; new Function('exports','require',ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(exp, key => key in mocks ? mocks[key] : key==='@nestjs/common' ? {BadRequestException:Error} : load(path.relative(__dirname,path.resolve(path.dirname(file),key+'.ts')),mocks)); return exp; }
+function load(relative, mocks={}) { const file=path.resolve(__dirname,relative), exp={}; new Function('exports','require',ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText)(exp, key => key in mocks ? mocks[key] : key==='@nestjs/common' ? {BadRequestException:Error} : load(path.relative(__dirname,path.resolve(path.dirname(file),key+'.ts')),mocks)); return exp; }
 const exp=load('../src/app/review/notebook-model.ts');
 test('both public outputs exclude every internal field and preserve only explicit public writing',()=>{
  const c=exp.emptyNotebook();for(const key of Object.keys(c.private))c.private[key]='PRIVATE_SENTINEL_'+key;
@@ -358,4 +358,18 @@ test('research navigation carries dates while respecting explicit dates and exte
  assert.equal(navigation.researchHref('/news/?date=2026-10-22&q=abc','https://site.test/review/?date=2026-10-23'),'/news/?date=2026-10-22&q=abc');
  assert.equal(navigation.researchHref('https://other.test/path','https://site.test/review/?date=2026-10-23'),'https://other.test/path');
  const unregister=navigation.registerLeaveGuard(async()=>false);assert.equal(await navigation.mayLeaveResearch(),false);unregister();assert.equal(await navigation.mayLeaveResearch(),true);
+});
+test('stopping a capture retains each completed callback and never accepts another revision', async () => {
+ const realDocument=global.document, realWindow=global.window;let frames=0;const saved=[];const abort=new AbortController();
+ const node={dataset:{reviewDate:'2026-10-23',reviewReady:'true'},querySelector:selector=>selector==='canvas'?{}:null,closest:()=>null};
+ const frame={title:'',style:{},setAttribute:()=>{},remove:()=>{},contentDocument:{fonts:{ready:Promise.resolve()},documentElement:{dataset:{theme:'dark'}},querySelector:selector=>selector==='[data-capture-revision]'?{dataset:{captureRevision:'r1'}}:node}};
+ global.window={location:{origin:'https://fixture.invalid'}};
+ global.document={body:{appendChild:()=>{frames++;}},createElement:tag=>tag==='iframe'?frame:{width:0,height:0,getContext:()=>({fillRect:()=>{},fillText:()=>{},drawImage:()=>{}}),toDataURL:()=>png}};
+ try {
+  const capture=load('../src/app/review/platform-images.ts',{'html-to-image':{toCanvas:async()=>({width:100,height:50})}});
+  await capture.capturePlatform('2026-10-23',abort.signal,()=>{},['overview','emotion'],'r1',async image=>{saved.push(image);abort.abort();});
+  assert.equal(saved.length,1);assert.equal(saved[0].id,capture.imageId('overview'));assert.equal(frames,1);
+  const stale=[];await capture.capturePlatform('2026-10-23',new AbortController().signal,()=>{},['overview'],'r2',async image=>stale.push(image));
+  assert.equal(stale.length,0);
+ } finally {global.document=realDocument;global.window=realWindow;}
 });

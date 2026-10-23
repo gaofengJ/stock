@@ -56,7 +56,7 @@ async function notebookTest(browser) {
     return false;
   });
   const page = await context.newPage();
-  page.on('pageerror', error => console.error('Notebook browser error:', error.message));
+  const pageErrors=[];page.on('pageerror', error => pageErrors.push(error.message));
   await page.goto(`${base}/review/?date=${date}`, { waitUntil: 'networkidle' });
   const text = page.locator('#note-marketJudgment');
   await text.fill('未保存的复盘原文应在网络恢复后继续保留');
@@ -74,7 +74,7 @@ async function notebookTest(browser) {
   await page.locator('.ant-alert').filter({ hasText: '访问状态暂时无法更新' }).getByRole('button').click();
   await page.getByText('访问状态暂时无法更新，当前编辑内容已保留').waitFor({ state: 'detached' });
   assert.equal(await text.inputValue(), '未保存的复盘原文应在网络恢复后继续保留');
-  assert.equal(reads, initialReads);
+  assert.equal(reads, initialReads);assert.deepEqual(pageErrors,[],'malformed optional history data must not remove the editor');
   signedOut = true;
   await page.clock.fastForward(2100);
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));

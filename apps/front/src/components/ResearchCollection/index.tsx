@@ -23,17 +23,24 @@ export function useCollection(owner: number, date: string) {
   return items;
 }
 export function CollectButton({ item, label = '收录到本日复盘' }: { item: Omit<CollectedItem, 'createdAt'>; label?: string }) {
-  const { user } = useAccount(); const pending = useCollection(user?.id || 0, item.date);
-  if (!user?.roles.some((role) => role.code === 'admin') || user.guest || !item.date) return null;
+  const { user } = useAccount(); const allowed = !!user?.roles.some((role) => role.code === 'admin') && !user.guest;
+  const fallback = useDefaultTradeDate(allowed && !item.date);
+  const date = item.date || (fallback.ready ? fallback.tradeDate : '');
+  const pending = useCollection(user?.id || 0, date);
+  if (!allowed || !user || !date) return null;
   const collected = pending.some((row) => row.id === item.id);
   return (
     <Button
       size="small"
       onClick={() => {
         try {
-          if (collected) writeCollection(user.id, item.date, pending.filter((row) => row.id !== item.id));
-          else { const revision = item.kind === 'chart' ? document.querySelector<HTMLElement>('[data-capture-revision]')?.dataset.captureRevision : ''; collectItem(user.id, { ...item, ...(revision ? { note: `${item.note}\n数据版本：${revision}`, url: `${item.url}${item.url.includes('?') ? '&' : '?'}dataRevision=${encodeURIComponent(revision)}` } : {}), createdAt: new Date().toISOString() }); }
-          message.success(collected ? '已撤回待收录素材' : `已加入 ${item.date} 复盘，回到复盘后保存即可同步`);
+          if (collected) writeCollection(user.id, date, pending.filter((row) => row.id !== item.id));
+          else {
+            const revision = item.kind === 'chart' ? document.querySelector<HTMLElement>('[data-capture-revision]')?.dataset.captureRevision : ''; collectItem(user.id, {
+              ...item, date, ...(revision ? { note: `${item.note}\n数据版本：${revision}`, url: `${item.url}${item.url.includes('?') ? '&' : '?'}dataRevision=${encodeURIComponent(revision)}` } : {}), createdAt: new Date().toISOString(),
+            });
+          }
+          message.success(collected ? '已撤回待收录素材' : `已加入 ${date} 复盘，回到复盘后保存即可同步`);
         } catch (error) { message.error((error as Error).message || '本机空间不足，素材未收录'); }
       }}
     >
@@ -44,7 +51,8 @@ export function CollectButton({ item, label = '收录到本日复盘' }: { item:
 export default function ResearchCollection() {
   const { user } = useAccount(); const params = useSearchParams(); const path = usePathname();
   const fallback = useDefaultTradeDate();
-  const defaultDate = path.startsWith('/news') ? new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10) : fallback.tradeDate;
+  const tradeDate = fallback.ready ? fallback.tradeDate : '';
+  const defaultDate = path.startsWith('/news') ? new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10) : tradeDate;
   const date = params.get('date') || defaultDate || '';
   const items = useCollection(user?.id || 0, date); const [open, setOpen] = useState(false);
   const supported = /^\/(analysis|strategy|basic|review|news)(\/|$)/.test(path);

@@ -23,7 +23,7 @@ export default function NotebookHistory({
   const [dates, setDates] = useState<{ date: string; revision: number }[]>([]);
   const [history, setHistory] = useState<NotebookSnapshot | null>(null);
   const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
-  useEffect(() => { let alive = true; request.get<{ date: string; revision: number }[]>('/review/notebook/dates', { autoShowError: false }).then(({ data }) => { if (alive) setDates(data); }).catch((e) => { if (alive) setError(errorMessage(e)); }); return () => { alive = false; }; }, [snapshot.revision]);
+  useEffect(() => { let alive = true; request.get<{ date: string; revision: number }[]>('/review/notebook/dates', { autoShowError: false }).then(({ data }) => { if (!Array.isArray(data)) throw Error('历史日期列表暂不可用，当前复盘可继续编辑'); if (alive) setDates(data); }).catch((e) => { if (alive) setError(errorMessage(e)); }); return () => { alive = false; }; }, [snapshot.revision]);
   const { previous } = snapshot;
   const previousWorkspace = previous?.content.workspace || { ...emptyWorkspace(), draft: legacyDraft(previous?.content.private.toolEvidence) };
   const readVersion = async (revision: number) => {

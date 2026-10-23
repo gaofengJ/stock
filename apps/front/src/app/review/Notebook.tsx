@@ -197,7 +197,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
         if (!before.revision) throw new Error('暂时无法确认数据版本，请稍后重试');
         const keys = onlyMissing ? missingPlatformImages(currentPlatformImages(current.current.article?.images || [], before.revision)) : captureSources.map((item) => item.key);
         if (!keys.length) return '';
-        const [research, captured] = await Promise.all([loadResearch(date), capturePlatform(date, abort.signal, report, keys, before.revision, async (image) => {
+        const [research, captured] = await Promise.all([loadResearch(date, abort.signal), capturePlatform(date, abort.signal, report, keys, before.revision, async (image) => {
           const { data: statusNow } = await marketRequest<MarketStatus>('status', {}, { signal: abort.signal, autoShowError: false });
           if (statusNow.revision !== before.revision) throw Error('数据版本变化，请重新准备');
           changed({ ...current.current, article: mergePlatformImages(current.current.article || emptyArticle(), [image], before.revision) });
