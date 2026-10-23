@@ -119,9 +119,9 @@ mysqlDescribe('durable news indexing on MySQL', () => {
         '正文修订版',
       );
       expect(await queued()).toBe(0);
-      expect((await db.query('SELECT COUNT(*) n FROM t_news_rule'))[0].n).toBe(
-        1,
-      );
+      expect(
+        Number((await db.query('SELECT COUNT(*) n FROM t_news_rule'))[0].n),
+      ).toBe(1);
       await db.query('DELETE FROM t_news_rule');
       await new NewsIndexQueue1792756800000().up(runner);
       expect(await queued()).toBe(1);

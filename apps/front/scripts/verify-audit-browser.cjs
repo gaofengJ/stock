@@ -13,6 +13,8 @@ const user = { id: 91, username: 'fixture', nickname: '测试账户', roles: [],
 const stats = { amount: 100000, up: 3000, down: 2000, flat: 100, total: 5100, upRatio: 58.82, distribution: [], limitUp: 30, limitDown: 5, broken: 8, maxHeight: 4, counts: [], upgrades: [] };
 (async () => {
   const browser = await chromium.launch({ headless: true });
+  let page;
+  try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   let signedIn = false;
   await context.route('**/*', route => new URL(route.request().url()).origin === new URL(base).origin ? route.continue() : route.abort());
@@ -32,12 +34,12 @@ const stats = { amount: 100000, up: 3000, down: 2000, flat: 100, total: 5100, up
     if (api === '/api/analysis/market/overview') data = { status, date, snapshot: stats, series: [{ date, data: stats }], markets: [], indexes: Array.from({ length: 8 }, (_, i) => ({ code: `00000${i}.SH`, name: `测试指数${i}`, series: [{ date, open: 10, close: 11, high: 12, low: 9, vol: 100, amount: 1000, preClose: 10, pctChg: 10 }] })) };
     return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ code: 0, data }) });
   });
-  const page = await context.newPage();
+  page = await context.newPage();
   const errors = []; page.on('pageerror', e => errors.push(e.message));
   await page.goto(`${base}/analysis/overview/?date=${date}`);
   await page.getByLabel('用户名', { exact: true }).fill('fixture');
   await page.getByLabel('密码', { exact: true }).fill('fixture-password');
-  await page.getByRole('button', { name: '登录', exact: true }).click();
+  await page.getByRole('button', { name: /^登\s*录$/ }).click();
   await page.waitForURL(url => url.pathname === '/analysis/overview/' && url.searchParams.get('date') === date);
   await page.getByRole('button', { name: '查看测试指数0走势' }).waitFor();
   assert(await page.locator('canvas').count() < 8, 'offscreen charts should not initialize on the first screen');
@@ -49,6 +51,16 @@ const stats = { amount: 100000, up: 3000, down: 2000, flat: 100, total: 5100, up
   await page.getByRole('button', { name: '查看测试指数0走势' }).click();
   await page.locator('canvas').first().waitFor();
   assert.equal(errors.length, 0, errors.join('\n'));
-  await browser.close();
-  console.log('PASS login destination, mobile layout, deferred charts and selected chart');
+  await page.goto(`${base}/analysis/overview/?date=${date}&reviewCapture=1`);
+  await page.locator('main[data-capture-revision="fixture"]').waitFor();
+  assert.equal(await page.locator('.ant-layout-header').count(), 0, 'capture presentation omits navigation');
+  assert.equal(errors.length, 0, errors.join('\n'));
+  console.log('PASS login destination, mobile layout, deferred charts, selected chart and capture presentation');
+  } catch (error) {
+    if (page) {
+      await page.screenshot({ path: path.join(output, 'audit-failure.png') }).catch(() => {});
+      console.error(await page.locator('body').innerText().catch(() => 'No page'));
+    }
+    throw error;
+  } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exit(1); });
