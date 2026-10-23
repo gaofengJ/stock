@@ -84,7 +84,7 @@ jobs:
           docker run --rm stock-front-volc:${{ github.sha }} nginx -t
           docker run -d --name stock-front-cache-check -p 127.0.0.1:18087:80 stock-front-volc:${{ github.sha }}
           trap 'docker rm -f stock-front-cache-check >/dev/null' EXIT
-          curl --fail --silent --retry 10 --retry-connrefused --retry-delay 1 http://127.0.0.1:18087/ >/dev/null
+          curl --fail --silent --show-error --retry 10 --retry-all-errors --retry-delay 1 --max-time 5 --retry-max-time 20 http://127.0.0.1:18087/ >/dev/null
           python3 - <<'PY'
           import re, urllib.request
           origin='http://127.0.0.1:18087'
