@@ -50,7 +50,12 @@ jobs:
       - run: pnpm -C apps/front run build
       - name: Install browser and system dependencies
         timeout-minutes: 20
-        run: pnpm -C apps/front exec playwright install --with-deps --only-shell chromium
+        run: |
+          # ubuntu-24.04 already supplies Chromium's shared libraries. Avoid a
+          # full OS/foreign-font upgrade on every run; retain Chinese screenshots.
+          pnpm -C apps/front exec playwright install --only-shell chromium
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-wqy-zenhei
       - name: Browser regression against the static export
         timeout-minutes: 5
         run: |
