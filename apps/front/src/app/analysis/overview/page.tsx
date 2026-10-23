@@ -12,6 +12,7 @@ import { useAccount } from '@/auth/Boundary';
 import { allowedPath } from '@/auth/client';
 import { changeClass, numberText } from '@/utils/format';
 import MarketResearch from '@/components/LiveResearch/MarketResearch';
+import DeferredChart from '@/components/DeferredChart';
 import { marketHref } from '../components/market-navigation';
 import MarketShell, { scopes } from '../components/MarketShell';
 import useMarketData from '../components/useMarketData';
@@ -85,7 +86,7 @@ export default function OverviewPage() {
                 const direction = changeClass(point?.pctChg);
                 const delta = point?.preClose != null ? point.close - point.preClose : null;
                 return (
-                  <Col xs={24} sm={12} xl={6} key={i.code}>
+                  <Col xs={12} sm={12} xl={6} key={i.code}>
                     <button type="button" className={`market-index ${selected?.code === i.code ? 'active' : ''}`} aria-pressed={selected?.code === i.code} aria-label={`查看${i.name}走势`} onClick={() => setIndex((current) => (current === i.code ? null : i.code))}>
                       <div className="market-index-name">{i.name}</div>
                       <div className="metric-value">
@@ -115,21 +116,21 @@ export default function OverviewPage() {
             <Row gutter={[16, 16]} className="market-chart-grid">
               {visibleIndexes.map((i) => (
                 <Col xs={24} lg={selected ? 24 : 12} key={i.code}>
-                  <OverviewIndexChart index={i} dates={indexDates} window={window} />
+                  <DeferredChart eager={!!selected}><OverviewIndexChart index={i} dates={indexDates} window={window} /></DeferredChart>
                 </Col>
               ))}
               {!visibleIndexes.length && <Col span={24}><div className="market-empty"><Empty description="该范围暂无完整K线与成交量数据" /></div></Col>}
             </Row>
-            <IndexComparisonChart indexes={indexes} dates={indexDates} />
+            <DeferredChart><IndexComparisonChart indexes={indexes} dates={indexDates} /></DeferredChart>
             <Row gutter={[16, 16]} className="market-amount-section">
               <Col xs={24} lg={12}>
-                <MarketAmountChart title={`${range} - 市场成交额`} data={data} dates={indexDates} window={amountWindow} onWindowChange={setAmountWindow} />
+                <DeferredChart><MarketAmountChart title={`${range} - 市场成交额`} data={data} dates={indexDates} window={amountWindow} onWindowChange={setAmountWindow} /></DeferredChart>
               </Col>
               <Col xs={24} lg={12}>
-                <MarketBreadthChart range={range} />
+                <DeferredChart><MarketBreadthChart range={range} /></DeferredChart>
               </Col>
               <Col xs={24} lg={12}>
-                <MarketExtremes range={range} />
+                <DeferredChart><MarketExtremes range={range} /></DeferredChart>
               </Col>
             </Row>
           </>

@@ -9,7 +9,7 @@ import { createProfitCache, profitPending, ProfitRow } from './candidate-profit-
 export function useCandidateProfit(date: string, codes: string[], enabled: boolean) {
   const key = JSON.stringify([date, [...codes].sort()]);
   const [attempt, setAttempt] = useState(0);
-  const cache = useRef<ReturnType<typeof createProfitCache>>();
+  const cache = useRef<ReturnType<typeof createProfitCache>>(undefined);
   if (!cache.current) cache.current = createProfitCache();
   const lastAttempt = useRef(0);
   const [result, setResult] = useState<{ key: string; rows: Map<string, ProfitRow>; error: string; stopped: boolean }>({
@@ -74,6 +74,7 @@ export default function CandidateProfit({
     return <span className="quote-muted">{pending ? '补齐中…' : empty}</span>;
   };
   const forecast = row?.forecast;
+  const historicalForecast = !!(forecast && row?.reportDate && forecast.reportDate <= row.reportDate);
   return (
     <Tooltip title={(
       <div style={{ maxWidth: 360 }}>
@@ -94,7 +95,7 @@ export default function CandidateProfit({
         {forecast && (
         <>
           <div style={{ marginTop: 8 }}>
-            业绩预告：
+            {historicalForecast ? '历史预告（已被正式财报覆盖）：' : '业绩预告：'}
             {forecast.reportDate}
             {' '}
             /
@@ -145,13 +146,13 @@ export default function CandidateProfit({
           )) : status(financialPending, row?.sourceState === 'error', '暂无财报')}
         </div>
         <div>
-          <span className="quote-muted">预告 </span>
+          <span className="quote-muted">{historicalForecast ? '历史预告 ' : '预告 '}</span>
           {forecast ? (
             <span>
               {reportLabel(forecast.reportDate)}
               {' '}
               {forecast.type}
-              {row?.reportDate && forecast.reportDate <= row.reportDate ? '（已披露）' : ''}
+              {historicalForecast ? '（已被财报覆盖）' : ''}
             </span>
           ) : status(forecastPending, row?.forecastState === 'error', '无已披露预告')}
         </div>

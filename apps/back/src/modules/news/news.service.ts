@@ -422,8 +422,10 @@ export class NewsService implements OnApplicationBootstrap {
         throw new Error('Invalid feed items');
       let added = 0;
       for (const item of normalized) {
-        // Publish English changes and their matching translation as one unit.
-        if (item.sourceHash) await q.startTransaction();
+        // Keep content, translation and index work atomic. READ COMMITTED avoids
+        // gap locks from invalidating a missing item blocking the other collector.
+        // The sync named lock excludes the indexer and each source has one worker.
+        await q.startTransaction('READ COMMITTED');
         try {
           // A changed headline/body invalidates only its derived rules, not source history.
           await q.query(
@@ -470,11 +472,14 @@ export class NewsService implements OnApplicationBootstrap {
               ],
             );
           }
-          if (item.sourceHash) await q.commitTransaction();
+          await q.query(
+            'INSERT IGNORE INTO t_news_index_queue(news_id) SELECT n.id FROM t_news_item n LEFT JOIN t_news_rule r ON r.news_id=n.id WHERE n.source=? AND n.dedupe_key=? AND r.news_id IS NULL',
+            [source.code, item.key],
+          );
+          await q.commitTransaction();
           if (result.affectedRows === 1) added += 1;
         } catch (error) {
-          if (item.sourceHash && q.isTransactionActive)
-            await q.rollbackTransaction();
+          if (q.isTransactionActive) await q.rollbackTransaction();
           throw error;
         }
       }

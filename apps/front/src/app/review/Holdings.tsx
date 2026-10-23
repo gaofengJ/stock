@@ -21,7 +21,7 @@ export default function Holdings({ date, candidates, onResult }: { date: string;
   const [loading, setLoading] = useState(false);
   const [validated, setValidated] = useState(false);
   const [changed, setChanged] = useState(false);
-  const generation = useRef(0); const abort = useRef<AbortController>();
+  const generation = useRef(0); const abort = useRef<AbortController>(undefined);
   useEffect(() => () => { generation.current += 1; abort.current?.abort(); }, []);
   const clearResult = () => {
     generation.current += 1; abort.current?.abort();

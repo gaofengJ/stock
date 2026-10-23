@@ -14,7 +14,8 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { FastifyReply } from 'fastify';
-import { SkipThrottle } from '@nestjs/throttler';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
+import { readThrottleTracker } from './read-throttle-tracker';
 import { AuthRequest, AuthService, COOKIE } from './auth.service';
 import {
   ActivityQueryDto,
@@ -71,6 +72,9 @@ export class AuthController {
 
   @Public()
   @Get('access')
+  @Throttle({
+    default: { limit: 60, ttl: 10000, getTracker: readThrottleTracker },
+  })
   access(
     @Req() req: AuthRequest,
     @Query('startTrial') startTrial: string,

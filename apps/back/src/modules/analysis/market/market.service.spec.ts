@@ -77,7 +77,31 @@ describe('Market status date-specific update times', () => {
       '2024-09-24': '2026-09-26T10:00:00.000Z',
     });
     expect(status.dateUpdates['2025-01-01']).toBeUndefined();
-    expect(db.query).toHaveBeenCalledTimes(2);
+    expect(db.query).toHaveBeenCalledTimes(3);
+  });
+
+  it('changes the revision when dependent data is repaired without republishing market rows', async () => {
+    let revision = 'before';
+    const rows = [
+      { date: '2026-10-22', updatedAt: new Date('2026-10-22T14:00:00Z') },
+    ];
+    const db = {
+      query: jest.fn().mockImplementation(async (sql: string) => {
+        if (sql.includes('GROUP BY task'))
+          return [{ task: 'market-breadth', revision, count: 1 }];
+        return sql.includes('t_admin_job') ? [] : rows;
+      }),
+      manager: { findOne: jest.fn().mockResolvedValue(null) },
+    };
+    const service = new MarketService(
+      db as unknown as DataSource,
+      {} as TushareService,
+    );
+    const before = await service.status();
+    revision = 'after';
+    const after = await service.status();
+    expect(after.revision).not.toBe(before.revision);
+    expect(after.dateUpdates).toEqual(before.dateUpdates);
   });
 
   it('returns no date timestamp before the first completed publication', async () => {

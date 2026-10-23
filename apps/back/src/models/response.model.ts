@@ -7,7 +7,7 @@ import { RESPONSE_SUCCESS_CODE, RESPONSE_SUCCESS_MSG } from '@/constants';
 export class ResModel<T = any> {
   // 使用 ResModel 装饰器描述 data 属性，类型为 'object'
   // data 属性是一个可选的泛型类型，用于存储响应数据
-  @ApiProperty({ type: 'object' })
+  @ApiProperty({ type: 'object', additionalProperties: true })
   data?: T;
 
   // 使用 ApiProperty 装饰器描述 code 属性，类型为 'number'

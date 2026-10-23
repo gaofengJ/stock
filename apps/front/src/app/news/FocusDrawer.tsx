@@ -60,7 +60,7 @@ export default function FocusDrawer({
       width="min(520px, 100vw)"
       footer={(
         <Space>
-          <Button type="primary" loading={saving} onClick={save}>保存关注</Button>
+          <Button aria-label="保存关注" aria-busy={saving} type="primary" loading={saving} onClick={save}>保存关注</Button>
           <Button disabled={saving} onClick={close}>取消</Button>
         </Space>
       )}

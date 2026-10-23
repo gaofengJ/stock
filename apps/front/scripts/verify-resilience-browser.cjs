@@ -18,6 +18,8 @@ const wait = async (predicate, label) => { for (let i = 0; i < 200; i++) { if (p
 
 async function mockContext(browser, handler) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
+  context.setDefaultNavigationTimeout(20000);
+  context.setDefaultTimeout(20000);
   await context.addInitScript(() => {
     const interval = window.setInterval.bind(window);
     window.__minuteCallbacks = [];
@@ -60,6 +62,8 @@ async function notebookTest(browser) {
   await text.fill('未保存的复盘原文应在网络恢复后继续保留');
   const initialReads = reads;
   failure = true;
+  await page.clock.install();
+  await page.clock.fastForward(2100);
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await page.getByText('访问状态暂时无法更新，当前编辑内容已保留').waitFor();
   assert.equal(await text.inputValue(), '未保存的复盘原文应在网络恢复后继续保留');
@@ -72,6 +76,7 @@ async function notebookTest(browser) {
   assert.equal(await text.inputValue(), '未保存的复盘原文应在网络恢复后继续保留');
   assert.equal(reads, initialReads);
   signedOut = true;
+  await page.clock.fastForward(2100);
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await page.waitForURL('**/login/**');
   assert.equal(await text.count(), 0);
@@ -98,12 +103,12 @@ async function focusTest(browser) {
   await open.waitFor(); assert.equal(await open.isDisabled(), true);
   for (const route of preferenceReads) await ok(route, preferences).catch(() => {});
   await open.click();
-  const keywords = page.getByRole('combobox', { name: '关注关键词', exact: true });
+  const keywords = page.getByRole('combobox', { name: '关注关键词（最多 20 个）', exact: true });
   await keywords.fill('新增关注'); await keywords.press('Enter');
   await page.getByRole('button', { name: '保存关注', exact: true }).click();
   await wait(() => !!write, 'preference save');
   assert.equal(await keywords.isDisabled(), true);
-  assert.equal(await page.getByRole('combobox', { name: '自选股票', exact: true }).isDisabled(), true);
+  assert.equal(await page.getByRole('combobox', { name: '自选股票（最多 50 只）', exact: true }).isDisabled(), true);
   assert.equal(await page.getByRole('button', { name: /取\s*消/ }).isDisabled(), true);
   preferences = write.request().postDataJSON();
   assert.deepEqual(preferences.keywords, ['原关注', '新增关注']);
@@ -157,5 +162,12 @@ async function requestScopeTest(browser) {
 (async () => {
   const browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_EXECUTABLE ? { executablePath: process.env.CHROMIUM_EXECUTABLE } : {}) });
   try { await notebookTest(browser); await focusTest(browser); await requestScopeTest(browser); }
+  catch (error) {
+    for (const context of browser.contexts()) for (const page of context.pages()) {
+      await page.screenshot({ path: path.join(output, 'resilience-failure.png'), timeout: 5000 }).catch(() => {});
+      console.error(page.url(), await page.locator('body').innerText().catch(() => 'No page'));
+    }
+    throw error;
+  }
   finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

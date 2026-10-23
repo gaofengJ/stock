@@ -1,4 +1,4 @@
-/* eslint-disable no-restricted-syntax, no-await-in-loop, no-loop-func -- Five bounded captures reuse platform pages; callbacks only read DOM node types. */
+/* eslint-disable no-restricted-syntax, no-await-in-loop, no-loop-func, no-continue -- Sequential captures have per-page and batch deadlines. */
 import { Article, ArticleImage, validateArticle } from './article-contract';
 
 export const captureSources = [
@@ -22,10 +22,17 @@ export const imageId = (key: string) => `platform-dark-v1-${key}-0`;
 export function missingPlatformImages(images: ArticleImage[]) {
   return captureSources.filter((item) => !images.some((image) => image.id === imageId(item.key))).map((item) => item.key);
 }
-export function mergePlatformImages(article: Article, images: ArticleImage[]) {
+export function currentPlatformImages(images: ArticleImage[], revision: string) {
+  return images.filter((image) => {
+    if (!image.id.startsWith('platform-')) return true;
+    try { return new URL(image.source, 'https://stock.invalid').searchParams.get('dataRevision') === revision; } catch { return false; }
+  });
+}
+export function mergePlatformImages(article: Article, images: ArticleImage[], revision?: string) {
+  const existing = revision ? currentPlatformImages(article.images, revision) : article.images;
   const ids = new Set(images.map((image) => image.id));
-  const complete = missingPlatformImages([...article.images, ...images]).length === 0;
-  return validateArticle({ ...article, images: [...article.images.filter((image) => !ids.has(image.id) && !(complete && image.id.startsWith('platform-') && !image.id.startsWith('platform-dark-v1-'))), ...images] });
+  const complete = missingPlatformImages([...existing, ...images]).length === 0;
+  return validateArticle({ ...article, images: [...existing.filter((image) => !ids.has(image.id) && !(complete && image.id.startsWith('platform-') && !image.id.startsWith('platform-dark-v1-'))), ...images] });
 }
 const pause = (ms: number) => new Promise<void>((resolve) => { setTimeout(resolve, ms); });
 async function bounded<T>(work: Promise<T>, ms: number, signal: AbortSignal): Promise<T> {
@@ -36,24 +43,29 @@ async function bounded<T>(work: Promise<T>, ms: number, signal: AbortSignal): Pr
     abort = () => reject(new DOMException('已取消', 'AbortError')); signal.addEventListener('abort', abort, { once: true });
   })]).finally(() => { clearTimeout(timer); signal.removeEventListener('abort', abort); });
 }
-export async function capturePlatform(date: string, signal: AbortSignal, progress: (message: string) => void, keys = captureSources.map((item) => item.key)) {
+export async function capturePlatform(date: string, signal: AbortSignal, progress: (message: string) => void, keys = captureSources.map((item) => item.key), revision = '') {
   const images: ArticleImage[] = []; const failures: string[] = [];
-  for (const item of captureSources.filter((source) => keys.includes(source.key))) {
+  const selected = captureSources.filter((source) => keys.includes(source.key));
+  const batchDeadline = Date.now() + 120000;
+  for (const [index, item] of selected.entries()) {
     if (signal.aborted) break;
-    progress(`准备${item.title}暗色长图`);
+    if (Date.now() >= batchDeadline) { failures.push(`${item.title}：本轮准备超时，可单独重试`); continue; }
+    progress(`准备图片 ${index + 1}/${selected.length}：${item.title}`);
     const frame = document.createElement('iframe'); frame.title = '准备复盘原图'; frame.setAttribute('aria-hidden', 'true'); frame.tabIndex = -1;
     Object.assign(frame.style, {
       position: 'fixed', left: '-20000px', top: '0', width: '1100px', height: '1000px', border: '0', pointerEvents: 'none',
     });
     frame.src = `${item.path}?date=${date}&scope=all&reviewCapture=1${item.query}`; document.body.appendChild(frame);
-    const deadline = Date.now() + 60000;
+    const deadline = Math.min(batchDeadline, Date.now() + 45000);
     try {
       let nodes: HTMLElement[] = []; let ready = false;
       while (Date.now() < deadline) {
         if (signal.aborted) throw new DOMException('已取消', 'AbortError');
         const doc = frame.contentDocument;
         nodes = item.charts.map((key) => doc?.querySelector<HTMLElement>(`[data-review-capture="${key}"]`)).filter((node): node is HTMLElement => !!node);
-        ready = doc?.documentElement.dataset.theme === 'dark' && nodes.length === item.charts.length && nodes.every((node) => node.dataset.reviewDate === date && node.dataset.reviewReady === 'true' && !!node.querySelector('canvas') && !node.closest('[aria-hidden="true"],.is-pending') && !node.querySelector('[aria-busy="true"],.loading-placeholder'));
+        const frameRevision = doc?.querySelector<HTMLElement>('[data-capture-revision]')?.dataset.captureRevision;
+        if (revision && frameRevision && frameRevision !== revision) throw new Error('数据版本已变化，请重新准备图文资料');
+        ready = (!revision || frameRevision === revision) && doc?.documentElement.dataset.theme === 'dark' && nodes.length === item.charts.length && nodes.every((node) => node.dataset.reviewDate === date && node.dataset.reviewReady === 'true' && !!node.querySelector('canvas') && !node.closest('[aria-hidden="true"],.is-pending') && !node.querySelector('[aria-busy="true"],.loading-placeholder'));
         if (ready) break;
         await pause(250);
       }
@@ -80,7 +92,7 @@ export async function capturePlatform(date: string, signal: AbortSignal, progres
       let data = canvas.toDataURL('image/png'); if (data.length > 1400000) data = canvas.toDataURL('image/jpeg', 0.92);
       if (data.length > 3000000) throw new Error('高清长图超出大小限制');
       images.push({
-        id: imageId(item.key), data, caption: `${date} ${item.title}（暗色，${item.charts.length}组平台原图）`, source: `${window.location.origin}${item.path}?date=${date}${item.query}`, after: item.title,
+        id: imageId(item.key), data, caption: `${date} ${item.title}（暗色，${item.charts.length}组平台原图）`, source: `${window.location.origin}${item.path}?date=${date}${item.query}&dataRevision=${encodeURIComponent(revision)}`, after: item.title,
       });
     } catch (error) { if (signal.aborted) break; failures.push(`${item.title}：${(error as Error).message}`); } finally { frame.remove(); }
   }

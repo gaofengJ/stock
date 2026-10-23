@@ -44,6 +44,18 @@ describe('continuous chart browsing behind a shared proxy', () => {
         }),
       );
       const login = context(AuthController, AuthController.prototype.login);
+      const access = context(
+        AuthController,
+        AuthController.prototype.access,
+        3,
+      );
+      for (let i = 0; i < 60; i += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        await expect(guard.canActivate(access)).resolves.toBe(true);
+      }
+      await expect(guard.canActivate(access)).rejects.toMatchObject({
+        status: 429,
+      });
       for (let i = 0; i < 7; i += 1) {
         // eslint-disable-next-line no-await-in-loop
         await expect(guard.canActivate(login)).resolves.toBe(true);

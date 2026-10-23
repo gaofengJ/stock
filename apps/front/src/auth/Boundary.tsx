@@ -22,6 +22,7 @@ import zhCN from 'antd/locale/zh_CN';
 import { clearTradeDateCache } from '@/hooks/useDefaultTradeDate';
 import { useOptionsState } from '@/store/useOptionsStore';
 import FeedbackNotifications from './FeedbackNotifications';
+import { loginPath, requestedReturnPath } from './return-path';
 import {
   Account, allowedPath, api, clearCredential, homePath, getAccess,
 } from './client';
@@ -94,7 +95,7 @@ export default function AccountBoundary({
       if (status === 401 || status === 403) {
         clear();
         setLoadError(errorMessage(e));
-        if (status === 401) router.replace('/login');
+        if (status === 401) router.replace(loginPath());
       } else if (confirmed?.user && (!confirmed.user.guest || confirmed.trialEnd > Date.now())) {
         // A failed background read must not unmount forms with unsaved edits.
         setRefreshWarning(errorMessage(e));
@@ -116,7 +117,7 @@ export default function AccountBoundary({
     const changed = (event: Event) => {
       if ((event as CustomEvent).detail === 401) {
         clear();
-        router.replace('/login');
+        router.replace(loginPath());
       } else {
         setError('权限已调整，当前操作不可用');
         refresh();
@@ -140,9 +141,12 @@ export default function AccountBoundary({
   }, [clear, refresh, router]);
   useEffect(() => {
     if (!ready || loadError) return;
-    if ((!user || (user.guest && !allowedPath(user, path))) && !publicPage) router.replace('/login');
+    if ((!user || (user.guest && !allowedPath(user, path))) && !publicPage) router.replace(loginPath());
     else if (user?.mustChangePassword && path !== '/profile') router.replace('/profile');
-    else if (user && !user.guest && publicPage) router.replace(homePath(user));
+    else if (user && !user.guest && publicPage) {
+      const next = requestedReturnPath();
+      router.replace(next && allowedPath(user, next.split(/[?#]/)[0]) ? next : homePath(user));
+    }
   }, [user, ready, publicPage, path, router, loadError]);
   useEffect(() => {
     if (!user?.guest || !trialEnd) return undefined;

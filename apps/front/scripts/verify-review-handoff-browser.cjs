@@ -11,6 +11,8 @@ const items = Array.from({length:30}, (_,i) => ({tsCode:`${String(i+1).padStart(
 const user = {id:91,username:'fixture',nickname:'测试账户',roles:[{code:'admin'}],permissions:['/review'],catalog:[{code:'/review',route:'/review',name:'每日复盘',group:'fixture'}]};
 async function verify(browser, mode) {
   const context = await browser.newContext({ viewport:{width:1600,height:1050}, permissions:['clipboard-read','clipboard-write'] });
+  context.setDefaultNavigationTimeout(20000);
+  context.setDefaultTimeout(20000);
   await context.addInitScript(mode => {
     localStorage.setItem('stock-theme', mode);
     window.__copyMode = 'real';
@@ -66,11 +68,11 @@ async function verify(browser, mode) {
   await page.evaluate(()=>{const a=document.createElement('a');a.href='/analysis/overview/';a.textContent='fixture leave';a.id='fixture-leave';document.querySelector('.notebook-handoff').appendChild(a);});
   await page.locator('#fixture-leave').click();
   assert.equal(dialogs.length,1);assert.ok(page.url().includes('/review/'));
-  await page.getByRole('checkbox',{name:'交接持仓与操作记录，仅用于私人飞书复盘'}).check();
+  await page.getByRole('checkbox',{name:'文档包含持仓与操作记录'}).check();
   const handoff = page.locator('.notebook-handoff');
-  assert.equal(await page.getByRole('button',{name:'保存复盘',exact:true}).count(),1);
-  await page.getByRole('button',{name:'预览记录草稿',exact:true}).click();
-  await page.getByRole('dialog').getByText('这是记录草稿，尚未包含 AI 分析。生成飞书图文请使用“准备 Codex 任务”。').waitFor();
+  assert.equal(await handoff.getByRole('button',{name:/^保\s*存$/}).count(),1);
+  await handoff.getByRole('button',{name:/^预\s*览$/}).click();
+  await page.getByRole('dialog').getByText('当前只包含记录与配图。点击“智能复盘”即可生成正文。').waitFor();
   assert.equal(writes.length,0,'preview must not save');
   await page.getByRole('dialog').getByRole('button',{name:/关\s*闭/}).click();
   await page.waitForFunction(()=>getComputedStyle(document.querySelector('.platform-content')).overflowY !== 'hidden');
@@ -89,9 +91,9 @@ async function verify(browser, mode) {
   assert.ok(clipboard.includes(`保存版本 ${initialRevision + 1}`));
   assert.ok(clipboard.includes('必须保留的最新用户原文'));
   assert.ok(clipboard.includes('执行记录授权：仅限私人飞书文档'));
-  const labels = await handoff.getByRole('button').allTextContents();
-  assert.ok(labels.indexOf('保存复盘') < labels.indexOf('准备 Codex 任务'));
+  assert.equal(await page.getByRole('textbox',{name:'Skill 任务文本'}).inputValue(),clipboard.replace(/\r\n/g,'\n'));
   await page.screenshot({path:`${output}/handoff-${mode}.png`});
+  await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
   await page.evaluate(()=>{window.__copyMode='pending';});
   await handoff.getByRole('button',{name:'准备 Codex 任务',exact:true}).click();
   const manual = page.getByRole('textbox',{name:'Skill 任务文本'});
@@ -120,4 +122,14 @@ async function verify(browser, mode) {
   console.log(`PASS ${mode}: single sticky header, pagination, real leave guard, save/copy exact revision, timeout fallback, failed and concurrent saves`);
   await context.close();
 }
-(async()=>{const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE?{executablePath:process.env.CHROMIUM_EXECUTABLE}:{})});try{await verify(browser,'dark');await verify(browser,'light');}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});
+(async()=>{
+  const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE?{executablePath:process.env.CHROMIUM_EXECUTABLE}:{})});
+  try { await verify(browser,'dark'); await verify(browser,'light'); }
+  catch(error) {
+    for(const context of browser.contexts()) for(const page of context.pages()) {
+      await page.screenshot({path:`${output}/handoff-failure.png`,timeout:5000}).catch(()=>{});
+      console.error(page.url(),await page.locator('body').innerText().catch(()=>'No page'));
+    }
+    throw error;
+  } finally { await browser.close(); }
+})().catch(e=>{console.error(e);process.exitCode=1;});

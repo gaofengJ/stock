@@ -106,6 +106,8 @@ def check(token, path=STATE, now=None, api=request):
     state['checkedAt'] = now
 
     def finish(outcome, **fields):
+        if outcome not in ('backoff', 'api_failed', 'dispatch_uncertain'):
+            state['successfulCheckAt'] = now
         state.update(outcome=outcome, **fields)
         save(path, state)
         print(json.dumps(state))
@@ -119,7 +121,7 @@ def check(token, path=STATE, now=None, api=request):
         workflow = api('', token)
         if workflow.get('state') != 'active':
             raise ValueError('Health workflow is not active')
-        result = api('/runs?branch=master&per_page=100', token)
+        result = api('/runs?branch=master&per_page=10', token)
         runs = result['workflow_runs']
         if not isinstance(runs, list):
             raise ValueError('Invalid run response')
@@ -153,6 +155,16 @@ def check(token, path=STATE, now=None, api=request):
             return finish('skipped_recent_run', failures=0, retryAfter=0)
         if now - state.get('lastDispatchAt', 0) < STALE:
             return finish('skipped_recent_dispatch')
+        # Old queued runs can fall outside the recent page. Query each active
+        # status before POST instead of downloading megabytes of completed runs.
+        for status in sorted(ACTIVE):
+            active_runs = api('/runs?branch=master&per_page=1&status=' + status, token)['workflow_runs']
+            if not isinstance(active_runs, list):
+                raise ValueError('Invalid active run response')
+            active = next((r for r in active_runs if r['head_branch'] == 'master' and r['status'] in ACTIVE), None)
+            if active:
+                return finish('blocked_stale_active' if now - stamp(active['created_at']) > STALE
+                              else 'skipped_active_run', activeRunId=active['id'])
         state['pendingAt'] = now
         save(path, state)  # Durable intent before a potentially ambiguous POST.
         posting = True

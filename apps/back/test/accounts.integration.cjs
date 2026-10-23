@@ -33,6 +33,7 @@ const { ExpandedNewsSources1790832000000, EXPANDED_NEWS_CODES } = require('../di
 const { NewsDisplayPolicy1790835600000, RETIRED_RESEARCH_CODES } = require('../dist/migrations/1790835600000-NewsDisplayPolicy');
 const { NewsTranslations1791072000000 } = require('../dist/migrations/1791072000000-NewsTranslations');
 const { NewsReadingFeatures1791158400000 } = require('../dist/migrations/1791158400000-NewsReadingFeatures');
+const { NewsIndexQueue1792756800000 } = require('../dist/migrations/1792756800000-NewsIndexQueue');
 const { AdminJobControls1791676800000 } = require('../dist/migrations/1791676800000-AdminJobControls');
 const { NEWS_SOURCES } = require('../dist/modules/news/news.sources');
 const { NewsModule } = require('../dist/modules/news/news.module');
@@ -124,6 +125,7 @@ async function main() {
     const translationsMigration = new NewsTranslations1791072000000();
     await translationsMigration.up(q);
     await new NewsReadingFeatures1791158400000().up(q);
+    await new NewsIndexQueue1792756800000().up(q);
     // Preserve the old catalog collation even when news tables use MySQL 8 defaults.
     await db.query('CREATE TABLE IF NOT EXISTS t_source_stock (ts_code VARCHAR(16),name VARCHAR(80),fullname VARCHAR(200)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci');
     await db.query("INSERT INTO t_source_stock(ts_code,name,fullname) VALUES('000001.SZ','平安银行','平安银行股份有限公司')");
@@ -299,6 +301,7 @@ async function main() {
     for(const [i,source] of ['jin10','cls'].entries()){
       const inserted=await db.query('INSERT INTO t_news_item(source,dedupe_key,kind,title,body,important,published_at,created_at,updated_at) VALUES(?,?,\'flash\',?,?,0,?,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))',[source,String(i+6).repeat(64),i?ruleTitle.replace('，','。'):ruleTitle,'关注平安银行与半导体业务',stamp]);
       ruleIds.push(Number(inserted.insertId));
+      await db.query('INSERT INTO t_news_index_queue(news_id) VALUES(?)',[inserted.insertId]);
     }
     await newsService.features.indexBatch(500);
     const prefix='/news?range=today&keyword='+encodeURIComponent('前三季度净利润');

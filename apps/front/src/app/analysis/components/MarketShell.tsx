@@ -5,6 +5,7 @@ import {
 } from 'antd';
 import { beijingTime } from '@/utils/format';
 import dayjs from 'dayjs';
+import { useSearchParams } from 'next/navigation';
 import { BankOutlined, AppstoreOutlined } from '@ant-design/icons';
 import Layout from '@/components/Layout';
 import HelpTooltip from '@/components/HelpTooltip';
@@ -30,7 +31,16 @@ export default function MarketShell({
   const {
     date, scope, status, error, select, retry,
   } = useMarket();
+  const capture = useSearchParams().get('reviewCapture') === '1';
   const dates = new Set(status?.dates || []);
+  if (capture) {
+    return (
+      <main className="market-page" data-capture-revision={status?.revision}>
+        {error && <Alert type="error" message={error} />}
+        {status && date && children}
+      </main>
+    );
+  }
   return (
     <Layout headerMenuActive={EHeaderMenuKey.analysis} asideMenuItems={analysisMenu} asideMenuActive={path}>
       <div className="market-page p-16 rounded-[6px] bg-bg-white">

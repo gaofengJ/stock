@@ -58,7 +58,11 @@ echarts.registerTheme('stock', {
   color: chartPalette,
   textStyle: { color: uiColors.text, fontFamily },
   title: { textStyle: { color: uiColors.text }, subtextStyle: { color: uiColors.secondary } },
-  legend: { textStyle: { color: uiColors.secondary }, inactiveColor: uiColors.disabled },
+  // Preserve the existing chart layout across the ECharts 6 default-theme change.
+  grid: { top: 60, bottom: 70 },
+  legend: {
+    top: 0, bottom: null, textStyle: { color: uiColors.secondary }, inactiveColor: uiColors.disabled,
+  },
   categoryAxis: axisTheme,
   valueAxis: axisTheme,
   timeAxis: axisTheme,
@@ -81,7 +85,10 @@ echarts.registerTheme('stock-dark', {
   title: { textStyle: { color: candlePanelColors.text }, subtextStyle: { color: candlePanelColors.muted } },
   backgroundColor: 'transparent',
   textStyle: { color: candlePanelColors.text, fontFamily },
-  legend: { textStyle: { color: candlePanelColors.text }, inactiveColor: candlePanelColors.axis },
+  grid: { top: 60, bottom: 70 },
+  legend: {
+    top: 0, bottom: null, textStyle: { color: candlePanelColors.text }, inactiveColor: candlePanelColors.axis,
+  },
   categoryAxis: darkAxis,
   valueAxis: darkAxis,
   timeAxis: darkAxis,
@@ -107,7 +114,7 @@ const EChart = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<ReactEChartsCore>(null);
   const zoomRef = useRef<{ start: number; end: number }[]>([]);
-  const hoverDateRef = useRef<string | null>();
+  const hoverDateRef = useRef<string | null>(undefined);
   const rowTargetsRef = useRef<ReturnType<typeof heatmapRowTargets>>([]);
   const callbacks = useRef({
     onLegendChange, onAxisHover, onDateClick, onZoomChange, formatHoverLegend, highlightHeatmapRows,

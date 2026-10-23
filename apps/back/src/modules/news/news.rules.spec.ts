@@ -46,6 +46,27 @@ describe('Conservative news rules', () => {
       newsGroup(item, [{ ...other, published_at: '2026-10-01T04:59:00Z' }]),
     ).not.toBe('existing');
   });
+  it('compares the substantive bracket headline without appending Sina body figures', () => {
+    const headline = '电科思仪：拟每10股派发现金红利2.5元';
+    expect(
+      similarNews(
+        `【${headline}】公司2026年10月23日公布分红方案，股权登记日为10月30日。`,
+        headline,
+      ),
+    ).toBe(true);
+    expect(
+      similarNews(
+        `【${headline}】公司公布方案`,
+        headline.replace('2.5', '2.8'),
+      ),
+    ).toBe(false);
+    expect(
+      similarNews(
+        '【快讯】公司宣布暂停交易，等待公告',
+        '公司宣布恢复交易，等待公告',
+      ),
+    ).toBe(false);
+  });
   it('links exact company names and codes without matching longer numeric identifiers', () => {
     const stocks = [
       {

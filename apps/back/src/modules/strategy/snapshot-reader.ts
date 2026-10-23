@@ -1,6 +1,9 @@
-/* eslint-disable no-restricted-syntax -- Bound decompression and cache memory by processing one snapshot at a time. */
+/* eslint-disable no-restricted-syntax, no-await-in-loop -- Decode asynchronously one snapshot at a time to bound memory and release the API event loop. */
 import { DataSource } from 'typeorm';
-import { inflateSync } from 'zlib';
+import { inflate } from 'zlib';
+import { promisify } from 'util';
+
+const inflateAsync = promisify(inflate);
 
 type SnapshotTable =
   | 't_source_strategy_factor'
@@ -138,7 +141,9 @@ export class StrategySnapshotReader {
           result.set(
             id,
             project(
-              JSON.parse(inflateSync(packed.subarray(4)).toString('utf8')),
+              JSON.parse(
+                (await inflateAsync(packed.subarray(4))).toString('utf8'),
+              ),
               id,
             ),
           );

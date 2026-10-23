@@ -25,11 +25,13 @@ let accessStartsTrial = false;
 let csrf: string | undefined;
 let pending: Promise<string> | undefined;
 let credentialGeneration = 0;
+let accessResult: { value: AccessState; at: number; startsTrial: boolean } | undefined;
+export function invalidateAccess() { accessResult = undefined; accessPending = undefined; }
 export function clearCredential() {
   credentialGeneration += 1;
   csrf = undefined;
   pending = undefined;
-  accessPending = undefined;
+  invalidateAccess();
 }
 export async function csrfToken(options: RequestOptions = {}): Promise<string> {
   if (csrf) return csrf;
@@ -55,6 +57,7 @@ export async function csrfToken(options: RequestOptions = {}): Promise<string> {
   return withRequestDeadline(() => shared, options);
 }
 export function authFailure(status: number) {
+  if (status === 401 || status === 403) invalidateAccess();
   if (typeof window !== 'undefined' && (status === 401 || status === 403)) {
     window.dispatchEvent(
       new CustomEvent('account-http-error', { detail: status }),
@@ -84,7 +87,8 @@ export async function api<T = any>(
       if (notify && !r.ok) authFailure(r.status);
       const b = await readApiResponse(r);
       signal.throwIfAborted();
-      if (b.data?.csrfToken) { credentialGeneration += 1; csrf = b.data.csrfToken; accessPending = undefined; }
+      if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) invalidateAccess();
+      if (b.data?.csrfToken) { credentialGeneration += 1; csrf = b.data.csrfToken; invalidateAccess(); }
       return b.data;
     }, options);
   } catch (error) {
@@ -114,8 +118,22 @@ export function allowedPath(user: Account | null, path: string): boolean {
 }
 
 export function getAccess(startTrial: boolean): Promise<AccessState> {
+  const cached = accessResult;
+  if (cached && Date.now() - cached.at < 2000 && (!cached.value.trial || cached.value.trial.remainingMs > Date.now() - cached.at)
+    && (!startTrial || cached.startsTrial || (cached.value.user && !cached.value.user.guest))) {
+    return Promise.resolve({
+      ...cached.value,
+      trial: cached.value.trial
+        ? { remainingMs: Math.max(0, cached.value.trial.remainingMs - (Date.now() - cached.at)) } : null,
+    });
+  }
   if (!accessPending || (startTrial && !accessStartsTrial)) {
+    const generation = credentialGeneration;
     const request = api<AccessState>(`/auth/access?startTrial=${startTrial ? '1' : '0'}`, 'GET', undefined, false)
+      .then((value) => {
+        if (generation === credentialGeneration && accessPending === request) accessResult = { value, at: Date.now(), startsTrial: startTrial };
+        return value;
+      })
       .finally(() => { if (accessPending === request) accessPending = undefined; });
     accessPending = request;
     accessStartsTrial = startTrial;

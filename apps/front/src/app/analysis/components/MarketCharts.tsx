@@ -60,7 +60,7 @@ export function Metrics({ items }: { items: Metric[] }) {
   return (
     <Row gutter={[16, 16]} className="market-metrics">
       {items.map((i) => (
-        <Col key={i.title} xs={24} sm={12} xl={6}>
+        <Col key={i.title} xs={12} sm={12} xl={6}>
           <Card size="small" className="metric-card">
             <div className="metric-label">
               {i.href ? (

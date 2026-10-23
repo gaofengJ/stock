@@ -9,7 +9,10 @@ interface ICacheEntry<T> {
 export class AsyncTtlCache {
   private entries = new Map<string, ICacheEntry<unknown>>();
 
-  constructor(private readonly ttl: number) {}
+  constructor(
+    private readonly ttl: number,
+    private readonly maxEntries = 128,
+  ) {}
 
   getOrCreate<T>(key: string, loader: () => Promise<T>): Promise<T> {
     const now = Date.now();
@@ -19,6 +22,10 @@ export class AsyncTtlCache {
 
     const cached = this.entries.get(key) as ICacheEntry<T> | undefined;
     if (cached) return cached.promise;
+
+    while (this.entries.size >= this.maxEntries) {
+      this.entries.delete(this.entries.keys().next().value!);
+    }
 
     const entry: ICacheEntry<T> = {
       expiresAt: Number.POSITIVE_INFINITY,

@@ -67,6 +67,20 @@ test('concurrent access checks share one request, avoiding duplicate trial start
   } finally { global.fetch = original; }
 });
 
+test('brief access reuse expires, subtracts trial time and clears on credential invalidation', async () => {
+  const original = global.fetch; const originalNow = Date.now;
+  let now = 10000; let calls = 0;
+  Date.now = () => now;
+  global.fetch = async () => { calls++; return { ok: true, json: async () => ({ data: { user: { guest: true }, trial: { remainingMs: 3000 } } }) }; };
+  try {
+    const auth = client();
+    await auth.getAccess(true); now += 1000;
+    assert.equal((await auth.getAccess(true)).trial.remainingMs, 2000); assert.equal(calls, 1);
+    now += 1001; await auth.getAccess(true); assert.equal(calls, 2);
+    auth.clearCredential(); await auth.getAccess(true); assert.equal(calls, 3);
+  } finally { global.fetch = original; Date.now = originalNow; }
+});
+
 test('successful login replaces pending guest state and uses the rotated CSRF token', async () => {
   const original = global.fetch;
   let finishGuest;

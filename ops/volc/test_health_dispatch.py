@@ -139,6 +139,36 @@ class HealthDispatchTest(unittest.TestCase):
             self.check()
         self.assertFalse(self.posts)
 
+    def test_old_active_run_outside_recent_page_prevents_duplicate_dispatch(self):
+        calls = []
+        def api(suffix, token, payload=None):
+            calls.append(suffix)
+            if not suffix: return {'state': 'active'}
+            if 'status=queued' in suffix:
+                return {'workflow_runs': [self.run_record(age=86400, status='queued')]}
+            if 'status=' in suffix: return {'workflow_runs': []}
+            self.assertIsNone(payload)
+            return {'workflow_runs': [self.run_record(age=3600)]}
+        with contextlib.redirect_stdout(io.StringIO()):
+            state = h.check('fixture', self.path, self.now, api)
+        self.assertEqual(state['outcome'], 'blocked_stale_active')
+        self.assertIn('/runs?branch=master&per_page=10', calls)
+        self.assertNotIn('/dispatches', calls)
+
+    def test_failed_active_query_does_not_refresh_last_success(self):
+        prior = self.now - 3600
+        self.path.write_text(json.dumps({'successfulCheckAt': prior}))
+        def api(suffix, token, payload=None):
+            if not suffix: return {'state': 'active'}
+            if 'status=' in suffix: raise h.ApiError(503)
+            return {'workflow_runs': [self.run_record(age=3600)]}
+        with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(h.ApiError):
+            h.check('fixture', self.path, self.now, api)
+        state = json.loads(self.path.read_text())
+        self.assertEqual(state['successfulCheckAt'], prior)
+        self.assertEqual(state['outcome'], 'api_failed')
+        self.assertEqual(self.check()['successfulCheckAt'], prior)
+
 
 if __name__ == '__main__':
     unittest.main()

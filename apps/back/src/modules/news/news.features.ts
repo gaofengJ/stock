@@ -99,7 +99,7 @@ export class NewsFeatures {
 
   async indexBatch(limit = 200) {
     const rows: RuleCandidate[] = await this.db.query(
-      'SELECT n.id,n.title,n.body,n.source,n.kind,n.published_at,n.dedupe_key FROM t_news_item n LEFT JOIN t_news_rule r ON r.news_id=n.id WHERE r.news_id IS NULL AND n.published_at>=DATE_SUB(UTC_TIMESTAMP(3),INTERVAL 30 DAY) ORDER BY n.id DESC LIMIT ?',
+      'SELECT n.id,n.title,n.body,n.source,n.kind,n.published_at,n.dedupe_key FROM t_news_index_queue q JOIN t_news_item n ON n.id=q.news_id ORDER BY q.news_id DESC LIMIT ?',
       [limit],
     );
     if (!rows.length) return;
@@ -148,6 +148,10 @@ export class NewsFeatures {
         [item.id, group, hashText(text)],
       );
       candidates.unshift({ ...item, group_key: group });
+      // A crash before acknowledgement safely repeats classification next time.
+      await this.db.query('DELETE FROM t_news_index_queue WHERE news_id=?', [
+        item.id,
+      ]);
     }
   }
 }

@@ -24,7 +24,7 @@ const features = [
     title: '券商月度金股', text: '按月份、券商和名称查询推荐名单，通过股票链接继续查看个股档案。', href: '/basic/stock/broker-picks/', label: '查询月度金股',
   },
   {
-    title: '每日复盘与计划', text: '整理0—3只观察股票，记录核验事项和下一交易日计划，导出复盘文件。', href: '/review/', label: '开始每日复盘',
+    title: '每日复盘与计划', text: '整理观察股票，记录核验事项和下一交易日计划，导出复盘文件。', href: '/review/', label: '开始每日复盘',
   },
 ];
 export default function Page() {
@@ -37,7 +37,7 @@ export default function Page() {
       />
       <section className="discovery-hero">
         <div>
-          <p className="discovery-eyebrow">A股 · 盘后研究 · 每日复盘</p>
+          <p className="discovery-eyebrow">A股盘后研究与每日复盘</p>
           <h1>
             从市场变化到观察计划，
             <br />
