@@ -48,10 +48,12 @@ jobs:
           node --test apps/front/scripts/test-display.cjs apps/front/scripts/test-errors.cjs apps/front/scripts/test-market-compatibility.cjs apps/front/scripts/test-guest-access.cjs apps/front/scripts/test-market-environment.cjs apps/front/scripts/test-blog-paths.cjs apps/front/scripts/test-intraday-counts.cjs apps/front/scripts/test-live-research.cjs apps/front/scripts/test-playbook.cjs apps/front/scripts/test-admin-polling.cjs
           pnpm -C apps/front run test:profile
       - run: pnpm -C apps/front run build
+      - name: Install browser and system dependencies
+        timeout-minutes: 20
+        run: pnpm -C apps/front exec playwright install --with-deps --only-shell chromium
       - name: Browser regression against the static export
-        timeout-minutes: 10
+        timeout-minutes: 5
         run: |
-          pnpm -C apps/front exec playwright install --with-deps chromium
           python3 -m http.server 8087 --bind 127.0.0.1 --directory apps/front/out >/tmp/stock-browser-server.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid"' EXIT
