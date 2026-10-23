@@ -77,10 +77,25 @@ export function taskGroups(tasks: Task[]): Task[][] {
   return [...groups.values()];
 }
 export function strategyCaption(strategy: StrategyContext) {
-  const names: Record<string, string> = { fiveMaUp: '五线顺上', volumeBreakout: '放量突破', breakoutPullback: '突破回踩' };
+  const names: Record<string, string> = {
+    gapThreeUp: '缺口三连阳', gapTwoUp: '缺口二连阳', gapThreeHighTurnover: '缺口三日高换手', threeDaysHighVol: '连续三日收阳', continuousGap: '连续向上缺口', shadowWrap: '缺口上影反包', fiveMaUp: '五线顺上', volumeBreakout: '放量突破', breakoutPullback: '突破回踩',
+  };
   const labels: Record<string, string> = {
     minTurnoverRateF: '最低自由流通换手率(%)', breakoutDays: '突破回看天数', volumeDays: '均量天数', volumeMultiple: '放量倍数', pullbackDays: '回踩观察天数', pullbackBelow: '下穿容差(%)', pullbackAbove: '上方容差(%)', contractionRatio: '缩量比例', fiveMaMode: '五线状态', aboveMa5: '收盘高于5日线', bullish: '当日收阳', expandingVolume: '成交量扩大',
   };
   const display = (value: string | number | boolean) => { if (typeof value === 'boolean') return value ? '是' : '否'; if (value === 'new') return '当日新形成'; if (value === 'current') return '当前满足'; return String(value); };
-  return `${names[strategy.type] || strategy.type}；${Object.entries(strategy.parameters).map(([key, value]) => `${labels[key] || key}：${display(value)}`).join('，') || '默认条件'}`;
+  const keys = strategy.type === 'fiveMaUp' ? ['fiveMaMode', 'aboveMa5', 'bullish', 'expandingVolume', ...(strategy.parameters.expandingVolume ? ['volumeDays', 'volumeMultiple'] : [])] : Object.keys(strategy.parameters);
+  return `${names[strategy.type] || strategy.type}；${Object.entries(strategy.parameters).filter(([key]) => keys.includes(key)).map(([key, value]) => `${labels[key] || key}：${display(value)}`).join('，') || '默认条件'}`;
+}
+
+export function taskHref(task: Task) {
+  const query = new URLSearchParams({ date: task.date, aiTask: task.id });
+  if (task.skill === 'market-review') return `/review/?${query}`;
+  if (task.strategy) {
+    query.set('strategyType', task.strategy.type);
+    Object.entries(task.strategy.parameters).forEach(([key, value]) => query.set(key === 'minTurnoverRateF' ? `turnover_${task.strategy!.type}` : key, String(value)));
+    if (task.strategy.sector) query.set('sector', task.strategy.sector);
+    if (task.strategy.keyword) query.set('q', task.strategy.keyword);
+  }
+  return `/strategy/?${query}`;
 }

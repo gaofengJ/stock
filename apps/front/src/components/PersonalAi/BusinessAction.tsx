@@ -20,7 +20,7 @@ export default function BusinessAction({
   const [context, setContext] = useState<{ date: string; candidates: Candidate[]; strategy?: StrategyContext; codes?: string[]; taskId?: string } | null>(null);
   const opening = useRef({ candidates, strategy, initialCodes }); opening.current = { candidates, strategy, initialCodes };
   useEffect(() => {
-    if ((taskId || openRequest) && skill === 'market-review') {
+    if (taskId || (openRequest && skill === 'market-review')) {
       setContext({
         date, candidates: [...opening.current.candidates], strategy: opening.current.strategy, codes: opening.current.initialCodes, taskId,
       }); setOpen(true);

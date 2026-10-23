@@ -15,7 +15,7 @@ import ResultText from './ResultText';
 import { useAiTasks } from './TaskState';
 import {
   activeTask, ConsoleState, consoleRequest, DataSummary, defaultChoice, Metadata, ModelChoice,
-  modelNames, readChoice, saveChoice, Skill, statusNames, StrategyContext, supportsChoice, Task, taskGroups, strategyCaption,
+  modelNames, readChoice, saveChoice, Skill, statusNames, StrategyContext, supportsChoice, Task, taskGroups, strategyCaption, taskHref,
 } from './client';
 import './personal-ai.css';
 
@@ -58,7 +58,7 @@ export default function AnalysisPanel({
   useEffect(() => {
     mounted.current = true; setChoice(readChoice(ownerId));
     let saved: { question?: string; codes?: string[]; chosenId?: string; parentId?: string; requestKey?: typeof requestKey.current } = {};
-    try { saved = readOnly ? {} : JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch { setNotice('本机输入草稿不可用，请及时复制问题'); }
+    try { const parsed = readOnly ? {} : JSON.parse(localStorage.getItem(storageKey) || '{}'); if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) saved = parsed; } catch { setNotice('本机输入草稿不可用，请及时复制问题'); }
     setQuestion(typeof saved.question === 'string' ? saved.question.slice(0, 2000) : '');
     const savedCodes = Array.isArray(saved.codes) ? saved.codes.filter((code) => /^\d{6}\.(SH|SZ|BJ)$/.test(code)).slice(0, 3) : [];
     setCodes(initialCodes.length ? initialCodes.slice(0, 3) : savedCodes);
@@ -294,7 +294,7 @@ export default function AnalysisPanel({
               {chosen.status === 'completed' && chosen.answer && (
               <CollectButton
                 item={{
-                  id: `ai:${chosen.id}`, kind: 'ai', date, title: `${date} ${skill === 'market-review' ? '复盘分析' : '股票对比'}`, url: `/review/?date=${date}&aiTask=${chosen.id}`, note: chosen.answer.slice(0, 12000),
+                  id: `ai:${chosen.id}`, kind: 'ai', date, title: `${date} ${skill === 'market-review' ? '复盘分析' : '股票对比'}`, url: taskHref(chosen), note: chosen.answer.slice(0, 12000),
                 }}
                 label={chosen.answer.length > 12000 ? '收录前12000字为素材' : '收录结论为素材'}
               />
@@ -380,6 +380,14 @@ export default function AnalysisPanel({
               {(currentPreview.bytes / 1024).toFixed(1)}
               {' '}
               KB，不包含 Codex 系统上下文；不是 Token 计费估值。
+            </p>
+            )}
+            {chosen && (
+            <p>
+              资料契约版本：
+              {chosen.skillVersion || '未知'}
+              ；任务：
+              {chosen.id}
             </p>
             )}
             {chosen?.timings && <p>{Object.entries(chosen.timings).map(([name, time]) => `${name} ${(time / 1000).toFixed(1)}秒`).join('，')}</p>}

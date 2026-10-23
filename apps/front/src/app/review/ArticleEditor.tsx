@@ -3,6 +3,7 @@
 /* eslint-disable react/no-danger, react/jsx-closing-tag-location -- HTML is produced by the escaping renderer; local raster images use data URLs. */
 /* eslint jsx-a11y/label-has-associated-control: ["error", { "assert": "htmlFor" }] */
 import { useRef, useState } from 'react';
+import Link from 'next/link';
 import {
   Alert, Button, Checkbox, Collapse, Input, Modal, Select, Space,
 } from 'antd';
@@ -254,6 +255,7 @@ export default function ArticleEditor({
         </Space>
         {handoffNotice && <Alert type="info" message={<span role="status">{handoffNotice}</span>} />}
         {!!article.body && !article.composition && <Alert type="warning" message="此正文来自旧版本或外部导入，修改个人记录后请核对正文再复制" action={<Button onClick={() => { const answer = nativeAnswer(article.body); if (answer) setProposal({ answer, taskId: 'legacy', body: reviewDocument(date, currentContent.current, answer) }); else setEditBody(true); }}>核对并同步原文</Button>} />}
+        {article.composition?.taskId && article.composition.taskId !== 'legacy' && <Link href={`/review/?date=${date}&aiTask=${encodeURIComponent(article.composition.taskId)}`}>查看上次应用的 AI 结果</Link>}
         {article.composition && article.composition.notesSignature !== notesSignature(content) && <Alert type="info" message="预览已同步最新原文，AI 分析保持不变；保存后同步服务器正文" />}
         {undo && (
         <Button onClick={() => {

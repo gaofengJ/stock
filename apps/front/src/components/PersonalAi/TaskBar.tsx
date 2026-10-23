@@ -7,7 +7,7 @@ import {
 import Link from 'next/link';
 import { useAccount } from '@/auth/Boundary';
 import { useAiTasks } from './TaskState';
-import { activeTask, statusNames } from './client';
+import { activeTask, statusNames, taskHref } from './client';
 import AnalysisPanel from './AnalysisPanel';
 
 export default function TaskBar() {
@@ -30,7 +30,7 @@ export default function TaskBar() {
               {statusNames[task.status]}
             </span>
             <Button size="small" onClick={() => setOpen(true)}>查看 AI 任务</Button>
-            {task.skill === 'market-review' && <Link href={`/review/?date=${task.date}&aiTask=${task.id}`}>回到复盘应用结果</Link>}
+            <Link href={taskHref(task)}>{task.skill === 'market-review' ? '回到复盘应用结果' : '回到策略查看结果'}</Link>
           </Space>
 )}
       />
