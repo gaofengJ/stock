@@ -82,6 +82,23 @@ jobs:
           NGINX_IMAGE=$(docker image inspect --format '{{index .RepoDigests 0}}' nginx:stable)
           docker build --build-arg NGINX_IMAGE="$NGINX_IMAGE" -f ops/volc/Dockerfile.front -t stock-front-volc:${{ github.sha }} .
           docker run --rm stock-front-volc:${{ github.sha }} nginx -t
+          docker run -d --name stock-front-cache-check -p 127.0.0.1:18087:80 stock-front-volc:${{ github.sha }}
+          trap 'docker rm -f stock-front-cache-check >/dev/null' EXIT
+          curl --fail --silent --retry 10 --retry-connrefused --retry-delay 1 http://127.0.0.1:18087/ >/dev/null
+          python3 - <<'PY'
+          import re, urllib.request
+          origin='http://127.0.0.1:18087'
+          for path in ('/', '/news/', '/analysis/overview/'):
+              with urllib.request.urlopen(origin+path, timeout=10) as response:
+                  assert response.headers['Cache-Control']=='no-cache', path
+                  assert response.headers['X-Content-Type-Options']=='nosniff', path
+                  assert response.headers['X-Frame-Options']=='SAMEORIGIN', path
+                  html=response.read().decode()
+          asset=re.search(r'<script[^>]+src="(/_next/static/[^"]+)"', html).group(1)
+          with urllib.request.urlopen(origin+asset, timeout=10) as response:
+              assert 'max-age=31536000' in response.headers['Cache-Control']
+          print('PASS entry HTML revalidation, security headers, and immutable resource caching')
+          PY
           mkdir -p /tmp/stock-volc-front
           docker save stock-front-volc:${{ github.sha }} | zstd -T0 -3 -o /tmp/stock-volc-front/frontend.tar.zst
           sha256sum /tmp/stock-volc-front/frontend.tar.zst > /tmp/stock-volc-front/frontend.sha256
