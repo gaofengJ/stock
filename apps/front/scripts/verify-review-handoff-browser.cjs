@@ -39,6 +39,7 @@ async function verify(browser, mode) {
         data = {revision:++revision};
       } else data = {date,revision,generation:2,content:null};
     }
+    if (path === '/api/review/notebook/dates') data = [];
     if (path === '/api/review/report') data = {date,complete:true,items,strategies:[{key:'trend',label:'连续三日收阳',state:'ready'}]};
     if (path.includes('financial')) data = {items:items.map(row=>({...row,status:'profit',amount:100,reportDate:'2026-06-30',announcedAt:date,sourceState:'ready',forecastState:'ready',history:[],forecast:null})),sources:[]};
     await route.fulfill({contentType:'application/json',body:JSON.stringify({code:0,data})});
@@ -48,7 +49,7 @@ async function verify(browser, mode) {
   page.on('dialog',async dialog=>{dialogs.push(dialog.message());await dialog.dismiss();});
   await page.goto(`${base}/review/?date=${date}`,{waitUntil:'networkidle'});
   const topGap = await page.evaluate(()=>document.querySelector('.review-page').getBoundingClientRect().top-document.querySelector('.platform-content').getBoundingClientRect().top);
-  assert.equal(Math.round(topGap),16,'review surface keeps padding above it without offsetting the sticky header');
+  assert.ok(topGap >= 16 && topGap < 150, 'review content remains below the context bar');
   assert.equal(await page.getByRole('button',{name:'智能复盘',exact:true}).count(),0,'non-owner cannot see AI controls');
   const input = page.locator('#note-marketJudgment');
   await input.fill('必须保留的最新用户原文');
@@ -58,7 +59,7 @@ async function verify(browser, mode) {
   await page.waitForTimeout(1200);
   await page.locator('.platform-content').evaluate(node=>{const bar=document.querySelector('.review-selection');node.scrollTop+=bar.getBoundingClientRect().top-node.getBoundingClientRect().top+150;});
   await page.waitForTimeout(1200);
-  const metrics = await page.evaluate(()=>{const bar=document.querySelector('.review-selection'),header=document.querySelector('#review-candidate-table .ant-table-sticky-holder');return {position:getComputedStyle(bar).position,headerTop:header.getBoundingClientRect().top,scrollTop:document.querySelector('.platform-content').getBoundingClientRect().top,headerBackground:getComputedStyle(header.querySelector('th')).backgroundColor};});
+  const metrics = await page.evaluate(()=>{const bar=document.querySelector('.review-selection'),header=document.querySelector('#review-candidate-table .ant-table-sticky-holder');return {position:getComputedStyle(bar).position,headerTop:header.getBoundingClientRect().top,scrollTop:document.querySelector('.notebook-toolbar').getBoundingClientRect().bottom,headerBackground:getComputedStyle(header.querySelector('th')).backgroundColor};});
   await page.screenshot({path:`${output}/sticky-${mode}.png`});
   assert.equal(metrics.position,'static');
   assert.notEqual(metrics.headerBackground,'rgba(0, 0, 0, 0)');
@@ -67,7 +68,9 @@ async function verify(browser, mode) {
   // Verify a genuine same-tab navigation is still guarded.
   await page.evaluate(()=>{const a=document.createElement('a');a.href='/analysis/overview/';a.textContent='fixture leave';a.id='fixture-leave';document.querySelector('.notebook-handoff').appendChild(a);});
   await page.locator('#fixture-leave').click();
-  assert.equal(dialogs.length,1);assert.ok(page.url().includes('/review/'));
+  await page.getByRole('dialog').getByText('离开前处理未保存复盘').waitFor();
+  await page.getByRole('button',{name:'继续编辑',exact:true}).click();
+  assert.equal(dialogs.length,0);assert.ok(page.url().includes('/review/'));
   await page.getByRole('checkbox',{name:'文档包含持仓与操作记录'}).check();
   const handoff = page.locator('.notebook-handoff');
   assert.equal(await handoff.getByRole('button',{name:/^保\s*存$/}).count(),1);

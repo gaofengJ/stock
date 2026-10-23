@@ -14,6 +14,7 @@ import { allowedPath } from '@/auth/client';
 import {
   canViewStockChart, stockHref, stockSymbol, validStockCode,
 } from '@/utils/stock-interaction';
+import { CollectButton } from '@/components/ResearchCollection';
 import { useStockActions } from './context';
 import { useStockList } from './ListScope';
 import './stock-actions.css';
@@ -73,6 +74,12 @@ export default function StockActions({
               <Button className="stock-action-item" type="text" icon={<EyeOutlined />} aria-label="预览K线" disabled={!canChart || chartOpen} onKeyDown={closeOnEscape} onClick={() => { setOpen(false); const rows = navigation || listRows(); if (onChart) onChart([...rows]); else actions.openChart({ code, name, date }, rows); }}>预览K线</Button>
             </span>
           </Tooltip>
+          <CollectButton
+            label="加入本日观察"
+            item={{
+              id: `stock:${code}`, kind: 'stock', date: date || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('date') || '' : ''), title: `${name || symbol} ${code}`, code, name: name || symbol, url: typeof window !== 'undefined' ? window.location.href : stockHref(code, date), note: '从研究页面加入，仍需核验候选条件及风险。',
+            }}
+          />
           <div className="stock-action-copy">
             <Button className="stock-action-item" type="text" icon={<CopyOutlined />} aria-label="复制代码" onKeyDown={closeOnEscape} onClick={() => { setOpen(false); actions.copyCode(code); }}>复制代码</Button>
           </div>

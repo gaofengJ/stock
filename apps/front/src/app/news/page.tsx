@@ -1,5 +1,7 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
+import { CollectButton } from '@/components/ResearchCollection';
 import SelectField from '@/components/SelectField';
 import { ExternalLink, InteractionButton } from '@/components/Interaction';
 import { StockLink } from '@/components/StockActions';
@@ -33,17 +35,26 @@ const statusText: Record<string, string> = {
   ok: '正常', delayed: '更新延迟', error: '暂不可用', pending: '等待采集', collecting: '采集中',
 };
 
+function writeNewsQuery(changes: Record<string, string | undefined>) {
+  const url = new URL(window.location.href);
+  Object.entries(changes).forEach(([key, value]) => { if (value) url.searchParams.set(key, value); else url.searchParams.delete(key); });
+  window.history.replaceState(null, '', url);
+}
 export default function Page() {
+  const query = useSearchParams();
+
   const { user } = useAccount();
   const manager = Boolean(user?.permissions.includes('news:manage'));
   const signedIn = Boolean(user && !user.guest);
-  const [date, setDate] = useState(chinaDate);
-  const [source, setSource] = useState('');
-  const [kind, setKind] = useState('');
-  const [keyword, setKeyword] = useState('');
-  const [important, setImportant] = useState(false);
-  const [page, setPage] = useState(1);
-  const [auto, setAuto] = useState(true);
+  const date = query.get('date') && dayjs(query.get('date')).format('YYYY-MM-DD') === query.get('date') ? query.get('date')! : chinaDate();
+  const setDate = (value: string) => writeNewsQuery({ date: value });
+  const source = query.get('source') || ''; const setSource = (value: string) => writeNewsQuery({ source: value });
+  const kind = ['flash', 'article'].includes(query.get('kind') || '') ? query.get('kind')! : ''; const setKind = (value: string) => writeNewsQuery({ kind: value });
+  const keyword = (query.get('q') || '').slice(0, 80); const setKeyword = (value: string) => writeNewsQuery({ q: value });
+  const [searchText, setSearchText] = useState(keyword); useEffect(() => setSearchText(keyword), [keyword]);
+  const important = query.get('important') === '1'; const setImportant = (value: boolean) => writeNewsQuery({ important: value ? '1' : undefined });
+  const page = Math.max(1, Math.min(10000, Number(query.get('page')) || 1)); const setPage = (value: number) => writeNewsQuery({ page: value > 1 ? String(value) : undefined });
+  const [auto, setAuto] = useState(!query.has('date'));
   const [data, setData] = useState<NewsList | null>(null);
   const [sources, setSources] = useState<SourceState>({ collecting: false, sources: [] });
   const [loading, setLoading] = useState(true);
@@ -56,11 +67,12 @@ export default function Page() {
   const [detailError, setDetailError] = useState('');
   const [configBusy, setConfigBusy] = useState('');
   const [syncBusy, setSyncBusy] = useState(false);
-  const [range, setRange] = useState('today');
-  const [merge, setMerge] = useState(true);
-  const [stock, setStock] = useState('');
-  const [watchlist, setWatchlist] = useState(false);
-  const [following, setFollowing] = useState(false);
+  const defaultRange = query.has('date') ? 'date' : 'today';
+  const range = ['hour', 'today', 'three-days', 'date'].includes(query.get('range') || '') ? query.get('range')! : defaultRange; const setRange = (value: string) => writeNewsQuery({ range: value, date: value === 'date' ? date : undefined });
+  const merge = query.get('merge') !== '0'; const setMerge = (value: boolean) => writeNewsQuery({ merge: value ? undefined : '0' });
+  const stock = query.get('stock') || ''; const setStock = (value: string) => writeNewsQuery({ stock: value });
+  const watchlist = signedIn && query.get('watchlist') === '1'; const setWatchlist = (value: boolean) => writeNewsQuery({ watchlist: value ? '1' : undefined });
+  const following = signedIn && query.get('following') === '1'; const setFollowing = (value: boolean) => writeNewsQuery({ following: value ? '1' : undefined });
   const [focusOpen, setFocusOpen] = useState(false);
   const [preferences, setPreferences] = useState<NewsPreferences>({ keywords: [], stocks: [] });
   const [preferencesReady, setPreferencesReady] = useState(false);
@@ -74,10 +86,12 @@ export default function Page() {
   const detailRequest = useRef(0);
   const pending = useRef(false);
   const listRef = useRef<HTMLElement>(null);
+  const scrollKey = `news-scroll:${user?.id || 0}:${query}`;
   useEffect(() => {
-    const selected = new URLSearchParams(window.location.search).get('date');
-    if (selected && /^\d{4}-\d{2}-\d{2}$/.test(selected) && dayjs(selected).format('YYYY-MM-DD') === selected) { setDate(selected); setRange('date'); setAuto(false); }
-  }, []);
+    if (loading || !data) return undefined;
+    const frame = requestAnimationFrame(() => { try { if (listRef.current) listRef.current.scrollTop = Number(sessionStorage.getItem(scrollKey)) || 0; } catch { /* Optional position cache. */ } });
+    return () => cancelAnimationFrame(frame);
+  }, [loading, scrollKey, data]);
 
   const loadSources = useCallback(async () => {
     try { setSources(await api<SourceState>('/news/sources')); setSourceError(''); } catch (e) { setSourceError(errorMessage(e)); }
@@ -122,7 +136,7 @@ export default function Page() {
   useEffect(() => {
     let current = true;
     setPreferencesReady(false); setPreferencesError('');
-    setPreferences({ keywords: [], stocks: [] }); setReadIds([]); setWatchlist(false); setFollowing(false);
+    setPreferences({ keywords: [], stocks: [] }); setReadIds([]);
     if (signedIn) api<NewsPreferences>('/news/preferences').then((value) => { if (current) { setPreferences(value); setPreferencesReady(true); } }).catch((e) => { if (current) setPreferencesError(errorMessage(e)); });
     return () => { current = false; };
   }, [signedIn, user?.id, preferencesAttempt]);
@@ -161,7 +175,7 @@ export default function Page() {
   };
   const availableSources = sources.sources.filter((s) => s.enabled && s.lastSuccess && ['ok', 'collecting', 'delayed'].includes(s.status) && !s.lastError);
   useEffect(() => {
-    if (source && !sources.sources.some((s) => s.code === source && s.enabled && s.lastSuccess && ['ok', 'collecting', 'delayed'].includes(s.status) && !s.lastError)) { setSource(''); setPage(1); }
+    if (source && sources.sources.length && !sources.sources.some((s) => s.code === source && s.enabled && s.lastSuccess && ['ok', 'collecting', 'delayed'].includes(s.status) && !s.lastError)) { setSource(''); setPage(1); }
   }, [source, sources]);
   const selectedSource = availableSources.find((s) => s.code === source);
   const preferencesTip = preferencesReady ? '管理关注关键词和自选股票' : '正在读取关注设置';
@@ -173,7 +187,7 @@ export default function Page() {
   const relatedSources = (item: NewsItem) => Array.from(new Set((item.related || []).map((related) => sources.sources.find((s) => s.code === related.source)?.name || related.source)));
   const stockTags = (item: NewsItem) => (item.stocks || []).map((symbol) => (
     <Tag key={symbol.tsCode} color={preferences.stocks.includes(symbol.tsCode) ? 'blue' : 'default'}>
-      <StockLink code={symbol.tsCode} name={symbol.name} navigation={item.stocks} />
+      <StockLink code={symbol.tsCode} name={symbol.name} date={date} navigation={item.stocks} />
       <InteractionButton intent="select" selected={stock === symbol.tsCode} aria-label={`筛选${symbol.name}资讯`} title="筛选该股票资讯" onClick={() => { setStock(symbol.tsCode); setPage(1); }}>筛选资讯</InteractionButton>
     </Tag>
   ));
@@ -218,7 +232,7 @@ export default function Page() {
             </Space>
             <SelectField label="时间范围"><Select aria-label="资讯时间范围" value={range} className={styles.sourceSelect} options={[{ label: '最近一小时', value: 'hour' }, { label: '今天', value: 'today' }, { label: '最近三天', value: 'three-days' }, { label: '指定日期', value: 'date' }]} onChange={(value) => { setRange(value); setPage(1); }} /></SelectField>
             {range === 'date' && <DatePicker aria-label="资讯日期" allowClear={false} value={dayjs(date)} disabledDate={(d) => d.format('YYYY-MM-DD') > chinaDate()} onChange={(d) => { if (d) { setDate(d.format('YYYY-MM-DD')); setPage(1); } }} />}
-            <Input.Search placeholder="搜索标题或正文" aria-label="搜索资讯" allowClear maxLength={80} className={styles.search} onSearch={(v) => { setKeyword(v.trim()); setPage(1); }} />
+            <Input.Search value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="搜索标题或正文" aria-label="搜索资讯" allowClear maxLength={80} className={styles.search} onSearch={(v) => { setKeyword(v.trim()); setPage(1); }} />
             <Checkbox checked={important} onChange={(e) => { setImportant(e.target.checked); setPage(1); }}>仅重点</Checkbox>
             <Tooltip title="按标题相似度和数字合并，保留各来源。可关闭查看全部。"><Checkbox checked={merge} onChange={(e) => { setMerge(e.target.checked); setPage(1); }}>合并相似</Checkbox></Tooltip>
             <Checkbox disabled={!signedIn} checked={following} onChange={(e) => { setFollowing(e.target.checked); setPage(1); }}>仅关注词</Checkbox>
@@ -269,7 +283,7 @@ export default function Page() {
           )}
         </div>
         {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- The independent scroll area must be keyboard reachable. */}
-        <section ref={listRef} className={styles.list} aria-label="资讯列表" aria-busy={loading} tabIndex={0}>
+        <section ref={listRef} onScroll={(event) => { try { sessionStorage.setItem(scrollKey, String(event.currentTarget.scrollTop)); } catch { /* Optional position cache. */ } }} className={styles.list} aria-label="资讯列表" aria-busy={loading} tabIndex={0}>
           {loading && !data ? <div className={styles.skeleton}><Skeleton active paragraph={{ rows: 5 }} /></div> : null}
           {!loading && !data?.items.length && !error ? <Empty className={styles.empty} description={emptyText} /> : null}
           {data?.items.map((item) => (
@@ -332,6 +346,10 @@ export default function Page() {
                 )}
                 {(item.stocks || []).length > 0 && <Space wrap className={styles.stockTags}>{stockTags(item)}</Space>}
                 <div className={styles.actions}>
+                  <CollectButton item={{
+                    id: `news:${item.id}`, kind: 'news', date, title: item.title, url: item.originalUrl || `${window.location.origin}/news/?date=${date}&q=${encodeURIComponent(item.title.slice(0, 80))}`, note: `${item.sourceName}，${item.publishedAt}\n${item.body}`.slice(0, 12000),
+                  }}
+                  />
                   <InteractionButton intent="preview" size="small" onClick={() => openDetail(item)}>查看详情</InteractionButton>
                   {item.originalUrl && (
                   <ExternalLink

@@ -2,7 +2,7 @@ import {
   Article, emptyArticle, object, validateArticle,
 } from './article-contract';
 import {
-  documentTemplate, internalFields, NotebookContent, publicText,
+  documentTemplate, internalFields, NotebookContent, publicText, currentArticleBody,
 } from './notebook-model';
 import { emptyMaterials } from './materials-contract';
 import { toolEvidenceError } from './notebook-limits';
@@ -30,12 +30,12 @@ export function reviewPacket(date: string, revision: number, content: NotebookCo
     date,
     title: content.public.title || `${date}复盘`,
     revision,
-    article: content.article ? { ...content.article, body: content.article.body.trim() || documentTemplate(date, content) } : fallbackArticle,
+    article: content.article ? { body: currentArticleBody(date, content) || documentTemplate(date, content), images: content.article.images, feishuUrl: content.article.feishuUrl } : fallbackArticle,
     userNotes: allowed.filter((key) => content.private[key]?.trim()).map((key) => ({ key, title: internalFields.find(([k]) => k === key)![1], text: content.private[key] })),
     legacyPublicNotes: content.public,
     context: content.research ? { ...content.research, sections: content.research.sections.filter((s) => ['market', 'breadth', 'sentiment', 'feedback'].includes(s.key)) } : null,
     research: content.research ? { ...content.research, sections: content.research.sections.filter((s) => ['sectors', 'themes'].includes(s.key)) } : null,
-    materials: { links: [...materialSources(date, content, origin), ...materials.links], calendar: materials.calendar, includeExecution: materials.includeExecution },
+    materials: { links: [...materialSources(date, content, origin), ...materials.links, ...(content.workspace?.items || []).map((item) => ({ title: item.title, url: origin ? new URL(item.url, origin).href : item.url, note: item.note }))], calendar: materials.calendar, includeExecution: materials.includeExecution },
     requirements: {
       layout: 'review-compact/v1',
       imageTheme: 'dark',
@@ -54,7 +54,9 @@ export function readResult(raw: string, date: string, revision: number, content?
   const value = object(JSON.parse(raw));
   if (!['stock-review/v1', 'stock-review/v2'].includes(String(value.schema)) || value.date !== date || value.revision !== revision) throw new Error('返回结果的日期或版本不匹配，请以当前已保存版本重新交接');
   if ((value.generation || 0) !== generation) throw new Error('此资料包来自清空前的记录，请重新下载当前复盘');
-  const article = validateArticle(value.article);
+  const checked = validateArticle(value.article);
+  // External authors own this body; never reuse the earlier native AI composition.
+  const article: Article = { body: checked.body, images: checked.images, feishuUrl: checked.feishuUrl };
   if (value.schema === 'stock-review/v2' && content) {
     if (!article.images.length) throw new Error('最终成稿需要实际配图，不能只提供取图链接');
     const original = reviewPacket(date, revision, content);

@@ -39,3 +39,18 @@ export function parseDraft(raw: string | null): ReviewDraft {
     reason: text(value.reason),
   };
 }
+
+/** Recover structured selections from the earlier saved plain-text representation. */
+export function legacyDraft(evidence = ''): ReviewDraft {
+  const result = emptyDraft();
+  evidence.split(/\n\n+/).forEach((block) => {
+    const match = block.match(/^(.+?) (\d{6}\.(?:SH|SZ|BJ))\n策略：/m);
+    if (!match || result.selected.some((pick) => pick.tsCode === match[2])) return;
+    result.selected.push({ tsCode: match[2], name: match[1] });
+    const note = block.match(/观察与触发：([\s\S]*?)(?:\n风险核验：|$)/)?.[1];
+    const risk = block.match(/风险核验：([\s\S]*)/)?.[1];
+    if (note && note !== '未填写') result.notes[match[2]] = note.slice(0, 2000);
+    if (risk && !risk.startsWith('未记录')) result.riskNotes[match[2]] = risk.slice(0, 2000);
+  });
+  return result;
+}

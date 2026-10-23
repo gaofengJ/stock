@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { ReviewWorkspace, validateWorkspace } from './workspace-contract';
 import { Materials, validateMaterials } from './materials-contract';
 import {
   Article,
@@ -38,6 +39,7 @@ export interface NotebookContent {
   article?: Article;
   research?: Research;
   materials?: Materials;
+  workspace?: ReviewWorkspace;
 }
 
 export function parseNotebook(raw: string): NotebookContent {
@@ -47,9 +49,14 @@ export function parseNotebook(raw: string): NotebookContent {
       !value ||
       Object.keys(value).some(
         (k) =>
-          !['private', 'public', 'article', 'research', 'materials'].includes(
-            k,
-          ),
+          ![
+            'private',
+            'public',
+            'article',
+            'research',
+            'materials',
+            'workspace',
+          ].includes(k),
       )
     )
       throw new Error();
@@ -78,6 +85,9 @@ export function parseNotebook(raw: string): NotebookContent {
     };
     return {
       private: section(value.private, privateFields),
+      ...(value.workspace
+        ? { workspace: validateWorkspace(value.workspace) }
+        : {}),
       ...(value.materials
         ? { materials: validateMaterials(value.materials) }
         : {}),

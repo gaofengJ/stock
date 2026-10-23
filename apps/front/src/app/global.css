@@ -108,3 +108,6 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "P
 html[data-review-capture="true"] .market-chart-grid { display: none; }
 html[data-review-capture="true"] .ant-col { max-width: 100% !important; flex-basis: 100% !important; }
 html[data-review-capture="true"] .market-chart { margin: 0; border-radius: 0; }
+
+.research-context-bar { padding: 8px 0 12px; color: var(--text-secondary); font-size: 13px; }
+.research-item { display: grid; gap: 8px; padding: 16px 0; border-bottom: 1px solid var(--border-color, #ddd); overflow-wrap: anywhere; }

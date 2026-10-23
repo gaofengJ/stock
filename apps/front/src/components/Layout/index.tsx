@@ -1,5 +1,9 @@
 'use client';
 
+import usePagePosition from '@/hooks/usePagePosition';
+import TaskBar from '@/components/PersonalAi/TaskBar';
+import ResearchCollection from '@/components/ResearchCollection';
+import { mayLeaveResearch, researchHref } from '@/utils/research-navigation';
 import { errorMessage } from '@/api/errors';
 import { useAccount } from '@/auth/Boundary';
 import { useFeedbackNotifications } from '@/auth/FeedbackNotifications';
@@ -21,7 +25,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 import AccountAvatar from '@/auth/AccountAvatar';
@@ -82,13 +86,14 @@ const CommonLayout: React.FC<ILayoutProps> = ({
   contentClassName = 'p-16',
 }) => {
   const { colors } = useSiteTheme();
-  const router = useRouter();
+  const router = useRouter(); const query = useSearchParams();
   const screens = Grid.useBreakpoint();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const mobile = !screens.md;
   const { user, logout, trialRemaining } = useAccount();
+  usePagePosition(user?.id || 0);
   const { unread: feedbackUnread } = useFeedbackNotifications();
   const canReadActivity = !!user?.permissions.includes('users:manage');
   const activity = useLoginActivity(canReadActivity);
@@ -110,17 +115,19 @@ const CommonLayout: React.FC<ILayoutProps> = ({
   /**
    * 顶部菜单选择
    */
-  const handleHeaderMenuSelect = (row: { key: string }) => {
-    router.push(row.key === '/admin' && canReadActivity && activity.data.unread > 0
-      ? '/admin/users/activity' : homePath(user, row.key));
+  const handleHeaderMenuSelect = async (row: { key: string }) => {
+    if (!await mayLeaveResearch()) return;
+    router.push(researchHref(row.key === '/admin' && canReadActivity && activity.data.unread > 0
+      ? '/admin/users/activity' : homePath(user, row.key), window.location.href));
     setDrawerOpen(false);
   };
 
   /**
    * 侧边栏菜单选择
    */
-  const handleAsideMenuSelect = (row: { key: string }) => {
-    router.push(row.key);
+  const handleAsideMenuSelect = async (row: { key: string }) => {
+    if (!await mayLeaveResearch()) return;
+    router.push(researchHref(row.key, window.location.href));
     setDrawerOpen(false);
   };
 
@@ -145,7 +152,7 @@ const CommonLayout: React.FC<ILayoutProps> = ({
         style={{ backgroundColor: colors.surface }}
       >
         {mobile && <Button type="text" icon={<MenuOutlined />} aria-label="打开栏目导航" onClick={() => setDrawerOpen(true)} />}
-        <Link href={homePath(user)} className="platform-brand" aria-label="木风同学，返回首页">
+        <Link href={researchHref(homePath(user), `https://stock.invalid/?${query}`)} className="platform-brand" aria-label="木风同学，返回首页">
           <img src={ImgFengye.src} alt="" width={28} height={28} />
           <span>木风同学</span>
         </Link>
@@ -240,7 +247,8 @@ const CommonLayout: React.FC<ILayoutProps> = ({
                   { type: 'divider' },
                   { key: 'logout', label: '退出登录', icon: <LogoutOutlined /> },
                 ],
-                onClick: ({ key }) => {
+                onClick: async ({ key }) => {
+                  if (!await mayLeaveResearch()) return;
                   setAccountOpen(false);
                   if (key === 'profile' || key === 'feedback') router.push(`/${key}`); else logout().catch((e) => message.error(errorMessage(e)));
                 },
@@ -288,7 +296,11 @@ const CommonLayout: React.FC<ILayoutProps> = ({
         <Layout className={`platform-content ${contentClassName}`}>
           <Content className="platform-content-inner">
             <Watermark className="platform-watermark" font={{ color: withAlpha(colors.text, 0.035), fontSize: 12 }} gap={[180, 160]} height={40} width={160} content="木风同学的投资小站">
-              <LoginActivityContext.Provider value={activity}>{children}</LoginActivityContext.Provider>
+              <LoginActivityContext.Provider value={activity}>
+                <ResearchCollection />
+                <TaskBar />
+                {children}
+              </LoginActivityContext.Provider>
             </Watermark>
           </Content>
         </Layout>

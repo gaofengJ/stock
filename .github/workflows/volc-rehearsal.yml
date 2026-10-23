@@ -57,7 +57,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends fonts-wqy-zenhei
       - name: Browser regression against the static export
-        timeout-minutes: 5
+        timeout-minutes: 7
         run: |
           python3 -m http.server 8087 --bind 127.0.0.1 --directory apps/front/out >/tmp/stock-browser-server.log 2>&1 &
           server_pid=$!
@@ -65,7 +65,7 @@ jobs:
           export FRONT_TEST_URL=http://127.0.0.1:8087
           export TEST_ARTIFACT_DIR=/tmp/stock-browser-artifacts
           browser_test_status=0
-          for script in verify-audit-browser verify-resilience-browser verify-review-handoff-browser; do
+          for script in verify-audit-browser verify-resilience-browser verify-review-handoff-browser verify-review-workflow-browser; do
             node "apps/front/scripts/$script.cjs" || browser_test_status=1
           done
           exit "$browser_test_status"

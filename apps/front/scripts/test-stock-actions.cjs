@@ -53,6 +53,7 @@ function renderMenu(props, permissions = ['basic:stock'], rows = []) {
     '@/components/Interaction': { __esModule: true, default: 'link', InteractionButton: 'button' },
     '@/auth/Boundary': { useAccount: () => ({ user: account(permissions) }) },
     '@/auth/client': auth,
+    '@/components/ResearchCollection': { CollectButton: 'collect-button' },
     '@/utils/stock-interaction': stock,
     './context': { useStockActions: () => ({ openChart: (value, source) => calls.push(['chart', value, source]), copyCode: (value) => calls.push(['copy', value]) }) },
     './ListScope': { useStockList: () => () => rows },

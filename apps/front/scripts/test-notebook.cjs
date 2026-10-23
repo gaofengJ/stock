@@ -1,5 +1,5 @@
 const test=require('node:test'), assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),ts=require('typescript');
-function load(relative, mocks={}) { const file=path.resolve(__dirname,relative), exp={}; new Function('exports','require',ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(exp, key => key in mocks ? mocks[key] : key==='@nestjs/common' ? {BadRequestException:Error} : load(path.relative(__dirname,path.resolve(path.dirname(file),key+'.ts')),mocks)); return exp; }
+function load(relative, mocks={}) { const file=path.resolve(__dirname,relative), exp={}; new Function('exports','require',ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText)(exp, key => key in mocks ? mocks[key] : key==='@nestjs/common' ? {BadRequestException:Error} : load(path.relative(__dirname,path.resolve(path.dirname(file),key+'.ts')),mocks)); return exp; }
 const exp=load('../src/app/review/notebook-model.ts');
 test('both public outputs exclude every internal field and preserve only explicit public writing',()=>{
  const c=exp.emptyNotebook();for(const key of Object.keys(c.private))c.private[key]='PRIVATE_SENTINEL_'+key;
@@ -305,4 +305,71 @@ test('retry keeps current-version images and uploads, replacing stale platform m
  assert.equal(merged.images.length,3);
  assert.ok(merged.images.every(i=>!i.id.startsWith('platform-')||i.source.endsWith('dataRevision=current')));
  assert.deepEqual(platformImages.missingPlatformImages(merged.images),['ladder','limits','sectors20']);
+});
+
+const workspace = load('../src/app/review/workspace-contract.ts');
+const serverWorkspace = load('../../back/src/modules/review/workspace-contract.ts');
+const navigation = load('../src/utils/research-navigation.ts');
+const answerFixture = ['市场概览','情绪指标','连板分析','20日板块轮动','涨停板复盘'].map(h => `### ${h}\n\nAI 证据 ${h}`).join('\n\n');
+const materialFixture = {id:'stock:000001.SZ',kind:'stock',date:'2026-10-23',title:'示例股票',url:'/strategy/?date=2026-10-23&type=trend',note:'待核验',createdAt:'2026-10-23T10:00:00Z',code:'000001.SZ',name:'示例股票'};
+test('native AI composition keeps the latest original notes in preview, copy, save and handoff', () => {
+ const content=exp.emptyNotebook();content.private.marketJudgment='旧判断';
+ content.article={...contract.emptyArticle(),body:exp.reviewDocument('2026-10-23',content,answerFixture),composition:{answer:answerFixture,taskId:'fixture-task',notesSignature:exp.notesSignature(content)}};
+ content.private.marketJudgment='新判断，必须保留原文';
+ const saved=exp.synchronizeArticle('2026-10-23',content);
+ for(const text of [exp.publicText('2026-10-23',content,'wechat'),saved.article.body,handoff.reviewPacket('2026-10-23',3,content).article.body]) {
+  assert.match(text,/新判断，必须保留原文/);assert.doesNotMatch(text,/旧判断/);assert.match(text,/AI 证据 市场概览/);
+ }
+ assert.equal(content.article.composition.answer,answerFixture);
+ assert.equal(saved.article.composition.notesSignature,exp.notesSignature(content));
+ assert.equal(exp.nativeAnswer(saved.article.body),answerFixture);
+ assert.equal(exp.nativeAnswer('外部文章不得猜测重写'),null);
+ const server=load('../../back/src/modules/review/notebook.content.ts');
+ assert.deepEqual(server.parseNotebook(JSON.stringify(saved)),saved);
+});
+test('external import discards native composition and respects its new body', () => {
+ const content=exp.emptyNotebook();content.article={...contract.emptyArticle(),body:'外部返回的新正文',composition:{answer:answerFixture,taskId:'old',notesSignature:'old'}};
+ const packet={schema:'stock-review/v1',date:'2026-10-23',revision:3,article:content.article};
+ const imported=handoff.readResult(JSON.stringify(packet),'2026-10-23',3);
+ assert.equal(imported.composition,undefined);assert.equal(exp.currentArticleBody('2026-10-23',{...content,article:imported}),'外部返回的新正文');
+ assert.equal(handoff.reviewPacket('2026-10-23',3,content).article.composition,undefined);
+});
+test('collected materials and structured observations round trip without changing original notes', () => {
+ const original=workspace.emptyWorkspace();original.draft.notes['000001.SZ']='已有观察';
+ const merged=workspace.mergeCollected(original,[materialFixture]);
+ assert.equal(original.items.length,0);assert.equal(merged.draft.notes['000001.SZ'],'已有观察');assert.equal(merged.draft.selected.length,1);
+ assert.deepEqual(workspace.mergeCollected(merged,[materialFixture]),merged);
+ const removed={...merged,draft:{...merged.draft,selected:[]}};
+ assert.deepEqual(workspace.mergeCollected(removed,[materialFixture]),removed,'previously removed selections stay removed');
+ const content={...exp.emptyNotebook(),workspace:merged};
+ const server=load('../../back/src/modules/review/notebook.content.ts');assert.deepEqual(server.parseNotebook(JSON.stringify(content)),content);
+ assert.doesNotMatch(exp.documentTemplate('2026-10-23',content),/## 收录资料/);
+ content.workspace.items[0].includeInArticle=true;
+ assert.match(exp.documentTemplate('2026-10-23',content),/## 收录资料/);
+ for(const validator of [workspace.validateWorkspace,serverWorkspace.validateWorkspace]) {
+  assert.deepEqual(validator(merged),merged);
+  for(const url of ['javascript:alert(1)','data:text/html,x','//other.invalid','https://user:secret@example.test']) assert.throws(()=>validator({...merged,items:[{...materialFixture,url}]}));
+  assert.throws(()=>validator({...merged,items:[materialFixture,materialFixture]}));
+  assert.throws(()=>validator({...merged,items:[{...materialFixture,note:'x'.repeat(12001)}]}));
+ }
+});
+test('research navigation carries dates while respecting explicit dates and external destinations', async () => {
+ assert.equal(navigation.researchHref('/analysis/overview/','https://site.test/review/?date=2026-10-23'),'/analysis/overview/?date=2026-10-23');
+ assert.equal(navigation.researchHref('/news/?date=2026-10-22&q=abc','https://site.test/review/?date=2026-10-23'),'/news/?date=2026-10-22&q=abc');
+ assert.equal(navigation.researchHref('https://other.test/path','https://site.test/review/?date=2026-10-23'),'https://other.test/path');
+ const unregister=navigation.registerLeaveGuard(async()=>false);assert.equal(await navigation.mayLeaveResearch(),false);unregister();assert.equal(await navigation.mayLeaveResearch(),true);
+});
+test('stopping a capture retains each completed callback and never accepts another revision', async () => {
+ const realDocument=global.document, realWindow=global.window;let frames=0;const saved=[];const abort=new AbortController();
+ const node={dataset:{reviewDate:'2026-10-23',reviewReady:'true'},querySelector:selector=>selector==='canvas'?{}:null,closest:()=>null};
+ const frame={title:'',style:{},setAttribute:()=>{},remove:()=>{},contentDocument:{fonts:{ready:Promise.resolve()},documentElement:{dataset:{theme:'dark'}},querySelector:selector=>selector==='[data-capture-revision]'?{dataset:{captureRevision:'r1'}}:node}};
+ global.window={location:{origin:'https://fixture.invalid'}};
+ global.document={body:{appendChild:()=>{frames++;}},createElement:tag=>tag==='iframe'?frame:{width:0,height:0,getContext:()=>({fillRect:()=>{},fillText:()=>{},drawImage:()=>{}}),toDataURL:()=>png}};
+ try {
+  const capture=load('../src/app/review/platform-images.ts',{'html-to-image':{toCanvas:async()=>({width:100,height:50})}});
+  await capture.capturePlatform('2026-10-23',abort.signal,()=>{},['overview','emotion'],'r1',async image=>{saved.push(image);abort.abort();});
+  assert.equal(saved.length,1);assert.equal(saved[0].id,capture.imageId('overview'));assert.equal(frames,1);
+  const stale=[];await capture.capturePlatform('2026-10-23',new AbortController().signal,()=>{},['overview'],'r2',async image=>stale.push(image));
+  assert.equal(stale.length,0);
+ } finally {global.document=realDocument;global.window=realWindow;}
 });

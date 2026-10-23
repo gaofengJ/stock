@@ -1,6 +1,6 @@
 // Shared client/server contract; regression tests check both implementations.
 export interface ArticleImage { id: string; data: string; caption: string; source: string; after: string }
-export interface Article { body: string; images: ArticleImage[]; feishuUrl: string }
+export interface Article { body: string; images: ArticleImage[]; feishuUrl: string; composition?: { answer: string; taskId: string; notesSignature: string } }
 export interface Evidence { key: string; title: string; text: string; source: string; state: 'ready' | 'missing'; points: { label: string; value: number }[]; unit: string }
 export interface Research { date: string; fetchedAt: string; sections: Evidence[] }
 export const emptyArticle = (): Article => ({ body: '', images: [], feishuUrl: '' });
@@ -36,7 +36,10 @@ export function validateArticle(input: unknown): Article {
     };
   });
   if (size > 6000000) throw new Error('图片总量超过限制，请减少图片或压缩后重试');
-  return { body, images, feishuUrl };
+  const composition = value.composition === undefined ? undefined : object(value.composition);
+  return {
+    body, images, feishuUrl, ...(composition ? { composition: { answer: bounded(composition.answer, 100000), taskId: bounded(composition.taskId, 100), notesSignature: bounded(composition.notesSignature, 80) } } : {}),
+  };
 }
 export function validateResearch(input: unknown): Research {
   const value = object(input);

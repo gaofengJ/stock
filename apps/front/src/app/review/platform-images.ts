@@ -43,7 +43,8 @@ async function bounded<T>(work: Promise<T>, ms: number, signal: AbortSignal): Pr
     abort = () => reject(new DOMException('已取消', 'AbortError')); signal.addEventListener('abort', abort, { once: true });
   })]).finally(() => { clearTimeout(timer); signal.removeEventListener('abort', abort); });
 }
-export async function capturePlatform(date: string, signal: AbortSignal, progress: (message: string) => void, keys = captureSources.map((item) => item.key), revision = '') {
+// eslint-disable-next-line default-param-last -- Preserve existing callers while adding incremental capture.
+export async function capturePlatform(date: string, signal: AbortSignal, progress: (message: string) => void, keys = captureSources.map((item) => item.key), revision = '', onCaptured?: (image: ArticleImage) => Promise<void>) {
   const images: ArticleImage[] = []; const failures: string[] = [];
   const selected = captureSources.filter((source) => keys.includes(source.key));
   const batchDeadline = Date.now() + 120000;
@@ -91,9 +92,11 @@ export async function capturePlatform(date: string, signal: AbortSignal, progres
       let top = 76; canvases.forEach((part, index) => { ctx.drawImage(part, 0, top, width, heights[index]); top += heights[index]; });
       let data = canvas.toDataURL('image/png'); if (data.length > 1400000) data = canvas.toDataURL('image/jpeg', 0.92);
       if (data.length > 3000000) throw new Error('高清长图超出大小限制');
-      images.push({
+      const image: ArticleImage = {
         id: imageId(item.key), data, caption: `${date} ${item.title}（暗色，${item.charts.length}组平台原图）`, source: `${window.location.origin}${item.path}?date=${date}${item.query}&dataRevision=${encodeURIComponent(revision)}`, after: item.title,
-      });
+      };
+      if (onCaptured) await bounded(onCaptured(image), batchDeadline - Date.now(), signal);
+      images.push(image);
     } catch (error) { if (signal.aborted) break; failures.push(`${item.title}：${(error as Error).message}`); } finally { frame.remove(); }
   }
   return { images, failures };

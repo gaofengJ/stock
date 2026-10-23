@@ -109,3 +109,12 @@ body:has(.notebook-preview-open) .platform-content:has(.review-page) { overflow:
 .notebook-handoff-steps { margin: 0; padding-left: 24px; line-height: 1.8; list-style: decimal; }
 .notebook-handoff-steps li + li { margin-top: 8px; }
 .notebook-document { scroll-margin-top: 16px; }
+
+.notebook-toolbar { position: sticky; top: 0; z-index: 20; background: var(--color-surface); padding: 10px; border-bottom: 1px solid var(--color-border); box-shadow: 0 2px 8px #00000008; }
+.notebook-stages > *, #review-document, #review-candidates-title { scroll-margin-top: calc(var(--notebook-toolbar-height, 100px) + 16px); }
+.notebook-toolbar .notebook-flow { position: static; padding: 0; }
+@media (max-width: 767px) { .notebook-toolbar .notebook-flow { display: flex; flex-wrap: nowrap; width: 100%; overflow-x: auto; gap: 8px; } .notebook-toolbar .notebook-flow .ant-btn { width: auto; flex-shrink: 0; } }
+
+.review-result-diff { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.review-result-diff pre { max-height: 55vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; border: 1px solid var(--color-border); }
+@media (max-width: 700px) { .review-result-diff { grid-template-columns: 1fr; } .notebook-toolbar { font-size: 12px; } }

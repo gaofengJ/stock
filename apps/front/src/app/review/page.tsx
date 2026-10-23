@@ -2,6 +2,8 @@
 
 /* eslint jsx-a11y/label-has-associated-control: ["error", { "assert": "htmlFor" }] */
 
+import { useSearchParams } from 'next/navigation';
+import { mayLeaveResearch } from '@/utils/research-navigation';
 import { useEffect, useRef, useState } from 'react';
 import {
   Alert, Button, Card, Collapse, DatePicker, Input, Modal, Select, Space, Tag, Tooltip,
@@ -17,6 +19,7 @@ import { errorMessage } from '@/api/errors';
 import { useAccount } from '@/auth/Boundary';
 import { useDefaultTradeDate } from '@/hooks/useDefaultTradeDate';
 import { numberText, scaledNumber, beijingTime } from '@/utils/format';
+import { WatchDraft } from './workspace-contract';
 import StockChart from '../strategy/StockChart';
 import { trendDefaults } from '../strategy/strategy-options';
 import CandidateEnvironment from '../strategy/CandidateEnvironment';
@@ -33,30 +36,44 @@ import { ReviewDocument, reviewMarkdown } from './review-document';
 import '../strategy/strategy.sass';
 import './review.css';
 
+function updateReviewView(key: string, value: string) {
+  const url = new URL(window.location.href);
+  if (value) url.searchParams.set(key, value); else url.searchParams.delete(key);
+  if (key !== 'reviewPage') url.searchParams.delete('reviewPage');
+  window.history.replaceState(null, '', url);
+}
 function Report({
-  date, account, capture, onSelection, generation = 0, refresh = 0,
-}: { date: string; account: number; generation?: number; refresh?: number; capture?: (text: string) => void; onSelection?: (items: string[]) => void }) {
+  date, account, capture, onSelection, generation = 0, refresh = 0, savedDraft, onDraft,
+}: { date: string; account: number; generation?: number; refresh?: number; capture?: (text: string) => void; onSelection?: (items: string[]) => void; savedDraft?: WatchDraft; onDraft?: (draft: WatchDraft) => void }) {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
-  const [filter, setFilter] = useState('within');
-  const [keyword, setKeyword] = useState('');
+  const viewQuery = useSearchParams();
+  const filter = viewQuery.get('reviewFilter') || 'within'; const setFilter = (value: string) => updateReviewView('reviewFilter', value);
+  const keyword = viewQuery.get('reviewQ') || ''; const setKeyword = (value: string) => updateReviewView('reviewQ', value);
   const [stock, setStock] = useState<any>(null);
-  const [strategy, setStrategy] = useState('all');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [sortOrder, setSortOrder] = useState<string | null>('ascend');
+  const strategy = viewQuery.get('reviewStrategy') || 'all'; const setStrategy = (value: string) => updateReviewView('reviewStrategy', value);
+  const page = Math.max(1, Number(viewQuery.get('reviewPage')) || 1); const setPage = (value: number) => updateReviewView('reviewPage', String(value));
+  const size = Number(viewQuery.get('reviewSize')); const pageSize = [10, 20, 50].includes(size) ? size : 10; const setPageSize = (value: number) => updateReviewView('reviewSize', String(value));
+  const sortOrder = viewQuery.get('reviewSort') || 'ascend'; const setSortOrder = (value: string | null) => updateReviewView('reviewSort', value || 'none');
+  const [toolbarHeight, setToolbarHeight] = useState(0);
   const [scrollContainer, setScrollContainer] = useState<HTMLElement>();
   const [holdingsResult, setHoldingsResult] = useState<any>(null);
   const [exported, setExported] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [preview, setPreview] = useState<ReviewDocument | null>(null);
-  useEffect(() => { setScrollContainer(document.querySelector<HTMLElement>('.platform-content') || undefined); }, []);
-  useEffect(() => { setPage(1); }, [filter, keyword, strategy]);
+  useEffect(() => {
+    setScrollContainer(document.querySelector<HTMLElement>('.platform-content') || undefined);
+    const toolbar = document.querySelector<HTMLElement>('.notebook-toolbar');
+    if (!toolbar) return undefined;
+    const updateHeight = () => { const { height } = toolbar.getBoundingClientRect(); setToolbarHeight(height); toolbar.closest<HTMLElement>('.review-page')?.style.setProperty('--notebook-toolbar-height', `${height}px`); };
+    updateHeight(); const observer = new ResizeObserver(updateHeight); observer.observe(toolbar);
+    return () => observer.disconnect();
+  }, []);
   const {
     draft, update: updateDraft, ready, status,
-  } = useReviewDraft(account, date, generation);
+  } = useReviewDraft(account, date, generation, savedDraft, onDraft);
   const interacted = useRef(false);
   const update: typeof updateDraft = (patch) => { interacted.current = true; updateDraft(patch); };
   useEffect(() => { onSelection?.(draft.selected.map((pick) => `${pick.name} ${pick.tsCode}`)); }, [draft.selected, onSelection]);
@@ -83,7 +100,7 @@ function Report({
     && (strategy === 'all' || r.strategies.some((s: any) => s.key === strategy))
     && (filter === 'all' || (filter === 'selected' && selected.includes(r.tsCode)) || (filter === 'within' && r.capState === 'within' && !blocked(r)) || (filter === 'excluded' && blocked(r)) || (filter === 'missing' && r.capState === 'missing')));
   const financials = useCandidateProfit(date, rows.map((row) => row.tsCode), !!data && !loading);
-  const ordered = [...filtered].sort((a, b) => (sortOrder ? (sortOrder === 'ascend' ? 1 : -1) * compareCap(a.circMv, b.circMv) : 0));
+  const ordered = [...filtered].sort((a, b) => (sortOrder !== 'none' ? (sortOrder === 'ascend' ? 1 : -1) * compareCap(a.circMv, b.circMv) : 0));
   const chartRows = useRef<any[]>([]);
   const openStock = (row: any, source?: any[]) => {
     const fallbackRows = ordered.some((r) => r.tsCode === row.tsCode) ? ordered : rows;
@@ -101,7 +118,7 @@ function Report({
   };
   const lastPage = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, lastPage);
-  useEffect(() => { setPage((value) => Math.min(value, lastPage)); }, [lastPage]);
+  useEffect(() => { if (data && !loading && page > lastPage) updateReviewView('reviewPage', String(lastPage)); }, [lastPage, page, data, loading]);
   const selectionReason = (row: any) => {
     if (!ready) return '正在读取草稿';
     if (selected.includes(row.tsCode)) return '';
@@ -126,7 +143,7 @@ function Report({
     return '风险资料待核验';
   };
   const candidateRecord = [`研究日期：${date}`, ...chosen.map(({ name, tsCode, row }) => `${name} ${tsCode}\n策略：${row?.strategies?.map((v: any) => v.label).join('、') || '待确认'}\n观察与触发：${draft.notes[tsCode] || '未填写'}\n风险核验：${draft.riskNotes[tsCode] || '未记录'}；${riskLabel(row)}`), ...(!chosen.length ? ['当前未选观察股票。'] : []), ...([draft.focus, draft.exit, draft.reason].some(Boolean) ? [`此前浏览器计划（供核对）：\n${[draft.focus, draft.exit, draft.reason].filter(Boolean).join('\n')}`] : [])].join('\n\n');
-  useEffect(() => { if (capture && ready && interacted.current) capture(candidateRecord); }, [capture, ready, candidateRecord]);
+  useEffect(() => { if (capture && ready && data && (interacted.current || draft.selected.length)) capture(candidateRecord); }, [capture, ready, candidateRecord, data, draft.selected.length]);
   let sortCaption = '当前使用候选原始顺序';
   if (sortOrder === 'ascend') sortCaption = '当前按流通市值从小到大排列';
   if (sortOrder === 'descend') sortCaption = '当前按流通市值从大到小排列';
@@ -197,7 +214,7 @@ function Report({
     <>
       <div className="review-toolbar">
         <span role="status" className="review-caption">
-          {capture ? '候选操作会暂存在当前浏览器；整篇复盘请在底部保存。' : `${status}，按账号和交易日期分别保存`}
+          {capture ? '观察名单与备注随整篇复盘保存，未保存内容可在本机恢复。' : `${status}，按账号和交易日期分别保存`}
         </span>
         <Space wrap>
           <Button onClick={() => setHelpOpen(true)}>页面说明</Button>
@@ -282,10 +299,10 @@ function Report({
               }}
               rowClassName={(r: any) => (selected.includes(r.tsCode) ? 'interaction-selected-row' : '')}
               autoHeight
-              sticky={scrollContainer ? { getContainer: () => scrollContainer, offsetHeader: 0 } : false}
+              sticky={scrollContainer ? { getContainer: () => scrollContainer, offsetHeader: toolbarHeight } : false}
               onChange={(pagination, _filters, sorter, extra) => {
                 setPage(extra.action === 'paginate' ? pagination.current || 1 : 1);
-                setPageSize(pagination.pageSize || 10);
+                if (pagination.pageSize && pagination.pageSize !== pageSize) setPageSize(pagination.pageSize);
                 if (extra.action === 'paginate') candidatesTop();
                 if (extra.action === 'sort') setSortOrder((Array.isArray(sorter) ? sorter[0] : sorter)?.order || null);
               }}
@@ -511,7 +528,7 @@ function Report({
         <div className="review-help-content">
           <p>候选使用全部策略默认参数，合并重复股票。观察数量不限，限定总市值小于200亿元，排除已知ST、停牌，以及已核实的待开始或进行中减持计划。</p>
           <p>行情截至所选交易日收盘，公告按当日已披露信息筛选。历史日期使用当前可用资料回看；人工核验记录不会改变系统风险资料状态。</p>
-          <p>草稿按账号和交易日期保存在当前浏览器。刷新或切换日期可恢复；更换浏览器或设备时，请使用导出文件。</p>
+          <p>草稿按账号和交易日期保留。在私人复盘中保存整篇记录后，观察名单与备注可跨设备恢复；也可导出文件备份。</p>
           <p>策略命中数量可能重叠，可使用候选表上方的策略筛选。</p>
           <Space wrap>{data?.strategies.map((s: any) => <Tag key={s.key}>{`${s.label}：${s.count ?? '暂不可用'}`}</Tag>)}</Space>
           <SourceState data={risk.data || data} error={risk.error} loading={risk.loading} pollingStopped={risk.pollingStopped} retry={risk.retry} />
@@ -541,20 +558,18 @@ function Report({
 export default function Page() {
   const fallback = useDefaultTradeDate();
   const { user } = useAccount();
-  const [chosenDate, setChosenDate] = useState('');
-  const [notebookDirty, setNotebookDirty] = useState(false);
-  useEffect(() => {
-    const value = new URLSearchParams(window.location.search).get('date') || '';
-    if (validDate(value)) setChosenDate(value);
-  }, []);
-  const changeDate = (value: string) => {
-    if (notebookDirty && !window.confirm('尚有未保存复盘，请先保存或导出。确定切换日期并放弃修改？')) return;
+  const params = useSearchParams();
+  const [, setNotebookDirty] = useState(false);
+  const chosenDate = params.get('date') || '';
+  const changeDate = async (value: string) => {
+    if (!await mayLeaveResearch()) return;
     setNotebookDirty(false);
-    setChosenDate(value);
     const url = new URL(window.location.href); url.searchParams.set('date', value);
-    window.history.replaceState(null, '', url);
+    window.history.pushState(null, '', url);
   };
-  const date = chosenDate || (fallback.ready ? fallback.tradeDate : '');
+  const defaultDate = fallback.ready ? fallback.tradeDate : '';
+  const date = validDate(chosenDate) ? chosenDate : defaultDate;
+  useEffect(() => { if (date && !validDate(chosenDate)) { const url = new URL(window.location.href); url.searchParams.set('date', date); window.history.replaceState(null, '', url); } }, [date, chosenDate]);
   return (
     <Layout showAsideMenu={false} headerMenuActive={EHeaderMenuKey.review}>
       <main className="review-page rounded-[6px] bg-bg-white">
@@ -567,7 +582,7 @@ export default function Page() {
         </Space>
         {fallback.error && <Alert type="error" message={fallback.error} action={<Button onClick={fallback.retry}>重试</Button>} />}
         {date && user && (user.roles.some((r) => r.code === 'admin') && !user.guest
-          ? <Notebook key={`${user.id}:${date}`} date={date} onDirty={setNotebookDirty} renderTools={(capture, onSelection, generation, refresh) => <Report key={generation} date={date} account={user.id} capture={capture} onSelection={onSelection} generation={generation} refresh={refresh} />} />
+          ? <Notebook key={`${user.id}:${date}`} date={date} onDirty={setNotebookDirty} renderTools={(capture, onSelection, generation, refresh, savedDraft, onDraft) => <Report key={generation} date={date} account={user.id} capture={capture} onSelection={onSelection} generation={generation} refresh={refresh} savedDraft={savedDraft} onDraft={onDraft} />} />
           : <Report key={`${user.id}:${date}`} date={date} account={user.id} />)}
       </main>
     </Layout>

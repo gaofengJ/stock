@@ -1,20 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Button, Drawer } from 'antd';
 import { RobotOutlined } from '@ant-design/icons';
 import { useAccount } from '@/auth/Boundary';
 import { isPersonalAiOwner } from '@/auth/client';
-import AnalysisPanel, { Candidate } from './AnalysisPanel';
+import AnalysisPanel, { Candidate, PrepareAnalysis } from './AnalysisPanel';
 import { Skill, StrategyContext, Task } from './client';
 
 export default function BusinessAction({
-  skill, date, candidates = [], disabled = false, disabledReason, strategy, compact = false, beforeStart, onComplete,
+  skill, date, candidates = [], disabled = false, disabledReason, strategy, compact = false, beforeStart, onComplete, initialCodes = [], canApplySections = false, openRequest = 0,
 }: {
-  skill: Skill; date: string; candidates?: Candidate[]; disabled?: boolean; disabledReason?: string; strategy?: StrategyContext; compact?: boolean; beforeStart?: () => Promise<void>; onComplete?: (task: Task) => void;
+  skill: Skill; date: string; candidates?: Candidate[]; disabled?: boolean; disabledReason?: string; strategy?: StrategyContext; compact?: boolean; beforeStart?: PrepareAnalysis; onComplete?: (task: Task, section?: string) => void; initialCodes?: string[]; canApplySections?: boolean; openRequest?: number;
 }) {
   const { user } = useAccount();
-  const [context, setContext] = useState<{ date: string; candidates: Candidate[]; strategy?: StrategyContext } | null>(null);
+  const params = useSearchParams(); const taskId = params?.get('aiTask') || '';
+  const [open, setOpen] = useState(false);
+  const [context, setContext] = useState<{ date: string; candidates: Candidate[]; strategy?: StrategyContext; codes?: string[]; taskId?: string } | null>(null);
+  const opening = useRef({ candidates, strategy, initialCodes }); opening.current = { candidates, strategy, initialCodes };
+  useEffect(() => {
+    if (taskId || (openRequest && skill === 'market-review')) {
+      setContext({
+        date, candidates: [...opening.current.candidates], strategy: opening.current.strategy, codes: opening.current.initialCodes, taskId,
+      }); setOpen(true);
+    }
+  }, [taskId, date, skill, openRequest]);
   if (!isPersonalAiOwner(user)) return null;
   const title = skill === 'market-review' ? '智能复盘' : '智能对比';
   let unavailable = disabled ? disabledReason || '当前数据尚未就绪，请稍后再试。' : '';
@@ -24,7 +35,20 @@ export default function BusinessAction({
     : '选择策略和日期，点击智能对比，在侧栏选择1至3只股票后开始分析。';
   return (
     <>
-      {compact ? <Button type="primary" icon={<RobotOutlined />} disabled={!!unavailable} onClick={() => setContext({ date, candidates: [...candidates], strategy })}>{title}</Button> : (
+      {compact ? (
+        <Button
+          type="primary"
+          icon={<RobotOutlined />}
+          disabled={!!unavailable}
+          onClick={() => {
+            setContext({
+              date, candidates: [...candidates], strategy, codes: initialCodes,
+            }); setOpen(true);
+          }}
+        >
+          {title}
+        </Button>
+      ) : (
         <section className="personal-ai-entry" aria-label={`${title}入口`}>
           <div>
             <strong>{title}</strong>
@@ -34,11 +58,22 @@ export default function BusinessAction({
             </p>
             {unavailable && <p role="status">{unavailable}</p>}
           </div>
-          <Button type="primary" icon={<RobotOutlined />} disabled={!!unavailable} onClick={() => setContext({ date, candidates: [...candidates], strategy })}>{title}</Button>
+          <Button
+            type="primary"
+            icon={<RobotOutlined />}
+            disabled={!!unavailable}
+            onClick={() => {
+              setContext({
+                date, candidates: [...candidates], strategy, codes: initialCodes,
+              }); setOpen(true);
+            }}
+          >
+            {title}
+          </Button>
         </section>
       )}
-      <Drawer className="personal-ai-drawer" title={title} open={!!context} onClose={() => setContext(null)} width={760} styles={{ wrapper: { maxWidth: '100vw' } }} destroyOnClose>
-        {context && <AnalysisPanel ownerId={user!.id} skill={skill} date={context.date} candidates={context.candidates} strategy={context.strategy} beforeStart={beforeStart} onComplete={onComplete} />}
+      <Drawer className="personal-ai-drawer" title={title} open={open} onClose={() => setOpen(false)} width={760} styles={{ wrapper: { maxWidth: '100vw' } }}>
+        {context && <AnalysisPanel key={JSON.stringify([context.date, context.strategy, context.codes, context.taskId])} initialCodes={context.codes} initialTaskId={context.taskId} canApplySections={canApplySections} ownerId={user!.id} skill={skill} date={context.date} candidates={context.candidates} strategy={context.strategy} beforeStart={beforeStart} onComplete={onComplete} />}
       </Drawer>
     </>
   );

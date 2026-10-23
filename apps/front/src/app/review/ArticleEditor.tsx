@@ -3,9 +3,11 @@
 /* eslint-disable react/no-danger, react/jsx-closing-tag-location -- HTML is produced by the escaping renderer; local raster images use data URLs. */
 /* eslint jsx-a11y/label-has-associated-control: ["error", { "assert": "htmlFor" }] */
 import { useRef, useState } from 'react';
+import Link from 'next/link';
 import {
   Alert, Button, Checkbox, Collapse, Input, Modal, Select, Space,
 } from 'antd';
+import { PrepareAnalysis } from '@/components/PersonalAi/AnalysisPanel';
 import BusinessAction from '@/components/PersonalAi/BusinessAction';
 import { Task } from '@/components/PersonalAi/client';
 import { copyText } from '@/utils/clipboard';
@@ -13,7 +15,7 @@ import {
   Article, ArticleImage, emptyArticle, illustratedText, validateArticle,
 } from './article-contract';
 import {
-  ArticleTarget, articlePlainText, documentTemplate, NotebookContent, SavedNotebook, noteHtml, publicText, reviewDocument,
+  ArticleTarget, articlePlainText, documentTemplate, NotebookContent, SavedNotebook, noteHtml, publicText, reviewDocument, notesSignature, currentArticleBody, nativeAnswer,
 } from './notebook-model';
 import { readImage } from './article-media';
 import { materialSources, readResult, reviewPacket } from './article-handoff';
@@ -27,9 +29,9 @@ function download(name: string, text: string, type: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export default function ArticleEditor({
-  date, revision, content, disabled, dirty, saving, onSave, generation = 0, previewDisabled = false, onChange, onMaterials, onStatus: reportStatus, prepareImages,
+  date, revision, content, disabled, dirty, saving, onSave, generation = 0, previewDisabled = false, onChange, onMaterials, onStatus: reportStatus, prepareImages, openRequest = 0,
 }: {
-  prepareImages: () => Promise<void>;
+  prepareImages: PrepareAnalysis; openRequest?: number;
   date: string; revision: number; generation?: number; content: NotebookContent; disabled: boolean; dirty: boolean;
   saving: boolean; onSave: () => Promise<SavedNotebook | null>;
   previewDisabled?: boolean;
@@ -55,6 +57,10 @@ export default function ArticleEditor({
   const [handoffBusy, setHandoffBusy] = useState(false);
   const handoffLock = useRef(false);
   const [manualTask, setManualTask] = useState('');
+  const [editBody, setEditBody] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [proposal, setProposal] = useState<{ answer: string; taskId: string; body: string } | null>(null);
+  const [undo, setUndo] = useState<Article | null>(null);
   const [handoffNotice, setHandoffNotice] = useState('');
   const onStatus = (message: string) => { setNotice(message); reportStatus(message); };
   const [pending, setPending] = useState(false);
@@ -91,7 +97,7 @@ export default function ArticleEditor({
       if (context.current.dirty || context.current.disabled || context.current.date !== date || context.current.revision !== revision) throw new Error('当前版本已变动，请先保存后重新导入');
       const imported = readResult(raw, date, revision, content, generation);
       notebookPayload(date, revision, generation, { ...content, article: imported });
-      onChange(imported); setError(''); setHandoffNotice(''); onStatus('成稿与图片已导入，预览确认后点击“保存”。');
+      setUndo(current.current); onChange(imported); setImportOpen(false); setError(''); setHandoffNotice(''); onStatus('成稿与图片已导入，预览确认后点击“保存”。');
     } catch (e) { setError((e as Error).message); }
   };
   return (
@@ -195,16 +201,25 @@ export default function ArticleEditor({
         <Space wrap size={12}>
           <BusinessAction
             compact
+            openRequest={openRequest}
             skill="market-review"
             date={date}
             disabled={disabled || pending || handoffBusy}
             beforeStart={prepareImages}
-            onComplete={(task: Task) => {
+            canApplySections={!!article.composition}
+            onComplete={(task: Task, selectedSection?: string) => {
               if (task.date !== context.current.date) throw Error('日期已切换，结果保留在分析记录中。');
               const latest = currentContent.current;
-              const body = reviewDocument(date, latest, task.answer || '');
-              update({ ...(latest.article || emptyArticle()), body });
-              onStatus('复盘文档已生成，原文与配图已保留。预览后可复制到飞书，确认后保存。');
+              let answer = task.answer || '';
+              if (selectedSection && latest.article?.composition) {
+                const extract = (text: string) => new Map(text.split(/^### /m).slice(1).map((block) => { const index = block.indexOf('\n'); return [block.slice(0, index).trim(), block.slice(index).trim()]; }));
+                const old = extract(latest.article.composition.answer); const incoming = extract(answer);
+                if (!incoming.get(selectedSection)) throw Error('所选章节没有可用结果');
+                old.set(selectedSection, incoming.get(selectedSection)!);
+                answer = [...old].map(([heading, body]) => `### ${heading}\n\n${body}`).join('\n\n');
+              }
+              const body = reviewDocument(date, latest, answer);
+              setProposal({ answer, taskId: task.id, body });
             }}
           />
 
@@ -222,7 +237,7 @@ export default function ArticleEditor({
                 };
                 if (!saved) { setHandoffNotice('尚未完成保存，请检查页面提示后重试。新的修改会继续保留。'); return; }
                 const packet = reviewPacket(saved.date, saved.revision, saved.content, window.location.origin, saved.generation);
-                const prompt = `使用 $stock-review-feishu 生成 ${saved.date} 的飞书图文复盘。网站：${window.location.origin}/review/?date=${saved.date}，保存版本 ${saved.revision}。使用随任务附上的图文资料包（stock-review/v2）；如未附上，请先索取资料包。保留资料包 userNotes 的非空原文，并另外写 AI 独立分析，空白不能当作空仓或无交易。标题默认 ${saved.content.public.title || `${saved.date}复盘`}；优先使用已有平台图片；缺少市场概览、情绪指标、连板分析、20日板块轮动或全部涨停长图时，按资料链接补取五张暗色长图，不重复取已有图片。开头声明本文由AI生成，仅供参考。市场数据下依次设置市场概览、情绪指标、连板分析、20日板块轮动四个子节，各写简要解读；不设置独立的板块轮动大章。策略选股只列股票名和策略标签；闲聊默认空白；二级标题之间留空行；不单列明日计划。正常目标10分钟，20分钟硬停止并保留可续接进度。已有 ${saved.content.article?.images.length || 0} 张图片，仅在缺少必需图片时按 materials.links 补取，最终必须嵌入真实图片。完成后用同日期和版本的结果包在“准备 Codex 任务”弹窗中选择结果包回填，再保存记录。不得覆盖用户原文。执行记录授权：${saved.content.materials?.includeExecution ? '仅限私人飞书文档' : '未包含，不读取'}。本次任务由 Codex 执行并生成飞书云文档。\n\n用户记录：\n${JSON.stringify(packet.userNotes)}\n\n图片来源：\n${JSON.stringify(packet.materials.links)}`;
+                const prompt = `使用 $stock-review-feishu 生成 ${saved.date} 的飞书图文复盘。网站：${window.location.origin}/review/?date=${saved.date}，保存版本 ${saved.revision}。使用随任务附上的图文资料包（stock-review/v2）；如未附上，请先索取资料包。保留资料包 userNotes 的非空原文，并另外写 AI 独立分析，空白不能当作空仓或无交易。标题默认 ${saved.content.public.title || `${saved.date}复盘`}；优先使用已有平台图片；缺少市场概览、情绪指标、连板分析、20日板块轮动或全部涨停长图时，按资料链接补取五张暗色长图，不重复取已有图片。开头声明本文由AI生成，仅供参考。市场数据下依次设置市场概览、情绪指标、连板分析、20日板块轮动四个子节，各写简要解读；不设置独立的板块轮动大章。策略选股只列股票名和策略标签；闲聊默认空白；二级标题之间留空行；不单列明日计划。正常目标10分钟，20分钟硬停止并保留可续接进度。已有 ${saved.content.article?.images.length || 0} 张图片，仅在缺少必需图片时按 materials.links 补取，最终必须嵌入真实图片。完成后用同日期和版本的结果包通过“导入 Codex 结果”选择结果包回填，再保存记录。不得覆盖用户原文。执行记录授权：${saved.content.materials?.includeExecution ? '仅限私人飞书文档' : '未包含，不读取'}。本次任务由 Codex 执行并生成飞书云文档。\n\n用户记录：\n${JSON.stringify(packet.userNotes)}\n\n图片来源：\n${JSON.stringify(packet.materials.links)}`;
                 download(`${saved.date}-review-v${saved.revision}.json`, JSON.stringify(packet, null, 2), 'application/json');
                 const copied = await copyText(prompt);
                 const message = copied ? '任务已复制，资料包已发起下载。请在 Codex 粘贴任务并附上资料包后发送。' : '资料包已发起下载，任务未能自动复制。请在弹窗中复制，并将资料包一同交给 Codex。';
@@ -233,11 +248,25 @@ export default function ArticleEditor({
           >
             准备 Codex 任务
           </Button>
+          <Button disabled={disabled || pending || handoffBusy || !revision} onClick={() => { setError(''); setImportOpen(true); }}>导入 Codex 结果</Button>
           <Button disabled={previewDisabled || handoffBusy} onClick={() => { setCopyNotice(''); setPreview(true); }}>预览</Button>
           <Button aria-label="保存" aria-busy={saving} disabled={disabled || !dirty || pending || handoffBusy} loading={saving} onClick={() => onSave()}>保存</Button>
           {article.feishuUrl && <a href={article.feishuUrl} target="_blank" rel="noopener noreferrer">打开飞书文档</a>}
         </Space>
         {handoffNotice && <Alert type="info" message={<span role="status">{handoffNotice}</span>} />}
+        {!!article.body && !article.composition && <Alert type="warning" message="此正文来自旧版本或外部导入，修改个人记录后请核对正文再复制" action={<Button onClick={() => { const answer = nativeAnswer(article.body); if (answer) setProposal({ answer, taskId: 'legacy', body: reviewDocument(date, currentContent.current, answer) }); else setEditBody(true); }}>核对并同步原文</Button>} />}
+        {article.composition?.taskId && article.composition.taskId !== 'legacy' && <Link href={`/review/?date=${date}&aiTask=${encodeURIComponent(article.composition.taskId)}`}>查看上次应用的 AI 结果</Link>}
+        {article.composition && article.composition.notesSignature !== notesSignature(content) && <Alert type="info" message="预览已同步最新原文，AI 分析保持不变；保存后同步服务器正文" />}
+        {undo && (
+        <Button onClick={() => {
+          update({
+            ...current.current, body: undo.body, composition: undo.composition, feishuUrl: undo.feishuUrl,
+          }); setUndo(null); onStatus('已撤销上次正文应用，请保存');
+        }}
+        >
+          撤销上次正文应用
+        </Button>
+        )}
         <p className="review-caption">{dirty ? '有未保存的修改。' : savedStatus}</p>
       </section>
       <Modal
@@ -260,9 +289,52 @@ export default function ArticleEditor({
         ]}
       >
         <p>任务与图文资料包已准备。在 Codex 粘贴任务并附上下载的 JSON 文件，即可生成飞书云文档。</p>
-        <label htmlFor="review-result-file">Codex 完成后，选择同版本结果包回填</label>
-        <input id="review-result-file" type="file" accept="application/json,.json" disabled={disabled || dirty || !revision} onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { if (f.size > 7000000) setError('结果文件过大'); else importResult(await f.text()); } }} />
+        <p>Codex 完成后，关闭此窗口，通过“导入 Codex 结果”回填，无需重新准备任务。</p>
         <Input.TextArea aria-label="Skill 任务文本" readOnly value={manualTask} rows={12} onFocus={(e) => e.target.select()} />
+      </Modal>
+      <Modal title="导入 Codex 结果" open={importOpen} onCancel={() => setImportOpen(false)} footer={<Button onClick={() => setImportOpen(false)}>关闭</Button>}>
+        <p>
+          当前日期
+          {date}
+          ，服务器版本
+          {revision}
+          。选择同日期、同版本结果包，导入后预览并保存。
+        </p>
+        {dirty && <Alert type="warning" message="当前有未保存修改，请先保存后再导入匹配版本" />}
+        {error && <Alert type="error" message={error} />}
+        <label htmlFor="review-result-file">选择 Codex 结果包</label>
+        <input id="review-result-file" type="file" accept="application/json,.json" disabled={disabled || dirty || !revision} onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { if (f.size > 7000000) setError('结果文件过大'); else importResult(await f.text()); } }} />
+      </Modal>
+      <Modal title="核对外部正文与当前原文" width={1000} open={editBody} onCancel={() => setEditBody(false)} footer={<Button onClick={() => setEditBody(false)}>完成核对</Button>}>
+        <p>此正文没有可分离的原生 AI 章节，请对照当前原文手动调整。修改会保留在草稿，保存后才同步服务器。</p>
+        <div className="review-result-diff">
+          <pre>{Object.entries(content.private).filter(([, text]) => text.trim()).map(([key, text]) => `${key}：${text}`).join('\n\n')}</pre>
+          <Input.TextArea aria-label="编辑外部正文" rows={20} maxLength={300000} value={article.body} onChange={(event) => update({ ...article, body: event.target.value })} />
+        </div>
+      </Modal>
+      <Modal
+        title="核对 AI 结果后应用"
+        width={1000}
+        open={!!proposal}
+        onCancel={() => setProposal(null)}
+        footer={(
+          <Space>
+            <Button onClick={() => setProposal(null)}>保留原稿</Button>
+            <Button type="primary" onClick={() => { if (!proposal) return; const latest = currentContent.current; setUndo(current.current); update({ ...(latest.article || emptyArticle()), body: reviewDocument(date, latest, proposal.answer), composition: { answer: proposal.answer, taskId: proposal.taskId, notesSignature: notesSignature(latest) } }); setProposal(null); onStatus('已应用到当前复盘，可撤销。预览后保存即可同步服务器。'); }}>应用到当前复盘</Button>
+          </Space>
+)}
+      >
+        <p>只替换所选 AI 分析，个人记录与配图保留。此操作不会立即保存服务器。</p>
+        <div className="review-result-diff">
+          <section>
+            <h3>当前正文</h3>
+            <pre>{currentArticleBody(date, content) || '尚无正文'}</pre>
+          </section>
+          <section>
+            <h3>应用后正文</h3>
+            <pre>{proposal?.body}</pre>
+          </section>
+        </div>
       </Modal>
       <Modal
         className={`notebook-preview-modal${preview ? ' notebook-preview-open' : ''}`}

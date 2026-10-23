@@ -3,7 +3,8 @@ import {
   draftKey, emptyDraft, parseDraft, ReviewDraft,
 } from './review-draft';
 
-export default function useReviewDraft(account: number, date: string, generation = 0) {
+// eslint-disable-next-line default-param-last -- Optional server binding preserves standalone draft callers.
+export default function useReviewDraft(account: number, date: string, generation = 0, serverDraft?: ReviewDraft, onDraft?: (draft: ReviewDraft) => void) {
   const key = generation ? `${draftKey(account, date)}:reset-${generation}` : draftKey(account, date);
   const current = useRef<ReviewDraft>(emptyDraft());
   const [draft, setDraft] = useState<ReviewDraft>(current.current);
@@ -16,22 +17,24 @@ export default function useReviewDraft(account: number, date: string, generation
         const prefix = `stock-review-draft:v1:${account}:`;
         Object.keys(localStorage).filter((name) => name.startsWith(prefix) && !name.endsWith(`:reset-${generation}`)).forEach((name) => localStorage.removeItem(name));
       }
-      current.current = parseDraft(localStorage.getItem(key));
-      setStatus('草稿已保存在此浏览器');
+      current.current = serverDraft || parseDraft(localStorage.getItem(key));
+      if (!serverDraft && onDraft) onDraft(current.current);
+      setStatus(onDraft ? '观察名单随复盘保存，可跨设备恢复' : '草稿已保存在此浏览器');
     } catch {
-      current.current = emptyDraft();
+      current.current = serverDraft || emptyDraft();
       setStatus('草稿读取失败，请及时导出本次填写内容');
     }
     setDraft(current.current);
     setReady(true);
-  }, [key, account, generation]);
+  }, [key, account, generation, serverDraft, onDraft]);
   const update = (patch: Partial<ReviewDraft>) => {
     if (!ready) return;
     current.current = { ...current.current, ...patch };
     setDraft(current.current);
+    onDraft?.(current.current);
     try {
       localStorage.setItem(key, JSON.stringify(current.current));
-      setStatus('草稿已保存在此浏览器');
+      setStatus(onDraft ? '观察名单随复盘保存，可跨设备恢复' : '草稿已保存在此浏览器');
     } catch {
       setStatus('草稿保存失败，请及时导出本次填写内容');
     }

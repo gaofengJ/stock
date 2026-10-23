@@ -92,3 +92,23 @@ test('both business panels expose no-inference data checking', () => {
     assert.match(html,/检查分析数据/);assert.match(html,/尚未发起分析/);
   }
 });
+
+test('task history groups followups and strategy conditions use readable names', () => {
+ const {taskGroups,strategyCaption}=load('components/PersonalAi/client');
+ const tasks=[{id:'b',parentId:'a'},{id:'c'},{id:'a'}];
+ assert.deepEqual(taskGroups(tasks).map(group=>group.map(t=>t.id)),[['b','a'],['c']]);
+ assert.match(strategyCaption({type:'fiveMaUp',parameters:{fiveMaMode:'new',aboveMa5:false,volumeDays:5}}),/五线顺上；五线状态：当日新形成，收盘高于5日线：否/);
+});
+test('an already cancelled analysis request cannot acquire credentials or post a task', async () => {
+ const {consoleRequest}=load('components/PersonalAi/client');const original=global.fetch;let calls=0;
+ global.fetch=async()=>{calls++;throw Error('must not send');};
+ try {const abort=new AbortController();abort.abort();await assert.rejects(consoleRequest('/tasks','POST',{},abort.signal));assert.equal(calls,0);} finally {global.fetch=original;}
+});
+
+test('collected AI results reopen their original skill and strategy conditions', () => {
+ const {taskHref}=load('components/PersonalAi/client');
+ const task={id:'result-id',skill:'candidate-compare',date:'2026-10-23',strategy:{type:'volumeBreakout',parameters:{minTurnoverRateF:8,volumeDays:5,aboveMa5:false},keyword:'测试'}};
+ const link=new URL(taskHref(task),'https://fixture.test');
+ assert.equal(link.pathname,'/strategy/');assert.equal(link.searchParams.get('turnover_volumeBreakout'),'8');assert.equal(link.searchParams.get('aiTask'),task.id);assert.equal(link.searchParams.get('q'),'测试');
+ assert.equal(new URL(taskHref({...task,skill:'market-review'}),'https://fixture.test').pathname,'/review/');
+});
