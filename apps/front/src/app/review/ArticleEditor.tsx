@@ -209,6 +209,8 @@ export default function ArticleEditor({
           />
 
           <Button
+            aria-label="准备 Codex 任务"
+            aria-busy={handoffBusy}
             loading={handoffBusy}
             disabled={disabled || pending}
             onClick={async () => {
@@ -232,7 +234,7 @@ export default function ArticleEditor({
             准备 Codex 任务
           </Button>
           <Button disabled={previewDisabled || handoffBusy} onClick={() => { setCopyNotice(''); setPreview(true); }}>预览</Button>
-          <Button disabled={disabled || !dirty || pending || handoffBusy} loading={saving} onClick={() => onSave()}>保存</Button>
+          <Button aria-label="保存" aria-busy={saving} disabled={disabled || !dirty || pending || handoffBusy} loading={saving} onClick={() => onSave()}>保存</Button>
           {article.feishuUrl && <a href={article.feishuUrl} target="_blank" rel="noopener noreferrer">打开飞书文档</a>}
         </Space>
         {handoffNotice && <Alert type="info" message={<span role="status">{handoffNotice}</span>} />}
