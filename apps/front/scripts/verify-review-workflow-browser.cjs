@@ -14,6 +14,18 @@ if(!['127.0.0.1','localhost'].includes(new URL(base).hostname))throw Error('Loca
  const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
  try {
   await page.goto(`${base}/review/?date=${date}`,{waitUntil:'networkidle'});
+  // Exercise actual picker opening and date values, not just URLs or static labels.
+  const reviewDate=page.getByRole('textbox',{name:'复盘交易日期',exact:true});
+  await reviewDate.fill('2026-10-22');await reviewDate.press('Enter');
+  await page.waitForURL(url=>url.searchParams.get('date')==='2026-10-22');
+  await page.getByRole('menuitem',{name:'策略选股',exact:true}).click();
+  await page.waitForURL('**/strategy/**');assert.equal(new URL(page.url()).searchParams.get('date'),'2026-10-22');
+  await page.getByRole('checkbox',{name:'对比测试股份',exact:true}).waitFor();
+  const strategyDate=page.getByRole('textbox',{name:'交易日期',exact:true});
+  await strategyDate.fill(date);await strategyDate.press('Enter');
+  await page.waitForURL(url=>url.searchParams.get('date')===date);
+  await page.getByRole('link',{name:'返回本日复盘',exact:true}).click();
+  await page.waitForURL('**/review/**');
   const note=page.locator('#note-marketJudgment');await note.fill('未保存的原文，需要恢复');
   await page.getByRole('menuitem',{name:'策略选股',exact:true}).click();
   await page.getByRole('button',{name:'保留本机草稿并离开',exact:true}).click();
@@ -65,6 +77,9 @@ if(!['127.0.0.1','localhost'].includes(new URL(base).hostname))throw Error('Loca
   await page.waitForFunction(()=>Array.from(document.querySelectorAll('.ant-drawer button')).some(b=>b.textContent==='生成复盘文档'&&!b.disabled),{},{timeout:12000});
   await drawer.getByRole('button',{name:/^(Close|关闭)$/}).click();
   await page.getByRole('menuitem',{name:'实时资讯',exact:true}).click();
+  await page.getByRole('textbox',{name:'资讯日期',exact:true}).click();
+  await page.locator('.ant-picker-dropdown:visible').waitFor();
+  await page.getByRole('textbox',{name:'资讯日期',exact:true}).press('Escape');
   await page.getByPlaceholder('搜索标题或正文').fill('测试股份');
   await page.getByPlaceholder('搜索标题或正文').press('Enter');
   await page.getByRole('button',{name:'收录到本日复盘',exact:true}).click();
