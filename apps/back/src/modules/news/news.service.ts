@@ -422,8 +422,10 @@ export class NewsService implements OnApplicationBootstrap {
         throw new Error('Invalid feed items');
       let added = 0;
       for (const item of normalized) {
-        // Publish English changes and their matching translation as one unit.
-        await q.startTransaction();
+        // Keep content, translation and index work atomic. READ COMMITTED avoids
+        // gap locks from invalidating a missing item blocking the other collector.
+        // The sync named lock excludes the indexer and each source has one worker.
+        await q.startTransaction('READ COMMITTED');
         try {
           // A changed headline/body invalidates only its derived rules, not source history.
           await q.query(

@@ -44,7 +44,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
   const [attempt, setAttempt] = useState(0);
   const editCounter = useRef(0);
   const saving = useRef(false);
-  const captureAbort = useRef<AbortController>();
+  const captureAbort = useRef<AbortController>(undefined);
   const captureTask = useRef<Promise<string> | null>(null);
   useEffect(() => { onDirty(dirty); }, [dirty, onDirty]);
   useEffect(() => () => captureAbort.current?.abort(), []);

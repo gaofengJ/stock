@@ -18,6 +18,8 @@ const wait = async (predicate, label) => { for (let i = 0; i < 200; i++) { if (p
 
 async function mockContext(browser, handler) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
+  context.setDefaultNavigationTimeout(20000);
+  context.setDefaultTimeout(20000);
   await context.addInitScript(() => {
     const interval = window.setInterval.bind(window);
     window.__minuteCallbacks = [];

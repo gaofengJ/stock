@@ -9,7 +9,7 @@ import { createProfitCache, profitPending, ProfitRow } from './candidate-profit-
 export function useCandidateProfit(date: string, codes: string[], enabled: boolean) {
   const key = JSON.stringify([date, [...codes].sort()]);
   const [attempt, setAttempt] = useState(0);
-  const cache = useRef<ReturnType<typeof createProfitCache>>();
+  const cache = useRef<ReturnType<typeof createProfitCache>>(undefined);
   if (!cache.current) cache.current = createProfitCache();
   const lastAttempt = useRef(0);
   const [result, setResult] = useState<{ key: string; rows: Map<string, ProfitRow>; error: string; stopped: boolean }>({

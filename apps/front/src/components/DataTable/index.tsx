@@ -25,7 +25,7 @@ export default function DataTable<Row extends object = any>({
   loading = false, scroll, locale, maxBodyHeight = Number.POSITIVE_INFINITY, minBodyHeight = 240, bottomSpacing = 0, autoHeight = false, ...props
 }: Props<Row>) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const tableView = useRef<TableView<Row>>();
+  const tableView = useRef<TableView<Row>>(undefined);
   const stockRows = useCallback(() => tableNavigationRows(props.dataSource || [], props.columns, tableView.current), [props.dataSource, props.columns]);
   const onChange: NonNullable<TableProps<Row>['onChange']> = (pagination, filters, sorter, extra) => {
     tableView.current = { filters, sorter };

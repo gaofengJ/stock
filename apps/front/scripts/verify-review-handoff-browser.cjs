@@ -11,6 +11,8 @@ const items = Array.from({length:30}, (_,i) => ({tsCode:`${String(i+1).padStart(
 const user = {id:91,username:'fixture',nickname:'测试账户',roles:[{code:'admin'}],permissions:['/review'],catalog:[{code:'/review',route:'/review',name:'每日复盘',group:'fixture'}]};
 async function verify(browser, mode) {
   const context = await browser.newContext({ viewport:{width:1600,height:1050}, permissions:['clipboard-read','clipboard-write'] });
+  context.setDefaultNavigationTimeout(20000);
+  context.setDefaultTimeout(20000);
   await context.addInitScript(mode => {
     localStorage.setItem('stock-theme', mode);
     window.__copyMode = 'real';

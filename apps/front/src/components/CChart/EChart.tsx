@@ -114,7 +114,7 @@ const EChart = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<ReactEChartsCore>(null);
   const zoomRef = useRef<{ start: number; end: number }[]>([]);
-  const hoverDateRef = useRef<string | null>();
+  const hoverDateRef = useRef<string | null>(undefined);
   const rowTargetsRef = useRef<ReturnType<typeof heatmapRowTargets>>([]);
   const callbacks = useRef({
     onLegendChange, onAxisHover, onDateClick, onZoomChange, formatHoverLegend, highlightHeatmapRows,
