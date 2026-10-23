@@ -69,7 +69,9 @@ if(!['127.0.0.1','localhost'].includes(new URL(base).hostname))throw Error('Loca
   await page.getByPlaceholder('搜索标题或正文').press('Enter');
   await page.getByRole('button',{name:'收录到本日复盘',exact:true}).click();
   assert.equal(new URL(page.url()).searchParams.get('q'),'测试股份');
-  await page.getByRole('menuitem',{name:'策略选股',exact:true}).click();await page.goBack();
+  await page.getByRole('menuitem',{name:'策略选股',exact:true}).click();
+  await page.waitForURL('**/strategy/**');await page.getByRole('heading',{name:'策略选股',exact:true}).waitFor();
+  await page.goBack();await page.waitForURL('**/news/**');
   assert.equal(await page.getByPlaceholder('搜索标题或正文').inputValue(),'测试股份');
   await page.getByRole('link',{name:'返回本日复盘',exact:true}).click();
   await page.getByText('已收录素材（1）',{exact:true}).waitFor();

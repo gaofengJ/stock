@@ -50,13 +50,14 @@ export function CollectButton({ item, label = '收录到本日复盘' }: { item:
 }
 export default function ResearchCollection() {
   const { user } = useAccount(); const params = useSearchParams(); const path = usePathname();
-  const fallback = useDefaultTradeDate();
+  const supported = /^\/(analysis|strategy|basic|review|news)(\/|$)/.test(path);
+  const allowed = supported && !!user?.roles.some((role) => role.code === 'admin') && !user.guest && !params.has('reviewCapture');
+  const fallback = useDefaultTradeDate(allowed && !params.has('date') && !path.startsWith('/news'));
   const tradeDate = fallback.ready ? fallback.tradeDate : '';
   const defaultDate = path.startsWith('/news') ? new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10) : tradeDate;
   const date = params.get('date') || defaultDate || '';
   const items = useCollection(user?.id || 0, date); const [open, setOpen] = useState(false);
-  const supported = /^\/(analysis|strategy|basic|review|news)(\/|$)/.test(path);
-  if (!supported || !user?.roles.some((role) => role.code === 'admin') || user.guest || !date || params.has('reviewCapture')) return null;
+  if (!allowed || !user || !date) return null;
   return (
     <>
       <div className="research-context-bar">

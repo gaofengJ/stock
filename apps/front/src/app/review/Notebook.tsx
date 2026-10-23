@@ -108,7 +108,8 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
     const value: LocalNotebook = {
       revision: snapshot.revision, generation: snapshot.generation || 0, content: current.current, savedAt: new Date().toISOString(),
     };
-    const work = writes.current.catch(() => {}).then(() => localNotebook(owner, date, value)).then(() => {});
+    const edit = editCounter.current;
+    const work = writes.current.catch(() => {}).then(() => (dirtyRef.current && editCounter.current === edit ? localNotebook(owner, date, value) : null)).then(() => {});
     writes.current = work;
     try { await work; setLocalError(''); } catch { setLocalError('本机草稿保存失败，请保持页面打开并保存到服务器'); throw Error('本机草稿尚未保存'); }
   }, [owner, date, snapshot]);
