@@ -16,6 +16,8 @@ const stats = { amount: 100000, up: 3000, down: 2000, flat: 100, total: 5100, up
   let page;
   try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  context.setDefaultNavigationTimeout(20000);
+  context.setDefaultTimeout(20000);
   let signedIn = false;
   await context.route('**/*', route => new URL(route.request().url()).origin === new URL(base).origin ? route.continue() : route.abort());
   await context.route('**/api/**', async route => {
@@ -31,6 +33,8 @@ const stats = { amount: 100000, up: 3000, down: 2000, flat: 100, total: 5100, up
     if (api === '/api/feedback/unread') data = { unread: false };
     if (api === '/api/basic/trade-cal/list') data = [{ calDate: date, isOpen: 1 }];
     if (api === '/api/analysis/market/status') data = status;
+    if (api === '/api/analysis/market/breadth') data = { date, series: [], snapshot: null, stage: { status: 'pending' } };
+    if (api === '/api/analysis/market/extremes') data = { date, scope: 'all', period: Number(url.searchParams.get('period')), series: [], snapshot: null, items: [], ready: false };
     if (api === '/api/analysis/market/overview') data = { status, date, snapshot: stats, series: [{ date, data: stats }], markets: [], indexes: Array.from({ length: 8 }, (_, i) => ({ code: `00000${i}.SH`, name: `测试指数${i}`, series: [{ date, open: 10, close: 11, high: 12, low: 9, vol: 100, amount: 1000, preClose: 10, pctChg: 10 }] })) };
     return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ code: 0, data }) });
   });
@@ -41,14 +45,14 @@ const stats = { amount: 100000, up: 3000, down: 2000, flat: 100, total: 5100, up
   await page.getByLabel('密码', { exact: true }).fill('fixture-password');
   await page.getByRole('button', { name: /^登\s*录$/ }).click();
   await page.waitForURL(url => url.pathname === '/analysis/overview/' && url.searchParams.get('date') === date);
-  await page.getByRole('button', { name: '查看测试指数0走势' }).waitFor();
+  await page.getByRole('checkbox', { name: '查看测试指数0走势' }).waitFor();
   assert(await page.locator('canvas').count() < 8, 'offscreen charts should not initialize on the first screen');
   assert(await page.getByText('图表将在滚动到此处时加载').count() > 0);
   const metrics = await page.locator('.market-metrics').first().locator('.ant-col').evaluateAll(nodes => nodes.map(n => { const r = n.getBoundingClientRect(); return { top: r.top, width: r.width }; }));
   assert.equal(metrics[0].top, metrics[1].top, 'mobile summary should use two columns');
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
   await page.screenshot({ path: path.join(output, 'mobile-overview.png') });
-  await page.getByRole('button', { name: '查看测试指数0走势' }).click();
+  await page.getByRole('checkbox', { name: '查看测试指数0走势' }).click();
   await page.locator('canvas').first().waitFor();
   assert.equal(errors.length, 0, errors.join('\n'));
   await page.goto(`${base}/analysis/overview/?date=${date}&reviewCapture=1`);
