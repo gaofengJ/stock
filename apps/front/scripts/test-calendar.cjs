@@ -4,6 +4,16 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
 const vm = require('node:vm');
+const { createRequire } = require('node:module');
+test('application dates work with the installed Ant Design picker adapter', () => {
+  const dayjs = require('dayjs');
+  const antdRequire = createRequire(require.resolve('antd/package.json'));
+  const adapter = antdRequire('rc-picker/lib/generate/dayjs').default;
+  const value = dayjs('2026-10-23');
+  assert.equal(adapter.getWeekDay(value), 5);
+  assert.equal(adapter.locale.getWeek('zh_CN', value), 43);
+  assert.equal(adapter.locale.format('zh_CN', value, 'YYYY-MM-DD'), '2026-10-23');
+});
 const source = fs.readFileSync(path.join(__dirname, '../src/app/basic/trade-cal/calendar-display.ts'), 'utf8');
 const sandbox = { exports: {} };
 vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, sandbox);
