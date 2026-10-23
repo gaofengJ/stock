@@ -92,3 +92,15 @@ test('both business panels expose no-inference data checking', () => {
     assert.match(html,/检查分析数据/);assert.match(html,/尚未发起分析/);
   }
 });
+
+test('task history groups followups and strategy conditions use readable names', () => {
+ const {taskGroups,strategyCaption}=load('components/PersonalAi/client');
+ const tasks=[{id:'b',parentId:'a'},{id:'c'},{id:'a'}];
+ assert.deepEqual(taskGroups(tasks).map(group=>group.map(t=>t.id)),[['b','a'],['c']]);
+ assert.match(strategyCaption({type:'fiveMaUp',parameters:{fiveMaMode:'new',aboveMa5:false,volumeDays:5}}),/五线顺上；五线状态：当日新形成，收盘高于5日线：否，均量天数：5/);
+});
+test('an already cancelled analysis request cannot acquire credentials or post a task', async () => {
+ const {consoleRequest}=load('components/PersonalAi/client');const original=global.fetch;let calls=0;
+ global.fetch=async()=>{calls++;throw Error('must not send');};
+ try {const abort=new AbortController();abort.abort();await assert.rejects(consoleRequest('/tasks','POST',{},abort.signal));assert.equal(calls,0);} finally {global.fetch=original;}
+});

@@ -1,3 +1,4 @@
+import { ReviewWorkspace } from './workspace-contract';
 import { Materials } from './materials-contract';
 import {
   Article, ArticleImage, Research, illustratedText,
@@ -27,7 +28,7 @@ export const publicFields = [
   ['lesson', '方法与经验', '去个人化的案例与方法总结。'],
   ['sources', '资料来源与时间', '资料链接、统计截至时间及缺失说明。'],
 ] as const;
-export interface NotebookContent { private: Record<string, string>; public: Record<string, string>; article?: Article; research?: Research; materials?: Materials }
+export interface NotebookContent { private: Record<string, string>; public: Record<string, string>; article?: Article; research?: Research; materials?: Materials; workspace?: ReviewWorkspace }
 export interface SavedNotebook { date: string; revision: number; generation: number; content: NotebookContent }
 export const emptyNotebook = (): NotebookContent => ({ private: Object.fromEntries(internalFields.map(([k]) => [k, ''])), public: Object.fromEntries(publicFields.map(([k]) => [k, ''])) });
 
@@ -51,6 +52,7 @@ export function documentTemplate(date: string, value: NotebookContent) {
     '### 20日板块轮动', '## 涨停板复盘', '## 策略选股', ...picks,
     ...(notes.length ? ['## 用户记录', ...notes] : []),
     ...(value.materials?.showCalendar && value.materials.calendar.length ? ['## 投资日历', ...value.materials.calendar.map((event) => `### ${event.date} ${event.title}\n\n${event.detail}\n\n来源：${event.source}`)] : []),
+    ...((value.workspace?.items || []).some((item) => item.includeInArticle) ? ['## 收录资料', ...(value.workspace?.items || []).filter((item) => item.includeInArticle).map((item) => `### ${item.title}\n\n${item.note}\n\n来源：${item.url}\n收录日期：${item.date}`)] : []),
     '## 闲聊', value.private.lesson || '',
   ].join('\n\n');
 }
@@ -72,10 +74,26 @@ export function reviewDocument(date: string, value: NotebookContent, answer: str
   if (legacy.length) body += `\n\n## 用户公开记录\n\n${legacy.join('\n\n')}`;
   return body;
 }
+// FNV-1a is only a change marker, never an authentication or integrity check.
+/* eslint-disable no-bitwise */
+export function notesSignature(value: NotebookContent) {
+  const source = JSON.stringify([value.private, value.public, value.materials?.includeExecution, value.materials?.showCalendar, value.materials?.calendar, value.workspace?.items.filter((item) => item.includeInArticle)]);
+  let hash = 2166136261;
+  for (let i = 0; i < source.length; i += 1) hash = Math.imul(hash ^ source.charCodeAt(i), 16777619);
+  return (hash >>> 0).toString(16);
+}
+/* eslint-enable no-bitwise */
+export function currentArticleBody(date: string, value: NotebookContent) {
+  return value.article?.composition ? reviewDocument(date, value, value.article.composition.answer) : value.article?.body || '';
+}
+export function synchronizeArticle(date: string, value: NotebookContent): NotebookContent {
+  if (!value.article?.composition) return value;
+  return { ...value, article: { ...value.article, body: currentArticleBody(date, value), composition: { ...value.article.composition, notesSignature: notesSignature(value) } } };
+}
 // Both destinations use the same Feishu article; retain the channel argument for callers.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function publicText(date: string, value: NotebookContent, _channel: 'wechat' | 'xueqiu') {
-  if (value.article?.body.trim()) return illustratedText(value.article.body, value.article.images);
+  if (value.article?.body.trim()) return illustratedText(currentArticleBody(date, value), value.article.images);
   if (value.article?.images.length) return illustratedText(documentTemplate(date, value), value.article.images);
   const p = value.public;
   const entries = [
@@ -119,4 +137,18 @@ export function noteHtml(text: string, images: ArticleImage[] = [], target: Arti
     const inline = escapeHtml(line.replace(/^> /, '')).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     return line ? `<p style="${paragraphStyle}">${inline}</p>` : '';
   }).join('')}</section>`;
+}
+
+/** Only the known native template can safely recover the AI sections of an older article. */
+export function nativeAnswer(body: string): string | null {
+  const headings = ['市场概览', '情绪指标', '连板分析', '20日板块轮动', '涨停板复盘'];
+  const blocks = body.split(/^#{2,3} /m).slice(1); const result: string[] = [];
+  for (let index = 0; index < headings.length; index += 1) {
+    const heading = headings[index];
+    const block = blocks.find((part) => part.startsWith(`${heading}\n`));
+    const text = block?.slice(heading.length).trim();
+    if (!text?.startsWith('**AI 独立分析**')) return null;
+    result.push(`### ${heading}\n\n${text.slice('**AI 独立分析**'.length).trim()}`);
+  }
+  return result.join('\n\n');
 }

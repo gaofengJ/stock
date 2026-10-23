@@ -49,3 +49,8 @@
 @media (max-width: 680px) { .heading { align-items: flex-start; flex-direction: column; gap: 8px; padding: 0 0 12px; } .filters { padding: 12px; gap: 10px; } .filters .search { width: 100%; } .summary { margin: 12px 0; } .item { padding: 16px 12px; gap: 10px; time { min-width: 61px; font-size: 12px; } } .important { padding-left: 9px; } .title { font-size: 15px; } .meta { flex-wrap: wrap; } .item > :global(.ant-btn) { padding: 4px; } }
 @media (max-width: 680px) { .toolbar { max-height: 60%; } }
 @media (max-height: 600px) { .toolbar { max-height: 45%; } .heading { padding: 0 0 12px; } .summary { margin: 10px 0; } }
+
+.viewport :global(.platform-watermark) { display: flex; flex-direction: column; }
+.viewport :global(.research-context-bar), .viewport :global(.personal-ai-task-bar) { flex-shrink: 0; }
+.news { flex: 1; height: auto; }
+.actions { flex-wrap: wrap; }

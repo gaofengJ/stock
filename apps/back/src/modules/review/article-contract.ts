@@ -10,6 +10,7 @@ export interface Article {
   body: string;
   images: ArticleImage[];
   feishuUrl: string;
+  composition?: { answer: string; taskId: string; notesSignature: string };
 }
 export interface Evidence {
   key: string;
@@ -86,7 +87,22 @@ export function validateArticle(input: unknown): Article {
   });
   if (size > 6000000)
     throw new Error('图片总量超过限制，请减少图片或压缩后重试');
-  return { body, images, feishuUrl };
+  const composition =
+    value.composition === undefined ? undefined : object(value.composition);
+  return {
+    body,
+    images,
+    feishuUrl,
+    ...(composition
+      ? {
+          composition: {
+            answer: bounded(composition.answer, 100000),
+            taskId: bounded(composition.taskId, 100),
+            notesSignature: bounded(composition.notesSignature, 80),
+          },
+        }
+      : {}),
+  };
 }
 export function validateResearch(input: unknown): Research {
   const value = object(input);
