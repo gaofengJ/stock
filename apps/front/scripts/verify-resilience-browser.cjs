@@ -103,12 +103,12 @@ async function focusTest(browser) {
   await open.waitFor(); assert.equal(await open.isDisabled(), true);
   for (const route of preferenceReads) await ok(route, preferences).catch(() => {});
   await open.click();
-  const keywords = page.getByRole('combobox', { name: '关注关键词', exact: true });
+  const keywords = page.getByRole('combobox', { name: '关注关键词（最多 20 个）', exact: true });
   await keywords.fill('新增关注'); await keywords.press('Enter');
   await page.getByRole('button', { name: '保存关注', exact: true }).click();
   await wait(() => !!write, 'preference save');
   assert.equal(await keywords.isDisabled(), true);
-  assert.equal(await page.getByRole('combobox', { name: '自选股票', exact: true }).isDisabled(), true);
+  assert.equal(await page.getByRole('combobox', { name: '自选股票（最多 50 只）', exact: true }).isDisabled(), true);
   assert.equal(await page.getByRole('button', { name: /取\s*消/ }).isDisabled(), true);
   preferences = write.request().postDataJSON();
   assert.deepEqual(preferences.keywords, ['原关注', '新增关注']);
