@@ -162,5 +162,12 @@ async function requestScopeTest(browser) {
 (async () => {
   const browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_EXECUTABLE ? { executablePath: process.env.CHROMIUM_EXECUTABLE } : {}) });
   try { await notebookTest(browser); await focusTest(browser); await requestScopeTest(browser); }
+  catch (error) {
+    for (const context of browser.contexts()) for (const page of context.pages()) {
+      await page.screenshot({ path: path.join(output, 'resilience-failure.png'), timeout: 5000 }).catch(() => {});
+      console.error(page.url(), await page.locator('body').innerText().catch(() => 'No page'));
+    }
+    throw error;
+  }
   finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -64,9 +64,11 @@ jobs:
           trap 'kill "$server_pid"' EXIT
           export FRONT_TEST_URL=http://127.0.0.1:8087
           export TEST_ARTIFACT_DIR=/tmp/stock-browser-artifacts
-          node apps/front/scripts/verify-audit-browser.cjs
-          node apps/front/scripts/verify-resilience-browser.cjs
-          node apps/front/scripts/verify-review-handoff-browser.cjs
+          browser_test_status=0
+          for script in verify-audit-browser verify-resilience-browser verify-review-handoff-browser; do
+            node "apps/front/scripts/$script.cjs" || browser_test_status=1
+          done
+          exit "$browser_test_status"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

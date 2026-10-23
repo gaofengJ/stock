@@ -122,4 +122,14 @@ async function verify(browser, mode) {
   console.log(`PASS ${mode}: single sticky header, pagination, real leave guard, save/copy exact revision, timeout fallback, failed and concurrent saves`);
   await context.close();
 }
-(async()=>{const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE?{executablePath:process.env.CHROMIUM_EXECUTABLE}:{})});try{await verify(browser,'dark');await verify(browser,'light');}finally{await browser.close();}})().catch(e=>{console.error(e);process.exitCode=1;});
+(async()=>{
+  const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXECUTABLE?{executablePath:process.env.CHROMIUM_EXECUTABLE}:{})});
+  try { await verify(browser,'dark'); await verify(browser,'light'); }
+  catch(error) {
+    for(const context of browser.contexts()) for(const page of context.pages()) {
+      await page.screenshot({path:`${output}/handoff-failure.png`,timeout:5000}).catch(()=>{});
+      console.error(page.url(),await page.locator('body').innerText().catch(()=>'No page'));
+    }
+    throw error;
+  } finally { await browser.close(); }
+})().catch(e=>{console.error(e);process.exitCode=1;});
