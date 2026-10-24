@@ -257,12 +257,12 @@ function Report({
         <details open={simple ? undefined : true} className="review-candidate-disclosure">
           <summary>{simple ? '添加或调整观察股票' : '筛选观察股票'}</summary>
           <section id="review-candidates" className="review-candidates" aria-labelledby="review-candidates-title">
-            {simple && <Button loading={loading} onClick={() => setAttempt((v) => v + 1)}>更新候选数据</Button>}
             <div className="review-section-heading">
               <h2 id="review-candidates-title" tabIndex={-1} className="review-step-title">
                 {!capture && <span className="review-step-number">2</span>}
-                筛选观察股票
+                {simple ? '策略候选' : '筛选观察股票'}
               </h2>
+              {simple && <Button loading={loading} onClick={() => setAttempt((v) => v + 1)}>更新候选数据</Button>}
             </div>
             {error && <Alert className="review-candidate-notice" type="error" showIcon message={error} description={data ? '当前仍展示上次取得的候选；观察名单和草稿已保留。' : '可以继续填写计划并导出草稿。'} action={<Button onClick={() => setAttempt((v) => v + 1)}>重试</Button>} />}
             {data && !data.complete && <Alert className="review-candidate-notice" type="warning" showIcon message="部分策略未取得结果，候选范围不完整" description="可继续记录计划，稍后点击“更新候选数据”重试。" />}
@@ -281,7 +281,10 @@ function Report({
             </div>
             <div className="review-filters">
               <SelectField label="候选范围"><Select aria-label="候选范围" value={filter} onChange={setFilter} options={[{ value: 'selected', label: `已加入观察（${selected.length}）` }, { value: 'within', label: '可加入观察的股票' }, { value: 'all', label: '全部策略命中' }, { value: 'excluded', label: '已知风险排除' }, { value: 'missing', label: '市值资料缺失' }]} /></SelectField>
-              <Input allowClear aria-label="搜索候选股票" placeholder="输入股票名称或代码" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
+              <label className="review-search-field" htmlFor="review-candidate-search">
+                <span>股票</span>
+                <Input id="review-candidate-search" allowClear aria-label="搜索候选股票" placeholder="输入股票名称或代码" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
+              </label>
               <SelectField label="策略"><Select aria-label="筛选策略" value={strategy} onChange={setStrategy} options={[{ value: 'all', label: '全部策略' }, ...(data?.strategies || []).map((s: any) => ({ value: s.key, label: s.label, disabled: s.state !== 'ready' }))]} /></SelectField>
               <Button disabled={filter === 'within' && strategy === 'all' && !keyword} onClick={() => { setFilter('within'); setStrategy('all'); setKeyword(''); }}>重置筛选</Button>
             </div>
@@ -461,16 +464,18 @@ function Report({
               )}
             </div>
             <div className="review-plan-footer">
+              {(!capture || (!onDraft && !interacted.current && draft.selected.length > 0)) && (
               <div className="review-plan-actions">
-                {capture ? (!interacted.current && draft.selected.length > 0 && <Button disabled={!ready} onClick={() => capture(candidateRecord)}>带入此前浏览器记录</Button>) : (
+                {capture ? (!onDraft && !interacted.current && draft.selected.length > 0 && <Button disabled={!ready} onClick={() => capture(candidateRecord)}>带入此前浏览器记录</Button>) : (
                   <>
                     <Button type="primary" disabled={!ready} onClick={openPreview}>预览复盘与计划</Button>
                     <span className="review-caption">预览中可导出 Markdown 文件</span>
                   </>
                 )}
               </div>
+              )}
               <p role="status" className="review-caption">
-                {capture && interacted.current ? '选股与文字改动已带入本页，请在底部保存复盘。' : status}
+                {capture && interacted.current ? '选股与文字已带入本篇复盘，点击顶部“保存复盘”保存。' : status}
               </p>
             </div>
           </Card>
