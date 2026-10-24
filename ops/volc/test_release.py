@@ -220,6 +220,39 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(result['state'], 'already-current')
         apply.assert_not_called()
 
+    def test_front_only_apply_and_rollback_do_not_recreate_back_or_articles(self):
+        self.prepare_worker()
+        previous = worker.ENV.read_text() + 'ARTICLE_IMAGE=unchanged-article\n'
+        worker.ENV.write_text(previous)
+        candidate = previous.replace('previous-front', 'new-front').replace('RELEASE_SHA=old', 'RELEASE_SHA=new')
+        with patch.object(worker, 'run') as run, patch.object(worker, 'healthy') as healthy:
+            worker.apply(candidate, True)
+            worker.apply(previous, True)
+        updates = [c.args[0] for c in run.call_args_list if 'up' in c.args[0]]
+        self.assertEqual(len(updates), 2)
+        self.assertTrue(all(command[-1] == 'front' and command[-2] == 'never' for command in updates))
+        self.assertEqual(healthy.call_count, 2)
+
+    def test_ops_metadata_apply_checks_health_without_recreating_any_service(self):
+        self.prepare_worker()
+        candidate = worker.ENV.read_text().replace('RELEASE_SHA=old', 'RELEASE_SHA=new')
+        with patch.object(worker, 'run') as run, patch.object(worker, 'healthy') as healthy:
+            worker.apply(candidate, True)
+        self.assertFalse(any('up' in c.args[0] for c in run.call_args_list))
+        healthy.assert_called_once_with(True)
+
+    def test_cached_images_are_still_verified_without_registry_pull(self):
+        data = request()
+        def inspect(command, **kwargs):
+            role = 'back' if command[-1] == data['backDigest'] else 'front'
+            return json.dumps([{'Id': data[role + 'ImageId'], 'RepoDigests': [data[role + 'Digest']]}]).encode()
+        with patch.object(worker, 'run', side_effect=inspect), patch.object(worker, 'monitored_pull') as pull:
+            worker.pull_and_verify(data, True)
+        pull.assert_not_called()
+        with patch.object(worker, 'run', return_value=json.dumps([{'Id': 'bad', 'RepoDigests': []}]).encode()):
+            with self.assertRaises((ValueError, TypeError, KeyError)):
+                worker.pull_and_verify(data, False)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -109,12 +109,19 @@ def verify_ci(request, rehearsal):
 
 def pull_and_verify(request, pull):
     roles = ('back', 'front') + (('article',) if 'articleDigest' in request else ())
+    missing = []
     if pull:
+        for role in roles:
+            try:
+                run(['docker', 'image', 'inspect', request[role + 'Digest']])
+            except subprocess.CalledProcessError:
+                missing.append(role)
+    if missing:
         with tempfile.TemporaryDirectory(prefix='registry-', dir='/run/stock-cd') as auth:
             environment = dict(os.environ, DOCKER_CONFIG=auth)
             run(['docker', 'login', REGISTRY, '-u', request['registryUsername'], '--password-stdin'],
                 input=request['registryPassword'].encode(), env=environment, timeout=60)
-            for role in roles:
+            for role in missing:
                 monitored_pull(request[role + 'Digest'], environment, timeout=1800 if role == 'article' else 600)
     for role in roles:
         digest = request[role + 'Digest']
@@ -195,14 +202,24 @@ def healthy(production):
             raise ValueError('Read-only health check failed')
 
 
+def changed_services(previous, candidate):
+    def values(text):
+        return dict(line.split('=', 1) for line in text.splitlines() if line and not line.startswith('#'))
+    before, after = values(previous), values(candidate)
+    return [service for service, key in (('back', 'BACK_IMAGE'), ('front', 'FRONT_IMAGE'), ('articles', 'ARTICLE_IMAGE'))
+            if after.get(key) != before.get(key)]
+
+
 def apply(text, production):
+    services = changed_services(ENV.read_text(), text)
     temporary = DEPLOY / 'release.env.next'
     temporary.write_text(text)
     temporary.chmod(0o644)
     args = ['python3', str(DEPLOY / 'check_stack.py'), '--env-file', str(temporary)]
     run(args + (['--production'] if production else []))
     temporary.replace(ENV)
-    run(compose(production) + ['up', '-d', '--no-deps', '--pull', 'never', 'back', 'front', 'articles'])
+    if services:
+        run(compose(production) + ['up', '-d', '--no-deps', '--pull', 'never'] + services)
     healthy(production)
 
 
@@ -232,6 +249,7 @@ def deploy(request, identity, rehearsal=False, dry_run=False):
     if 'articleDigest' in request:
         values['ARTICLE_IMAGE'] = request['articleDigest']
     candidate = ''.join(key + '=' + value + '\n' for key, value in values.items())
+    services = changed_services(previous, candidate)
     if dry_run:
         return {'id': identity, 'state': 'preflight-passed', 'commit': request['commit'], 'databaseChanged': False}
     ops_version = ops_release.prepare(request['commit']) if production else None
@@ -280,6 +298,7 @@ def deploy(request, identity, rehearsal=False, dry_run=False):
         MAINTENANCE.unlink()
     report = {'id': identity, 'state': 'deployed', 'commit': request['commit'],
               'databaseChanged': False, 'production': production,
+              'changedServices': services,
               'opsCommit': request['commit'] if production else None,
               'completedAt': dt.datetime.now(dt.timezone.utc).isoformat()}
     (history / 'deployment.json').write_text(json.dumps(report, indent=2) + '\n')
