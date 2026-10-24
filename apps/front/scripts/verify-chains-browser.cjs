@@ -72,7 +72,7 @@ const stocks=Array.from({length:1000},(_,i)=>({tsCode:`${String(i+1).padStart(6,
     assert.equal(requests.length,initialCount,'warm tab changes cannot refetch market data');
     assert.equal(navigationRequests.length,rscCount,'same-page tab changes cannot start route fetches');
     assert.ok(Math.max(...timings)<1500,`warm tab switch latency: ${timings}`);
-    await page.getByRole('combobox',{name:'趋势范围',exact:true}).click();
+    await page.locator('.market-trend-control .ant-select-selector').click();
     await page.getByText('近60个交易日',{exact:true}).click();
     await page.waitForFunction(()=>!document.querySelector('.ant-tabs-tabpane-active .market-data-state[aria-busy=true]'));
     assert.ok(requests.some(r=>r.endpoint==='chains'&&r.days===60),'history range fetches selected data');
