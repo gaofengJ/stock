@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Alert, Button, Card, DatePicker, Drawer, Space, Tabs,
+  Alert, Button, DatePicker, Drawer, Space, Tabs,
 } from 'antd';
 import { useAccount } from '@/auth/Boundary';
 import { isPersonalAiOwner } from '@/auth/client';
@@ -20,6 +20,7 @@ import PageHeading from '@/auth/PageHeading';
 import { RobotOutlined } from '@ant-design/icons';
 import Settings from './Settings';
 import TaskHistory from './TaskHistory';
+import StockResearch from './StockResearch';
 import './workspace.css';
 import '@/components/PersonalAi/personal-ai.css';
 import '@/app/review/review.css';
@@ -71,27 +72,7 @@ function Workspace({ ownerId }: { ownerId: number }) {
       {tab === 'stocks' && date && (
       <>
         {searchError && <Alert type="error" message={searchError} />}
-        <Card title="从策略候选开始研究" className="ai-research-entry">
-          <p>股票对比使用所选策略、筛选条件和交易日期。先在策略选股中选出候选，再开启智能对比。</p>
-          <ol className="ai-research-steps">
-            <li>
-              <strong>选择策略与日期</strong>
-              <span>沿用策略页的筛选条件和候选范围。</span>
-            </li>
-            <li>
-              <strong>对比 1 至 3 只股票</strong>
-              <span>点击智能对比，填写研究重点并开始分析。</span>
-            </li>
-            <li>
-              <strong>查看结果与追问</strong>
-              <span>任务记录中可核对结论、复制结果并继续追问。</span>
-            </li>
-          </ol>
-          <Space wrap>
-            <Button type="primary" href={`/strategy/?date=${date}`}>前往策略选股</Button>
-            <Button onClick={() => { update({ tab: 'history', aiTask: '' }); }}>查看研究任务</Button>
-          </Space>
-        </Card>
+        <StockResearch ownerId={ownerId} date={date} />
       </>
       )}
       {tab === 'review' && date && <Notebook key={date} mode="publish" date={date} onDirty={setDirty} />}
