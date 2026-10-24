@@ -49,15 +49,16 @@ if(!['127.0.0.1','localhost'].includes(new URL(base).hostname))throw Error('Loca
   await page.getByRole('link',{name:'图文制作与 AI 辅助',exact:true}).click();
   await page.waitForURL('**/admin/ai/**');
   await page.getByRole('tab',{name:'股票研究',exact:true}).click();
-  // The workspace now starts research from strategy candidates instead of an independent picker.
-  await page.getByText('从策略候选开始研究',{exact:true}).waitFor();
-  const strategyEntry=page.getByRole('link',{name:'前往策略选股',exact:true});
-  assert.equal(new URL(await strategyEntry.getAttribute('href'),base).searchParams.get('date'),date);
-  assert.equal(await page.getByRole('combobox',{name:'对比股票',exact:true}).count(),0);
+  await page.getByText('选择研究范围',{exact:true}).waitFor();
+  const stockSearch=page.getByRole('combobox',{name:'对比股票',exact:true});
+  await stockSearch.click();await stockSearch.fill('测试');
+  await page.getByRole('option',{name:'测试股份 000001.SZ',exact:true}).waitFor({state:'attached'});
+  await stockSearch.press('Enter');await stockSearch.press('Escape');
+  assert.equal(await page.getByRole('button',{name:'开始对比',exact:true}).isEnabled(),true);
+  await page.getByRole('textbox',{name:'分析要求',exact:true}).fill('独立页研究草稿');
   await page.getByRole('tab',{name:'模型设置',exact:true}).click();
   await page.getByRole('tab',{name:'股票研究',exact:true}).click();
-  await strategyEntry.waitFor();
-  assert.equal(new URL(await strategyEntry.getAttribute('href'),base).searchParams.get('date'),date);
+  await page.waitForFunction(()=>document.querySelector('textarea[aria-label="分析要求"]')?.value==='独立页研究草稿');
   assert.equal(state.submissions.length,0);
   await page.getByRole('tab',{name:'图文复盘',exact:true}).click();
   await page.getByText('核对本日原始记录（可选）',{exact:true}).click();
