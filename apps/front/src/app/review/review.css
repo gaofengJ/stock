@@ -27,6 +27,13 @@
 .review-candidate-help { display: grid; gap: 8px; }
 .review-candidate-help p { margin: 0; }
 .review-filters { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0 12px; }
+.review-workspace-simple { display: flex !important; flex-direction: column; gap: 16px; }
+.review-candidate-disclosure { min-width: 0; }
+.review-candidate-disclosure > summary { cursor: pointer; padding: 12px 0; color: var(--color-primary-text); }
+.review-candidate-disclosure > section { margin-top: 12px; }
+.notebook-advanced-link { display: inline-block; margin-top: 16px; }
+.personal-ai-task-list { display: grid; gap: 8px; max-height: 260px; overflow-y: auto; }
+.personal-ai-task-list .ant-btn { height: auto; min-height: 32px; white-space: normal; text-align: left; }
 .review-filters .ant-select, .review-filters .ant-input-affix-wrapper { width: 220px; max-width: 100%; }
 .review-stock-name { display: block; font-weight: 600; }
 .review-stock-cell { display: grid; gap: 4px; }

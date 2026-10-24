@@ -152,3 +152,17 @@ export function nativeAnswer(body: string): string | null {
   }
   return result.join('\n\n');
 }
+
+/** Manual export is independent of article generation and retains every recorded field. */
+export function recordText(date: string, value: NotebookContent) {
+  const draft = value.workspace?.draft;
+  const picks = draft?.selected.map((pick) => `### ${pick.name} ${pick.tsCode}
+
+观察与触发条件：${draft.notes[pick.tsCode] || '未填写'}
+
+风险核验：${draft.riskNotes[pick.tsCode] || '未记录'}`) || [];
+  const notes = internalFields.filter(([key]) => value.private[key]?.trim() && (key !== 'toolEvidence' || !picks.length)).map(([key, label]) => `## ${key === 'lesson' ? '当日总结' : label}
+
+${value.private[key]}`);
+  return [`# ${date} 复盘记录`, ...notes, '## 观察股票', ...(picks.length ? picks : ['未选观察股票'])].join('\n\n');
+}

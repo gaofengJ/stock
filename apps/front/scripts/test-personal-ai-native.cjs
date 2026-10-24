@@ -109,6 +109,29 @@ test('collected AI results reopen their original skill and strategy conditions',
  const {taskHref}=load('components/PersonalAi/client');
  const task={id:'result-id',skill:'candidate-compare',date:'2026-10-23',strategy:{type:'volumeBreakout',parameters:{minTurnoverRateF:8,volumeDays:5,aboveMa5:false},keyword:'测试'}};
  const link=new URL(taskHref(task),'https://fixture.test');
- assert.equal(link.pathname,'/strategy/');assert.equal(link.searchParams.get('turnover_volumeBreakout'),'8');assert.equal(link.searchParams.get('aiTask'),task.id);assert.equal(link.searchParams.get('q'),'测试');
- assert.equal(new URL(taskHref({...task,skill:'market-review'}),'https://fixture.test').pathname,'/review/');
+ assert.equal(link.pathname,'/admin/ai/');assert.equal(link.searchParams.get('tab'),'history');assert.equal(link.searchParams.get('aiTask'),task.id);assert.equal(link.searchParams.get('date'),task.date);
+ assert.equal(new URL(taskHref({...task,skill:'market-review'}),'https://fixture.test').pathname,'/admin/ai/');
+});
+
+test('AI services are scoped to the dedicated page and business lists keep normal navigation', () => {
+  const text = name => fs.readFileSync(path.join(root, name), 'utf8');
+  assert.doesNotMatch(text('discovery/Boundary.tsx'), /<TaskState/);
+  assert.doesNotMatch(text('components/Layout/index.tsx'), /<TaskBar|<ResearchCollection/);
+  const strategy = text('app/strategy/page.tsx');
+  assert.doesNotMatch(strategy, /<BusinessAction|aiCodes|加入智能对比|勾选最多3只/);
+  assert.match(strategy, /<StockChart navigation=/);
+  assert.match(text('app/admin/ai/page.tsx'), /<TaskState>/);
+  assert.match(text('app/admin/ai/page.tsx'), /isPersonalAiOwner\(user\)/);
+});
+
+test('manual review export retains notes and stock conditions without requiring generated text', () => {
+  const { emptyNotebook, recordText } = load('app/review/notebook-model');
+  const value = emptyNotebook();
+  value.private.marketJudgment = '市场原文'; value.private.lesson = '当日总结原文'; value.private.strongPlan = '旧版计划也保留';
+  value.workspace = { items: [], draft: { selected: [{ tsCode: '000001.SZ', name: '测试股份' }], notes: { '000001.SZ': '触发和放弃条件' }, riskNotes: { '000001.SZ': '公告核验记录' } } };
+  const before = JSON.stringify(value);
+  const output = recordText('2026-10-23', value);
+  for (const text of ['市场原文', '当日总结原文', '旧版计划也保留', '000001.SZ', '触发和放弃条件', '公告核验记录']) assert.ok(output.includes(text));
+  assert.doesNotMatch(output, /由 AI 生成/);
+  assert.equal(JSON.stringify(value), before, 'export must not mutate the saved structure');
 });

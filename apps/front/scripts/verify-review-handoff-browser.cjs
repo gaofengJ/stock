@@ -8,7 +8,7 @@ const output = process.env.TEST_ARTIFACT_DIR || '/tmp/stock-review-handoff';
 fs.mkdirSync(output, { recursive: true });
 const date = '2026-10-13';
 const items = Array.from({length:30}, (_,i) => ({tsCode:`${String(i+1).padStart(6,'0')}.SZ`,name:`测试股份${i+1}`,capState:'within',totalMv:100000+i*10000,circMv:50000+i*1000,close:10+i,strategies:[{key:'trend',label:'连续三日收阳'}]}));
-const user = {id:91,username:'fixture',nickname:'测试账户',roles:[{code:'admin'}],permissions:['/review'],catalog:[{code:'/review',route:'/review',name:'每日复盘',group:'fixture'}]};
+const user = {id:1,username:'mufeng',nickname:'测试账户',roles:[{code:'admin'}],permissions:['/review'],catalog:[{code:'/review',route:'/review',name:'每日复盘',group:'fixture'}]};
 async function verify(browser, mode) {
   const context = await browser.newContext({ viewport:{width:1600,height:1050}, permissions:['clipboard-read','clipboard-write'] });
   context.setDefaultNavigationTimeout(20000);
@@ -39,10 +39,11 @@ async function verify(browser, mode) {
         data = {revision:++revision};
       } else data = {date,revision,generation:2,content:null};
     }
+    if (path === '/personal-ai/api/status') data = {enabled:false,tasks:[],metadata:null,today:{calls:0,tokens:0},limits:{dailyCalls:20,dailyTokens:200000}};
     if (path === '/api/review/notebook/dates') data = [];
     if (path === '/api/review/report') data = {date,complete:true,items,strategies:[{key:'trend',label:'连续三日收阳',state:'ready'}]};
     if (path.includes('financial')) data = {items:items.map(row=>({...row,status:'profit',amount:100,reportDate:'2026-06-30',announcedAt:date,sourceState:'ready',forecastState:'ready',history:[],forecast:null})),sources:[]};
-    await route.fulfill({contentType:'application/json',body:JSON.stringify({code:0,data})});
+    await route.fulfill({contentType:'application/json',body:JSON.stringify(path.startsWith('/personal-ai/')?data:{code:0,data})});
   });
   const page = await context.newPage(); const errors = []; const dialogs = [];
   page.on('pageerror',e=>errors.push(e.message));
@@ -50,7 +51,8 @@ async function verify(browser, mode) {
   await page.goto(`${base}/review/?date=${date}`,{waitUntil:'networkidle'});
   const topGap = await page.evaluate(()=>document.querySelector('.review-page').getBoundingClientRect().top-document.querySelector('.platform-content').getBoundingClientRect().top);
   assert.ok(topGap >= 16 && topGap < 150, 'review content remains below the context bar');
-  assert.equal(await page.getByRole('button',{name:'智能复盘',exact:true}).count(),0,'non-owner cannot see AI controls');
+  assert.equal(await page.getByRole('button',{name:'智能复盘',exact:true}).count(),0);
+  await page.getByText('添加或调整观察股票',{exact:true}).click();
   const input = page.locator('#note-marketJudgment');
   await input.fill('必须保留的最新用户原文');
   await page.locator('#review-candidate-table .ant-pagination-item-2 a').click();
@@ -66,11 +68,16 @@ async function verify(browser, mode) {
   assert.ok(Math.abs(metrics.scrollTop-metrics.headerTop)<2,JSON.stringify(metrics));
   await page.screenshot({path:`${output}/sticky-${mode}.png`});
   // Verify a genuine same-tab navigation is still guarded.
-  await page.evaluate(()=>{const a=document.createElement('a');a.href='/analysis/overview/';a.textContent='fixture leave';a.id='fixture-leave';document.querySelector('.notebook-handoff').appendChild(a);});
+  await page.evaluate(()=>{const a=document.createElement('a');a.href='/analysis/overview/';a.textContent='fixture leave';a.id='fixture-leave';document.querySelector('.review-notebook').appendChild(a);});
   await page.locator('#fixture-leave').click();
   await page.getByRole('dialog').getByText('离开前处理未保存复盘').waitFor();
   await page.getByRole('button',{name:'继续编辑',exact:true}).click();
   assert.equal(dialogs.length,0);assert.ok(page.url().includes('/review/'));
+  await page.getByRole('link',{name:'图文制作与 AI 辅助',exact:true}).click();
+  await page.getByRole('button',{name:'保留本机草稿并离开',exact:true}).click();
+  await page.waitForURL('**/admin/ai/**');
+  await page.getByText('核对本日原始记录（可选）',{exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('#note-marketJudgment')?.value==='必须保留的最新用户原文');
   await page.getByRole('checkbox',{name:'文档包含持仓与操作记录'}).check();
   const handoff = page.locator('.notebook-handoff');
   assert.equal(await handoff.getByRole('button',{name:/^保\s*存$/}).count(),1);

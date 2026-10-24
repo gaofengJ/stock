@@ -9,6 +9,7 @@ import {
   Alert, Button, Card, Checkbox, Collapse, Image, Input, Modal, Space,
 } from 'antd';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useAccount } from '@/auth/Boundary';
 import { isPersonalAiOwner } from '@/auth/client';
@@ -25,15 +26,13 @@ import {
 } from './workspace-contract';
 import NotebookHistory, { NotebookSnapshot } from './NotebookHistory';
 import { fetchNotebookImage, loadNotebookImages } from './notebook-images';
-import ArticleEditor from './ArticleEditor';
 import InvestmentCalendar from '../basic/components/InvestmentCalendar';
 import { Materials, emptyMaterials, validateMaterials } from './materials-contract';
 import { loadResearch } from './research';
 import {
-  emptyNotebook, internalFields, NotebookContent, SavedNotebook, synchronizeArticle,
+  emptyNotebook, publicFields, internalFields, NotebookContent, SavedNotebook, synchronizeArticle, recordText,
 } from './notebook-model';
 import { leavesDocument } from './navigation-guard';
-import { eveningFlow } from './evening-flow';
 import { emptyArticle } from './article-contract';
 import { notebookPayload, toolEvidenceError } from './notebook-limits';
 import {
@@ -41,8 +40,26 @@ import {
 } from './platform-images';
 import './notebook.css';
 
+const ArticleEditor = dynamic(() => import('./ArticleEditor'), { ssr: false });
+
+const recordStages = [
+  {
+    id: 'market', title: '市场判断', keys: ['marketJudgment', 'themes'], guidance: '记录当天市场变化和关注方向。', links: [['/analysis/overview', '查看市场概览']],
+  },
+  {
+    id: 'candidates', title: '观察股票', keys: [], guidance: '为观察股票写清理由、触发条件与放弃条件。', links: [],
+  },
+  {
+    id: 'execution', title: '当日总结', keys: ['lesson'], guidance: '记录经验、反思或后续需要核实的事项，可留空。', links: [],
+  },
+];
+
 type Snapshot = NotebookSnapshot;
-export default function Notebook({ date, renderTools, onDirty }: { date: string; renderTools: (capture: (text: string) => void, onSelection?: (items: string[]) => void, generation?: number, refresh?: number, draft?: WatchDraft, onDraft?: (draft: WatchDraft) => void) => ReactNode; onDirty: (value: boolean) => void }) {
+export default function Notebook({
+  date, renderTools = () => null, onDirty, mode = 'record',
+}: { mode?: 'record' | 'publish'; date: string; renderTools?: (capture: (text: string) => void, onSelection?: (items: string[]) => void, generation?: number, refresh?: number, draft?: WatchDraft, onDraft?: (draft: WatchDraft) => void) => ReactNode; onDirty: (value: boolean) => void }) {
+  const publishing = mode === 'publish';
+  const stages = publishing ? [] : recordStages;
   const { user } = useAccount(); const owner = user!.id; const router = useRouter();
   const inbox = useCollection(owner, date);
   const [removedItem, setRemovedItem] = useState<CollectedItem | null>(null);
@@ -150,7 +167,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
     saving.current = true;
     setBusy(true); setError(''); const edit = editCounter.current;
     try {
-      const saved = synchronizeArticle(date, current.current);
+      const saved = publishing ? synchronizeArticle(date, current.current) : current.current;
       const payload = notebookPayload(date, snapshot.revision, snapshot.generation || 0, saved);
       const { data } = await request.post<{ revision: number }>('/review/notebook', payload, { autoShowError: false });
       setSnapshot({ ...snapshot, revision: data.revision, content: saved });
@@ -219,8 +236,8 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
     const field = internalFields.find(([k]) => k === key)!;
     return (
       <div className="notebook-field" key={key}>
-        <label htmlFor={`note-${key}`}>{field[1]}</label>
-        <Input.TextArea id={`note-${key}`} disabled={!snapshot} value={content.private[key]} placeholder={`${field[2]} 你的原文会保留。`} autoSize={{ minRows: key === 'lesson' ? 4 : 2 }} maxLength={4000} onChange={(e) => change(key, e.target.value)} />
+        <label htmlFor={`note-${key}`}>{key === 'lesson' ? '当日总结' : field[1]}</label>
+        <Input.TextArea id={`note-${key}`} disabled={!snapshot} value={content.private[key]} placeholder={key === 'lesson' ? '记录今天的经验、反思或待核实事项' : field[2]} autoSize={{ minRows: key === 'lesson' ? 4 : 2 }} maxLength={4000} onChange={(e) => change(key, e.target.value)} />
       </div>
     );
   };
@@ -228,21 +245,32 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
     <div className="review-notebook notebook-panel">
       <div className="notebook-toolbar">
         <Space wrap size={12}>
-          <Button onClick={() => document.getElementById('review-document')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>查看文档与保存</Button>
+          {!publishing && (
+          <Button
+            disabled={!snapshot}
+            onClick={() => {
+              const url = URL.createObjectURL(new Blob([recordText(date, current.current)], { type: 'text/markdown;charset=utf-8' }));
+              const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${date}-复盘记录.md`; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+            }}
+          >
+            导出记录
+          </Button>
+          )}
           <strong>{date}</strong>
-          {isPersonalAiOwner(user) && <Button type="primary" disabled={!snapshot || researchBusy || busy} onClick={() => setAiOpenRequest((value) => value + 1)}>生成复盘</Button>}
-          <Button aria-label="保存复盘" aria-busy={busy} disabled={!dirty || busy || researchBusy} loading={busy} onClick={save}>保存复盘</Button>
+          {publishing && isPersonalAiOwner(user) && <Button type="primary" disabled={!snapshot || researchBusy || busy} onClick={() => setAiOpenRequest((value) => value + 1)}>生成复盘</Button>}
+          <Button type="primary" aria-label="保存复盘" aria-busy={busy} disabled={!dirty || busy || researchBusy} loading={busy} onClick={save}>保存复盘</Button>
           <span role="status">{researchBusy ? status : visibleStatus}</span>
         </Space>
-        <nav className="notebook-flow" aria-label="每日复盘四步">
-          {eveningFlow.map((stage) => <Button key={stage.id} onClick={() => document.getElementById(`evening-${stage.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{stage.title}</Button>)}
+        <nav className="notebook-flow" aria-label={publishing ? '图文操作' : '复盘记录'}>
+          {stages.map((stage) => <Button key={stage.id} onClick={() => document.getElementById(`evening-${stage.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{stage.title}</Button>)}
         </nav>
       </div>
       {localError && <Alert type="error" message={localError} />}
       {error && <Alert type="warning" message={error} action={!snapshot && <Button onClick={() => setAttempt((x) => x + 1)}>重新读取</Button>} />}
       {evidenceError && evidenceError !== error && <Alert type="warning" message={evidenceError} />}
+      {publishing && (
       <div className="notebook-start">
-        <p className="review-caption">查看图表，按需记录判断，再用智能复盘生成图文。记录可以留空，已有原文会保留。</p>
+        <p className="review-caption">使用当天已保存的记录制作图文。分析结果应用前需核对，已有原文和图片会保留。</p>
 
         <Space wrap size={12}>
           <Button disabled={!snapshot} loading={researchBusy} onClick={() => { importMarket(!(content.article?.images || []).some((image) => image.id.startsWith('platform-'))).catch(() => {}); }}>{(content.article?.images || []).some((image) => image.id.startsWith('platform-')) ? '更新图文资料' : '准备图文资料'}</Button>
@@ -252,7 +280,9 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
           <Link href="/trading-system/" target="_blank" rel="noopener noreferrer">复盘方法</Link>
         </Space>
       </div>
-      {snapshot && (
+      )}
+      {publishing && <Collapse items={[{ key: 'notes', label: '核对本日原始记录（可选）', children: <div className="notebook-panel">{['marketJudgment', 'themes', 'lesson'].map(renderField)}</div> }]} />}
+      {!publishing && snapshot && (
       <NotebookHistory
         snapshot={snapshot}
         verification={content.private.yesterday || ''}
@@ -270,9 +300,9 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
       />
       )}
       <div className="notebook-stages">
-        {eveningFlow.map((stage) => {
+        {stages.map((stage) => {
           const prefix = ({ market: '市场数据', themes: '涨停板复盘', candidates: '策略选股' } as Record<string, string>)[stage.id];
-          const images = (content.article?.images || []).filter((item) => item.id.startsWith('platform-') && (item.after === prefix || (stage.id === 'market' && ['市场概览', '情绪指标', '连板分析', '20日板块轮动'].includes(item.after))));
+          const images = (publishing ? content.article?.images || [] : []).filter((item) => item.id.startsWith('platform-') && (item.after === prefix || (stage.id === 'market' && ['市场概览', '情绪指标', '连板分析', '20日板块轮动'].includes(item.after))));
           return (
             <Card id={`evening-${stage.id}`} key={stage.id} title={stage.title}>
               <p className="review-caption">{stage.guidance}</p>
@@ -289,7 +319,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
                 </div>
               </Image.PreviewGroup>
               )}
-              {stage.id === 'themes' && (
+              {publishing && stage.id === 'themes' && (
                 <div className="notebook-detail-fields">
                   <Checkbox disabled={!snapshot} checked={materials.showCalendar} onChange={(e) => changeMaterials({ ...materials, showCalendar: e.target.checked })}>显示投资日历</Checkbox>
                   {materials.showCalendar && <InvestmentCalendar date={calendarDate} onDate={setCalendarDate} selected={materials.calendar} onSelect={(calendar) => changeMaterials({ ...materials, calendar })} />}
@@ -301,6 +331,7 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
           );
         })}
       </div>
+      {!publishing && (
       <Collapse items={[{
         key: 'execution',
         label: '今日操作与上次判断验证（可选）',
@@ -330,13 +361,44 @@ export default function Notebook({ date, renderTools, onDirty }: { date: string;
         ),
       }]}
       />
-      <Card id="review-document" title="复盘文档" className="notebook-document">
+      )}
+      {!publishing && (
+      <>
+        <Collapse items={[{
+          key: 'archive',
+          label: '其他既有记录与图文',
+          children: (
+            <div className="notebook-panel">
+              {internalFields.filter(([key]) => !['marketJudgment', 'themes', 'lesson', 'execution', 'yesterday'].includes(key) && content.private[key]?.trim()).map(([key]) => renderField(key))}
+              {Object.entries(content.public).filter(([, value]) => value.trim()).map(([key, value]) => (
+                <div key={key}>
+                  <strong>{publicFields.find(([field]) => field === key)?.[1] || '既有记录'}</strong>
+                  <pre className="notebook-text">{value}</pre>
+                </div>
+              ))}
+              {content.article?.body && (
+              <>
+                <strong>已保存图文正文</strong>
+                <pre className="notebook-text">{content.article.body}</pre>
+              </>
+              )}
+              {!!content.article?.images.length && <Image.PreviewGroup><div className="notebook-platform-images">{content.article.images.map((image) => <Image key={image.id} src={image.data} alt={image.caption} />)}</div></Image.PreviewGroup>}
+            </div>
+          ),
+        }]}
+        />
+        {isPersonalAiOwner(user) && <Link className="notebook-advanced-link" href={`/admin/ai/?tab=review&date=${date}`}>图文制作与 AI 辅助</Link>}
+      </>
+      )}
+      {publishing && (
+      <Card id="review-document" title="图文制作" className="notebook-document">
         <div className="notebook-field">
           <label htmlFor="review-document-title">文章名称</label>
           <Input id="review-document-title" value={content.public.title || `${date}复盘`} disabled={!snapshot} maxLength={200} onChange={(e) => changed({ ...current.current, public: { ...current.current.public, title: e.target.value }, ...(current.current.article?.body ? { article: { ...current.current.article, body: current.current.article.body.replace(/^# [^\n]+/, `# ${e.target.value || `${date}复盘`}`) } } : {}) })} />
         </div>
         <ArticleEditor openRequest={aiOpenRequest} prepareImages={async (signal, progress) => { const warning = await importMarket(true, signal, progress); if (warning) throw Error(warning); }} date={date} generation={snapshot?.generation || 0} revision={snapshot?.revision || 0} content={content} disabled={!snapshot || researchBusy || busy} saving={busy} onSave={save} previewDisabled={!snapshot} dirty={dirty} onStatus={setStatus} onMaterials={changeMaterials} onChange={(article) => changed({ ...current.current, article })} />
       </Card>
+      )}
       <Modal
         title="离开前处理未保存复盘"
         open={leaveOpen}
