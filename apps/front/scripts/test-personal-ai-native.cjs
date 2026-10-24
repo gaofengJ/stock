@@ -135,3 +135,25 @@ test('manual review export retains notes and stock conditions without requiring 
   assert.doesNotMatch(output, /由 AI 生成/);
   assert.equal(JSON.stringify(value), before, 'export must not mutate the saved structure');
 });
+
+test('late strategy initialization preserves a date and filters already changed by the user', () => {
+  const source = fs.readFileSync(path.join(root, 'app/strategy/page.tsx'), 'utf8');
+  const file = ts.createSourceFile('page.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  let callback;
+  function visit(node) {
+    if (ts.isVariableDeclaration(node) && node.name.getText(file) === 'updateQuery') callback = node.initializer.arguments[0].getText(file);
+    ts.forEachChild(node, visit);
+  }
+  visit(file);
+  assert.ok(callback);
+  const output = ts.transpileModule(`exports.update = ${callback}`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  const state = { location: { search: '?date=2026-10-23&q=最新筛选' }, history: { replaceState(_data, _unused, next) { state.location.search = next; } } };
+  const exp = {};
+  new Function('exports', 'window', 'date', 'strategy', output)(exp, state, '2026-10-22', 'fiveMaUp');
+  exp.update({});
+  assert.equal(new URLSearchParams(state.location.search).get('date'), '2026-10-23');
+  assert.equal(new URLSearchParams(state.location.search).get('q'), '最新筛选');
+  exp.update({ sector: 'industry1' });
+  assert.equal(new URLSearchParams(state.location.search).get('date'), '2026-10-23');
+  assert.equal(new URLSearchParams(state.location.search).get('sector'), 'industry1');
+});

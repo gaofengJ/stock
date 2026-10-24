@@ -47,7 +47,7 @@ const defaultColumns = ['pctChg', 'close', 'amount', 'turnoverRateF', 'industry'
 function StrategyPage() {
   useLegacyTaskLink();
   const params = useSearchParams();
-  const query = params.toString();
+
   const screens = Grid.useBreakpoint();
   const {
     ready, tradeDate, error: dateError, retry: retryDate,
@@ -81,12 +81,12 @@ function StrategyPage() {
   const listCurrent = loadedListKey === listKey;
   const loadingCandidates = !loadError && !dateError && (!date || tableLoading || !listCurrent);
   const updateQuery = useCallback((changes: Record<string, string | undefined>) => {
-    const next = new URLSearchParams(query);
+    const next = new URLSearchParams(window.location.search);
     Object.entries(changes).forEach(([key, value]) => { if (value) next.set(key, value); else next.delete(key); });
     if (!next.has('date') && date) next.set('date', date);
     if (!next.has('strategyType') && strategy) next.set('strategyType', strategy);
     window.history.replaceState(null, '', `?${next}`);
-  }, [query, date, strategy]);
+  }, [date, strategy]);
   const getTabs = useCallback(() => runTabs({
     request: () => getStrategyTabsList(tabsConfig),
     onSuccess: ({ data }) => { setNavList(data); if (!data.length) setTableLoading(false); },
