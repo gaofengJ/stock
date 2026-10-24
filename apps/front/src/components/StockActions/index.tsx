@@ -6,7 +6,9 @@ import {
   ComponentRef, KeyboardEvent, useRef, useState,
 } from 'react';
 import { Button, Popover, Tooltip } from 'antd';
-import { CopyOutlined, EyeOutlined, FileTextOutlined } from '@ant-design/icons';
+import {
+  CaretDownOutlined, CopyOutlined, EyeOutlined, FileTextOutlined, PlusOutlined,
+} from '@ant-design/icons';
 import Link from 'next/link';
 import { InteractionButton } from '@/components/Interaction';
 import { useAccount } from '@/auth/Boundary';
@@ -22,12 +24,13 @@ import './stock-actions.css';
 interface Props {
   code: string; name?: string; date?: string; label?: React.ReactNode;
   className?: string;
+  showIndicator?: boolean;
   navigation?: readonly unknown[];
   onChart?: (rows: any[]) => void; onDetails?: () => void; chartOpen?: boolean;
 }
 /** Explicit actions keep stock navigation separate from page-specific selection. */
 export default function StockActions({
-  code, name, date, label = '股票操作', onChart, onDetails, chartOpen = false, navigation, className = '',
+  code, name, date, label = '股票操作', onChart, onDetails, chartOpen = false, navigation, className = '', showIndicator = true,
 }: Props) {
   const { user } = useAccount();
   const actions = useStockActions();
@@ -76,6 +79,10 @@ export default function StockActions({
           </Tooltip>
           <CollectButton
             label="加入本日观察"
+            className="stock-action-item"
+            type="text"
+            icon={<PlusOutlined />}
+            onAction={() => setOpen(false)}
             item={{
               id: `stock:${code}`, kind: 'stock', date: date || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('date') || '' : ''), title: `${name || symbol} ${code}`, code, name: name || symbol, url: typeof window !== 'undefined' ? window.location.href : stockHref(code, date), note: '从研究页面加入，仍需核验候选条件及风险。',
             }}
@@ -86,7 +93,7 @@ export default function StockActions({
         </div>
       )}
     >
-      <InteractionButton ref={triggerRef} className={`stock-action-trigger ${className}`} intent="popover" aria-label={`${name || symbol}股票操作`} aria-haspopup="dialog" aria-expanded={open} title="" onKeyDown={closeOnEscape}>{label}</InteractionButton>
+      <InteractionButton ref={triggerRef} className={`stock-action-trigger ${className}`} intent="popover" icon={showIndicator ? undefined : null} aria-label={`${name || symbol}股票操作`} aria-haspopup="dialog" aria-expanded={open} title="" onKeyDown={closeOnEscape}>{label}</InteractionButton>
     </Popover>
   );
 }
@@ -103,10 +110,14 @@ export function StockIdentity({
       {...props}
       code={code}
       name={name}
+      showIndicator={false}
       className={`stock-identity-trigger ${className}`}
       label={(
         <span className="stock-identity-text">
-          <span className="stock-identity-name">{name || stockSymbol(code)}</span>
+          <span className="stock-identity-heading">
+            <span className="stock-identity-name">{name || stockSymbol(code)}</span>
+            <CaretDownOutlined className="stock-identity-arrow" aria-hidden />
+          </span>
           <span className="stock-identity-code">{code}</span>
         </span>
       )}

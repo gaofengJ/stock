@@ -106,7 +106,7 @@ export function PopularityChanges({
   return (
     <div className="strategy-insight-panel popularity-panel">
       {calendarMode && (
-      <Space wrap className="mb-16">
+      <Space wrap size={[16, 12]} className="popularity-date-controls">
         <span>榜单日期</span>
         <DatePicker id="popularity-date" aria-label="榜单日期" allowClear={false} value={dayjs(date)} disabledDate={(d) => !availableDates.has(d.format('YYYY-MM-DD'))} onChange={(d) => { if (d) setRequestedDate(d.format('YYYY-MM-DD')); }} />
         <Button size="small" disabled={!requestedDate} onClick={() => setRequestedDate('')}>最新榜单</Button>

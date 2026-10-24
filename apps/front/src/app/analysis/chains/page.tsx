@@ -89,6 +89,7 @@ function ChainsPage() {
   return (
     <MarketShell title="连板分析" path="/analysis/chains">
       <Tabs
+        className="market-tabs"
         activeKey={tab}
         onChange={(view) => navigate(view)}
         items={[
@@ -122,7 +123,7 @@ function ChainsPage() {
                   </Row>
                 </DataState>
                 <SectionTitle title="股票梯队与去向" />
-                <div className="chains-filter">
+                <div className="market-filter-row chains-filter">
                   <SectorFilter value={sector} onChange={setSector} />
                   <span className="chains-filter-note">仅筛选当日股票梯队与昨日连板股去向</span>
                 </div>
@@ -189,7 +190,7 @@ function ChainsPage() {
                   <SectionTitle title="市场历史走势" description="按顶部统计范围计算，不受股票行业／概念筛选影响。" />
                   <TrendRange />
                 </div>
-                <div className="chains-history-toolbar mb-16">
+                <div className="market-filter-row chains-history-toolbar">
                   <span className="market-note">点击图表数据或日期查看当日梯队，或选择日期：</span>
                   <DatePicker aria-label="梯队明细日期" allowClear={false} value={dayjs(detailDate || date)} onChange={(value) => { if (value) setDetailDate(value.format('YYYY-MM-DD')); }} disabledDate={(value) => !(status?.dates || []).includes(value.format('YYYY-MM-DD'))} />
                   <Button size="small" onClick={() => openLadder(detailDate || date)}>查看当日梯队</Button>

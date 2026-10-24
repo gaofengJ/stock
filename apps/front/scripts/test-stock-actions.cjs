@@ -48,7 +48,7 @@ function renderMenu(props, permissions = ['basic:stock'], rows = []) {
   const module = load('components/StockActions/index.tsx', {
     react: { ...React, useState: () => [false, () => {}], useRef: () => ({ current: null }) },
     antd: { Button: 'button', Popover: 'popover', Tooltip: 'tooltip' },
-    '@ant-design/icons': { CopyOutlined: 'icon', EyeOutlined: 'icon', FileTextOutlined: 'icon' },
+    '@ant-design/icons': { CaretDownOutlined: 'icon', CopyOutlined: 'icon', EyeOutlined: 'icon', FileTextOutlined: 'icon', PlusOutlined: 'icon' },
     'next/link': { __esModule: true, default: 'link' },
     '@/components/Interaction': { __esModule: true, default: 'link', InteractionButton: 'button' },
     '@/auth/Boundary': { useAccount: () => ({ user: account(permissions) }) },
@@ -94,6 +94,25 @@ test('restricted accounts keep copying available without denied detail/chart req
 });
 test('the chart menu prevents opening a second copy of the same chart', () => {
   assert.equal(renderMenu({ code: '000503.SZ', chartOpen: true }).find('预览K线').props.disabled, true);
+});
+
+test('collection dismisses its menu only after the item was saved successfully', () => {
+  for (const fail of [false, true]) {
+    const calls = [];
+    const collection = load('components/ResearchCollection/index.tsx', {
+      react: { ...React, useState: initial => [initial, () => {}], useEffect: () => {} },
+      antd: { Button: 'button', Drawer: 'drawer', Empty: 'empty', Space: 'space', message: { success: () => calls.push('success'), error: () => calls.push('error') } },
+      '@ant-design/icons': { CheckOutlined: 'icon' },
+      'next/link': { __esModule: true, default: 'link' },
+      'next/navigation': {},
+      '@/auth/Boundary': { useAccount: () => ({ user: { id: 7, guest: false, roles: [{ code: 'admin' }] } }) },
+      '@/hooks/useDefaultTradeDate': { useDefaultTradeDate: () => ({ ready: false }) },
+      './store': { collectItem: (owner, item) => { if (fail) throw new Error('save failed'); calls.push([owner, item.code, item.date]); } },
+    });
+    const button = collection.CollectButton({ item: { id: 'stock:000503.SZ', kind: 'stock', date: '2026-10-23', title: '国新健康', code: '000503.SZ', url: '/', note: '' }, onAction: () => calls.push('dismiss') });
+    button.props.onClick();
+    assert.deepEqual(calls, fail ? ['error'] : [[7, '000503.SZ', '2026-10-23'], 'success', 'dismiss']);
+  }
 });
 
 test('detail navigation dismisses an existing chart even when the destination page is unchanged', () => {

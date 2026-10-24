@@ -148,9 +148,9 @@ export default function Page() {
   return (
     <MarketShell title="龙虎榜" path="/analysis/dragon">
       <div className="dragon-board">
-        <div className="dragon-board-toolbar">
+        <div className="market-filter-row dragon-board-toolbar">
           <SectorFilter value={sector} onChange={(value) => { setSector(value); changeFilters({ sector: value || '' }); }} />
-          <Input.Search allowClear aria-label="搜索龙虎榜股票" placeholder="股票名称／代码" value={keyword} onChange={(e) => { scrollPending.current = false; setKeyword(e.target.value); }} onSearch={(value) => changeFilters({ keyword: value })} style={{ width: 230 }} />
+          <Input.Search className="market-filter-keyword" allowClear aria-label="搜索龙虎榜股票" placeholder="股票名称／代码" value={keyword} onChange={(e) => { scrollPending.current = false; setKeyword(e.target.value); }} onSearch={(value) => changeFilters({ keyword: value })} />
           <Segmented aria-label="龙虎榜资金方向" options={[{ label: '全部方向', value: 'all' }, { label: '净买入', value: 'buy' }, { label: '净卖出', value: 'sell' }]} value={flow} onChange={(v) => changeFilters({ flow: String(v) })} />
           <SelectField label="统计期间"><Select aria-label="资金统计期间" value={period} onChange={(value) => changeFilters({ period: value })} style={{ width: 140 }} options={Object.entries(periodLabels).map(([value, label]) => ({ value, label }))} /></SelectField>
           {(keyword || sector || flow !== 'all' || period !== 'all') && (

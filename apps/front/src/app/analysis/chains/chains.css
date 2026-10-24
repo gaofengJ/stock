@@ -5,7 +5,7 @@
 .chains-ladder-label span, .chains-filter-note { color: var(--text-secondary); font-size: 12px; }
 .chains-ladder-content { flex: 1; min-width: 0; }
 .chains-ladder .market-ladder-stocks { gap: 8px; }
-.chains-ladder .market-ladder-stock.stock-action-trigger.ant-btn { min-width: 116px; padding: 6px 10px; margin: 0; border: 0; background: var(--color-surface-muted); flex-direction: row-reverse; justify-content: flex-end; }
+.chains-ladder .market-ladder-stock.stock-action-trigger.ant-btn { padding: 6px 10px; margin: 0; border: 0; background: var(--color-surface-muted); justify-content: flex-start; }
 .chains-ladder-content > button { margin-top: 8px; }
 .chains-ladder-content > .market-ladder-stocks:empty { display: none; }
 .chains-ladder-content > .market-ladder-stocks:empty + button { margin-top: 0; }
@@ -13,15 +13,12 @@
 .chains-ladder .stock-identity-name { color: var(--color-black); font-size: 14px; }
 .chains-ladder .market-ladder-stock.stock-action-trigger.ant-btn:is(:hover, [aria-expanded="true"]) { background: var(--color-primary-subtle); }
 .chains-transitions-table .ant-table-tbody > tr > td { height: 60px; padding: 8px 12px; box-sizing: border-box; }
-.chains-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 16px 0 8px; }
-.chains-history-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .chains-history-toolbar .ant-picker { width: 150px; }
 .chains-current-cell { display: flex; flex-direction: column; gap: 4px; font-variant-numeric: tabular-nums; }
 .chains-mobile-current { display: none; }
 .chains-stock-link { display: inline-flex; flex-direction: column; gap: 4px; }
 .chains-stock-code { color: var(--text-secondary); font-size: 12px; }
 .chains-stock-link:hover .chains-stock-code { color: inherit; }
-.chains-trajectory-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
 .chains-trajectory-hint { margin: 8px 0; font-size: 12px; line-height: 20px; color: var(--text-secondary); }
 .chains-trajectory .trajectory-cell { min-height: 56px; justify-content: center; gap: 4px; padding: 6px 4px; border-radius: 4px; line-height: 20px; }
 .trajectory-cell-heading { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
@@ -42,5 +39,4 @@
   .chains-mobile-current { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
   .chains-ladder-row { gap: 8px; padding: 12px 8px; }
   .chains-ladder-label { flex-basis: 58px; }
-  .chains-ladder .market-ladder-stock.stock-action-trigger.ant-btn { min-width: 100px; }
 }

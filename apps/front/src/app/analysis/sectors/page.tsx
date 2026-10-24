@@ -201,6 +201,7 @@ export default function Page() {
   ];
   return (
     <MarketShell title="板块分析" path="/analysis/sectors" scopeFilter={false}>
+      <Tabs className="market-tabs" activeKey={kind} onChange={(value) => { setKeyword(''); router.replace(marketHref('/analysis/sectors', { date, scope: 'all' }, { kind: value }), { scroll: false }); }} items={['I', 'N'].map((key) => ({ key, label: sectorKindLabel(key) }))} />
       {signalsReady && !!pendingStrategies.length && (
       <p className="market-note">
         策略命中按默认参数统计；
@@ -209,14 +210,13 @@ export default function Page() {
       </p>
       )}
       <p className="sector-definition">{sectorDefinition}</p>
-      <Tabs activeKey={kind} onChange={(value) => { setKeyword(''); router.replace(marketHref('/analysis/sectors', { date, scope: 'all' }, { kind: value }), { scroll: false }); }} items={['I', 'N'].map((key) => ({ key, label: sectorKindLabel(key) }))} />
-      <div className="sector-toolbar">
-        <Space wrap>
-          <Input.Search allowClear aria-label={`搜索${kindLabel}`} placeholder={`${kindLabel}名称／代码`} value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ width: 240 }} />
+      <div className="market-filter-row sector-toolbar">
+        <div className="market-filter-group">
+          <Input.Search className="market-filter-keyword" allowClear aria-label={`搜索${kindLabel}`} placeholder={`${kindLabel}名称／代码`} value={keyword} onChange={(e) => setKeyword(e.target.value)} />
           <Segmented aria-label="强弱与轮动统计周期" value={period} onChange={(v) => setPeriod(v as 1|5|20)} options={[{ value: 1, label: '当日' }, { value: 5, label: '5日' }, { value: 20, label: '20日' }]} />
           <HelpTooltip label="板块统计" title="涨跌幅采用同花顺指数，上涨占比按有成交成分计算；涨停数沿用非ST口径。" />
-        </Space>
-        <span>
+        </div>
+        <span className="market-filter-note">
           同花顺
           {kindLabel}
           {' '}

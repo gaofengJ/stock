@@ -198,10 +198,10 @@ function LimitsPage() {
   return (
     <MarketShell title="涨停复盘" path="/analysis/limits">
       <div className="limits-review-content">
-        <Tabs className="limits-tabs" activeKey={themeView ? 'themes' : type} onChange={(value) => { setThemeView(value === 'themes'); setType(value === 'themes' ? 'U' : value); setHeight(undefined); }} items={[{ key: 'themes', label: '题材复盘' }, { key: 'U', label: '涨停明细' }, { key: 'Z', label: '炸板明细' }, { key: 'D', label: '跌停明细' }]} />
-        <div className="limits-filters">
+        <Tabs className="market-tabs limits-tabs" activeKey={themeView ? 'themes' : type} onChange={(value) => { setThemeView(value === 'themes'); setType(value === 'themes' ? 'U' : value); setHeight(undefined); }} items={[{ key: 'themes', label: '题材复盘' }, { key: 'U', label: '涨停明细' }, { key: 'Z', label: '炸板明细' }, { key: 'D', label: '跌停明细' }]} />
+        <div className="market-filter-row limits-filters">
           <SectorFilter value={sector} onChange={setSector} />
-          <Input.Search className="limits-keyword" allowClear placeholder="股票名称／代码" value={search} onChange={(e) => { setSearch(e.target.value); if (!e.target.value) setKeyword(''); }} onSearch={setKeyword} />
+          <Input.Search className="market-filter-keyword limits-keyword" allowClear placeholder="股票名称／代码" value={search} onChange={(e) => { setSearch(e.target.value); if (!e.target.value) setKeyword(''); }} onSearch={setKeyword} />
           {type === 'U' && <SelectField label="连板数"><Select className="limits-height-filter" aria-label="连板数筛选" allowClear placeholder="全部" value={height} onChange={setHeight} options={[{ value: 1, label: '首板' }, { value: 2, label: '二板' }, { value: 3, label: '三板' }, { value: 4, label: '四板及以上' }]} /></SelectField>}
         </div>
         {themeView ? <ThemeReview key={`${date}:${scope}`} keyword={keyword} height={height} sector={sector} /> : (
