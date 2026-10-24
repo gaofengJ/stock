@@ -81,7 +81,7 @@ const stocks=Array.from({length:1000},(_,i)=>({tsCode:`${String(i+1).padStart(6,
     await page.getByRole('tab',{name:'多日轨迹',exact:true,selected:true}).waitFor();
     await page.locator('.ant-tabs-tabpane-active .trajectory-cell').first().click();
     await page.getByRole('dialog').getByText('当日涨跌幅',{exact:true}).waitFor();
-    await page.getByRole('dialog').getByRole('button',{name:'关闭',exact:true}).click();
+    await page.getByRole('dialog').getByRole('button',{name:/^关\s*闭$/}).click();
     await page.goto(`${base}/analysis/chains/?date=${date}&scope=all&view=trajectory&code=000001.SZ`,{waitUntil:'networkidle'});
     assert.equal(await page.getByRole('textbox',{name:'搜索轨迹股票',exact:true}).inputValue(),'000001.SZ');
     await page.locator('.trajectory-cell').first().waitFor();
