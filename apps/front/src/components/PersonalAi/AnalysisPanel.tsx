@@ -31,11 +31,11 @@ const sourcePaths: Record<string, string> = {
 const reviewSections = ['市场概览', '情绪指标', '连板分析', '20日板块轮动', '涨停板复盘'];
 interface Preview { summary: DataSummary; bytes: number; signature: string }
 export default function AnalysisPanel({
-  ownerId, skill, date, candidates = [], strategy, beforeStart, onComplete, initialCodes = [], initialTaskId, canApplySections = false, readOnly = false,
+  ownerId, skill, date, candidates = [], strategy, beforeStart, onComplete, initialCodes = [], initialTaskId, canApplySections = false, readOnly = false, onSearch,
 }: {
   ownerId: number; skill: Skill; date: string; candidates?: Candidate[]; strategy?: StrategyContext;
   beforeStart?: PrepareAnalysis; onComplete?: (task: Task, section?: string) => void;
-  initialCodes?: string[]; initialTaskId?: string; canApplySections?: boolean; readOnly?: boolean;
+  initialCodes?: string[]; initialTaskId?: string; canApplySections?: boolean; readOnly?: boolean; onSearch?: (value: string) => void;
 }) {
   const taskContext = useAiTasks(); const globalRefresh = taskContext?.refresh;
   const [localState, setLocalState] = useState<ConsoleState | null>(null); const state = taskContext?.state || localState;
@@ -157,7 +157,7 @@ export default function AnalysisPanel({
       sent = true; setSubmitting(true); setNotice('资料已就绪，正在提交分析');
       const task = await consoleRequest<Task>('/tasks', 'POST', { ...body, key: requestKey.current.key });
       requestKey.current = null;
-      if (mounted.current) { setChosen(task); setNotice('任务已提交，关闭侧栏后可从页面任务栏返回'); }
+      if (mounted.current) { setChosen(task); setNotice('任务已提交，关闭侧栏后可从任务记录返回'); }
       await refresh();
     } catch (reason) { if (mounted.current) { if (abort.signal.aborted && !sent) setNotice('已停止准备，未发起新的 AI 分析'); else setError(sent ? `提交结果待确认，请刷新任务状态；重试会复用同一请求。${failText(reason)}` : failText(reason)); } } finally { pending.current = false; preparation.current = null; if (mounted.current) { setBusy(false); setSubmitting(false); } }
   }
@@ -199,13 +199,13 @@ export default function AnalysisPanel({
       </div>
       {(error || taskContext?.error) && <Alert type="error" showIcon message={error || taskContext?.error} action={<Button onClick={() => refresh().catch(() => {})}>刷新状态</Button>} />}
       {notice && <Alert type="info" showIcon message={notice} />}
-      {active && active.id !== chosen?.id && <Alert type="info" message={`${active.date} 的${active.skill === 'market-review' ? '复盘' : '对比'}任务正在执行，完成后此处自动恢复`} description="可从页面 AI 任务栏查看进度或停止。" />}
+      {active && active.id !== chosen?.id && <Alert type="info" message={`${active.date} 的${active.skill === 'market-review' ? '复盘' : '对比'}任务正在执行，完成后此处自动恢复`} description="可在本页的任务记录中查看进度或停止。" />}
       {state && !state.enabled && <Alert type="warning" message="AI 调用当前已暂停，可查看历史结果" />}
       {!state && <Button loading={!error} onClick={() => refresh().catch((reason) => setError(failText(reason)))}>读取状态</Button>}
       {!readOnly && (
       <Form layout="vertical" onFinish={() => submit()}>
         <div className="personal-ai-stack">
-          {skill === 'candidate-compare' && <Form.Item label="对比股票"><Select aria-label="对比股票" mode="multiple" showSearch optionFilterProp="label" value={selectedCodes} placeholder="选择1至3只股票" disabled={busy || running || !!parent} onChange={(values) => { if (values.length <= 3) setCodes(values); else setError('每次最多选择3只股票'); }} options={options.map((item) => ({ value: item.code, label: item.name ? `${item.name} ${item.code}` : item.code, disabled: selectedCodes.length >= 3 && !selectedCodes.includes(item.code) }))} /></Form.Item>}
+          {skill === 'candidate-compare' && <Form.Item label="对比股票"><Select aria-label="对比股票" mode="multiple" showSearch onSearch={onSearch} filterOption={onSearch ? false : undefined} optionFilterProp="label" value={selectedCodes} placeholder="选择1至3只股票" disabled={busy || running || !!parent} onChange={(values) => { if (values.length <= 3) setCodes(values); else setError('每次最多选择3只股票'); }} options={options.map((item) => ({ value: item.code, label: item.name ? `${item.name} ${item.code}` : item.code, disabled: selectedCodes.length >= 3 && !selectedCodes.includes(item.code) }))} /></Form.Item>}
           {!parent && questionInput}
           <Collapse
             ghost

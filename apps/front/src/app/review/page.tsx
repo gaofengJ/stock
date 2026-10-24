@@ -1,5 +1,7 @@
 'use client';
 
+import useLegacyTaskLink from '@/components/PersonalAi/useLegacyTaskLink';
+
 /* eslint jsx-a11y/label-has-associated-control: ["error", { "assert": "htmlFor" }] */
 
 import { useSearchParams } from 'next/navigation';
@@ -43,8 +45,8 @@ function updateReviewView(key: string, value: string) {
   window.history.replaceState(null, '', url);
 }
 function Report({
-  date, account, capture, onSelection, generation = 0, refresh = 0, savedDraft, onDraft,
-}: { date: string; account: number; generation?: number; refresh?: number; capture?: (text: string) => void; onSelection?: (items: string[]) => void; savedDraft?: WatchDraft; onDraft?: (draft: WatchDraft) => void }) {
+  date, account, capture, onSelection, generation = 0, refresh = 0, savedDraft, onDraft, simple = false,
+}: { date: string; account: number; generation?: number; refresh?: number; capture?: (text: string) => void; onSelection?: (items: string[]) => void; savedDraft?: WatchDraft; onDraft?: (draft: WatchDraft) => void; simple?: boolean }) {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -212,6 +214,7 @@ function Report({
   };
   return (
     <>
+      {!simple && (
       <div className="review-toolbar">
         <span role="status" className="review-caption">
           {capture ? '观察名单与备注随整篇复盘保存，未保存内容可在本机恢复。' : `${status}，按账号和交易日期分别保存`}
@@ -221,6 +224,7 @@ function Report({
           <Button loading={loading} onClick={() => setAttempt((v) => v + 1)}>更新候选数据</Button>
         </Space>
       </div>
+      )}
       {!capture && (
       <>
         <div className="review-steps" aria-label={capture ? '辅助工具导航' : '复盘操作流程'}>
@@ -249,121 +253,125 @@ function Report({
         </section>
       </>
       )}
-      <div className="review-workspace">
-        <section id="review-candidates" className="review-candidates" aria-labelledby="review-candidates-title">
-          <div className="review-section-heading">
-            <h2 id="review-candidates-title" tabIndex={-1} className="review-step-title">
-              {!capture && <span className="review-step-number">2</span>}
-              筛选观察股票
-            </h2>
-          </div>
-          {error && <Alert className="review-candidate-notice" type="error" showIcon message={error} description={data ? '当前仍展示上次取得的候选；观察名单和草稿已保留。' : '可以继续填写计划并导出草稿。'} action={<Button onClick={() => setAttempt((v) => v + 1)}>重试</Button>} />}
-          {data && !data.complete && <Alert className="review-candidate-notice" type="warning" showIcon message="部分策略未取得结果，候选范围不完整" description="可继续记录计划，稍后点击“更新候选数据”重试。" />}
-          <div className="review-counts">
-            <span>{`策略命中（去重） ${data ? rows.length : '—'} 只`}</span>
-            <strong>{`可加入观察 ${data ? eligible.length : '—'} 只`}</strong>
-            <span>{`已知风险排除 ${data ? excludedCount : '—'} 只`}</span>
-            <span>{`市值不符或缺失 ${data ? capCount : '—'} 只`}</span>
-          </div>
-          <div className="review-candidate-help">
-            <p className="review-caption">
-              查看K线和风险资料后，按需勾选股票，观察数量不限。
-              {sortCaption}
-              。
-            </p>
-          </div>
-          <div className="review-filters">
-            <SelectField label="候选范围"><Select aria-label="候选范围" value={filter} onChange={setFilter} options={[{ value: 'selected', label: `已加入观察（${selected.length}）` }, { value: 'within', label: '可加入观察的股票' }, { value: 'all', label: '全部策略命中' }, { value: 'excluded', label: '已知风险排除' }, { value: 'missing', label: '市值资料缺失' }]} /></SelectField>
-            <Input allowClear aria-label="搜索候选股票" placeholder="输入股票名称或代码" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
-            <SelectField label="策略"><Select aria-label="筛选策略" value={strategy} onChange={setStrategy} options={[{ value: 'all', label: '全部策略' }, ...(data?.strategies || []).map((s: any) => ({ value: s.key, label: s.label, disabled: s.state !== 'ready' }))]} /></SelectField>
-            <Button disabled={filter === 'within' && strategy === 'all' && !keyword} onClick={() => { setFilter('within'); setStrategy('all'); setKeyword(''); }}>重置筛选</Button>
-          </div>
-          <div className="review-selection" role="status">
-            <span>{`已加入观察 ${selected.length} 只，翻页和筛选不影响名单`}</span>
-            {chosen.map(({ name, tsCode }) => <Tag key={tsCode} closable onClose={() => remove(tsCode)}>{name}</Tag>)}
-          </div>
-          <div id="review-candidate-table" data-review-date={date} data-review-ready={!loading && !!data}>
-            <Table
-              loading={loading}
-              rowKey="tsCode"
-              dataSource={filtered}
-              rowSelection={{
-                selectedRowKeys: selected,
-                preserveSelectedRowKeys: true,
-                fixed: true,
-                columnWidth: 48,
-                getCheckboxProps: (row: any) => ({ disabled: !!selectionReason(row), 'aria-label': `观察${row.name}` }),
-                onSelect: (row: any) => toggle(row),
-                onSelectAll: (checked, _rows, changedRows) => update({ selected: selectWatchRows(draft.selected, changedRows.filter((row: any) => !selectionReason(row)), checked) }),
-                renderCell: (_checked, row: any, _index, node) => <Tooltip title={selectionReason(row) || '加入或移出观察名单'}>{node}</Tooltip>,
-              }}
-              rowClassName={(r: any) => (selected.includes(r.tsCode) ? 'interaction-selected-row' : '')}
-              autoHeight
-              sticky={scrollContainer ? { getContainer: () => scrollContainer, offsetHeader: toolbarHeight } : false}
-              onChange={(pagination, _filters, sorter, extra) => {
-                setPage(extra.action === 'paginate' ? pagination.current || 1 : 1);
-                if (pagination.pageSize && pagination.pageSize !== pageSize) setPageSize(pagination.pageSize);
-                if (extra.action === 'paginate') candidatesTop();
-                if (extra.action === 'sort') setSortOrder((Array.isArray(sorter) ? sorter[0] : sorter)?.order || null);
-              }}
-              pagination={{
-                current: currentPage, pageSize, showSizeChanger: true, pageSizeOptions: [10, 20, 50], showTotal: (total) => `当前范围 ${total} 只`,
-              }}
-              scroll={{ x: 1180 }}
-              locale={{ emptyText: error ? '候选数据未取得，请重试' : '当前范围没有股票，可调整筛选条件或保持空名单' }}
-              columns={[
-                {
-                  title: '股票与操作',
-                  key: 'stock',
-                  width: 175,
-                  render: (_, r: any) => (
-                    <div className="review-stock-cell">
-                      <div className="review-stock-heading">
-                        <StockLink code={r.tsCode} name={r.name} date={date} onChart={(list) => openStock(r, list)} />
-                        <span className="review-caption">{r.tsCode}</span>
+      <div className={`review-workspace${simple ? ' review-workspace-simple' : ''}`}>
+        <details open={simple ? undefined : true} className="review-candidate-disclosure">
+          <summary>{simple ? '添加或调整观察股票' : '筛选观察股票'}</summary>
+          <section id="review-candidates" className="review-candidates" aria-labelledby="review-candidates-title">
+            {simple && <Button loading={loading} onClick={() => setAttempt((v) => v + 1)}>更新候选数据</Button>}
+            <div className="review-section-heading">
+              <h2 id="review-candidates-title" tabIndex={-1} className="review-step-title">
+                {!capture && <span className="review-step-number">2</span>}
+                筛选观察股票
+              </h2>
+            </div>
+            {error && <Alert className="review-candidate-notice" type="error" showIcon message={error} description={data ? '当前仍展示上次取得的候选；观察名单和草稿已保留。' : '可以继续填写计划并导出草稿。'} action={<Button onClick={() => setAttempt((v) => v + 1)}>重试</Button>} />}
+            {data && !data.complete && <Alert className="review-candidate-notice" type="warning" showIcon message="部分策略未取得结果，候选范围不完整" description="可继续记录计划，稍后点击“更新候选数据”重试。" />}
+            <div className="review-counts">
+              <span>{`策略命中（去重） ${data ? rows.length : '—'} 只`}</span>
+              <strong>{`可加入观察 ${data ? eligible.length : '—'} 只`}</strong>
+              <span>{`已知风险排除 ${data ? excludedCount : '—'} 只`}</span>
+              <span>{`市值不符或缺失 ${data ? capCount : '—'} 只`}</span>
+            </div>
+            <div className="review-candidate-help">
+              <p className="review-caption">
+                查看K线和风险资料后，按需勾选股票，观察数量不限。
+                {sortCaption}
+                。
+              </p>
+            </div>
+            <div className="review-filters">
+              <SelectField label="候选范围"><Select aria-label="候选范围" value={filter} onChange={setFilter} options={[{ value: 'selected', label: `已加入观察（${selected.length}）` }, { value: 'within', label: '可加入观察的股票' }, { value: 'all', label: '全部策略命中' }, { value: 'excluded', label: '已知风险排除' }, { value: 'missing', label: '市值资料缺失' }]} /></SelectField>
+              <Input allowClear aria-label="搜索候选股票" placeholder="输入股票名称或代码" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
+              <SelectField label="策略"><Select aria-label="筛选策略" value={strategy} onChange={setStrategy} options={[{ value: 'all', label: '全部策略' }, ...(data?.strategies || []).map((s: any) => ({ value: s.key, label: s.label, disabled: s.state !== 'ready' }))]} /></SelectField>
+              <Button disabled={filter === 'within' && strategy === 'all' && !keyword} onClick={() => { setFilter('within'); setStrategy('all'); setKeyword(''); }}>重置筛选</Button>
+            </div>
+            <div className="review-selection" role="status">
+              <span>{`已加入观察 ${selected.length} 只，翻页和筛选不影响名单`}</span>
+              {chosen.map(({ name, tsCode }) => <Tag key={tsCode} closable onClose={() => remove(tsCode)}>{name}</Tag>)}
+            </div>
+            <div id="review-candidate-table" data-review-date={date} data-review-ready={!loading && !!data}>
+              <Table
+                loading={loading}
+                rowKey="tsCode"
+                dataSource={filtered}
+                rowSelection={{
+                  selectedRowKeys: selected,
+                  preserveSelectedRowKeys: true,
+                  fixed: true,
+                  columnWidth: 48,
+                  getCheckboxProps: (row: any) => ({ disabled: !!selectionReason(row), 'aria-label': `观察${row.name}` }),
+                  onSelect: (row: any) => toggle(row),
+                  onSelectAll: (checked, _rows, changedRows) => update({ selected: selectWatchRows(draft.selected, changedRows.filter((row: any) => !selectionReason(row)), checked) }),
+                  renderCell: (_checked, row: any, _index, node) => <Tooltip title={selectionReason(row) || '加入或移出观察名单'}>{node}</Tooltip>,
+                }}
+                rowClassName={(r: any) => (selected.includes(r.tsCode) ? 'interaction-selected-row' : '')}
+                autoHeight
+                sticky={scrollContainer ? { getContainer: () => scrollContainer, offsetHeader: toolbarHeight } : false}
+                onChange={(pagination, _filters, sorter, extra) => {
+                  setPage(extra.action === 'paginate' ? pagination.current || 1 : 1);
+                  if (pagination.pageSize && pagination.pageSize !== pageSize) setPageSize(pagination.pageSize);
+                  if (extra.action === 'paginate') candidatesTop();
+                  if (extra.action === 'sort') setSortOrder((Array.isArray(sorter) ? sorter[0] : sorter)?.order || null);
+                }}
+                pagination={{
+                  current: currentPage, pageSize, showSizeChanger: true, pageSizeOptions: [10, 20, 50], showTotal: (total) => `当前范围 ${total} 只`,
+                }}
+                scroll={{ x: 1180 }}
+                locale={{ emptyText: error ? '候选数据未取得，请重试' : '当前范围没有股票，可调整筛选条件或保持空名单' }}
+                columns={[
+                  {
+                    title: '股票与操作',
+                    key: 'stock',
+                    width: 175,
+                    render: (_, r: any) => (
+                      <div className="review-stock-cell">
+                        <div className="review-stock-heading">
+                          <StockLink code={r.tsCode} name={r.name} date={date} onChart={(list) => openStock(r, list)} />
+                          <span className="review-caption">{r.tsCode}</span>
+                        </div>
+                        <div className="review-stock-actions">
+                          <RiskInspect code={r.tsCode} name={r.name} date={date} />
+                        </div>
                       </div>
-                      <div className="review-stock-actions">
-                        <RiskInspect code={r.tsCode} name={r.name} date={date} />
+                    ),
+                  },
+                  {
+                    title: '策略标签', key: 'signals', width: 180, render: (_, r: any) => <div className="review-signal-tags">{r.strategies.map((s: any) => <Tag key={s.key}>{s.label}</Tag>)}</div>,
+                  },
+                  {
+                    title: '收盘价／元', dataIndex: 'close', width: 100, align: 'right', render: (v) => numberText(v),
+                  },
+                  {
+                    title: '总市值／亿', dataIndex: 'totalMv', width: 105, align: 'right', render: (v) => scaledNumber(v, 10000),
+                  },
+                  {
+                    title: '流通市值／亿', dataIndex: 'circMv', width: 115, align: 'right', sorter: (a: any, b: any) => compareCap(a.circMv, b.circMv), defaultSortOrder: 'ascend', render: (v) => scaledNumber(v, 10000),
+                  },
+                  {
+                    title: <Tooltip title="截至复盘日已披露的最近三个财报期，悬停查看金额与披露日期">近期业绩</Tooltip>, key: 'profit', width: 260, render: (_, r: any) => <CandidateProfit row={financials.rows.get(r.tsCode)} error={financials.error} stopped={financials.stopped} retry={financials.retry} />,
+                  },
+                  {
+                    title: '风险与减持',
+                    key: 'risk',
+                    width: 180,
+                    render: (_, r: any) => (
+                      <div className="review-risk-cell">
+                        <RiskTags data={risk.data} code={r.tsCode} date={date} prefix={<Tag color={blocked(r) ? 'red' : 'orange'}>{blocked(r) ? '已知风险排除' : '待核验'}</Tag>} />
                       </div>
-                    </div>
-                  ),
-                },
-                {
-                  title: '策略标签', key: 'signals', width: 180, render: (_, r: any) => <div className="review-signal-tags">{r.strategies.map((s: any) => <Tag key={s.key}>{s.label}</Tag>)}</div>,
-                },
-                {
-                  title: '收盘价／元', dataIndex: 'close', width: 100, align: 'right', render: (v) => numberText(v),
-                },
-                {
-                  title: '总市值／亿', dataIndex: 'totalMv', width: 105, align: 'right', render: (v) => scaledNumber(v, 10000),
-                },
-                {
-                  title: '流通市值／亿', dataIndex: 'circMv', width: 115, align: 'right', sorter: (a: any, b: any) => compareCap(a.circMv, b.circMv), defaultSortOrder: 'ascend', render: (v) => scaledNumber(v, 10000),
-                },
-                {
-                  title: <Tooltip title="截至复盘日已披露的最近三个财报期，悬停查看金额与披露日期">近期业绩</Tooltip>, key: 'profit', width: 260, render: (_, r: any) => <CandidateProfit row={financials.rows.get(r.tsCode)} error={financials.error} stopped={financials.stopped} retry={financials.retry} />,
-                },
-                {
-                  title: '风险与减持',
-                  key: 'risk',
-                  width: 180,
-                  render: (_, r: any) => (
-                    <div className="review-risk-cell">
-                      <RiskTags data={risk.data} code={r.tsCode} date={date} prefix={<Tag color={blocked(r) ? 'red' : 'orange'}>{blocked(r) ? '已知风险排除' : '待核验'}</Tag>} />
-                    </div>
-                  ),
-                },
-              ]}
-            />
-          </div>
-        </section>
+                    ),
+                  },
+                ]}
+              />
+            </div>
+          </section>
+        </details>
         <section className="review-plan" id="review-plan" aria-labelledby="review-plan-title">
           <Card
             title={(
               <div className="review-plan-title">
                 <h2 id="review-plan-title" tabIndex={-1} className="review-step-title">
                   {!capture && <span className="review-step-number">3</span>}
-                  {capture ? '候选观察记录' : '填写并预览计划'}
+                  {capture ? '观察股票与条件' : '填写并预览计划'}
                 </h2>
                 <span className="review-caption">{`${selected.length} 只`}</span>
               </div>
@@ -556,6 +564,7 @@ function Report({
 }
 
 export default function Page() {
+  useLegacyTaskLink();
   const fallback = useDefaultTradeDate();
   const { user } = useAccount();
   const params = useSearchParams();
@@ -574,7 +583,7 @@ export default function Page() {
     <Layout showAsideMenu={false} headerMenuActive={EHeaderMenuKey.review}>
       <main className="review-page rounded-[6px] bg-bg-white">
         <h1 className="page-heading">每日复盘</h1>
-        <p className="review-intro">记录判断与配图，用智能复盘生成正文；也可交给 Codex 直接写入飞书。</p>
+        <p className="review-intro">记录市场判断、观察股票与当日总结，保存后可跨设备继续。</p>
         <Space className="mb-16" wrap>
           <span>复盘交易日期</span>
           <DatePicker aria-label="复盘交易日期" value={date ? dayjs(date) : null} allowClear={false} onChange={(v) => { if (v) changeDate(v.format('YYYY-MM-DD')); }} />
@@ -582,7 +591,7 @@ export default function Page() {
         </Space>
         {fallback.error && <Alert type="error" message={fallback.error} action={<Button onClick={fallback.retry}>重试</Button>} />}
         {date && user && (user.roles.some((r) => r.code === 'admin') && !user.guest
-          ? <Notebook key={`${user.id}:${date}`} date={date} onDirty={setNotebookDirty} renderTools={(capture, onSelection, generation, refresh, savedDraft, onDraft) => <Report key={generation} date={date} account={user.id} capture={capture} onSelection={onSelection} generation={generation} refresh={refresh} savedDraft={savedDraft} onDraft={onDraft} />} />
+          ? <Notebook key={`${user.id}:${date}`} date={date} onDirty={setNotebookDirty} renderTools={(capture, onSelection, generation, refresh, savedDraft, onDraft) => <Report simple key={generation} date={date} account={user.id} capture={capture} onSelection={onSelection} generation={generation} refresh={refresh} savedDraft={savedDraft} onDraft={onDraft} />} />
           : <Report key={`${user.id}:${date}`} date={date} account={user.id} />)}
       </main>
     </Layout>

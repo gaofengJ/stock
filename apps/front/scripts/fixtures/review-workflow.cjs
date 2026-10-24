@@ -21,6 +21,7 @@ function createFixture() {
    return data;
   }
   let data={items:[],sources:[]};
+  if(path==='/api/news/stocks')data=[{tsCode:stock.tsCode,name:stock.name}];
   if(path==='/api/auth/access')data={user:owner,trial:null};
   if(path==='/api/auth/csrf')data={csrfToken:'fixture-only'};
   if(path==='/api/common/all-options')data={};

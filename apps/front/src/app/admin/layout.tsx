@@ -10,7 +10,7 @@ const items = [
   { key: '/admin/users', label: '用户管理', icon: <TeamOutlined /> },
   { key: '/admin/users/activity', label: '登录动态', icon: <BellOutlined /> },
   { key: '/admin/roles', label: '角色管理', icon: <SafetyCertificateOutlined /> },
-  { key: '/admin/ai', label: '模型设置', icon: <RobotOutlined /> },
+  { key: '/admin/ai', label: 'AI 工具', icon: <RobotOutlined /> },
   { key: '/admin/sync', label: '数据同步', icon: <SyncOutlined /> },
   { key: '/admin/logs', label: '日志中心', icon: <FileSearchOutlined /> },
 ];

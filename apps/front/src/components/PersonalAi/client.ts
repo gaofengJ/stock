@@ -89,13 +89,6 @@ export function strategyCaption(strategy: StrategyContext) {
 }
 
 export function taskHref(task: Task) {
-  const query = new URLSearchParams({ date: task.date, aiTask: task.id });
-  if (task.skill === 'market-review') return `/review/?${query}`;
-  if (task.strategy) {
-    query.set('strategyType', task.strategy.type);
-    Object.entries(task.strategy.parameters).forEach(([key, value]) => query.set(key === 'minTurnoverRateF' ? `turnover_${task.strategy!.type}` : key, String(value)));
-    if (task.strategy.sector) query.set('sector', task.strategy.sector);
-    if (task.strategy.keyword) query.set('q', task.strategy.keyword);
-  }
-  return `/strategy/?${query}`;
+  const query = new URLSearchParams({ tab: 'history', date: task.date, aiTask: task.id });
+  return `/admin/ai/?${query}`;
 }

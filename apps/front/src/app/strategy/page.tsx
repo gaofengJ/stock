@@ -1,5 +1,7 @@
 'use client';
 
+import useLegacyTaskLink from '@/components/PersonalAi/useLegacyTaskLink';
+
 import SelectField from '@/components/SelectField';
 import Link from '@/components/Interaction';
 
@@ -12,7 +14,6 @@ import {
 import dayjs from 'dayjs';
 import { useAccount } from '@/auth/Boundary';
 import { allowedPath } from '@/auth/client';
-import BusinessAction from '@/components/PersonalAi/BusinessAction';
 import { useSearchParams } from 'next/navigation';
 import { errorMessage } from '@/api/errors';
 import Table from '@/components/DataTable';
@@ -44,8 +45,9 @@ import './strategy.sass';
 const defaultColumns = ['pctChg', 'close', 'amount', 'turnoverRateF', 'industry'];
 
 function StrategyPage() {
+  useLegacyTaskLink();
   const params = useSearchParams();
-  const query = params.toString();
+
   const screens = Grid.useBreakpoint();
   const {
     ready, tradeDate, error: dateError, retry: retryDate,
@@ -63,7 +65,6 @@ function StrategyPage() {
   const [observation, setObservation] = useState<any>(null);
   const [chartList, setChartList] = useState<any[]>([]);
   const visibleRows = useRef<any[]>([]);
-  const [aiCodes, setAiCodes] = useState<string[]>([]);
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
   const { requestConfig: tabsConfig, runLatestRequest: runTabs } = useLatestRequest('strategy-tabs');
   const { requestConfig, runLatestRequest } = useLatestRequest('strategy-list');
@@ -80,12 +81,12 @@ function StrategyPage() {
   const listCurrent = loadedListKey === listKey;
   const loadingCandidates = !loadError && !dateError && (!date || tableLoading || !listCurrent);
   const updateQuery = useCallback((changes: Record<string, string | undefined>) => {
-    const next = new URLSearchParams(query);
+    const next = new URLSearchParams(window.location.search);
     Object.entries(changes).forEach(([key, value]) => { if (value) next.set(key, value); else next.delete(key); });
     if (!next.has('date') && date) next.set('date', date);
     if (!next.has('strategyType') && strategy) next.set('strategyType', strategy);
     window.history.replaceState(null, '', `?${next}`);
-  }, [query, date, strategy]);
+  }, [date, strategy]);
   const getTabs = useCallback(() => runTabs({
     request: () => getStrategyTabsList(tabsConfig),
     onSuccess: ({ data }) => { setNavList(data); if (!data.length) setTableLoading(false); },
@@ -105,7 +106,7 @@ function StrategyPage() {
   }, [date, strategy, sector, options, requestConfig, runLatestRequest, needsCandidates, listKey, loadedListKey, hasTurnoverFilter, minTurnoverRateF]);
   useEffect(() => { getTabs(); }, [getTabs]);
   useEffect(() => { getList(); }, [getList]);
-  useEffect(() => { setSelectedStock(null); setObservation(null); setAiCodes([]); }, [listKey]);
+  useEffect(() => { setSelectedStock(null); setObservation(null); }, [listKey]);
   useEffect(() => {
     if (date && strategy && (!params.get('date') || !params.get('strategyType'))) updateQuery({});
   }, [date, strategy, params, updateQuery]);
@@ -156,27 +157,6 @@ function StrategyPage() {
     <Layout showAsideMenu={false} headerMenuActive={EHeaderMenuKey.strategy}>
       <div className="strategy-page p-16 rounded-[6px] bg-bg-white">
         <h1 className="page-heading">策略选股</h1>
-        <BusinessAction
-          skill="candidate-compare"
-          initialCodes={aiCodes}
-          date={date}
-          strategy={{
-            type: strategy,
-            parameters: {
-              ...(isTrendStrategy(strategy) ? options : {}),
-              ...(hasTurnoverFilter ? { minTurnoverRateF } : {}),
-            },
-            ...(sector ? { sector } : {}),
-            ...(keyword ? { keyword } : {}),
-          }}
-          disabled={view === 'performance' || loadingCandidates || !decorated.length}
-          disabledReason={[
-            view === 'performance' && '请切换到候选列表或横向比较，再使用智能对比。',
-            loadingCandidates && '候选数据加载中，完成后即可使用。',
-            '当前没有候选股票，请调整策略、日期或筛选条件。',
-          ].find(Boolean) as string}
-          candidates={(listCurrent ? items : []).map((row) => ({ code: row.tsCode, name: row.name }))}
-        />
         {dateError && !date && <Alert type="error" message={dateError} showIcon action={<Button onClick={retryDate}>重试</Button>} />}
         {loadError && <Alert type="error" message={loadError} showIcon action={<Button onClick={() => { if (navList.length) getList(true); else getTabs(); }}>重试</Button>} />}
         <Tabs size={screens.md ? 'middle' : 'small'} activeKey={strategy} items={navList} onChange={switchStrategy} />
@@ -200,12 +180,6 @@ function StrategyPage() {
         {(view === 'candidates' || view === 'comparison') && (
         <>
           <div className="strategy-result-toolbar">
-            <span>
-              勾选最多3只股票后使用智能对比，已选
-              {aiCodes.length}
-              {' '}
-              只
-            </span>
             <Space wrap>
               <strong>{tableLoading || !listCurrent ? '正在筛选' : `共筛出 ${items.length} 只`}</strong>
               {(keyword || linkedCode) && (
@@ -225,9 +199,6 @@ function StrategyPage() {
             <Table
               rootClassName="strategy-table"
               rowKey="tsCode"
-              rowSelection={{
-                selectedRowKeys: aiCodes, preserveSelectedRowKeys: true, onChange: (keys) => setAiCodes(keys.map(String).slice(0, 3)), getCheckboxProps: (row) => ({ disabled: aiCodes.length >= 3 && !aiCodes.includes(row.tsCode), 'aria-label': `对比${row.name}` }),
-              }}
               dataSource={decorated}
               columns={columns}
               bordered
@@ -244,7 +215,7 @@ function StrategyPage() {
         {labels.error && needsCandidates && <Alert type="warning" message={labels.error} action={<Button onClick={labels.retry}>重试行业</Button>} />}
         <div hidden={view !== 'comparison'}><CandidateComparison loadingCandidates={loadingCandidates} date={date} allCandidates={tableLoading || !listCurrent ? [] : items} candidates={tableLoading ? [] : decorated} active={view === 'comparison'} strategies={navList} onStock={openStock} /></div>
         <div hidden={view !== 'performance'}><SignalPerformance date={date} strategy={strategy} sector={sector} active={view === 'performance'} onStock={(row, rows) => { setChartList(rows.map((r) => ({ ...r, tsCode: r.code }))); setObservation({ ...row, tsCode: row.code }); }} /></div>
-        <StockChart navigation={chartList} onNavigate={setSelectedStock} stock={selectedStock} date={date} strategy={strategy} options={{ ...options, ...(hasTurnoverFilter ? { minTurnoverRateF } : {}) }} onClose={() => setSelectedStock(null)} headerAction={selectedStock && <Button disabled={aiCodes.length >= 3 && !aiCodes.includes(selectedStock.tsCode)} onClick={() => setAiCodes((old) => (old.includes(selectedStock.tsCode) ? old.filter((code) => code !== selectedStock.tsCode) : [...old, selectedStock.tsCode]))}>{aiCodes.includes(selectedStock.tsCode) ? '移出智能对比' : '加入智能对比'}</Button>} />
+        <StockChart navigation={chartList} onNavigate={setSelectedStock} stock={selectedStock} date={date} strategy={strategy} options={{ ...options, ...(hasTurnoverFilter ? { minTurnoverRateF } : {}) }} onClose={() => setSelectedStock(null)} />
         <StockChart navigation={chartList} onNavigate={setObservation} stock={observation} date={observation?.date || date} strategy={observation?.studyStrategy || strategy} options={trendDefaults} onClose={() => setObservation(null)} />
       </div>
     </Layout>

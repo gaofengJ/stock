@@ -1,8 +1,6 @@
 'use client';
 
 import usePagePosition from '@/hooks/usePagePosition';
-import TaskBar from '@/components/PersonalAi/TaskBar';
-import ResearchCollection from '@/components/ResearchCollection';
 import { mayLeaveResearch, researchHref } from '@/utils/research-navigation';
 import { errorMessage } from '@/api/errors';
 import { useAccount } from '@/auth/Boundary';
@@ -297,8 +295,6 @@ const CommonLayout: React.FC<ILayoutProps> = ({
           <Content className="platform-content-inner">
             <Watermark className="platform-watermark" font={{ color: withAlpha(colors.text, 0.035), fontSize: 12 }} gap={[180, 160]} height={40} width={160} content="木风同学的投资小站">
               <LoginActivityContext.Provider value={activity}>
-                <ResearchCollection />
-                <TaskBar />
                 {children}
               </LoginActivityContext.Provider>
             </Watermark>
