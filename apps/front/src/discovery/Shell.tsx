@@ -24,11 +24,7 @@ export default function DiscoveryShell({ children }: { children: ReactNode }) {
       </header>
       <main id="main-content" className="discovery-main">{children}</main>
       <footer className="discovery-footer">
-        <span>
-          {siteName}
-          {' '}
-          · 行情、选股与复盘
-        </span>
+        <span>{siteName}</span>
         <span>数据与历史统计用于辅助研究，请结合公告原文核实。</span>
       </footer>
     </div>

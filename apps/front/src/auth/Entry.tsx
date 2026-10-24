@@ -8,12 +8,14 @@ import {
   Alert, Button, ConfigProvider, Form, Input, Typography, message,
 } from 'antd';
 import {
-  ArrowRightOutlined, BarChartOutlined, FundOutlined, ReadOutlined, UserOutlined, LockOutlined,
+  ArrowRightOutlined, UserOutlined, LockOutlined,
 } from '@ant-design/icons';
 import { ThemeToggle, useSiteTheme } from '@/components/SiteTheme';
 import ImgFengye from '@/assets/imgs/fengye.png';
+import ReviewIllustration from '@/discovery/ReviewIllustration';
 import { api } from './client';
 import { useAccount } from './Boundary';
+import { guestTrialMinutes } from './trial';
 
 export default function Entry({ register = false }: { register?: boolean }) {
   const { themeConfig } = useSiteTheme();
@@ -45,35 +47,18 @@ export default function Entry({ register = false }: { register?: boolean }) {
         </div>
         <div className="entry-shell">
           <section className="entry-intro">
-            <div className="entry-eyebrow">行情、选股与复盘</div>
+            <div className="entry-eyebrow">木风同学的研究手记</div>
             <h1>
-              看清市场变化，
+              把每天的观察，
               <br />
-              记录每一次思考。
+              写成自己的判断。
             </h1>
-            <p>看市场涨跌、筛选关注的股票，再用每日复盘整理自己的投资思路。</p>
-            <div className="entry-features" aria-label="站内功能介绍">
-              <div className="entry-feature">
-                <BarChartOutlined />
-                <div>
-                  <strong>市场概览</strong>
-                  <span>主要指数、成交额与涨跌分布，集中查看。</span>
-                </div>
-              </div>
-              <div className="entry-feature">
-                <FundOutlined />
-                <div>
-                  <strong>策略选股</strong>
-                  <span>按条件筛选股票，缩小研究范围。</span>
-                </div>
-              </div>
-              <div className="entry-feature">
-                <ReadOutlined />
-                <div>
-                  <strong>每日复盘</strong>
-                  <span>阅读复盘与投资记录，回看市场变化。</span>
-                </div>
-              </div>
+            <p>看清市场变化，留下自己的研究与复盘。</p>
+            <ReviewIllustration />
+            <div className="entry-topics" aria-label="站内功能介绍">
+              <span>市场概览</span>
+              <span>策略选股</span>
+              <span>每日复盘</span>
             </div>
             {!trialExpired && (
               <div className="entry-preview">
@@ -81,7 +66,7 @@ export default function Entry({ register = false }: { register?: boolean }) {
                   {user?.guest && trialRemaining > 0 ? '继续游客体验' : '先看看市场概览'}
                   <ArrowRightOutlined />
                 </Link>
-                <span>{user?.guest && trialRemaining > 0 ? '体验结束后，登录或免费注册即可继续。' : '无需注册，可体验 5 分钟。'}</span>
+                <span>{user?.guest && trialRemaining > 0 ? '体验结束后，登录或免费注册即可继续。' : `无需注册，可体验 ${guestTrialMinutes} 分钟。`}</span>
               </div>
             )}
           </section>
@@ -92,7 +77,7 @@ export default function Entry({ register = false }: { register?: boolean }) {
                 ? '注册后即可持续浏览行情、选股与复盘内容。'
                 : '登录后，继续查看行情与复盘内容。'}
             </Typography.Paragraph>
-            {trialExpired && <Alert type="info" showIcon message="5 分钟游客体验已结束，登录或免费注册后即可继续浏览。" className="entry-alert" />}
+            {trialExpired && <Alert type="info" showIcon message={`${guestTrialMinutes} 分钟游客体验已结束，登录或免费注册后即可继续浏览。`} className="entry-alert" />}
             {!register && notice && <Alert type="info" showIcon message={notice} className="entry-alert" />}
             {error && (
             <Alert
