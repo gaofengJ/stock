@@ -23,7 +23,8 @@ if(!['127.0.0.1','localhost'].includes(new URL(base).hostname))throw Error('Loca
   assert.equal(await page.getByRole('checkbox',{name:'对比测试股份',exact:true}).count(),0);
   assert.equal(state.requests.filter(r=>r.path.startsWith('/personal-ai/')).length,0);
   const strategyDate=page.getByRole('textbox',{name:'交易日期',exact:true});
-  await strategyDate.fill(date);await strategyDate.press('Enter');
+  await strategyDate.click();
+  await page.locator(`.ant-picker-dropdown:not(.ant-picker-dropdown-hidden) [title="${date}"]`).click();
   await page.waitForURL(url=>url.searchParams.get('date')===date);
   await page.getByRole('menuitem',{name:'每日复盘',exact:true}).click();
   await page.waitForURL('**/review/**');

@@ -83,7 +83,7 @@ const stocks=Array.from({length:1000},(_,i)=>({tsCode:`${String(i+1).padStart(6,
     await page.getByRole('dialog').getByText('当日涨跌幅',{exact:true}).waitFor();
     await page.getByRole('dialog').getByRole('button',{name:/^关\s*闭$/}).click();
     await page.goto(`${base}/analysis/chains/?date=${date}&scope=all&view=trajectory&code=000001.SZ`,{waitUntil:'networkidle'});
-    assert.equal(await page.getByRole('textbox',{name:'搜索轨迹股票',exact:true}).inputValue(),'000001.SZ');
+    assert.equal(await page.locator('.market-filter-keyword input').inputValue(),'000001.SZ');
     await page.locator('.trajectory-cell').first().waitFor();
     assert.equal(await page.locator('.chains-trajectory .ant-table-row').count(),1,'stock deep link still filters trajectory');
     assert.deepEqual(errors,[]);
