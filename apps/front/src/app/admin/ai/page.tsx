@@ -31,6 +31,7 @@ function Workspace({ ownerId }: { ownerId: number }) {
   const fallback = useDefaultTradeDate();
   const context = useAiTasks();
   const [, setDirty] = useState(false);
+  const [researchStrategy, setResearchStrategy] = useState('');
   const [searchError, setSearchError] = useState('');
   const [selected, setSelected] = useState<Task | null>(null);
   const requested = params?.get('tab') || (params?.get('aiTask') ? 'history' : 'stocks');
@@ -72,7 +73,7 @@ function Workspace({ ownerId }: { ownerId: number }) {
       {tab === 'stocks' && date && (
       <>
         {searchError && <Alert type="error" message={searchError} />}
-        <StockResearch ownerId={ownerId} date={date} />
+        <StockResearch ownerId={ownerId} date={date} type={researchStrategy} onTypeChange={setResearchStrategy} />
       </>
       )}
       {tab === 'review' && date && <Notebook key={date} mode="publish" date={date} onDirty={setDirty} />}

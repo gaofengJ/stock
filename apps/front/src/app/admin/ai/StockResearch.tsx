@@ -11,9 +11,10 @@ import { StrategyContext } from '@/components/PersonalAi/client';
 import { isTrendStrategy, trendDefaults } from '@/app/strategy/strategy-options';
 import { turnoverStrategies } from '@/app/strategy/strategy-state';
 
-export default function StockResearch({ ownerId, date }: { ownerId: number; date: string }) {
+export default function StockResearch({
+  ownerId, date, type, onTypeChange,
+}: { ownerId: number; date: string; type: string; onTypeChange: (value: string) => void }) {
   const [strategies, setStrategies] = useState<{ key: string; label: string }[]>([]);
-  const [type, setType] = useState('');
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -25,10 +26,10 @@ export default function StockResearch({ ownerId, date }: { ownerId: number; date
   useEffect(() => {
     let active = true;
     api<{ key: string; label?: string; name?: string }[]>('/strategy/tabs-list')
-      .then((rows) => { if (active) { setStrategies(rows.map((row) => ({ key: row.key, label: row.label || row.name || row.key }))); setType((old) => old || rows[0]?.key || ''); } })
+      .then((rows) => { if (active) { setStrategies(rows.map((row) => ({ key: row.key, label: row.label || row.name || row.key }))); if (!type) onTypeChange(rows[0]?.key || ''); if (!rows.length) { setError('暂无可用策略'); setLoading(false); } } })
       .catch(() => { if (active) { setError('策略读取失败，请重试'); setLoading(false); } });
     return () => { active = false; };
-  }, [retry]);
+  }, [retry, type, onTypeChange]);
   useEffect(() => {
     if (!type) return undefined;
     let active = true;
@@ -46,7 +47,7 @@ export default function StockResearch({ ownerId, date }: { ownerId: number; date
     <div className="personal-ai-stack">
       <Card size="small" title="选择研究范围">
         <div className="personal-ai-stack">
-          <SelectField label="选股策略"><Select aria-label="选股策略" value={type || undefined} placeholder="选择策略" onChange={setType} options={strategies.map((row) => ({ value: row.key, label: row.label }))} style={{ width: 240, maxWidth: '100%' }} /></SelectField>
+          <SelectField label="选股策略"><Select aria-label="选股策略" value={type || undefined} placeholder="选择策略" onChange={onTypeChange} options={strategies.map((row) => ({ value: row.key, label: row.label }))} style={{ width: 240, maxWidth: '100%' }} /></SelectField>
           <p className="personal-ai-caption">使用所选日期和策略的默认筛选条件。选择 1 至 3 只候选股票，填写研究重点后开始对比。</p>
         </div>
       </Card>

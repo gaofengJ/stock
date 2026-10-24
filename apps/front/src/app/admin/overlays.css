@@ -50,7 +50,7 @@
   .admin-overlay-stack { gap: 16px; }
   .sync-detail-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .sync-detail-overview > div:last-child { grid-column: 1 / -1; }
-  .admin-drawer .ant-descriptions-bordered .ant-descriptions-item-label { width: 96px; }
+  .admin-drawer .ant-descriptions-bordered .ant-descriptions-item-label { width: 120px; }
   .admin-drawer .ant-descriptions-bordered .ant-descriptions-item-content { padding: 10px 12px; }
 }
 @media (max-width: 575px) {
