@@ -26,13 +26,14 @@ const renderScopeOption = (option: { data: typeof scopes[number] }) => (
   </span>
 );
 export default function MarketShell({
-  title, path, children, scopeFilter = true,
-}: { title: string; path: string; children: React.ReactNode; scopeFilter?: boolean }) {
+  title, path, children, scopeFilter = true, dateFilter = true,
+}: { title: string; path: string; children: React.ReactNode; scopeFilter?: boolean; dateFilter?: boolean }) {
   const {
     date, scope, status, error, select, retry,
   } = useMarket();
   const capture = useSearchParams().get('reviewCapture') === '1';
   const dates = new Set(status?.dates || []);
+  const marketRequired = dateFilter || scopeFilter;
   if (capture) {
     return (
       <main className="market-page" data-capture-revision={status?.revision}>
@@ -46,13 +47,14 @@ export default function MarketShell({
       <div className="market-page p-16 rounded-[6px] bg-bg-white">
         <div className="market-heading">
           <Typography.Title level={1}>{title}</Typography.Title>
-          <HelpTooltip label={title} title={`数据日期：${date || '暂无可用交易日'}。更新于北京时间 ${beijingTime(status?.dateUpdates?.[date])}，为盘后数据。`} />
+          {dateFilter && <HelpTooltip label={title} title={`数据日期：${date || '暂无可用交易日'}。更新于北京时间 ${beijingTime(status?.dateUpdates?.[date])}，为盘后数据。`} />}
         </div>
+        {marketRequired && (
         <CSearchForm
           configs={[
-            {
+            ...(dateFilter ? [{
               name: 'date', label: '交易日期', component: <DatePicker />, attrs: { allowClear: false, disabledDate: (d: dayjs.Dayjs) => !dates.has(d.format('YYYY-MM-DD')) },
-            },
+            }] : []),
             ...(scopeFilter ? [{
               name: 'scope',
               label: '统计范围',
@@ -68,8 +70,9 @@ export default function MarketShell({
           searchParams={{ date: date ? dayjs(date) : undefined, scope }}
           setSearchParams={(v) => select({ date: v.date?.format('YYYY-MM-DD') || date, scope: v.scope })}
         />
-        {error && <Alert type="error" showIcon message={error} action={<Button size="small" onClick={retry}>重试</Button>} />}
-        {status && status.expectedDate !== status.latestDate && (
+        )}
+        {marketRequired && error && <Alert type="error" showIcon message={error} action={<Button size="small" onClick={retry}>重试</Button>} />}
+        {marketRequired && status && status.expectedDate !== status.latestDate && (
         <Alert
           type="warning"
           showIcon
@@ -78,10 +81,10 @@ export default function MarketShell({
             : '尚无完整可展示的市场分析数据，需要先完成首次采集和汇总。'}
         />
         )}
-        {status?.backfill && status.backfill.status !== 'success' && <Alert type="info" showIcon message={`历史补齐：${status.backfill.stage}${status.backfill.status === 'failed' ? '（失败，请查看数据同步）' : ''}`} />}
-        {!status && !error && <div className="market-initial-loading"><LoadingOverlay /></div>}
-        {status && !date && <div className="market-empty"><Empty description="暂无数据" /></div>}
-        {status && date && children}
+        {marketRequired && status?.backfill && status.backfill.status !== 'success' && <Alert type="info" showIcon message={`历史补齐：${status.backfill.stage}${status.backfill.status === 'failed' ? '（失败，请查看数据同步）' : ''}`} />}
+        {marketRequired && !status && !error && <div className="market-initial-loading"><LoadingOverlay /></div>}
+        {marketRequired && status && !date && <div className="market-empty"><Empty description="暂无数据" /></div>}
+        {(!marketRequired || (status && date)) && children}
       </div>
     </Layout>
   );

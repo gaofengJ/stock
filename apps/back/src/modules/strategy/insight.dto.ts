@@ -40,6 +40,8 @@ export class CandidateFinancialDto extends InsightDateDto {
 }
 export class PopularityDto extends InsightDateDto {
   @IsOptional() @Matches(/^\d{6}\.(SH|SZ|BJ)$/) code?: string;
+
+  @IsOptional() @IsIn(['true', 'false']) latest?: string;
 }
 export class ExtremesDto extends InsightDateDto {
   @IsOptional() @IsIn(MARKET_SCOPES) scope: MarketScope = 'all';

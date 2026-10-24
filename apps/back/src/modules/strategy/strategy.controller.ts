@@ -69,7 +69,7 @@ export class StrategyController {
   @Permit('strategy:read')
   @Get('/popularity')
   popularity(@Query() q: PopularityDto) {
-    return this.insights.popularity(q.date, true, q.code);
+    return this.insights.popularity(q.date, true, q.code, q.latest === 'true');
   }
 
   @Permit('strategy:read')

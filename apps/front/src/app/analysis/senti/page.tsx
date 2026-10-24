@@ -37,12 +37,12 @@ function SentimentPage() {
   const s = data?.snapshot;
   const bins = ['≤-9%', ...Array.from({ length: 8 }, (_, i) => `${i - 9}~${i - 8}%`), '-1~0%', '平盘', '0~1%', ...Array.from({ length: 8 }, (_, i) => `${i + 1}~${i + 2}%`), '≥9%'];
   return (
-    <MarketShell title="市场情绪" path="/analysis/senti" scopeFilter={view !== 'popularity'}>
+    <MarketShell title="市场情绪" path="/analysis/senti" scopeFilter={view !== 'popularity'} dateFilter={view !== 'popularity'}>
       <Tabs activeKey={view} onChange={setView} items={[{ key: 'sentiment', label: '情绪概览' }, { key: 'popularity', label: '全市场人气榜' }]} />
       {view === 'popularity' ? (
         <div id="popularity">
-          <p className="market-note">同花顺全市场日终榜单，仅跟随交易日期，覆盖全市场。</p>
-          <PopularityChanges date={date} code={/^\d{6}\.(SH|SZ|BJ)$/.test(params.get('code') || '') ? params.get('code') : undefined} />
+          <p className="market-note">同花顺全市场日终榜单，包含周末与节假日；按实际取得的榜单日期展示和比较。</p>
+          <PopularityChanges calendarMode date={params.get('date') || ''} code={/^\d{6}\.(SH|SZ|BJ)$/.test(params.get('code') || '') ? params.get('code') : undefined} />
         </div>
       ) : (
         <>
