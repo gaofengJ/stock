@@ -1,0 +1,12 @@
+.review-illustration { position: relative; width: 100%; max-width: 440px; margin: 24px auto 0; padding-top: 28px; }
+.review-illustration svg { display: block; width: 100%; height: auto; transform: rotate(-3deg); }
+.review-illustration-bull { position: absolute; width: 96px; height: 96px; right: 36px; top: -12px; z-index: 1; filter: drop-shadow(0 4px 6px var(--shadow-soft)); }
+.review-illustration-leaf { position: absolute; left: 10px; top: 2px; font-size: 32px; transform: rotate(-16deg); }
+.review-illustration-shadow { fill: var(--color-primary-soft); }
+.review-illustration-board { fill: var(--color-surface); stroke: var(--color-border); stroke-width: 2; }
+.review-illustration-grid { stroke: var(--color-border-light); }
+.review-illustration-line { stroke: var(--color-primary-text); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.review-candle-red { fill: #ed8792; stroke: #ed8792; }
+.review-candle-green { fill: #8bbb9f; stroke: #8bbb9f; }
+.review-candle-red path, .review-candle-green path { stroke-width: 3; stroke-linecap: round; }
+.review-illustration-note { stroke: var(--color-border); stroke-width: 6; stroke-linecap: round; }

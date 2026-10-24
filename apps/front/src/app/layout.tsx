@@ -6,6 +6,7 @@ import { themeVariablesCss } from '@/colors';
 import SiteTheme from '@/components/SiteTheme';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 import './global.css';
+import '@/discovery/illustration.css';
 import '@/components/Interaction/interaction.css';
 import '@/auth/account.css';
 
