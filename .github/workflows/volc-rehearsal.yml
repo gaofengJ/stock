@@ -83,7 +83,7 @@ jobs:
       - run: pnpm -C apps/front run lint
       - name: Frontend behavior checks
         run: |
-          node --test apps/front/scripts/test-display.cjs apps/front/scripts/test-errors.cjs apps/front/scripts/test-market-compatibility.cjs apps/front/scripts/test-guest-access.cjs apps/front/scripts/test-market-environment.cjs apps/front/scripts/test-blog-paths.cjs apps/front/scripts/test-intraday-counts.cjs apps/front/scripts/test-live-research.cjs apps/front/scripts/test-playbook.cjs apps/front/scripts/test-admin-polling.cjs
+          node --test apps/front/scripts/test-market-tab-data.cjs apps/front/scripts/test-display.cjs apps/front/scripts/test-errors.cjs apps/front/scripts/test-market-compatibility.cjs apps/front/scripts/test-guest-access.cjs apps/front/scripts/test-market-environment.cjs apps/front/scripts/test-blog-paths.cjs apps/front/scripts/test-intraday-counts.cjs apps/front/scripts/test-live-research.cjs apps/front/scripts/test-playbook.cjs apps/front/scripts/test-admin-polling.cjs
           pnpm -C apps/front run test:profile
       - run: pnpm -C apps/front run build
       - name: Install browser and system dependencies
@@ -103,7 +103,7 @@ jobs:
           export FRONT_TEST_URL=http://127.0.0.1:8087
           export TEST_ARTIFACT_DIR=/tmp/stock-browser-artifacts
           browser_test_status=0
-          for script in verify-audit-browser verify-resilience-browser verify-review-handoff-browser verify-review-workflow-browser; do
+          for script in verify-chains-browser verify-audit-browser verify-resilience-browser verify-review-handoff-browser verify-review-workflow-browser; do
             node "apps/front/scripts/$script.cjs" || browser_test_status=1
           done
           exit "$browser_test_status"

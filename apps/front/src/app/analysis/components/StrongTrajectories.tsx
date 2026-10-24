@@ -66,10 +66,11 @@ export default function StrongTrajectories({ sector, onSectorChange, active }: {
   const [showSignals, setShowSignals] = useState(false); const [detail, setDetail] = useState<{ row: TrajectoryRow; cell: TrajectoryCell } | null>(null);
   const request = useMarketData<TrajectoryBoard>('trajectories', {
     trajectoryDays: count, days: 20, sector, ...(code ? { code } : {}),
-  }, active);
-  const signals = useMarketData<StrategySignals>('strategy-signals', { trajectoryDays: count, days: 20, ...(code ? { code } : {}) }, active && showSignals && allowedPath(user, '/strategy'));
+  }, active, true);
+  const signals = useMarketData<StrategySignals>('strategy-signals', { trajectoryDays: count, days: 20, ...(code ? { code } : {}) }, active && showSignals && allowedPath(user, '/strategy'), true);
   useEffect(() => { setDetail(null); }, [date, scope, sector, count, code, keyword, active]);
   const data = request.data?.date === date ? request.data : null;
+  const rows = useMemo(() => filterTrajectories(data?.items || [], date, keyword, state), [data, date, keyword, state]);
   const signalMap = useMemo(() => new Map(signals.data?.items.map((r) => [`${r.date}:${r.tsCode}`, r.strategies]) || []), [signals.data]);
   const labels = new Map(signals.data?.strategies.map((r) => [r.key, r.label]) || []);
   const readySignals = new Set(!signals.loading && !signals.error ? Object.values(signals.data?.readyByStrategy || { legacy: signals.data?.readyDates || [] }).flat() : []);
@@ -115,13 +116,14 @@ export default function StrongTrajectories({ sector, onSectorChange, active }: {
           rowKey="tsCode"
           size="small"
           bordered
+          virtual
           pagination={false}
           maxBodyHeight={960}
           minBodyHeight={120}
           bottomSpacing={24}
           scroll={{ x: 260 + (data?.dates.length || count) * 105 }}
           locale={{ emptyText: keyword || state !== 'all' || sector ? '当前筛选条件下无匹配股票' : '当前区间内无涨停或炸板股票' }}
-          dataSource={filterTrajectories(data?.items || [], date, keyword, state)}
+          dataSource={rows}
           columns={[
             {
               title: '股票',
