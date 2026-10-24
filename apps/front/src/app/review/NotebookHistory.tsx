@@ -43,7 +43,7 @@ export default function NotebookHistory({
         key: 'history',
         label: '历史复盘、版本与上次观察核对',
         children: (
-          <Space direction="vertical" style={{ width: '100%' }}>
+          <div className="notebook-history-content">
             {error && <Alert type="warning" message={error} />}
             <Space wrap>
               {dates.slice(0, 20).map((row) => (
@@ -69,7 +69,7 @@ export default function NotebookHistory({
                 const prefix = `${previous.date} ${pick.name} ${pick.tsCode}：`;
                 const selected = verification.split('\n').find((line) => line.startsWith(prefix))?.slice(prefix.length);
                 return (
-                  <div key={pick.tsCode}>
+                  <div className="notebook-previous-pick" key={pick.tsCode}>
                     <strong>{pick.name}</strong>
                     <p>{previousWorkspace.draft.notes[pick.tsCode] || '上次未填写触发条件'}</p>
                     <SelectField label={`${pick.name}上次观察验证`}><Select aria-label={`${pick.name}上次观察验证`} placeholder="选择验证结果" style={{ width: 180 }} value={selected} options={['触发', '未触发', '失效', '待核实'].map((label) => ({ label, value: label }))} onChange={(value) => onVerify([...verification.split('\n').filter((line) => line && !line.startsWith(prefix)), `${prefix}${value}`].join('\n'))} /></SelectField>
@@ -80,11 +80,11 @@ export default function NotebookHistory({
               <span>复制后需按当前日期重新核验风险，不代表仍符合条件。</span>
             </>
             )}
-          </Space>
+          </div>
         ),
       }]}
       />
-      <Modal title={`${snapshot.date} 历史版本 ${history?.revision || ''}（只读）`} width={850} open={!!history} onCancel={() => setHistory(null)} footer={<Button onClick={() => setHistory(null)}>关闭</Button>}>
+      <Modal className="notebook-history-modal" title={`${snapshot.date} 历史版本 ${history?.revision || ''}（只读）`} width={850} open={!!history} onCancel={() => setHistory(null)} footer={<Button onClick={() => setHistory(null)}>关闭</Button>}>
         <p>查看历史不会修改当前复盘。下方展示记录与正文，历史原图仍保留在服务器。</p>
         <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{history?.content ? `${internalText(snapshot.date, history.content)}\n\n${history.content.article?.body || ''}` : ''}</pre>
       </Modal>

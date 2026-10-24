@@ -236,7 +236,7 @@ export default function Notebook({
     const field = internalFields.find(([k]) => k === key)!;
     return (
       <div className="notebook-field" key={key}>
-        <label htmlFor={`note-${key}`}>{key === 'lesson' ? '当日总结' : field[1]}</label>
+        <label htmlFor={`note-${key}`}>{key === 'lesson' ? '经验与反思' : field[1]}</label>
         <Input.TextArea id={`note-${key}`} disabled={!snapshot} value={content.private[key]} placeholder={key === 'lesson' ? '记录今天的经验、反思或待核实事项' : field[2]} autoSize={{ minRows: key === 'lesson' ? 4 : 2 }} maxLength={4000} onChange={(e) => change(key, e.target.value)} />
       </div>
     );
@@ -244,23 +244,27 @@ export default function Notebook({
   return (
     <div className="review-notebook notebook-panel">
       <div className="notebook-toolbar">
-        <Space wrap size={12}>
-          {!publishing && (
-          <Button
-            disabled={!snapshot}
-            onClick={() => {
-              const url = URL.createObjectURL(new Blob([recordText(date, current.current)], { type: 'text/markdown;charset=utf-8' }));
-              const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${date}-复盘记录.md`; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-            }}
-          >
-            导出记录
-          </Button>
-          )}
-          <strong>{date}</strong>
-          {publishing && isPersonalAiOwner(user) && <Button type="primary" disabled={!snapshot || researchBusy || busy} onClick={() => setAiOpenRequest((value) => value + 1)}>生成复盘</Button>}
-          <Button type="primary" aria-label="保存复盘" aria-busy={busy} disabled={!dirty || busy || researchBusy} loading={busy} onClick={save}>保存复盘</Button>
-          <span role="status">{researchBusy ? status : visibleStatus}</span>
-        </Space>
+        <div className="notebook-toolbar-main">
+          <div className="notebook-save-status">
+            <strong>{date}</strong>
+            <span role="status">{researchBusy ? status : visibleStatus}</span>
+          </div>
+          <Space wrap size={12} className="notebook-toolbar-actions">
+            {!publishing && (
+            <Button
+              disabled={!snapshot}
+              onClick={() => {
+                const url = URL.createObjectURL(new Blob([recordText(date, current.current)], { type: 'text/markdown;charset=utf-8' }));
+                const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${date}-复盘记录.md`; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+              }}
+            >
+              导出记录
+            </Button>
+            )}
+            {publishing && isPersonalAiOwner(user) && <Button type="primary" disabled={!snapshot || researchBusy || busy} onClick={() => setAiOpenRequest((value) => value + 1)}>生成复盘</Button>}
+            <Button type="primary" aria-label="保存复盘" aria-busy={busy} disabled={!dirty || busy || researchBusy} loading={busy} onClick={save}>保存复盘</Button>
+          </Space>
+        </div>
         <nav className="notebook-flow" aria-label={publishing ? '图文操作' : '复盘记录'}>
           {stages.map((stage) => <Button key={stage.id} onClick={() => document.getElementById(`evening-${stage.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>{stage.title}</Button>)}
         </nav>
@@ -306,7 +310,7 @@ export default function Notebook({
           return (
             <Card id={`evening-${stage.id}`} key={stage.id} title={stage.title}>
               <p className="review-caption">{stage.guidance}</p>
-              <Space wrap size={12} className="notebook-links">{stage.links.map(([path, label]) => <Link key={path} href={`${path}${path.includes('?') ? '&' : '?'}date=${date}`} target="_blank" rel="noopener noreferrer">{label}</Link>)}</Space>
+              {!!stage.links.length && <Space wrap size={12} className="notebook-links">{stage.links.map(([path, label]) => <Link key={path} href={`${path}${path.includes('?') ? '&' : '?'}date=${date}`} target="_blank" rel="noopener noreferrer">{label}</Link>)}</Space>}
               {!!images.length && (
               <Image.PreviewGroup>
                 <div className="notebook-platform-images">
