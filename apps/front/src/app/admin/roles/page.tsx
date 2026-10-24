@@ -108,7 +108,13 @@ export default function Page() {
     if (busyRef.current || loading || pending) return;
     if (dirty) {
       modal.confirm({
-        title: '放弃未保存的修改？', content: '当前角色修改尚未保存。', okText: '放弃修改', cancelText: '继续编辑', onOk: () => setEditing(null),
+        className: 'admin-modal',
+        centered: true,
+        title: '放弃未保存的修改？',
+        content: '当前角色修改尚未保存。',
+        okText: '放弃修改',
+        cancelText: '继续编辑',
+        onOk: () => setEditing(null),
       });
     } else setEditing(null);
   };
@@ -116,6 +122,8 @@ export default function Page() {
     if (!original || busyRef.current) return;
     const { id } = original;
     modal.confirm({
+      className: 'admin-modal',
+      centered: true,
       title: '重新加载最新角色？',
       content: '最新内容将替换当前未保存的修改，请重新核对权限和关联用户。',
       okText: '重新加载',
@@ -248,7 +256,7 @@ export default function Page() {
           },
         ]}
       />
-      <Modal className="role-view-modal" centered title={`角色权限：${viewing?.name || ''}`} width={760} open={!!viewing} onCancel={() => setViewing(null)} footer={<Button onClick={() => setViewing(null)}>关闭</Button>} destroyOnClose>
+      <Modal className="admin-modal role-view-modal" centered title={`角色权限：${viewing?.name || ''}`} width={760} open={!!viewing} onCancel={() => setViewing(null)} footer={<Button onClick={() => setViewing(null)}>关闭</Button>} destroyOnClose>
         <Typography.Paragraph type="secondary">
           已授予
           {viewedPermissions.length}
@@ -265,7 +273,7 @@ export default function Page() {
         {!viewedPermissions.length && <Typography.Paragraph type="secondary">未授予权限</Typography.Paragraph>}
         {viewing?.permissions.includes('news:manage') && <Typography.Paragraph type="secondary">资讯来源管理影响所有用户：启停来源、调整采集间隔、立即采集。个人关注在资讯页面设置。</Typography.Paragraph>}
       </Modal>
-      <Modal title={`关联用户：${members?.name || ''}`} width={720} open={!!members} onCancel={() => setMembers(null)} footer={<Button onClick={() => setMembers(null)}>关闭</Button>} destroyOnClose>
+      <Modal className="admin-modal" centered title={`关联用户：${members?.name || ''}`} width={720} open={!!members} onCancel={() => setMembers(null)} footer={<Button onClick={() => setMembers(null)}>关闭</Button>} destroyOnClose>
         <div className="role-member-toolbar">
           <Typography.Text>
             共
@@ -278,7 +286,7 @@ export default function Page() {
         <Input.Search placeholder="搜索用户名或昵称" aria-label="搜索关联用户" value={memberSearch} onChange={(e) => setMemberSearch(e.target.value)} allowClear />
         <Table<Member>
           loading={false}
-          autoHeight={filteredMembers.length <= 5}
+          autoHeight
           size="small"
           rowKey="id"
           dataSource={filteredMembers}
@@ -307,7 +315,7 @@ export default function Page() {
           ]}
         />
       </Modal>
-      <Modal className="role-editor-modal" centered title={original ? `编辑角色：${original.name}` : '创建角色'} width={760} open={!!editing} onCancel={closeEditor} onOk={() => form.submit()} okText={original ? '核对并保存' : '创建角色'} confirmLoading={busy} cancelButtonProps={{ disabled: busy || loading }} okButtonProps={{ disabled: stale || loading || !!pending }} keyboard={!busy && !pending} maskClosable={!busy && !pending} destroyOnClose>
+      <Modal className="admin-modal role-editor-modal" centered title={original ? `编辑角色：${original.name}` : '创建角色'} width={760} open={!!editing} onCancel={closeEditor} onOk={() => form.submit()} okText={original ? '核对并保存' : '创建角色'} confirmLoading={busy} cancelButtonProps={{ disabled: busy || loading }} okButtonProps={{ disabled: stale || loading || !!pending }} keyboard={!busy && !pending} maskClosable={!busy && !pending} destroyOnClose>
         {saveError && <Alert type="error" message={saveError} showIcon action={stale && original ? <Button size="small" onClick={reloadEditor}>重新加载最新角色</Button> : undefined} />}
         {loading && <Typography.Paragraph type="secondary">正在加载最新角色…</Typography.Paragraph>}
         <Form className="role-editor-form" form={form} layout="vertical" disabled={busy || loading || !!pending || stale} onValuesChange={() => { setDirty(true); if (!stale) setSaveError(''); }} onFinish={(values) => { if (original) setPending(values); else save(values); }}>
@@ -361,7 +369,7 @@ export default function Page() {
           )}
         </Form>
       </Modal>
-      <Modal className="role-view-modal" centered title="核对角色变更" zIndex={1100} width={640} open={!!pending} onCancel={() => { if (!busyRef.current) setPending(null); }} onOk={() => { if (pending) save(pending); }} okText="确认保存" cancelText="返回编辑" confirmLoading={busy} cancelButtonProps={{ disabled: busy }} keyboard={!busy} maskClosable={!busy}>
+      <Modal className="admin-modal role-view-modal" centered title="核对角色变更" zIndex={1100} width={640} open={!!pending} onCancel={() => { if (!busyRef.current) setPending(null); }} onOk={() => { if (pending) save(pending); }} okText="确认保存" cancelText="返回编辑" confirmLoading={busy} cancelButtonProps={{ disabled: busy }} keyboard={!busy} maskClosable={!busy}>
         <Typography.Paragraph>
           角色：
           <strong>{original?.name}</strong>

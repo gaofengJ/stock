@@ -404,6 +404,8 @@ export default function Notebook({
       </Card>
       )}
       <Modal
+        className="review-dialog"
+        centered
         title="离开前处理未保存复盘"
         open={leaveOpen}
         onCancel={() => finishLeave(false)}
@@ -418,11 +420,13 @@ export default function Notebook({
         <p>记录和图片尚未同步到服务器。保留本机草稿后，可在本设备返回继续编辑。</p>
       </Modal>
       <Modal
+        className="review-dialog"
+        centered
         title="发现服务器版本更新前的本机草稿"
         open={!!recovery}
         onCancel={() => setRecovery(null)}
         footer={(
-          <Space>
+          <Space wrap>
             <Button onClick={() => setRecovery(null)}>继续查看服务器版本</Button>
             <Button onClick={() => { if (recovery) { changed(recovery.content); setRecovery(null); setStatus('已恢复旧草稿供合并，请核对服务器变化后保存'); } }}>恢复草稿供合并</Button>
           </Space>

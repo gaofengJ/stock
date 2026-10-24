@@ -1,0 +1,62 @@
+/* Portalled overlays need their own scope; .admin-page does not contain them. */
+.admin-drawer .ant-drawer-header { padding: 20px 24px; }
+.admin-drawer .ant-drawer-title { font-size: 18px; line-height: 26px; }
+.admin-drawer .ant-drawer-body { padding: 24px; overscroll-behavior: contain; }
+.admin-drawer .ant-drawer-footer { padding: 16px 24px; border-top: 1px solid var(--color-border); }
+.admin-overlay-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.admin-overlay-footer .ant-btn { white-space: normal; height: auto; min-height: 32px; }
+.admin-overlay-stack { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.admin-overlay-stack > .ant-alert, .admin-overlay-stack > .ant-typography { margin: 0; }
+.admin-drawer .ant-descriptions { overflow-wrap: anywhere; }
+.admin-drawer .ant-descriptions-item-label { color: var(--text-secondary); }
+.admin-drawer .ant-descriptions-item-content { min-width: 0; }
+.admin-drawer .ant-descriptions-bordered .ant-descriptions-view { overflow: hidden; }
+.admin-drawer .ant-descriptions-bordered .ant-descriptions-item-label { width: 120px; }
+.admin-drawer .ant-descriptions-bordered .ant-descriptions-item-content { padding: 12px 16px; }
+.admin-drawer .account-detail { margin: 0; padding: 16px; max-height: 360px; overflow: auto; }
+.admin-drawer .logs-detail-heading.ant-typography { margin: 0 0 -8px; font-size: 16px; line-height: 24px; }
+.admin-drawer .logs-related, .admin-drawer .logs-raw, .admin-drawer .logs-muted { margin: 0; }
+.admin-drawer .ant-collapse-content-box { overflow-wrap: anywhere; }
+.admin-modal.ant-modal { max-width: calc(100vw - 32px); padding-bottom: 0; }
+.admin-modal .ant-modal-content { display: flex; flex-direction: column; max-height: calc(100dvh - 48px); padding: 24px; }
+.admin-modal .ant-modal-header { flex-shrink: 0; margin-bottom: 20px; padding-right: 24px; }
+.admin-modal .ant-modal-title { font-size: 18px; line-height: 26px; overflow-wrap: anywhere; }
+.admin-modal .ant-modal-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.admin-modal .ant-modal-footer { flex-shrink: 0; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--color-border); }
+.admin-modal .ant-form-item { margin-bottom: 20px; }
+.admin-modal .ant-form-item:last-child { margin-bottom: 0; }
+.admin-modal .ant-alert { margin-bottom: 16px; }
+.admin-modal .ant-typography, .admin-modal .ant-alert-message, .admin-modal .ant-alert-description { overflow-wrap: anywhere; }
+.admin-modal .ant-modal-footer .ant-btn { white-space: normal; height: auto; min-height: 32px; }
+.admin-modal.role-editor-modal .role-editor-fields .ant-form-item { margin-bottom: 12px; }
+.admin-modal.role-editor-modal .role-editor-permissions { margin-bottom: 0; }
+.admin-modal .role-permission-group-items { gap: 8px 16px; }
+.admin-modal .role-permission-group-items .ant-checkbox-wrapper { padding-block: 4px; align-items: flex-start; }
+.sync-detail-overview { display: grid; grid-template-columns: 1.2fr 1fr 1.4fr; gap: 16px; padding: 16px; background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: 6px; }
+.sync-detail-overview > div { display: flex; flex-direction: column; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+.sync-detail-overview dt { color: var(--text-secondary); font-size: 12px; }
+.sync-detail-overview dd { margin: 0; font-size: 14px; font-weight: 500; }
+.sync-detail-overview { margin: 0; }
+.sync-detail-scope { color: var(--text-secondary); line-height: 1.7; margin: 0; }
+.sync-detail-tabs .ant-tabs-nav { margin-bottom: 16px; }
+.sync-detail-tabs .ant-tabs-tab { padding-block: 12px; }
+.sync-detail-tabs .ant-table-cell { font-size: 14px; overflow-wrap: anywhere; }
+.sync-detail-tabs .ant-table-pagination { margin-bottom: 0; }
+.sync-detail-note { margin: 0 0 16px; color: var(--text-secondary); line-height: 1.7; }
+.sync-detail-error { color: var(--color-error, #ff4d4f); white-space: pre-wrap; }
+@media (max-width: 767px) {
+  .admin-drawer .ant-drawer-header, .admin-drawer .ant-drawer-footer { padding: 16px; }
+  .admin-drawer .ant-drawer-body { padding: 16px; }
+  .admin-overlay-stack { gap: 16px; }
+  .sync-detail-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .sync-detail-overview > div:last-child { grid-column: 1 / -1; }
+  .admin-drawer .ant-descriptions-bordered .ant-descriptions-item-label { width: 96px; }
+  .admin-drawer .ant-descriptions-bordered .ant-descriptions-item-content { padding: 10px 12px; }
+}
+@media (max-width: 575px) {
+  .admin-modal.ant-modal { max-width: calc(100vw - 16px); }
+  .admin-modal .ant-modal-content { padding: 16px; max-height: calc(100dvh - 24px); }
+  .admin-modal .ant-modal-header { margin-bottom: 16px; }
+  .admin-modal .ant-modal-footer { margin-top: 16px; padding-top: 12px; }
+  .admin-modal.role-editor-modal .ant-modal-content { height: calc(100dvh - 24px); }
+}

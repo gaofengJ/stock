@@ -1,4 +1,12 @@
 .review-notebook { min-width: 0; }
+.review-dialog.ant-modal { max-width: calc(100vw - 24px); padding-bottom: 0; }
+.review-dialog .ant-modal-content { display: flex; flex-direction: column; max-height: calc(100dvh - 48px); }
+.review-dialog .ant-modal-header { flex-shrink: 0; margin-bottom: 16px; padding-right: 24px; }
+.review-dialog .ant-modal-body { min-height: 0; overflow: auto; overscroll-behavior: contain; overflow-wrap: anywhere; }
+.review-dialog .ant-modal-footer { flex-shrink: 0; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--color-border); }
+.review-dialog .ant-modal-footer .ant-btn { white-space: normal; height: auto; min-height: 32px; }
+.review-dialog .ant-modal-body > p { margin: 0 0 16px; line-height: 1.7; }
+.review-dialog .review-result-diff { margin-top: 16px; }
 .notebook-toolbar { display: grid; gap: 12px; margin: 0; min-width: 0; }
 .notebook-toolbar-main { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 24px; min-width: 0; }
 .notebook-save-status { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; min-width: 0; }

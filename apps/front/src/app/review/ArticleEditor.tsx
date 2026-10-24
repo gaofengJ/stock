@@ -270,6 +270,8 @@ export default function ArticleEditor({
         <p className="review-caption">{dirty ? '有未保存的修改。' : savedStatus}</p>
       </section>
       <Modal
+        className="review-dialog"
+        centered
         open={!!manualTask}
         title="准备 Codex 任务"
         onCancel={() => setManualTask('')}
@@ -292,7 +294,7 @@ export default function ArticleEditor({
         <p>Codex 完成后，关闭此窗口，通过“导入 Codex 结果”回填，无需重新准备任务。</p>
         <Input.TextArea aria-label="Skill 任务文本" readOnly value={manualTask} rows={12} onFocus={(e) => e.target.select()} />
       </Modal>
-      <Modal title="导入 Codex 结果" open={importOpen} onCancel={() => setImportOpen(false)} footer={<Button onClick={() => setImportOpen(false)}>关闭</Button>}>
+      <Modal className="review-dialog" centered title="导入 Codex 结果" open={importOpen} onCancel={() => setImportOpen(false)} footer={<Button onClick={() => setImportOpen(false)}>关闭</Button>}>
         <p>
           当前日期
           {date}
@@ -305,7 +307,7 @@ export default function ArticleEditor({
         <label htmlFor="review-result-file">选择 Codex 结果包</label>
         <input id="review-result-file" type="file" accept="application/json,.json" disabled={disabled || dirty || !revision} onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) { if (f.size > 7000000) setError('结果文件过大'); else importResult(await f.text()); } }} />
       </Modal>
-      <Modal title="核对外部正文与当前原文" width={1000} open={editBody} onCancel={() => setEditBody(false)} footer={<Button onClick={() => setEditBody(false)}>完成核对</Button>}>
+      <Modal className="review-dialog" centered title="核对外部正文与当前原文" width={1000} open={editBody} onCancel={() => setEditBody(false)} footer={<Button onClick={() => setEditBody(false)}>完成核对</Button>}>
         <p>此正文没有可分离的原生 AI 章节，请对照当前原文手动调整。修改会保留在草稿，保存后才同步服务器。</p>
         <div className="review-result-diff">
           <pre>{Object.entries(content.private).filter(([, text]) => text.trim()).map(([key, text]) => `${key}：${text}`).join('\n\n')}</pre>
@@ -313,12 +315,14 @@ export default function ArticleEditor({
         </div>
       </Modal>
       <Modal
+        className="review-dialog"
+        centered
         title="核对 AI 结果后应用"
         width={1000}
         open={!!proposal}
         onCancel={() => setProposal(null)}
         footer={(
-          <Space>
+          <Space wrap>
             <Button onClick={() => setProposal(null)}>保留原稿</Button>
             <Button type="primary" onClick={() => { if (!proposal) return; const latest = currentContent.current; setUndo(current.current); update({ ...(latest.article || emptyArticle()), body: reviewDocument(date, latest, proposal.answer), composition: { answer: proposal.answer, taskId: proposal.taskId, notesSignature: notesSignature(latest) } }); setProposal(null); onStatus('已应用到当前复盘，可撤销。预览后保存即可同步服务器。'); }}>应用到当前复盘</Button>
           </Space>

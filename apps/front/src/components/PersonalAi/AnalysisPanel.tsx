@@ -175,12 +175,12 @@ export default function AnalysisPanel({
   const questionInput = (
     <Form.Item label={parent ? `继续追问（第${parent.historyTurns + 1}次，最多6次）` : '分析要求（可留空）'}>
       <Input.TextArea aria-label="分析要求" value={question} rows={3} maxLength={2000} showCount disabled={busy || running} onChange={(event) => setQuestion(event.target.value)} placeholder="填写重点、篇幅或特殊要求，也可直接使用默认分析" />
-      <Space wrap>{(parent ? ['解释上述结论的证据', '列出仍缺失的资料', '压缩到300字'] : ['简洁复盘，突出主要变化', '重点说明风险和反向证据', '与前一交易日对照']).map((text) => <Button size="small" key={text} disabled={busy || running} onClick={() => addPrompt(text)}>{text}</Button>)}</Space>
+      <Space className="personal-ai-prompts" wrap>{(parent ? ['解释上述结论的证据', '列出仍缺失的资料', '压缩到300字'] : ['简洁复盘，突出主要变化', '重点说明风险和反向证据', '与前一交易日对照']).map((text) => <Button size="small" key={text} disabled={busy || running} onClick={() => addPrompt(text)}>{text}</Button>)}</Space>
     </Form.Item>
   );
   const defaultCaption = skill === 'market-review' ? '根据市场、情绪、连板、20日板块轮动和涨停资料生成图文。私人笔记和观察记录按原文合稿，AI 不读取或改写。' : '使用所选日期的市场、行业、走势和已披露业绩，不包含实时新闻。';
   return (
-    <div className="personal-ai-stack">
+    <div className="personal-ai-stack personal-ai-panel">
       <div className="personal-ai-context">
         <Space wrap>
           <strong>{date}</strong>
@@ -202,8 +202,8 @@ export default function AnalysisPanel({
       {active && active.id !== chosen?.id && <Alert type="info" message={`${active.date} 的${active.skill === 'market-review' ? '复盘' : '对比'}任务正在执行，完成后此处自动恢复`} description="可在本页的任务记录中查看进度或停止。" />}
       {state && !state.enabled && <Alert type="warning" message="AI 调用当前已暂停，可查看历史结果" />}
       {!state && <Button loading={!error} onClick={() => refresh().catch((reason) => setError(failText(reason)))}>读取状态</Button>}
-      {!readOnly && (
-      <Form layout="vertical" onFinish={() => submit()}>
+      {!readOnly && (!chosen || !initialTaskId || parent) && (
+      <Form className="personal-ai-form" layout="vertical" onFinish={() => submit()}>
         <div className="personal-ai-stack">
           {skill === 'candidate-compare' && <Form.Item label="对比股票"><Select aria-label="对比股票" mode="multiple" showSearch onSearch={onSearch} filterOption={onSearch ? false : undefined} optionFilterProp="label" value={selectedCodes} placeholder="选择1至3只股票" disabled={busy || running || !!parent} onChange={(values) => { if (values.length <= 3) setCodes(values); else setError('每次最多选择3只股票'); }} options={options.map((item) => ({ value: item.code, label: item.name ? `${item.name} ${item.code}` : item.code, disabled: selectedCodes.length >= 3 && !selectedCodes.includes(item.code) }))} /></Form.Item>}
           {!parent && questionInput}
@@ -402,18 +402,21 @@ export default function AnalysisPanel({
             </p>
             )}
             <Button loading={refreshing} disabled={running || busy} onClick={async () => { setRefreshing(true); try { await consoleRequest<Metadata>('/account', 'POST', {}); await refresh(); setNotice('额度与模型已刷新，未调用模型'); } catch (reason) { setError(failText(reason)); } finally { setRefreshing(false); } }}>刷新额度</Button>
-            <Link href="/admin/ai/">模型设置</Link>
+            <Link href="/admin/ai/?tab=settings">模型设置</Link>
             <p>只使用已登录的订阅，不自动购买额度。</p>
           </Space>
         ),
       }]}
       />
       <Modal
+        className="personal-ai-modal"
+        centered
+        width={560}
         title="部分分析资料缺失"
         open={!!gapConfirm}
         onCancel={() => { gapAnswer.current?.(false); gapAnswer.current = null; setGapConfirm(null); }}
         footer={(
-          <Space>
+          <Space wrap>
             <Button onClick={() => { gapAnswer.current?.(false); gapAnswer.current = null; setGapConfirm(null); }}>取消并补齐资料</Button>
             <Button type="primary" onClick={() => { gapAnswer.current?.(true); gapAnswer.current = null; setGapConfirm(null); }}>按现有资料继续</Button>
           </Space>

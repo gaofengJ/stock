@@ -360,55 +360,77 @@ export default function Page() {
         }}
         columns={columns}
       />
-      <Drawer className="logs-drawer" title={`${tabLabels[tab]}详情`} width="min(780px, 100vw)" open={!!detail} onClose={() => setDetail(null)}>
-        {detail && tab === 'access-logs' && <AccessDetail row={detail} slowMs={slowMs} related={related} />}
-        {detail && tab === 'logs' && (
+      <Drawer
+        className="admin-drawer logs-drawer"
+        title={`${tabLabels[tab]}详情`}
+        width="min(960px, 100vw)"
+        open={!!detail}
+        onClose={() => setDetail(null)}
+        footer={(
+          <div className="admin-overlay-footer">
+            <Typography.Text type="secondary">时间均为北京时间</Typography.Text>
+            <Button onClick={() => setDetail(null)}>关闭</Button>
+          </div>
+)}
+      >
+        <div className="admin-overlay-stack">
+          {detail && tab === 'access-logs' && <AccessDetail row={detail} slowMs={slowMs} related={related} />}
+          {detail && tab === 'logs' && (
           <>
             <Alert showIcon type={({ error: 'error', warn: 'warning' } as Record<string, 'error' | 'warning'>)[detail.level] || 'info'} message={levelLabels[detail.level] || detail.level} description={logGuidance(detail.level, detail.context, detailMessage)} />
             <Descriptions
               bordered
-              column={1}
+              column={{ xs: 1, sm: 1, md: 2 }}
               size="small"
               items={[
                 { key: 'time', label: '时间（北京）', children: beijingTime(detail.timestamp) },
                 { key: 'module', label: '模块', children: `${moduleLabels[detail.context] || detail.context || '—'}${moduleLabels[detail.context] ? `（${detail.context}）` : ''}` },
                 { key: 'user', label: '访问用户', children: detail.username || (detail.userId ? `用户 #${detail.userId}` : '—') },
-                { key: 'path', label: '接口', children: detail.path ? `${detail.method} ${detail.path}` : '—' },
+                {
+                  key: 'path', span: 2, label: '接口', children: detail.path ? `${detail.method} ${detail.path}` : '—',
+                },
               ]}
             />
             <Typography.Title level={4} className="logs-detail-heading">完整内容</Typography.Title>
             <pre className="account-detail">{detailMessage}</pre>
             <Button href="/admin/sync/">打开数据同步执行记录</Button>
           </>
-        )}
-        {detail && tab === 'audit-logs' && (
+          )}
+          {detail && tab === 'audit-logs' && (
           <>
             <Descriptions
               bordered
-              column={1}
+              column={{ xs: 1, sm: 1, md: 2 }}
               size="small"
               items={[
                 { key: 'time', label: '时间（北京）', children: beijingTime(detail.createdAt) },
                 { key: 'actor', label: '操作人', children: detail.actorName === 'system' ? '系统自动' : detail.actorName || '—' },
                 { key: 'action', label: '操作', children: actionLabels[detail.action] || detail.action },
-                { key: 'target', label: '操作对象', children: targetLink ? <Button type="link" href={targetLink}>{auditTarget(detail.action, detail.target)}</Button> : auditTarget(detail.action, detail.target) },
-                { key: 'result', label: '结果', children: auditResult(detail.action, detail.result) },
-                ...Object.entries(detailFields).filter(([key, value]) => key !== 'requestId' && value !== null && value !== undefined).map(([key, value]) => ({ key: `detail-${key}`, label: detailLabels[key] || key, children: detailText(key, value) })),
+                {
+                  key: 'target', span: 2, label: '操作对象', children: targetLink ? <Button type="link" href={targetLink}>{auditTarget(detail.action, detail.target)}</Button> : auditTarget(detail.action, detail.target),
+                },
+                {
+                  key: 'result', span: 2, label: '结果', children: auditResult(detail.action, detail.result),
+                },
+                ...Object.entries(detailFields).filter(([key, value]) => key !== 'requestId' && value !== null && value !== undefined).map(([key, value]) => ({
+                  key: `detail-${key}`, span: 2, label: detailLabels[key] || key, children: detailText(key, value),
+                })),
               ]}
             />
             {!Object.keys(detailFields).length && <Typography.Paragraph className="logs-muted">这条操作没有附加说明。密码等敏感字段会脱敏，操作记录不提供撤销操作。</Typography.Paragraph>}
           </>
-        )}
-        {detail && tab !== 'access-logs' && detailId && (
-        <div className="logs-related">
-          <Typography.Text copyable>{String(detailId)}</Typography.Text>
-          <Space wrap>
-            <Button onClick={() => related('access-logs', String(detailId), detailTime)}>查看同一请求的接口访问</Button>
-            {tab === 'audit-logs' && <Button onClick={() => related('logs', String(detailId), detailTime)}>查看同一请求的系统日志</Button>}
-          </Space>
+          )}
+          {detail && tab !== 'access-logs' && detailId && (
+          <div className="logs-related">
+            <Typography.Text copyable>{String(detailId)}</Typography.Text>
+            <Space wrap>
+              <Button onClick={() => related('access-logs', String(detailId), detailTime)}>查看同一请求的接口访问</Button>
+              {tab === 'audit-logs' && <Button onClick={() => related('logs', String(detailId), detailTime)}>查看同一请求的系统日志</Button>}
+            </Space>
+          </div>
+          )}
+          <Collapse className="logs-raw" items={[{ key: 'raw', label: '技术详情（原始记录）', children: <pre className="account-detail">{JSON.stringify(detail, null, 2)}</pre> }]} />
         </div>
-        )}
-        <Collapse className="logs-raw" items={[{ key: 'raw', label: '技术详情（原始记录）', children: <pre className="account-detail">{JSON.stringify(detail, null, 2)}</pre> }]} />
       </Drawer>
     </>
   );

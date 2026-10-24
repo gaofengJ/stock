@@ -51,44 +51,46 @@ export default function Settings({ ownerId }: { ownerId: number }) {
           <span>{metadata ? '最近一次查询结果' : '点击下方刷新订阅状态'}</span>
         </div>
       </div>
-      <Card size="small" title="默认模型">
-        <div className="personal-ai-stack">
-          <ModelControls value={choice} onChange={(value) => { setChoice(value); setNotice(''); }} metadata={metadata} />
-          <Typography.Text type="secondary">初始默认为 GPT-6.1 Sol / High。设置保存在当前浏览器，仅用于你的账号；每次分析仍可单独选择。</Typography.Text>
-          <Space wrap>
+      <div className="ai-settings-grid">
+        <Card size="small" title="默认模型">
+          <div className="personal-ai-stack">
+            <ModelControls value={choice} onChange={(value) => { setChoice(value); setNotice(''); }} metadata={metadata} />
+            <Typography.Text type="secondary">初始默认为 GPT-6.1 Sol / High。设置保存在当前浏览器，仅用于你的账号；每次分析仍可单独选择。</Typography.Text>
+            <Space wrap>
+              <Button
+                type="primary"
+                disabled={!supportsChoice(metadata, choice)}
+                onClick={() => {
+                  try { saveChoice(ownerId, choice); setNotice('默认模型已保存，重新打开分析面板后生效。'); setError(''); } catch { setError('浏览器未允许保存设置，请在每次分析时选择模型。'); }
+                }}
+              >
+                保存设置
+              </Button>
+              <Button onClick={() => { setChoice(defaultChoice); setNotice('已恢复默认选择，点击保存设置后生效。'); }}>恢复默认</Button>
+            </Space>
+          </div>
+        </Card>
+        <Card
+          size="small"
+          title="订阅状态"
+          extra={(
             <Button
-              type="primary"
-              disabled={!supportsChoice(metadata, choice)}
-              onClick={() => {
-                try { saveChoice(ownerId, choice); setNotice('默认模型已保存，重新打开分析面板后生效。'); setError(''); } catch { setError('浏览器未允许保存设置，请在每次分析时选择模型。'); }
+              loading={busy}
+              onClick={async () => {
+                setBusy(true); setError(''); setNotice('');
+                try { await consoleRequest<Metadata>('/account', 'POST', {}); await load(); setNotice('订阅状态、模型目录与额度已刷新，未调用模型。'); } catch (reason) { setError(reason instanceof Error ? reason.message : '状态刷新失败，请稍后重试。'); } finally { setBusy(false); }
               }}
             >
-              保存设置
+              刷新状态
             </Button>
-            <Button onClick={() => { setChoice(defaultChoice); setNotice('已恢复默认选择，点击保存设置后生效。'); }}>恢复默认</Button>
-          </Space>
-        </div>
-      </Card>
-      <Card
-        size="small"
-        title="订阅状态"
-        extra={(
-          <Button
-            loading={busy}
-            onClick={async () => {
-              setBusy(true); setError(''); setNotice('');
-              try { await consoleRequest<Metadata>('/account', 'POST', {}); await load(); setNotice('订阅状态、模型目录与额度已刷新，未调用模型。'); } catch (reason) { setError(reason instanceof Error ? reason.message : '状态刷新失败，请稍后重试。'); } finally { setBusy(false); }
-            }}
-          >
-            刷新状态
-          </Button>
 )}
-      >
-        <div className="personal-ai-stack">
-          <Typography.Text>{metadata ? `已登录 ${metadata.plan.toUpperCase()} 订阅` : '订阅状态尚未查询'}</Typography.Text>
-          <Typography.Text type="secondary">仅刷新登录与额度信息，不发起分析，不购买 credits。</Typography.Text>
-        </div>
-      </Card>
+        >
+          <div className="personal-ai-stack">
+            <Typography.Text>{metadata ? `已登录 ${metadata.plan.toUpperCase()} 订阅` : '订阅状态尚未查询'}</Typography.Text>
+            <Typography.Text type="secondary">仅刷新登录与额度信息，不发起分析，不购买 credits。</Typography.Text>
+          </div>
+        </Card>
+      </div>
       <Typography.Paragraph type="secondary">仅本人管理员可用。每次手动分析才消耗订阅用量，单次最多运行180秒，同时只执行1个任务。Token预算是准入控制，执行中的任务可能超过预留量。凭据保留在服务器，不发送到页面；不使用 API Key，不自动购买 credits。</Typography.Paragraph>
     </div>
   );

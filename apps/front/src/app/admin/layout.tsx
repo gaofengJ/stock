@@ -5,6 +5,7 @@ import {
 } from '@ant-design/icons';
 import { usePathname } from 'next/navigation';
 import CommonLayout from '@/components/Layout';
+import './overlays.css';
 
 const items = [
   { key: '/admin/users', label: '用户管理', icon: <TeamOutlined /> },

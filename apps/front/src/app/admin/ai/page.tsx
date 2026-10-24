@@ -4,19 +4,23 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Alert, Button, DatePicker, Space, Tabs,
+  Alert, Button, Card, DatePicker, Drawer, Space, Tabs,
 } from 'antd';
 import { useAccount } from '@/auth/Boundary';
-import { api, isPersonalAiOwner } from '@/auth/client';
+import { isPersonalAiOwner } from '@/auth/client';
 import { useDefaultTradeDate } from '@/hooks/useDefaultTradeDate';
 import SelectField from '@/components/SelectField';
 import TaskState, { useAiTasks } from '@/components/PersonalAi/TaskState';
-import AnalysisPanel, { Candidate } from '@/components/PersonalAi/AnalysisPanel';
-import { consoleRequest, statusNames, Task } from '@/components/PersonalAi/client';
+import AnalysisPanel from '@/components/PersonalAi/AnalysisPanel';
+import { consoleRequest, Task } from '@/components/PersonalAi/client';
 import Notebook from '@/app/review/Notebook';
 import { mayLeaveResearch } from '@/utils/research-navigation';
 import dayjs from 'dayjs';
+import PageHeading from '@/auth/PageHeading';
+import { RobotOutlined } from '@ant-design/icons';
 import Settings from './Settings';
+import TaskHistory from './TaskHistory';
+import './workspace.css';
 import '@/components/PersonalAi/personal-ai.css';
 import '@/app/review/review.css';
 
@@ -26,8 +30,6 @@ function Workspace({ ownerId }: { ownerId: number }) {
   const fallback = useDefaultTradeDate();
   const context = useAiTasks();
   const [, setDirty] = useState(false);
-  const [search, setSearch] = useState('');
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [searchError, setSearchError] = useState('');
   const [selected, setSelected] = useState<Task | null>(null);
   const requested = params?.get('tab') || (params?.get('aiTask') ? 'history' : 'stocks');
@@ -42,17 +44,7 @@ function Workspace({ ownerId }: { ownerId: number }) {
     window.history.pushState(null, '', url); setSelected(null);
   };
   useEffect(() => {
-    if (tab !== 'stocks' || !search.trim()) return undefined;
-    let active = true;
-    const timer = setTimeout(() => {
-      api<{ tsCode: string; name: string }[]>(`/news/stocks?q=${encodeURIComponent(search.trim())}`)
-        .then((rows) => { if (active) { setCandidates((old) => [...new Map([...old, ...rows.map((row) => ({ code: row.tsCode, name: row.name }))].map((row) => [row.code, row])).values()].slice(-200)); setSearchError(''); } })
-        .catch(() => { if (active) setSearchError('股票搜索失败，请重新输入名称或代码'); });
-    }, 250);
-    return () => { active = false; clearTimeout(timer); };
-  }, [search, tab]);
-  useEffect(() => {
-    if (!taskId) return undefined;
+    if (!taskId) { setSelected(null); return undefined; }
     let active = true;
     const task = context?.state?.tasks.find((row) => row.id === taskId);
     if (task) setSelected(task);
@@ -60,11 +52,8 @@ function Workspace({ ownerId }: { ownerId: number }) {
     return () => { active = false; };
   }, [taskId, context?.state?.tasks]);
   return (
-    <div className="personal-ai-stack">
-      <div>
-        <h1 className="page-heading">AI 工具</h1>
-        <p className="review-caption">按需研究股票或制作图文。只有点击开始分析才会调用模型。</p>
-      </div>
+    <div className="admin-ai-workspace personal-ai-stack">
+      <PageHeading title="AI 工具" description="研究股票、制作图文复盘，查看分析任务和模型设置。" icon={<RobotOutlined />} />
       <Tabs
         activeKey={tab}
         onChange={(value) => { update({ tab: value, aiTask: '' }); }}
@@ -73,7 +62,7 @@ function Workspace({ ownerId }: { ownerId: number }) {
         ]}
       />
       {(tab === 'stocks' || tab === 'review') && (
-      <Space wrap size={12}>
+      <Space className="ai-date-toolbar" wrap size={12}>
         <SelectField label="研究日期"><DatePicker aria-label="AI 研究日期" value={date ? dayjs(date) : null} allowClear={false} onChange={(value) => { if (value) update({ date: value.format('YYYY-MM-DD'), aiTask: '' }); }} /></SelectField>
         <Link href={`/review/?date=${date}`}>查看本日复盘记录</Link>
       </Space>
@@ -82,7 +71,27 @@ function Workspace({ ownerId }: { ownerId: number }) {
       {tab === 'stocks' && date && (
       <>
         {searchError && <Alert type="error" message={searchError} />}
-        <AnalysisPanel key={date} ownerId={ownerId} skill="candidate-compare" date={date} candidates={candidates} onSearch={setSearch} />
+        <Card title="从策略候选开始研究" className="ai-research-entry">
+          <p>股票对比使用所选策略、筛选条件和交易日期。先在策略选股中选出候选，再开启智能对比。</p>
+          <ol className="ai-research-steps">
+            <li>
+              <strong>选择策略与日期</strong>
+              <span>沿用策略页的筛选条件和候选范围。</span>
+            </li>
+            <li>
+              <strong>对比 1 至 3 只股票</strong>
+              <span>点击智能对比，填写研究重点并开始分析。</span>
+            </li>
+            <li>
+              <strong>查看结果与追问</strong>
+              <span>任务记录中可核对结论、复制结果并继续追问。</span>
+            </li>
+          </ol>
+          <Space wrap>
+            <Button type="primary" href={`/strategy/?date=${date}`}>前往策略选股</Button>
+            <Button onClick={() => { update({ tab: 'history', aiTask: '' }); }}>查看研究任务</Button>
+          </Space>
+        </Card>
       </>
       )}
       {tab === 'review' && date && <Notebook key={date} mode="publish" date={date} onDirty={setDirty} />}
@@ -90,16 +99,26 @@ function Workspace({ ownerId }: { ownerId: number }) {
       <>
         {searchError && <Alert type="error" message={searchError} />}
         {context?.error && <Alert type="error" message={context.error} />}
-        <Space wrap>
-          <Button onClick={() => context?.refresh().catch(() => {})}>刷新任务记录</Button>
-          <span className="review-caption">离开本页后，已提交任务会继续执行。</span>
-        </Space>
-        <div className="personal-ai-task-list">
-          {(context?.state?.tasks || []).map((task) => <Button key={task.id} block onClick={() => { update({ tab: 'history', aiTask: task.id, date: task.date }); }}>{`${task.date} ${task.skill === 'market-review' ? '图文复盘' : '股票研究'}：${statusNames[task.status] || task.status}`}</Button>)}
-          {context?.state && !context.state.tasks.length && <p>暂无任务记录。</p>}
-        </div>
-        {selected?.skill === 'market-review' && selected.answer && <Button onClick={() => { update({ tab: 'review', date: selected.date, aiTask: selected.id }); }}>核对并应用到图文</Button>}
-        {selected && <AnalysisPanel key={selected.id} ownerId={ownerId} skill={selected.skill} date={selected.date} strategy={selected.strategy} candidates={selected.codes.map((code) => ({ code }))} initialTaskId={selected.id} />}
+        <TaskHistory tasks={context?.state?.tasks || []} loading={!context?.state && !context?.error} selectedId={taskId} onRefresh={() => context?.refresh() || Promise.resolve()} onSelect={(task) => { update({ tab: 'history', aiTask: task.id, date: task.date }); }} />
+        <Drawer
+          className="admin-drawer ai-task-drawer"
+          title="AI 任务详情"
+          width="min(1040px, 100vw)"
+          open={!!taskId}
+          onClose={() => { update({ aiTask: '' }); }}
+          footer={(
+            <div className="admin-overlay-footer">
+              <span className="personal-ai-caption">查看记录不会发起新的分析。</span>
+              <Button onClick={() => { update({ aiTask: '' }); }}>关闭</Button>
+            </div>
+)}
+        >
+          <div className="admin-overlay-stack">
+            {!selected && <p role="status">{searchError || '正在读取任务详情…'}</p>}
+            {selected?.skill === 'market-review' && selected.answer && <Button type="primary" onClick={() => { update({ tab: 'review', date: selected.date, aiTask: selected.id }); }}>核对并应用到图文</Button>}
+            {selected && <AnalysisPanel key={selected.id} ownerId={ownerId} skill={selected.skill} date={selected.date} strategy={selected.strategy} candidates={selected.codes.map((code) => ({ code }))} initialTaskId={selected.id} />}
+          </div>
+        </Drawer>
       </>
       )}
       {tab === 'settings' && <Settings ownerId={ownerId} />}

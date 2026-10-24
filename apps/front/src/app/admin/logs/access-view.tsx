@@ -86,20 +86,32 @@ export function AccessDetail({ row, slowMs, related }: {
       <Alert showIcon type={accessAlertType(row.statusCode)} message={accessStatus(row)} description={accessGuidance(row.statusCode)} />
       <Descriptions
         bordered
-        column={1}
+        column={{ xs: 1, sm: 1, md: 2 }}
         size="small"
         items={[
           { key: 'time', label: '时间（北京）', children: beijingTime(row.timestamp) },
           { key: 'user', label: '访问用户', children: accessUser(row) },
           { key: 'userId', label: '用户编号', children: row.userId || '—' },
-          { key: 'path', label: '接口', children: `${row.method} ${row.path}` },
-          { key: 'route', label: '接口模板', children: row.route },
+          {
+            key: 'path', span: 2, label: '接口', children: `${row.method} ${row.path}`,
+          },
+          {
+            key: 'route', span: 2, label: '接口模板', children: row.route,
+          },
           { key: 'duration', label: '响应耗时', children: `${durationText(row.durationMs)}${row.durationMs >= slowMs ? '（慢请求）' : ''}` },
-          { key: 'error', label: '异常说明', children: row.errorMessage || '—' },
+          {
+            key: 'error', span: 2, label: '异常说明', children: row.errorMessage || '—',
+          },
           { key: 'ip', label: '来源 IP', children: row.ip || '—' },
-          { key: 'ipSource', label: 'IP 依据', children: row.ipSource === 'trusted-proxy' ? '可信代理转发的客户端地址' : '连接地址；经过代理时可能为代理 IP' },
-          { key: 'agent', label: '客户端', children: row.userAgent || '—' },
-          { key: 'id', label: '请求编号', children: <Typography.Text copyable>{row.requestId}</Typography.Text> },
+          {
+            key: 'ipSource', span: 2, label: 'IP 依据', children: row.ipSource === 'trusted-proxy' ? '可信代理转发的客户端地址' : '连接地址；经过代理时可能为代理 IP',
+          },
+          {
+            key: 'agent', span: 2, label: '客户端', children: row.userAgent || '—',
+          },
+          {
+            key: 'id', span: 2, label: '请求编号', children: <Typography.Text copyable>{row.requestId}</Typography.Text>,
+          },
         ]}
       />
       <Typography.Title level={4} className="logs-detail-heading">继续排查</Typography.Title>

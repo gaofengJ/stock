@@ -72,7 +72,7 @@ export default function BusinessAction({
           </Button>
         </section>
       )}
-      <Drawer className="personal-ai-drawer" title={title} open={open} onClose={() => setOpen(false)} width={760} styles={{ wrapper: { maxWidth: '100vw' } }}>
+      <Drawer className="personal-ai-drawer" title={title} open={open} onClose={() => setOpen(false)} footer={<Button onClick={() => setOpen(false)}>关闭</Button>} width="min(1040px, 100vw)" styles={{ wrapper: { maxWidth: '100vw' } }}>
         {context && <AnalysisPanel key={JSON.stringify([context.date, context.strategy, context.codes, context.taskId])} initialCodes={context.codes} initialTaskId={context.taskId} canApplySections={canApplySections} ownerId={user!.id} skill={skill} date={context.date} candidates={context.candidates} strategy={context.strategy} beforeStart={beforeStart} onComplete={onComplete} />}
       </Drawer>
     </>
