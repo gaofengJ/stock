@@ -22,10 +22,15 @@ if(!['127.0.0.1','localhost'].includes(new URL(base).hostname))throw Error('Loca
   await page.waitForURL('**/strategy/**');assert.equal(new URL(page.url()).searchParams.get('date'),'2026-10-22');
   assert.equal(await page.getByRole('checkbox',{name:'对比测试股份',exact:true}).count(),0);
   assert.equal(state.requests.filter(r=>r.path.startsWith('/personal-ai/')).length,0);
+  // Wait for strategy initialization before editing its date; URL navigation
+  // alone can complete before the initial strategy query has been committed.
+  await page.locator('.strategy-page .stock-identity-name').filter({hasText:'测试股份'}).first().waitFor();
   const strategyDate=page.getByRole('textbox',{name:'交易日期',exact:true});
   await strategyDate.click();
   await page.locator(`.ant-picker-dropdown:not(.ant-picker-dropdown-hidden) [title="${date}"]`).click();
   await page.waitForURL(url=>url.searchParams.get('date')===date);
+  // Native History updates the URL before React commits the selected date.
+  await page.locator('.strategy-environment .strategy-caption').getByText(date,{exact:true}).waitFor();
   await page.getByRole('menuitem',{name:'每日复盘',exact:true}).click();
   await page.waitForURL('**/review/**');
   const note=page.locator('#note-marketJudgment');await note.fill('未保存的原文，需要恢复');
@@ -36,7 +41,9 @@ if(!['127.0.0.1','localhost'].includes(new URL(base).hostname))throw Error('Loca
   assert.equal(state.requests.filter(r=>r.path.startsWith('/personal-ai/')).length,0);
   await page.getByRole('menuitem',{name:'每日复盘',exact:true}).click();
   await note.waitFor();await page.waitForFunction(()=>document.querySelector('#note-marketJudgment')?.value==='未保存的原文，需要恢复');
+  const savedResponse=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/review/notebook'&&response.request().method()==='POST');
   await page.getByRole('button',{name:'保存复盘',exact:true}).click();
+  await savedResponse;
   await page.waitForFunction(()=>document.querySelector('[aria-label="保存复盘"]')?.disabled);
   const savedBeforeAi = state.writes.length;
   await page.getByRole('link',{name:'图文制作与 AI 辅助',exact:true}).click();
