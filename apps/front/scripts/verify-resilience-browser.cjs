@@ -11,7 +11,7 @@ if (!['127.0.0.1', 'localhost'].includes(new URL(base).hostname)) throw new Erro
 const output = process.env.TEST_ARTIFACT_DIR || '/tmp/stock-frontend-resilience';
 fs.mkdirSync(output, { recursive: true });
 const date = '2026-10-12';
-const routes = ['/review', '/news', '/analysis/chains', '/analysis/overview', '/strategy', '/basic/stock'];
+const routes = ['/review', '/news', '/analysis/chains', '/analysis/overview', '/strategy', '/basic/stock', '/basic/active-funds'];
 const account = { id: 91, username: 'fixture', nickname: '测试账户', roles: [{ id: 1, code: 'admin', name: '管理员' }], permissions: routes, catalog: routes.map(route => ({ code: route, route, name: route, group: 'fixture' })), mustChangePassword: false };
 const ok = (route, data) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ code: 0, data }) });
 const wait = async (predicate, label) => { for (let i = 0; i < 200; i++) { if (predicate()) return; await new Promise(resolve => setTimeout(resolve, 50)); } throw new Error(`Timed out: ${label}`); };
@@ -159,9 +159,54 @@ async function requestScopeTest(browser) {
   console.log('PASS market: concurrent main/detail refresh and detail dismissal never abort the main request');
 }
 
+async function fundsLayoutTest(browser) {
+  const context = await mockContext(browser, async (route, url) => {
+    if (url.pathname !== '/api/basic/active-funds/list') return false;
+    await ok(route, Array.from({ length: 121 }, (_, i) => ({
+      name: `布局验收${i + 1}`, orgs: ['长名称营业部'.repeat(10), '第二个席位'], desc: '单行简介布局验收。'.repeat(30),
+    })));
+    return true;
+  });
+  const page = await context.newPage();
+  for (const [width, height] of [[1280, 720], [1920, 1080], [390, 844]]) {
+    await page.setViewportSize({ width, height });
+    await page.goto(`${base}/basic/active-funds/`, { waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: '布局验收1', exact: true }).waitFor();
+    await page.waitForFunction(() => {
+      const panel = document.querySelector('.active-funds-page');
+      const pagination = panel?.querySelector('.ant-pagination');
+      return pagination && pagination.getBoundingClientRect().bottom <= panel.getBoundingClientRect().bottom;
+    });
+    const layout = await page.evaluate(() => {
+      const panel = document.querySelector('.active-funds-page');
+      const summary = panel.querySelector('.active-funds-summary');
+      const content = document.querySelector('.platform-content');
+      return {
+        gap: innerHeight - panel.getBoundingClientRect().bottom,
+        rows: [...panel.querySelectorAll('.ant-table-row')].map(row => row.getBoundingClientRect().height),
+        ellipsis: getComputedStyle(summary).textOverflow,
+        whiteSpace: getComputedStyle(summary).whiteSpace,
+        clipped: summary.scrollWidth > summary.clientWidth,
+        overflow: content.scrollHeight - content.clientHeight,
+        horizontalOverflow: document.documentElement.scrollWidth - innerWidth,
+      };
+    });
+    assert(layout.rows.length > 0 && layout.rows.every(height => height <= 45), JSON.stringify(layout));
+    assert.equal(layout.ellipsis, 'ellipsis'); assert.equal(layout.whiteSpace, 'nowrap'); assert(layout.clipped);
+    assert(Math.abs(layout.gap - (width < 768 ? 8 : 16)) <= 2, JSON.stringify(layout));
+    assert(layout.overflow <= 2 && layout.horizontalOverflow <= 2, JSON.stringify(layout));
+    await page.screenshot({ path: path.join(output, `funds-compact-${width}.png`), fullPage: false });
+  }
+  await page.getByRole('button', { name: '详情', exact: true }).first().click();
+  await page.getByRole('heading', { name: '简介', exact: true }).waitFor();
+  assert.equal(await page.locator('.active-funds-biography').textContent(), '单行简介布局验收。'.repeat(30));
+  await context.close();
+  console.log('PASS funds: compact single-line rows, full details and aligned pagination at desktop and mobile widths');
+}
+
 (async () => {
   const browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_EXECUTABLE ? { executablePath: process.env.CHROMIUM_EXECUTABLE } : {}) });
-  try { await notebookTest(browser); await focusTest(browser); await requestScopeTest(browser); }
+  try { await notebookTest(browser); await focusTest(browser); await requestScopeTest(browser); await fundsLayoutTest(browser); }
   catch (error) {
     for (const context of browser.contexts()) for (const page of context.pages()) {
       await page.screenshot({ path: path.join(output, 'resilience-failure.png'), timeout: 5000 }).catch(() => {});
