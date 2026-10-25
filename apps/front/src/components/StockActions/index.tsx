@@ -78,7 +78,7 @@ export default function StockActions({
             </span>
           </Tooltip>
           <CollectButton
-            label="加入本日观察"
+            label="收录到当日复盘"
             className="stock-action-item"
             type="text"
             icon={<PlusOutlined />}
