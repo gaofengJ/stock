@@ -39,6 +39,7 @@ export default function BusinessAction({
       {compact ? (
         <Button
           type="primary"
+          aria-label={title}
           icon={<RobotOutlined />}
           disabled={!!unavailable}
           onClick={() => {
@@ -61,6 +62,7 @@ export default function BusinessAction({
           </div>
           <Button
             type="primary"
+            aria-label={title}
             icon={<RobotOutlined />}
             disabled={!!unavailable}
             onClick={() => {
