@@ -1,14 +1,12 @@
 'use client';
 
-import useLegacyTaskLink from '@/components/PersonalAi/useLegacyTaskLink';
-
 /* eslint jsx-a11y/label-has-associated-control: ["error", { "assert": "htmlFor" }] */
 
 import { useSearchParams } from 'next/navigation';
 import { mayLeaveResearch } from '@/utils/research-navigation';
 import { useEffect, useRef, useState } from 'react';
 import {
-  Alert, Button, Card, Collapse, DatePicker, Input, Modal, Select, Space, Tag, Tooltip,
+  Alert, Button, Card, Collapse, DatePicker, Input, Modal, Select, Space, Tabs, Tag, Tooltip,
 } from 'antd';
 import dayjs from 'dayjs';
 import SelectField from '@/components/SelectField';
@@ -19,6 +17,7 @@ import Table from '@/components/DataTable';
 import request from '@/api/request';
 import { errorMessage } from '@/api/errors';
 import { useAccount } from '@/auth/Boundary';
+import { isPersonalAiOwner } from '@/auth/client';
 import { useDefaultTradeDate } from '@/hooks/useDefaultTradeDate';
 import { numberText, scaledNumber, beijingTime } from '@/utils/format';
 import { WatchDraft } from './workspace-contract';
@@ -569,16 +568,16 @@ function Report({
 }
 
 export default function Page() {
-  useLegacyTaskLink();
   const fallback = useDefaultTradeDate();
   const { user } = useAccount();
   const params = useSearchParams();
   const [, setNotebookDirty] = useState(false);
   const chosenDate = params.get('date') || '';
+  const publishing = isPersonalAiOwner(user) && (params.get('view') === 'article' || !!params.get('aiTask'));
   const changeDate = async (value: string) => {
     if (!await mayLeaveResearch()) return;
     setNotebookDirty(false);
-    const url = new URL(window.location.href); url.searchParams.set('date', value);
+    const url = new URL(window.location.href); url.searchParams.set('date', value); url.searchParams.delete('aiTask');
     window.history.pushState(null, '', url);
   };
   const defaultDate = fallback.ready ? fallback.tradeDate : '';
@@ -588,15 +587,16 @@ export default function Page() {
     <Layout showAsideMenu={false} headerMenuActive={EHeaderMenuKey.review}>
       <main className="review-page rounded-[6px] bg-bg-white">
         <h1 className="page-heading">每日复盘</h1>
-        <p className="review-intro">记录市场判断、观察股票与当日总结，保存后可跨设备继续。</p>
+        <p className="review-intro">记录当日观察，结合市场数据整理图文复盘。</p>
         <Space className="mb-16" wrap>
           <span>复盘交易日期</span>
           <DatePicker aria-label="复盘交易日期" value={date ? dayjs(date) : null} allowClear={false} onChange={(v) => { if (v) changeDate(v.format('YYYY-MM-DD')); }} />
           <span className="review-caption">切换日期会恢复该日草稿</span>
         </Space>
+        {isPersonalAiOwner(user) && <Tabs activeKey={publishing ? 'article' : 'notes'} items={[{ key: 'notes', label: '复盘记录' }, { key: 'article', label: '图文复盘' }]} onChange={(view) => { const url = new URL(window.location.href); url.searchParams.set('view', view); url.searchParams.delete('aiTask'); window.history.pushState(null, '', url); }} />}
         {fallback.error && <Alert type="error" message={fallback.error} action={<Button onClick={fallback.retry}>重试</Button>} />}
         {date && user && (user.roles.some((r) => r.code === 'admin') && !user.guest
-          ? <Notebook key={`${user.id}:${date}`} date={date} onDirty={setNotebookDirty} renderTools={(capture, onSelection, generation, refresh, savedDraft, onDraft) => <Report simple key={generation} date={date} account={user.id} capture={capture} onSelection={onSelection} generation={generation} refresh={refresh} savedDraft={savedDraft} onDraft={onDraft} />} />
+          ? <Notebook key={`${user.id}:${date}`} mode={publishing ? 'publish' : 'record'} date={date} onDirty={setNotebookDirty} renderTools={(capture, onSelection, generation, refresh, savedDraft, onDraft) => <Report simple key={generation} date={date} account={user.id} capture={capture} onSelection={onSelection} generation={generation} refresh={refresh} savedDraft={savedDraft} onDraft={onDraft} />} />
           : <Report key={`${user.id}:${date}`} date={date} account={user.id} />)}
       </main>
     </Layout>

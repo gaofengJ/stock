@@ -4,8 +4,8 @@ const stock = {tsCode:'000001.SZ',name:'测试股份',capState:'within',close:12
 const owner = {id:1,username:'fixture',nickname:'交互验证',roles:[{code:'admin'}],permissions:['review','strategy','news','market'],catalog:[{route:'/review',code:'review',group:'复盘'},{route:'/strategy',code:'strategy',group:'策略'},{route:'/news',code:'news',group:'资讯'},{route:'/analysis',code:'market',group:'市场'}]};
 const privateKeys=['dataState','yesterday','marketFacts','marketJudgment','themes','execution','candidates','normalPlan','strongPlan','weakPlan','lesson','toolEvidence','holdingEvidence'];
 const publicKeys=['title','summary','market','themes','watch','lesson','sources'];
-const answer=['市场概览','情绪指标','连板分析','20日板块轮动','涨停板复盘'].map(h=>`### ${h}\n\n测试分析：${h}，请核验证据。`).join('\n\n');
-const history={id:'fixture-history',skill:'market-review',date,codes:[],message:'测试历史结果',answer,status:'completed',historyTurns:0,createdAt:'2026-10-23T10:00:00Z',model:'gpt-6.1-sol',effort:'high',skillVersion:'v3',contextSummary:{strategy:'市场复盘',stocks:[],gaps:[],limitations:[],sources:[]}};
+const answer=['核心判断','市场与情绪','主线与梯队','板块多周期对照','后续验证'].map(h=>`### ${h}\n\n测试分析：${h}，请核验证据。`).join('\n\n');
+const history={id:'fixture-history',skill:'market-review',date,codes:[],message:'测试历史结果',answer,status:'completed',historyTurns:0,createdAt:'2026-10-23T10:00:00Z',model:'gpt-6.1-sol',effort:'high',skillVersion:'v4',contextSummary:{strategy:'市场复盘',stocks:[],gaps:[],limitations:[],sources:[]}};
 const summary={strategy:{name:'市场、情绪、板块与涨停题材'},stocks:[],gaps:[],limitations:[],sources:['market','breadth','sentiment','feedback','sectors20','themes'].map(name=>({name,state:'ready',ms:1}))};
 function createFixture() {
  const state={writes:[],submissions:[],tasks:[{...history}],previewDelay:0,marketDelay:0,revision:3,content:{private:Object.fromEntries(privateKeys.map(k=>[k,k==='marketJudgment'?'服务器原文':''])),public:Object.fromEntries(publicKeys.map(k=>[k,''])),article:{body:'# 服务器已存正文\n\n请保留此版本',images:[],feishuUrl:''}},requests:[]};

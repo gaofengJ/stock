@@ -89,6 +89,7 @@ export function strategyCaption(strategy: StrategyContext) {
 }
 
 export function taskHref(task: Task) {
+  if (task.skill === 'market-review') return `/review/?${new URLSearchParams({ view: 'article', date: task.date, aiTask: task.id })}`;
   const query = new URLSearchParams({ tab: 'history', date: task.date, aiTask: task.id });
   return `/admin/ai/?${query}`;
 }

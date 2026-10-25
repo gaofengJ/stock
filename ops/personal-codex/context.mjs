@@ -128,6 +128,18 @@ export async function candidateSnapshot(task, read) {
     sources,fetchMs:Date.now()-started};
 }
 
+// A bounded union avoids hiding newly strong industries behind a 20-day ranking.
+export function reviewSectors(items, date) {
+  const rows = (items || []).filter(r => r.asOf === date);
+  const ranked = key => rows.filter(r => num(r[key]) !== null).sort((a,b) => Number(b[key])-Number(a[key]) || String(a.code).localeCompare(String(b.code)));
+  const selected = new Map();
+  const add = (row, reason) => { if (!row) return; const prior = selected.get(row.code); if (prior) prior.selectedFor.push(reason); else selected.set(row.code, {...pick(row,['code','name','day','five','twenty','upRatio','limitUp','maxHeight','asOf']), selectedFor:[reason]}); };
+  for (const [key, label] of [['day','当日领先'],['five','5日领先'],['twenty','20日领先']]) ranked(key).slice(0,2).forEach(r => add(r,label));
+  add(ranked('twenty').slice(0,10).filter(r => num(r.day)!==null && Number(r.day)<0).sort((a,b)=>Number(a.day)-Number(b.day))[0], '中期强势当日回落');
+  add(ranked('day').at(-1), '当日落后对照');
+  return [...selected.values()].slice(0,8);
+}
+
 export async function reviewSnapshot(task, read) {
   const date = task.date, started = Date.now(), sources = [], gaps = [];
   const get = async (name, endpoint, extra = {}) => {
@@ -149,18 +161,20 @@ export async function reviewSnapshot(task, read) {
   const dayRows = rows => (rows || []).filter(r => r.date <= date).slice(-5);
   const ranks = dayRows(sectors?.rotation);
   const sectorRows = [...(sectors?.items || [])].filter(r => r.asOf === date && num(r.twenty) !== null).sort((a,b) => b.twenty-a.twenty).slice(0,12);
+  const multiPeriod = reviewSectors(sectors?.items, date);
   const unavailable = [!breadth?.snapshot && '均线广度尚未就绪', !feedback?.ready && '昨日强势股反馈尚未就绪', !sectorRows.length && '20日板块排行尚未就绪', !themes?.ready && '涨停题材尚未就绪'].filter(Boolean);
   gaps.push(...unavailable);
-  return { version: 'review/v3', date, fetchedAt: new Date().toISOString(),
+  return { version: 'review/v4', date, fetchedAt: new Date().toISOString(),
     market: { snapshot: overview.snapshot, previousAmount:overview.previousAmount ?? null, fiveDayAmount:overview.fiveDayAmount ?? null, twentyDayAmount:overview.twentyDayAmount ?? null, recent: dayRows(overview.series).map(r => ({date:r.date, ...pick(r.data, ['amount','up','down','flat','total'])})) },
     indexes: compactIndexes(overview,date), breadth: breadth?.snapshot || null,
     sentiment: { snapshot: sentiment.snapshot, recent: dayRows(sentiment.series).map(r => ({date:r.date,...pick(r.data,['limitUp','limitDown','broken','maxHeight','sealRate','upgrades'])})) },
     feedback: feedback?.ready ? { previousDate: feedback.previousDate, groups: (feedback.groups || []).map(g => pick(g,['name','ready','sample','average','riseRate'])) } : null,
+    sectors: { scope:'行业收盘涨幅，当日、5交易日、20交易日；精选样本不是全市场', total:(sectors?.items || []).filter(r=>r.asOf===date).length, items:multiPeriod },
     sectors20: { period:20, scope:'全市场行业，按20日涨幅排名；排名是相对位置，不等同资金净流入', total:sectors?.items?.length || 0,
       items:sectorRows.map(r => ({ ...pick(r,['name','day','five','twenty','upRatio','limitUp','maxHeight','asOf']), ranks:ranks.map(day => ({ date:day.date, rank:day.values.find(v=>v.code===r.code)?.rank ?? null, total:day.total })) })) },
     themes: themes?.ready ? { total:themes.total, classified:themes.classified, groups:(themes.groups || []).slice(0,12).map(g=>({name:g.name,count:g.count,maxHeight:g.maxHeight,names:(g.items || []).slice(0,4).map(r=>r.name)})) } : null,
     total:0,included:0,omitted:0,items:[],
     units:{amount:'市场成交额单位亿元',percent:'涨幅、广度、封板率、晋级率单位%；必须区分各自有效样本分母'},
-    gaps, limitations:['只使用截止复盘日的数据；空值不代表0','不读取个人持仓或私人笔记；用户记录和策略名单由页面按原文合并','行业排行仅列20日最强12个；涨停题材列前12组，不可当作全部市场'],
+    gaps, limitations:['只使用截止复盘日的数据；空值不代表0','不读取个人持仓或私人笔记；用户记录和策略名单由页面按原文合并','行业精选最多8个，覆盖三周期领先与回落对照；涨停题材列前12组，不可当作全部市场','行业与涨停题材属于不同分类，没有成分对应证据时不得直接等同；排名变化不代表资金流入'],
     sources, fetchMs:Date.now()-started };
 }

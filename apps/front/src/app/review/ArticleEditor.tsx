@@ -29,11 +29,11 @@ function download(name: string, text: string, type: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export default function ArticleEditor({
-  date, revision, content, disabled, dirty, saving, onSave, generation = 0, previewDisabled = false, onChange, onMaterials, onStatus: reportStatus, prepareImages, openRequest = 0,
+  date, revision, content, disabled, dirty, onSave, generation = 0, previewDisabled = false, onChange, onMaterials, onStatus: reportStatus, prepareImages, openRequest = 0,
 }: {
   prepareImages: PrepareAnalysis; openRequest?: number;
   date: string; revision: number; generation?: number; content: NotebookContent; disabled: boolean; dirty: boolean;
-  saving: boolean; onSave: () => Promise<SavedNotebook | null>;
+  onSave: () => Promise<SavedNotebook | null>;
   previewDisabled?: boolean;
   onMaterials: (materials: Materials) => void; onChange: (article: Article) => void; onStatus: (text: string) => void;
 }) {
@@ -206,7 +206,7 @@ export default function ArticleEditor({
             date={date}
             disabled={disabled || pending || handoffBusy}
             beforeStart={prepareImages}
-            canApplySections={!!article.composition}
+            canApplySections={!!article.composition && /^### 核心判断\s*$/m.test(article.composition.answer)}
             onComplete={(task: Task, selectedSection?: string) => {
               if (task.date !== context.current.date) throw Error('日期已切换，结果保留在分析记录中。');
               const latest = currentContent.current;
@@ -223,39 +223,45 @@ export default function ArticleEditor({
             }}
           />
 
-          <Button
-            aria-label="准备 Codex 任务"
-            aria-busy={handoffBusy}
-            loading={handoffBusy}
-            disabled={disabled || pending}
-            onClick={async () => {
-              if (handoffLock.current) return;
-              handoffLock.current = true; setHandoffBusy(true); setNotice(''); setHandoffNotice('正在生成任务');
-              try {
-                const saved = dirty || !revision ? await onSave() : {
-                  date, revision, generation, content: { ...content, article },
-                };
-                if (!saved) { setHandoffNotice('尚未完成保存，请检查页面提示后重试。新的修改会继续保留。'); return; }
-                const packet = reviewPacket(saved.date, saved.revision, saved.content, window.location.origin, saved.generation);
-                const prompt = `使用 $stock-review-feishu 生成 ${saved.date} 的飞书图文复盘。网站：${window.location.origin}/review/?date=${saved.date}，保存版本 ${saved.revision}。使用随任务附上的图文资料包（stock-review/v2）；如未附上，请先索取资料包。保留资料包 userNotes 的非空原文，并另外写 AI 独立分析，空白不能当作空仓或无交易。标题默认 ${saved.content.public.title || `${saved.date}复盘`}；优先使用已有平台图片；缺少市场概览、情绪指标、连板分析、20日板块轮动或全部涨停长图时，按资料链接补取五张暗色长图，不重复取已有图片。开头声明本文由AI生成，仅供参考。市场数据下依次设置市场概览、情绪指标、连板分析、20日板块轮动四个子节，各写简要解读；不设置独立的板块轮动大章。策略选股只列股票名和策略标签；闲聊默认空白；二级标题之间留空行；不单列明日计划。正常目标10分钟，20分钟硬停止并保留可续接进度。已有 ${saved.content.article?.images.length || 0} 张图片，仅在缺少必需图片时按 materials.links 补取，最终必须嵌入真实图片。完成后用同日期和版本的结果包通过“导入 Codex 结果”选择结果包回填，再保存记录。不得覆盖用户原文。执行记录授权：${saved.content.materials?.includeExecution ? '仅限私人飞书文档' : '未包含，不读取'}。本次任务由 Codex 执行并生成飞书云文档。\n\n用户记录：\n${JSON.stringify(packet.userNotes)}\n\n图片来源：\n${JSON.stringify(packet.materials.links)}`;
-                download(`${saved.date}-review-v${saved.revision}.json`, JSON.stringify(packet, null, 2), 'application/json');
-                const copied = await copyText(prompt);
-                const message = copied ? '任务已复制，资料包已发起下载。请在 Codex 粘贴任务并附上资料包后发送。' : '资料包已发起下载，任务未能自动复制。请在弹窗中复制，并将资料包一同交给 Codex。';
-                setHandoffNotice(message); reportStatus(message);
-                setManualTask(prompt);
-              } catch (e) { setHandoffNotice(`任务生成失败：${(e as Error).message}`); } finally { handoffLock.current = false; setHandoffBusy(false); }
-            }}
-          >
-            准备 Codex 任务
-          </Button>
-          <Button disabled={disabled || pending || handoffBusy || !revision} onClick={() => { setError(''); setImportOpen(true); }}>导入 Codex 结果</Button>
           <Button disabled={previewDisabled || handoffBusy} onClick={() => { setCopyNotice(''); setPreview(true); }}>预览</Button>
-          <Button aria-label="保存" aria-busy={saving} disabled={disabled || !dirty || pending || handoffBusy} loading={saving} onClick={() => onSave()}>保存</Button>
           {article.feishuUrl && <a href={article.feishuUrl} target="_blank" rel="noopener noreferrer">打开飞书文档</a>}
         </Space>
+        <Collapse items={[{
+          key: 'external',
+          label: '使用 Codex 生成飞书文档（可选）',
+          children: <Space wrap size={12}>
+            <Button
+              aria-label="准备 Codex 任务"
+              aria-busy={handoffBusy}
+              loading={handoffBusy}
+              disabled={disabled || pending}
+              onClick={async () => {
+                if (handoffLock.current) return;
+                handoffLock.current = true; setHandoffBusy(true); setNotice(''); setHandoffNotice('正在生成任务');
+                try {
+                  const saved = dirty || !revision ? await onSave() : {
+                    date, revision, generation, content: { ...content, article },
+                  };
+                  if (!saved) { setHandoffNotice('尚未完成保存，请检查页面提示后重试。新的修改会继续保留。'); return; }
+                  const packet = reviewPacket(saved.date, saved.revision, saved.content, window.location.origin, saved.generation);
+                  const prompt = `使用 $stock-review-feishu 生成 ${saved.date} 的飞书图文复盘。网站：${window.location.origin}/review/?date=${saved.date}，保存版本 ${saved.revision}。使用随任务附上的图文资料包（stock-review/v2）；如未附上，请先索取资料包。保留资料包 userNotes 的非空原文，并另外写 AI 独立分析，空白不能当作空仓或无交易。标题默认 ${saved.content.public.title || `${saved.date}复盘`}；优先使用已有平台图片；缺少市场概览、情绪指标、连板分析、20日板块轮动或全部涨停长图时，按资料链接补取五张暗色长图，不重复取已有图片。开头声明本文由AI生成，仅供参考。正文依次为核心判断、市场与情绪、主线与梯队、板块多周期对照、后续验证。以关联证据组织分析；板块从当日、5日、20日领先及分歧方向选3至5个，在一张表并列比较三个周期，缺值注明缺失，不堆三套榜单。先文字后相关配图，20日轮动图只作中期背景。策略选股只列股票名和策略标签；闲聊默认空白；二级标题之间留空行；不单列明日计划。正常目标10分钟，20分钟硬停止并保留可续接进度。已有 ${saved.content.article?.images.length || 0} 张图片，仅在缺少必需图片时按 materials.links 补取，最终必须嵌入真实图片。完成后用同日期和版本的结果包通过“导入 Codex 结果”选择结果包回填，再保存记录。不得覆盖用户原文。执行记录授权：${saved.content.materials?.includeExecution ? '仅限私人飞书文档' : '未包含，不读取'}。本次任务由 Codex 执行并生成飞书云文档。\n\n用户记录：\n${JSON.stringify(packet.userNotes)}\n\n图片来源：\n${JSON.stringify(packet.materials.links)}`;
+                  download(`${saved.date}-review-v${saved.revision}.json`, JSON.stringify(packet, null, 2), 'application/json');
+                  const copied = await copyText(prompt);
+                  const message = copied ? '任务已复制，资料包已发起下载。请在 Codex 粘贴任务并附上资料包后发送。' : '资料包已发起下载，任务未能自动复制。请在弹窗中复制，并将资料包一同交给 Codex。';
+                  setHandoffNotice(message); reportStatus(message);
+                  setManualTask(prompt);
+                } catch (e) { setHandoffNotice(`任务生成失败：${(e as Error).message}`); } finally { handoffLock.current = false; setHandoffBusy(false); }
+              }}
+            >
+              准备 Codex 任务
+            </Button>
+            <Button disabled={disabled || pending || handoffBusy || !revision} onClick={() => { setError(''); setImportOpen(true); }}>导入 Codex 结果</Button>
+          </Space>,
+        }]}
+        />
         {handoffNotice && <Alert type="info" message={<span role="status">{handoffNotice}</span>} />}
         {!!article.body && !article.composition && <Alert type="warning" message="此正文来自旧版本或外部导入，修改个人记录后请核对正文再复制" action={<Button onClick={() => { const answer = nativeAnswer(article.body); if (answer) setProposal({ answer, taskId: 'legacy', body: reviewDocument(date, currentContent.current, answer) }); else setEditBody(true); }}>核对并同步原文</Button>} />}
-        {article.composition?.taskId && article.composition.taskId !== 'legacy' && <Link href={`/admin/ai/?tab=history&date=${date}&aiTask=${encodeURIComponent(article.composition.taskId)}`}>查看上次应用的 AI 结果</Link>}
+        {article.composition?.taskId && article.composition.taskId !== 'legacy' && <Link href={`/review/?view=article&date=${date}&aiTask=${encodeURIComponent(article.composition.taskId)}`}>查看上次应用的 AI 结果</Link>}
         {article.composition && article.composition.notesSignature !== notesSignature(content) && <Alert type="info" message="预览已同步最新原文，AI 分析保持不变；保存后同步服务器正文" />}
         {undo && (
         <Button onClick={() => {
@@ -354,7 +360,7 @@ export default function ArticleEditor({
           </Space>
 )}
       >
-        {!article.body.trim() && <Alert type="info" message="当前只包含记录与配图。点击“智能复盘”即可生成正文。" />}
+        {!article.body.trim() && <Alert type="info" message="当前只包含记录与配图。点击“生成复盘”即可生成正文。" />}
         <div className="notebook-copy-target">
           <label htmlFor="review-copy-target">粘贴到</label>
           <Select id="review-copy-target" value={target} disabled={copying} style={{ width: 160 }} options={Object.entries(targetNames).map(([value, label]) => ({ value, label }))} onChange={(value: ArticleTarget) => { setTarget(value); setCopyNotice(''); }} />

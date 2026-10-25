@@ -27,7 +27,7 @@ export default function TaskHistory({
     <section className="ai-history">
       <div className="ai-history-toolbar">
         <Input.Search aria-label="搜索 AI 任务" placeholder="搜索日期、股票或分析要求" value={keyword} allowClear onChange={(event) => { setKeyword(event.target.value); setPage(1); }} />
-        <SelectField label="任务类型"><Select value={skill} allowClear placeholder="全部" onChange={(value) => { setSkill(value); setPage(1); }} options={[{ value: 'candidate-compare', label: '股票研究' }, { value: 'market-review', label: '图文复盘' }]} /></SelectField>
+        <SelectField label="任务类型"><Select value={skill} allowClear placeholder="全部" onChange={(value) => { setSkill(value); setPage(1); }} options={[{ value: 'candidate-compare', label: '历史股票对比' }, { value: 'market-review', label: '图文复盘' }]} /></SelectField>
         <SelectField label="任务状态"><Select value={status} allowClear placeholder="全部" onChange={(value) => { setStatus(value); setPage(1); }} options={Object.entries(statusNames).map(([value, label]) => ({ value, label }))} /></SelectField>
         <Button loading={refreshing} onClick={async () => { setRefreshing(true); try { await onRefresh(); } catch { /* The task provider displays the request error. */ } finally { setRefreshing(false); } }}>刷新</Button>
       </div>
@@ -43,13 +43,13 @@ export default function TaskHistory({
         dataSource={rows}
         scroll={{ x: 920 }}
         rowClassName={(task) => (task.id === selectedId ? 'interaction-selected-row' : '')}
-        locale={{ emptyText: tasks.length ? '没有符合筛选条件的任务' : '暂无分析任务，可从股票研究或图文复盘开始。' }}
+        locale={{ emptyText: tasks.length ? '没有符合筛选条件的任务' : '暂无分析任务，请在每日复盘中生成图文。' }}
         pagination={{
           current: Math.min(page, Math.max(1, Math.ceil(rows.length / 10))), pageSize: 10, showSizeChanger: false, hideOnSinglePage: true, onChange: setPage, showTotal: (total) => `共 ${total} 条`,
         }}
         columns={[
           { title: '研究日期', dataIndex: 'date', width: 112 },
-          { title: '任务类型', width: 112, render: (_, task) => (task.skill === 'market-review' ? '图文复盘' : '股票研究') },
+          { title: '任务类型', width: 112, render: (_, task) => (task.skill === 'market-review' ? '图文复盘' : '历史股票对比') },
           {
             title: '分析内容',
             width: 300,

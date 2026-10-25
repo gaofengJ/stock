@@ -26,12 +26,13 @@ export default function BusinessAction({
       }); setOpen(true);
     }
   }, [taskId, date, skill, openRequest]);
+  const close = () => { setOpen(false); const url = new URL(window.location.href); url.searchParams.delete('aiTask'); window.history.replaceState(null, '', url); };
   if (!isPersonalAiOwner(user)) return null;
-  const title = skill === 'market-review' ? '智能复盘' : '智能对比';
+  const title = skill === 'market-review' ? '生成复盘' : '智能对比';
   let unavailable = disabled ? disabledReason || '当前数据尚未就绪，请稍后再试。' : '';
   if (!date) unavailable = '请先选择有效的交易日期。';
   const instructions = skill === 'market-review'
-    ? '选择复盘日期，点击智能复盘，在侧栏输入问题后开始分析。'
+    ? '确认复盘日期，可补充关注重点，然后开始生成。'
     : '选择策略和日期，点击智能对比，在侧栏选择1至3只股票后开始分析。';
   return (
     <>
@@ -72,7 +73,7 @@ export default function BusinessAction({
           </Button>
         </section>
       )}
-      <Drawer className="personal-ai-drawer" title={title} open={open} onClose={() => setOpen(false)} footer={<Button onClick={() => setOpen(false)}>关闭</Button>} width="min(1040px, 100vw)" styles={{ wrapper: { maxWidth: '100vw' } }}>
+      <Drawer className="personal-ai-drawer" title={title} open={open} onClose={close} footer={<Button onClick={close}>关闭</Button>} width="min(1040px, 100vw)" styles={{ wrapper: { maxWidth: '100vw' } }}>
         {context && <AnalysisPanel key={JSON.stringify([context.date, context.strategy, context.codes, context.taskId])} initialCodes={context.codes} initialTaskId={context.taskId} canApplySections={canApplySections} ownerId={user!.id} skill={skill} date={context.date} candidates={context.candidates} strategy={context.strategy} beforeStart={beforeStart} onComplete={onComplete} />}
       </Drawer>
     </>

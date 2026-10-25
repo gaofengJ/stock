@@ -145,39 +145,39 @@ export function validateResearch(input: unknown): Research {
   return { date, fetchedAt, sections };
 }
 export function illustratedText(body: string, images: ArticleImage[]) {
+  const connected = /^### 核心判断\s*$/m.test(body);
+  const slots: Record<string, string> = {
+    市场概览: '市场与情绪',
+    连板分析: '主线与梯队',
+    情绪指标: '附图：情绪与板块明细',
+    '20日板块轮动': '附图：情绪与板块明细',
+    涨停板复盘: '附图：情绪与板块明细',
+  };
   const blocks = body.split(/\n(?=#{2,3} )/);
   const inserted = new Set<string>();
+  const markup = (image: ArticleImage) =>
+    `![${image.caption.replace(/[[\]\n]/g, ' ')}](review-image:${image.id})`;
   const result = blocks.map((block) => {
     const heading = block.match(/^#{2,3} (.+)/)?.[1]?.trim() || '';
     const placed = images.filter(
-      (image) => image.after === heading && !inserted.has(image.id),
+      (image) =>
+        (connected ? slots[image.after] || image.after : image.after) ===
+          heading && !inserted.has(image.id),
     );
     placed.forEach((image) => inserted.add(image.id));
     const newline = block.indexOf('\n');
     const head = newline < 0 ? block : block.slice(0, newline);
     const tail = newline < 0 ? '' : block.slice(newline).trimStart();
-    return [
-      head,
-      ...placed.map(
-        (image) =>
-          `![${image.caption.replace(/[[\]\n]/g, ' ')}](review-image:${
-            image.id
-          })`,
-      ),
-      tail,
-    ]
+    return (
+      connected
+        ? [head, tail, ...placed.map(markup)]
+        : [head, ...placed.map(markup), tail]
+    )
       .filter(Boolean)
       .join('\n\n');
   });
   return [
     ...result,
-    ...images
-      .filter((image) => !inserted.has(image.id))
-      .map(
-        (image) =>
-          `![${image.caption.replace(/[[\]\n]/g, ' ')}](review-image:${
-            image.id
-          })`,
-      ),
+    ...images.filter((image) => !inserted.has(image.id)).map(markup),
   ].join('\n\n');
 }

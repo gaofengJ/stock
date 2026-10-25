@@ -1,44 +1,38 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Alert, Button, DatePicker, Drawer, Space, Tabs,
+  Alert, Button, Drawer, Tabs,
 } from 'antd';
 import { useAccount } from '@/auth/Boundary';
 import { isPersonalAiOwner } from '@/auth/client';
-import { useDefaultTradeDate } from '@/hooks/useDefaultTradeDate';
-import SelectField from '@/components/SelectField';
 import TaskState, { useAiTasks } from '@/components/PersonalAi/TaskState';
 import AnalysisPanel from '@/components/PersonalAi/AnalysisPanel';
 import { consoleRequest, Task } from '@/components/PersonalAi/client';
-import Notebook from '@/app/review/Notebook';
 import { mayLeaveResearch } from '@/utils/research-navigation';
-import dayjs from 'dayjs';
 import PageHeading from '@/auth/PageHeading';
 import { RobotOutlined } from '@ant-design/icons';
 import Settings from './Settings';
 import TaskHistory from './TaskHistory';
-import StockResearch from './StockResearch';
 import './workspace.css';
 import '@/components/PersonalAi/personal-ai.css';
 import '@/app/review/review.css';
 
-const tabs = ['stocks', 'review', 'history', 'settings'];
+const tabs = ['history', 'settings'];
 function Workspace({ ownerId }: { ownerId: number }) {
   const params = useSearchParams();
-  const fallback = useDefaultTradeDate();
+  const router = useRouter();
   const context = useAiTasks();
-  const [, setDirty] = useState(false);
-  const [researchStrategy, setResearchStrategy] = useState('');
   const [searchError, setSearchError] = useState('');
   const [selected, setSelected] = useState<Task | null>(null);
-  const requested = params?.get('tab') || (params?.get('aiTask') ? 'history' : 'stocks');
-  const tab = tabs.includes(requested) ? requested : 'stocks';
-  const linked = params?.get('date') || '';
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(linked) && dayjs(linked).format('YYYY-MM-DD') === linked ? linked : fallback.tradeDate;
+  const requested = params?.get('tab') || (params?.get('aiTask') ? 'history' : 'settings');
+  const tab = tabs.includes(requested) ? requested : 'settings';
   const taskId = params?.get('aiTask') || '';
+  useEffect(() => {
+    if (requested === 'review') { const query = new URLSearchParams(params?.toString()); query.delete('tab'); query.set('view', 'article'); router.replace(`/review/?${query}`); }
+  }, [requested, params, router]);
   const update = async (values: Record<string, string>) => {
     if (!await mayLeaveResearch()) return;
     const url = new URL(window.location.href);
@@ -55,28 +49,15 @@ function Workspace({ ownerId }: { ownerId: number }) {
   }, [taskId, context?.state?.tasks]);
   return (
     <div className="admin-ai-workspace personal-ai-stack">
-      <PageHeading title="AI 工具" description="研究股票、制作图文复盘，查看分析任务和模型设置。" icon={<RobotOutlined />} />
+      <PageHeading title="AI 设置" description="配置复盘模型，管理用量并查看历史任务。" icon={<RobotOutlined />} />
       <Tabs
         activeKey={tab}
         onChange={(value) => { update({ tab: value, aiTask: '' }); }}
         items={[
-          { key: 'stocks', label: '股票研究' }, { key: 'review', label: '图文复盘' }, { key: 'history', label: '任务记录' }, { key: 'settings', label: '模型设置' },
+          { key: 'settings', label: '模型设置' }, { key: 'history', label: '历史任务' },
         ]}
       />
-      {(tab === 'stocks' || tab === 'review') && (
-      <Space className="ai-date-toolbar" wrap size={12}>
-        <SelectField label="研究日期"><DatePicker aria-label="AI 研究日期" value={date ? dayjs(date) : null} allowClear={false} onChange={(value) => { if (value) update({ date: value.format('YYYY-MM-DD'), aiTask: '' }); }} /></SelectField>
-        <Link href={`/review/?date=${date}`}>查看本日复盘记录</Link>
-      </Space>
-      )}
-      {fallback.error && <Alert type="warning" message={fallback.error} action={<Button onClick={fallback.retry}>重试日期</Button>} />}
-      {tab === 'stocks' && date && (
-      <>
-        {searchError && <Alert type="error" message={searchError} />}
-        <StockResearch ownerId={ownerId} date={date} type={researchStrategy} onTypeChange={setResearchStrategy} />
-      </>
-      )}
-      {tab === 'review' && date && <Notebook key={date} mode="publish" date={date} onDirty={setDirty} />}
+      <Link href="/review/?view=article">前往每日复盘制作图文</Link>
       {tab === 'history' && (
       <>
         {searchError && <Alert type="error" message={searchError} />}
@@ -97,8 +78,8 @@ function Workspace({ ownerId }: { ownerId: number }) {
         >
           <div className="admin-overlay-stack">
             {!selected && <p role="status">{searchError || '正在读取任务详情…'}</p>}
-            {selected?.skill === 'market-review' && selected.answer && <Button type="primary" onClick={() => { update({ tab: 'review', date: selected.date, aiTask: selected.id }); }}>核对并应用到图文</Button>}
-            {selected && <AnalysisPanel key={selected.id} ownerId={ownerId} skill={selected.skill} date={selected.date} strategy={selected.strategy} candidates={selected.codes.map((code) => ({ code }))} initialTaskId={selected.id} />}
+            {selected?.skill === 'market-review' && selected.answer && <Button type="primary" onClick={() => { router.push(`/review/?view=article&date=${selected.date}&aiTask=${encodeURIComponent(selected.id)}`); }}>核对并应用到图文</Button>}
+            {selected && <AnalysisPanel readOnly key={selected.id} ownerId={ownerId} skill={selected.skill} date={selected.date} strategy={selected.strategy} candidates={selected.codes.map((code) => ({ code }))} initialTaskId={selected.id} />}
           </div>
         </Drawer>
       </>

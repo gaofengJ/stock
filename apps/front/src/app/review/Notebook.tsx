@@ -12,13 +12,13 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useAccount } from '@/auth/Boundary';
-import { isPersonalAiOwner } from '@/auth/client';
 import { registerLeaveGuard, mayLeaveResearch } from '@/utils/research-navigation';
 import { useCollection } from '@/components/ResearchCollection';
 import { acknowledgeCollection } from '@/components/ResearchCollection/store';
 import request from '@/api/request';
 import { marketRequest, MarketStatus } from '@/api/market';
 import { errorMessage } from '@/api/errors';
+import TaskState from '@/components/PersonalAi/TaskState';
 import { draftKey, legacyDraft, parseDraft } from './review-draft';
 import { localNotebook, LocalNotebook } from './local-notebook';
 import {
@@ -63,7 +63,6 @@ export default function Notebook({
   const { user } = useAccount(); const owner = user!.id; const router = useRouter();
   const inbox = useCollection(owner, date);
   const [removedItem, setRemovedItem] = useState<CollectedItem | null>(null);
-  const [aiOpenRequest, setAiOpenRequest] = useState(0);
   const [recovery, setRecovery] = useState<LocalNotebook | null>(null);
   const [localError, setLocalError] = useState('');
   const [leaveOpen, setLeaveOpen] = useState(false);
@@ -261,7 +260,6 @@ export default function Notebook({
               导出记录
             </Button>
             )}
-            {publishing && isPersonalAiOwner(user) && <Button type="primary" disabled={!snapshot || researchBusy || busy} onClick={() => setAiOpenRequest((value) => value + 1)}>生成复盘</Button>}
             <Button type="primary" aria-label="保存复盘" aria-busy={busy} disabled={!dirty || busy || researchBusy} loading={busy} onClick={save}>保存复盘</Button>
           </Space>
         </div>
@@ -272,20 +270,6 @@ export default function Notebook({
       {localError && <Alert type="error" message={localError} />}
       {error && <Alert type="warning" message={error} action={!snapshot && <Button onClick={() => setAttempt((x) => x + 1)}>重新读取</Button>} />}
       {evidenceError && evidenceError !== error && <Alert type="warning" message={evidenceError} />}
-      {publishing && (
-      <div className="notebook-start">
-        <p className="review-caption">使用当天已保存的记录制作图文。分析结果应用前需核对，已有原文和图片会保留。</p>
-
-        <Space wrap size={12}>
-          <Button disabled={!snapshot} loading={researchBusy} onClick={() => { importMarket(!(content.article?.images || []).some((image) => image.id.startsWith('platform-'))).catch(() => {}); }}>{(content.article?.images || []).some((image) => image.id.startsWith('platform-')) ? '更新图文资料' : '准备图文资料'}</Button>
-          {!researchBusy && !!(content.article?.images || []).some((image) => image.id.startsWith('platform-')) && missingPlatformImages(content.article?.images || []).length > 0 && <Button onClick={() => { importMarket(true).catch(() => {}); }}>补取缺失图片</Button>}
-          {researchBusy && <Button onClick={() => captureAbort.current?.abort()}>停止准备</Button>}
-          <span className="review-caption">包含市场、情绪、连板、涨停和20日板块轮动；更新保留个人配图。</span>
-          <Link href="/trading-system/" target="_blank" rel="noopener noreferrer">复盘方法</Link>
-        </Space>
-      </div>
-      )}
-      {publishing && <Collapse items={[{ key: 'notes', label: '核对本日原始记录（可选）', children: <div className="notebook-panel">{['marketJudgment', 'themes', 'lesson'].map(renderField)}</div> }]} />}
       {!publishing && snapshot && (
       <NotebookHistory
         snapshot={snapshot}
@@ -367,42 +351,60 @@ export default function Notebook({
       />
       )}
       {!publishing && (
-      <>
-        <Collapse items={[{
-          key: 'archive',
-          label: '其他既有记录与图文',
-          children: (
-            <div className="notebook-panel">
-              {internalFields.filter(([key]) => !['marketJudgment', 'themes', 'lesson', 'execution', 'yesterday'].includes(key) && content.private[key]?.trim()).map(([key]) => renderField(key))}
-              {Object.entries(content.public).filter(([, value]) => value.trim()).map(([key, value]) => (
-                <div key={key}>
-                  <strong>{publicFields.find(([field]) => field === key)?.[1] || '既有记录'}</strong>
-                  <pre className="notebook-text">{value}</pre>
-                </div>
-              ))}
-              {content.article?.body && (
+      <Collapse items={[{
+        key: 'archive',
+        label: '其他既有记录与图文',
+        children: (
+          <div className="notebook-panel">
+            {internalFields.filter(([key]) => !['marketJudgment', 'themes', 'lesson', 'execution', 'yesterday'].includes(key) && content.private[key]?.trim()).map(([key]) => renderField(key))}
+            {Object.entries(content.public).filter(([, value]) => value.trim()).map(([key, value]) => (
+              <div key={key}>
+                <strong>{publicFields.find(([field]) => field === key)?.[1] || '既有记录'}</strong>
+                <pre className="notebook-text">{value}</pre>
+              </div>
+            ))}
+            {content.article?.body && (
               <>
                 <strong>已保存图文正文</strong>
                 <pre className="notebook-text">{content.article.body}</pre>
               </>
-              )}
-              {!!content.article?.images.length && <Image.PreviewGroup><div className="notebook-platform-images">{content.article.images.map((image) => <Image key={image.id} src={image.data} alt={image.caption} />)}</div></Image.PreviewGroup>}
-            </div>
-          ),
-        }]}
-        />
-        {isPersonalAiOwner(user) && <Link className="notebook-advanced-link" href={`/admin/ai/?tab=review&date=${date}`}>图文制作与 AI 辅助</Link>}
-      </>
+            )}
+            {!!content.article?.images.length && <Image.PreviewGroup><div className="notebook-platform-images">{content.article.images.map((image) => <Image key={image.id} src={image.data} alt={image.caption} />)}</div></Image.PreviewGroup>}
+          </div>
+        ),
+      }]}
+      />
       )}
       {publishing && (
-      <Card id="review-document" title="图文制作" className="notebook-document">
+      <Card id="review-document" title="生成与编辑图文" className="notebook-document">
         <div className="notebook-field">
           <label htmlFor="review-document-title">文章名称</label>
           <Input id="review-document-title" value={content.public.title || `${date}复盘`} disabled={!snapshot} maxLength={200} onChange={(e) => changed({ ...current.current, public: { ...current.current.public, title: e.target.value }, ...(current.current.article?.body ? { article: { ...current.current.article, body: current.current.article.body.replace(/^# [^\n]+/, `# ${e.target.value || `${date}复盘`}`) } } : {}) })} />
         </div>
-        <ArticleEditor openRequest={aiOpenRequest} prepareImages={async (signal, progress) => { const warning = await importMarket(true, signal, progress); if (warning) throw Error(warning); }} date={date} generation={snapshot?.generation || 0} revision={snapshot?.revision || 0} content={content} disabled={!snapshot || researchBusy || busy} saving={busy} onSave={save} previewDisabled={!snapshot} dirty={dirty} onStatus={setStatus} onMaterials={changeMaterials} onChange={(article) => changed({ ...current.current, article })} />
+        <TaskState><ArticleEditor prepareImages={async (signal, progress) => { const warning = await importMarket(true, signal, progress); if (warning) throw Error(warning); }} date={date} generation={snapshot?.generation || 0} revision={snapshot?.revision || 0} content={content} disabled={!snapshot || researchBusy || busy} onSave={save} previewDisabled={!snapshot} dirty={dirty} onStatus={setStatus} onMaterials={changeMaterials} onChange={(article) => changed({ ...current.current, article })} /></TaskState>
       </Card>
       )}
+      {publishing && (
+      <Collapse items={[{
+        key: 'materials',
+        label: '资料与配图（生成时自动准备）',
+        children: (
+          <div className="notebook-start">
+            <p className="review-caption">使用当天已保存的记录制作图文。分析结果应用前需核对，已有原文和图片会保留。</p>
+
+            <Space wrap size={12}>
+              <Button disabled={!snapshot} loading={researchBusy} onClick={() => { importMarket(!(content.article?.images || []).some((image) => image.id.startsWith('platform-'))).catch(() => {}); }}>{(content.article?.images || []).some((image) => image.id.startsWith('platform-')) ? '更新图文资料' : '准备图文资料'}</Button>
+              {!researchBusy && !!(content.article?.images || []).some((image) => image.id.startsWith('platform-')) && missingPlatformImages(content.article?.images || []).length > 0 && <Button onClick={() => { importMarket(true).catch(() => {}); }}>补取缺失图片</Button>}
+              {researchBusy && <Button onClick={() => captureAbort.current?.abort()}>停止准备</Button>}
+              <span className="review-caption">包含市场、情绪、连板、涨停和20日板块轮动；更新保留个人配图。</span>
+              <Link href="/trading-system/" target="_blank" rel="noopener noreferrer">复盘方法</Link>
+            </Space>
+          </div>
+        ),
+      }]}
+      />
+      )}
+      {publishing && <Collapse items={[{ key: 'notes', label: '核对本日原始记录（可选）', children: <div className="notebook-panel">{['marketJudgment', 'themes', 'lesson'].map(renderField)}</div> }]} />}
       <Modal
         className="review-dialog"
         centered
