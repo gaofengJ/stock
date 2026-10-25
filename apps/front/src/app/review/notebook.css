@@ -143,3 +143,8 @@ body:has(.notebook-preview-open) .platform-content:has(.review-page) { overflow:
 .review-result-diff { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .review-result-diff pre { max-height: 55vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; border: 1px solid var(--color-border); }
 @media (max-width: 700px) { .review-result-diff { grid-template-columns: 1fr; } .notebook-toolbar { font-size: 12px; } }
+
+/* Keep the publishing actions above optional sources, including at laptop heights. */
+.notebook-flow:empty, .notebook-stages:empty { display: none; }
+.notebook-article-editor { gap: 16px; }
+.notebook-article-editor > .notebook-handoff { border-top: 0; padding-top: 0; }
