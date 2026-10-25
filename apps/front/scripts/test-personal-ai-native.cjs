@@ -35,8 +35,8 @@ test('business entry is absent for non-owner accounts and uses four-character bu
   account = owner;
   const review = renderToStaticMarkup(React.createElement(Action, { skill: 'market-review', date: '2026-10-16' }));
   const compare = renderToStaticMarkup(React.createElement(Action, { skill: 'candidate-compare', date: '2026-10-16' }));
-  assert.match(review, /智能复盘/); assert.match(compare, /智能对比/);
-  assert.match(review, /在侧栏输入问题后开始分析/);
+  assert.match(review, /生成复盘/); assert.match(compare, /智能对比/);
+  assert.match(review, /可补充关注重点，然后开始生成/);
   assert.match(compare, /在侧栏选择1至3只股票后开始分析/);
   const waiting = renderToStaticMarkup(React.createElement(Action, { skill: 'candidate-compare', date: '2026-10-16', disabled: true, disabledReason: '候选数据加载中' }));
   assert.match(waiting, /候选数据加载中/);
@@ -110,7 +110,7 @@ test('collected AI results reopen their original skill and strategy conditions',
  const task={id:'result-id',skill:'candidate-compare',date:'2026-10-23',strategy:{type:'volumeBreakout',parameters:{minTurnoverRateF:8,volumeDays:5,aboveMa5:false},keyword:'测试'}};
  const link=new URL(taskHref(task),'https://fixture.test');
  assert.equal(link.pathname,'/admin/ai/');assert.equal(link.searchParams.get('tab'),'history');assert.equal(link.searchParams.get('aiTask'),task.id);assert.equal(link.searchParams.get('date'),task.date);
- assert.equal(new URL(taskHref({...task,skill:'market-review'}),'https://fixture.test').pathname,'/admin/ai/');
+ assert.equal(new URL(taskHref({...task,skill:'market-review'}),'https://fixture.test').pathname,'/review/');
 });
 
 test('AI services are scoped to the dedicated page and business lists keep normal navigation', () => {

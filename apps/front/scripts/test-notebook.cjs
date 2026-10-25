@@ -373,3 +373,21 @@ test('stopping a capture retains each completed callback and never accepts anoth
   assert.equal(stale.length,0);
  } finally {global.document=realDocument;global.window=realWindow;}
 });
+
+
+test('connected review preserves notes and opt-in privacy, renders a safe comparison table and keeps old drafts readable', () => {
+ const c=exp.emptyNotebook();c.private.marketJudgment='用户判断不能被改写';c.private.execution='PRIVATE_HOLDING';c.private.lesson='自己的总结';c.public.summary='已有公开原文';
+ const headings=['核心判断','市场与情绪','主线与梯队','板块多周期对照','后续验证'];
+ const answer=headings.map(h=>`### ${h}\n\n${h==='板块多周期对照'?'| 行业 | 当日% | 5日% | 20日% | 结构判断 |\n| --- | --- | --- | --- | --- |\n| <script>x</script> | 2 | 4 | 缺失 | 当日新强 |':'跨模块证据与反证'}`).join('\n\n');
+ const body=exp.reviewDocument('2026-10-23',c,answer);
+ assert(body.includes(c.private.marketJudgment)&&body.includes(c.private.lesson)&&body.includes(c.public.summary));assert(!body.includes('PRIVATE_HOLDING'));
+ assert.equal(exp.nativeAnswer(body),answer);
+ const images=['市场概览','情绪指标','连板分析','20日板块轮动','涨停板复盘'].map((after,i)=>({id:'img-'+i,data:png,caption:after,source:'合成测试',after}));
+ const rendered=contract.illustratedText(body,images);assert.equal(rendered,serverContract.illustratedText(body,images));
+ for(const image of images)assert.equal(rendered.split('review-image:'+image.id).length-1,1);
+ assert(rendered.indexOf('跨模块证据与反证')<rendered.indexOf('review-image:img-0'));
+ assert(rendered.indexOf('## 附图')<rendered.indexOf('review-image:img-3'));
+ for(const target of ['feishu','wechat','xueqiu']) {const html=exp.noteHtml(rendered,images,target);assert(html.includes('<table'));assert(!html.includes('<script>'));assert(html.includes('&lt;script&gt;'));assert.equal((html.match(/<img /g)||[]).length,5);}
+ const legacy=['市场概览','情绪指标','连板分析','20日板块轮动','涨停板复盘'].map(h=>`### ${h}\n\n旧版证据`).join('\n\n');assert.equal(exp.nativeAnswer(exp.reviewDocument('2026-10-23',c,legacy)),legacy);
+ assert.throws(()=>exp.reviewDocument('2026-10-23',c,'### 核心判断\n\n只有一节'),/缺少必要章节/);
+});

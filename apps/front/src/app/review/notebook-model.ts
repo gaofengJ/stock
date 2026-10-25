@@ -58,7 +58,8 @@ export function documentTemplate(date: string, value: NotebookContent) {
 }
 /** Merge model interpretation with the current original notes, never model-rewritten notes. */
 export function reviewDocument(date: string, value: NotebookContent, answer: string) {
-  const headings = ['市场概览', '情绪指标', '连板分析', '20日板块轮动', '涨停板复盘'];
+  const connected = /^### 核心判断\s*$/m.test(answer);
+  const headings = connected ? ['核心判断', '市场与情绪', '主线与梯队', '板块多周期对照', '后续验证'] : ['市场概览', '情绪指标', '连板分析', '20日板块轮动', '涨停板复盘'];
   const sections = new Map<string, string>();
   answer.split(/^### /m).slice(1).forEach((section) => {
     const index = section.indexOf('\n');
@@ -66,10 +67,16 @@ export function reviewDocument(date: string, value: NotebookContent, answer: str
   });
   if (headings.some((heading) => !sections.get(heading))) throw Error('分析正文缺少必要章节，已保留结果和原文，请在面板中重新生成。');
   let body = documentTemplate(date, value);
-  headings.forEach((heading) => {
-    const marker = heading === '涨停板复盘' ? `## ${heading}` : `### ${heading}`;
-    body = body.replace(`${marker}\n`, `${marker}\n\n**AI 独立分析**\n\n${sections.get(heading)}\n`);
-  });
+  if (connected) {
+    const original = body.slice(body.indexOf('## 策略选股')).split(/(?=^## )/m).filter((block) => block.slice(block.indexOf('\n')).trim()).join('');
+    const appendix = value.article?.images.some((image) => ['情绪指标', '20日板块轮动', '涨停板复盘'].includes(image.after));
+    body = [`# ${value.public.title || `${date}复盘`}`, '> 本文由 AI 生成，仅供参考。', ...headings.map((heading) => `### ${heading}\n\n**AI 独立分析**\n\n${sections.get(heading)}`), ...(appendix ? ['## 附图：情绪与板块明细'] : []), original].filter(Boolean).join('\n\n');
+  } else {
+    headings.forEach((heading) => {
+      const marker = heading === '涨停板复盘' ? `## ${heading}` : `### ${heading}`;
+      body = body.replace(`${marker}\n`, `${marker}\n\n**AI 独立分析**\n\n${sections.get(heading)}\n`);
+    });
+  }
   const legacy = publicFields.filter(([key]) => key !== 'title' && value.public[key]?.trim()).map(([key, label]) => `### ${label}\n\n${value.public[key]}`);
   if (legacy.length) body += `\n\n## 用户公开记录\n\n${legacy.join('\n\n')}`;
   return body;
@@ -122,7 +129,18 @@ export function articlePlainText(text: string) {
 }
 export function noteHtml(text: string, images: ArticleImage[] = [], target: ArticleTarget = 'feishu') {
   const paragraphStyle = `margin:0 0 ${target === 'wechat' ? 16 : 12}px;font-size:${target === 'wechat' ? 16 : 15}px;line-height:1.8;color:#222;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;`;
-  return `<section style="font-family:Arial,'Microsoft YaHei',sans-serif;font-size:15px;line-height:1.8;color:#222;background-color:#fff;width:100%;max-width:720px;margin:0 auto;box-sizing:border-box;overflow-wrap:anywhere;word-break:break-word;">${marketSectionLayout(text).split('\n').map((line) => {
+  const lines = marketSectionLayout(text).split('\n');
+  let tableEnd = -1;
+  return `<section style="font-family:Arial,'Microsoft YaHei',sans-serif;font-size:15px;line-height:1.8;color:#222;background-color:#fff;width:100%;max-width:720px;margin:0 auto;box-sizing:border-box;overflow-wrap:anywhere;word-break:break-word;">${lines.map((line, index) => {
+    if (index <= tableEnd) return '';
+    if (/^\|.*\|$/.test(line.trim()) && /^\|(?:\s*:?-+:?\s*\|)+$/.test(lines[index + 1]?.trim() || '')) {
+      const cells = (row: string) => row.trim().slice(1, -1).split('|').map((cell) => escapeHtml(cell.trim()));
+      const header = cells(line); const rows: string[][] = [];
+      tableEnd = index + 1;
+      while (tableEnd + 1 < lines.length && /^\|.*\|$/.test(lines[tableEnd + 1].trim())) { tableEnd += 1; rows.push(cells(lines[tableEnd])); }
+      const cellStyle = 'border:1px solid #ddd;padding:8px 6px;text-align:left;overflow-wrap:anywhere;';
+      return `<table style="width:100%;border-collapse:collapse;font-size:13px;line-height:1.6;margin:12px 0 20px;"><thead><tr>${header.map((cell) => `<th style="${cellStyle}background:#f5f5f5;">${cell}</th>`).join('')}</tr></thead><tbody>${rows.map((row) => `<tr>${header.map((_, column) => `<td style="${cellStyle}">${row[column] || ''}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    }
     const imageId = line.match(/^!\[.*\]\(review-image:([a-zA-Z0-9_-]+)\)$/)?.[1];
     const embedded = line.match(/^!\[(.*)\]\((data:image\/(?:png|jpeg);base64,[a-zA-Z0-9+/]+={0,2})\)$/);
     const media = images.find((item) => item.id === imageId) || (embedded ? { data: embedded[2], caption: embedded[1], source: '' } : null);
@@ -141,7 +159,7 @@ export function noteHtml(text: string, images: ArticleImage[] = [], target: Arti
 
 /** Only the known native template can safely recover the AI sections of an older article. */
 export function nativeAnswer(body: string): string | null {
-  const headings = ['市场概览', '情绪指标', '连板分析', '20日板块轮动', '涨停板复盘'];
+  const headings = /^### 核心判断\s*$/m.test(body) ? ['核心判断', '市场与情绪', '主线与梯队', '板块多周期对照', '后续验证'] : ['市场概览', '情绪指标', '连板分析', '20日板块轮动', '涨停板复盘'];
   const blocks = body.split(/^#{2,3} /m).slice(1); const result: string[] = [];
   for (let index = 0; index < headings.length; index += 1) {
     const heading = headings[index];

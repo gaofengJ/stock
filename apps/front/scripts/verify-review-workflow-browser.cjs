@@ -46,21 +46,10 @@ if(!['127.0.0.1','localhost'].includes(new URL(base).hostname))throw Error('Loca
   await savedResponse;
   await page.waitForFunction(()=>document.querySelector('[aria-label="保存复盘"]')?.disabled);
   const savedBeforeAi = state.writes.length;
-  await page.getByRole('link',{name:'图文制作与 AI 辅助',exact:true}).click();
-  await page.waitForURL('**/admin/ai/**');
-  await page.getByRole('tab',{name:'股票研究',exact:true}).click();
-  await page.getByText('选择研究范围',{exact:true}).waitFor();
-  const stockSearch=page.getByRole('combobox',{name:'对比股票',exact:true});
-  await stockSearch.click();await stockSearch.fill('测试');
-  await page.getByRole('option',{name:'测试股份 000001.SZ',exact:true}).waitFor({state:'attached'});
-  await stockSearch.press('Enter');await stockSearch.press('Escape');
-  assert.equal(await page.getByRole('button',{name:'开始对比',exact:true}).isEnabled(),true);
-  await page.getByRole('textbox',{name:'分析要求',exact:true}).fill('独立页研究草稿');
-  await page.getByRole('tab',{name:'模型设置',exact:true}).click();
-  await page.getByRole('tab',{name:'股票研究',exact:true}).click();
-  await page.waitForFunction(()=>document.querySelector('textarea[aria-label="分析要求"]')?.value==='独立页研究草稿');
-  assert.equal(state.submissions.length,0);
   await page.getByRole('tab',{name:'图文复盘',exact:true}).click();
+  await page.waitForURL('**/review/**');
+  assert.equal(await page.getByRole('tab',{name:'股票研究',exact:true}).count(),0);
+  assert.equal(state.submissions.length,0);
   await page.getByText('核对本日原始记录（可选）',{exact:true}).click();
   await page.getByRole('button',{name:'生成复盘',exact:true}).click();let drawer=page.getByRole('dialog');
   await drawer.getByText('本日最近记录（1）',{exact:true}).click();
@@ -74,7 +63,7 @@ if(!['127.0.0.1','localhost'].includes(new URL(base).hostname))throw Error('Loca
   await note.fill('应用后继续编辑的新原文');
   await page.getByRole('button',{name:'保存复盘',exact:true}).click();
   await page.getByText(/记录与图片已保存到服务器/).waitFor();
-  assert.match(state.content.article.body,/应用后继续编辑的新原文/);assert.match(state.content.article.body,/测试分析：市场概览/);
+  assert.match(state.content.article.body,/应用后继续编辑的新原文/);assert.match(state.content.article.body,/测试分析：核心判断/);
   await page.getByRole('button',{name:'撤销上次正文应用',exact:true}).click();
   await page.getByRole('button',{name:'保存复盘',exact:true}).click();
   await page.getByText(/记录与图片已保存到服务器/).waitFor();
@@ -83,7 +72,7 @@ if(!['127.0.0.1','localhost'].includes(new URL(base).hostname))throw Error('Loca
   // Cancellation after data validation, during image preparation, must not create a task.
   state.marketDelay=1200;
   await page.getByRole('button',{name:'生成复盘',exact:true}).click();drawer=page.getByRole('dialog');
-  await drawer.getByRole('button',{name:'新建会话',exact:true}).click();
+  await drawer.getByRole('button',{name:'重新生成',exact:true}).click();
   await drawer.getByRole('button',{name:'生成复盘文档',exact:true}).click();
   for(let i=0;i<100&&!state.requests.some(r=>r.path==='/api/analysis/market/status');i++)await page.waitForTimeout(20);
   assert.ok(state.requests.some(r=>r.path==='/api/analysis/market/status'));

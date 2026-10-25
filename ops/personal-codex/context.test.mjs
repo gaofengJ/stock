@@ -58,7 +58,7 @@ test('core market failures stop both business contexts instead of producing a mi
 });
 test('document review uses real market, sentiment, feedback and 20-day rotation with exact dates',async()=>{
  const s=await reviewSnapshot({date},async path=>fixtures(path));
- assert.equal(s.version,'review/v3');assert.equal(s.feedback.groups[0].average,-2);
+ assert.equal(s.version,'review/v4');assert.equal(s.feedback.groups[0].average,-2);
  assert.equal(s.market.previousAmount,10000);assert.equal(s.market.recent[0].amount,10000);
  assert.equal(s.sectors20.items[0].ranks[1].rank,3);assert.equal(s.themes.groups[0].count,10);
  assert(Buffer.byteLength(JSON.stringify(s))<18000);
@@ -87,4 +87,15 @@ test('preview endpoints authenticate, consume no model calls or task budget; sub
   for(let i=0;i<100&&store.tasks[1].status!=='completed';i++)await new Promise(r=>setTimeout(r,5));
   assert.deepEqual(store.tasks[1].snapshot,task.snapshot);assert.equal(runs,2);
  }finally{await new Promise(r=>{server.close(r);server.closeAllConnections();});rmSync(dir,{recursive:true,force:true});}
+});
+
+
+test('review selects fresh leaders and medium-term divergences without future or missing data becoming zero', async()=>{
+ const {reviewSectors}=await import('./context.mjs');
+ const rows=Array.from({length:20},(_,i)=>({code:String(i),name:'行业'+i,asOf:date,day:i,five:20-i,twenty:i%2?100-i:i}));
+ rows.push({code:'new',name:'当日新强',asOf:date,day:100,five:1,twenty:-5},{code:'diverge',name:'中期回落',asOf:date,day:-10,five:2,twenty:200},{code:'missing',name:'缺失',asOf:date,day:null,five:null,twenty:null},{code:'future',name:'未来',asOf:'2099-01-01',day:999,five:999,twenty:999});
+ const selected=reviewSectors(rows,date);
+ assert(selected.length<=8);assert(selected.some(r=>r.code==='new'));assert(selected.some(r=>r.code==='diverge'&&r.selectedFor.includes('中期强势当日回落')));assert(selected.some(r=>r.code==='0'));
+ assert(!selected.some(r=>['future','missing'].includes(r.code)));assert.equal(selected.find(r=>r.code==='new').twenty,-5);
+ assert.deepEqual(reviewSectors([],date),[]);
 });
