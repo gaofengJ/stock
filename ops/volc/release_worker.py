@@ -179,6 +179,31 @@ def check_backup():
         raise ValueError('Fresh verified backup and restore proof are required')
 
 
+def wait_http_status(url, expected, timeout=30):
+    """Allow old nginx workers to drain after reload, without accepting weaker auth."""
+    deadline = time.monotonic() + timeout
+    attempts = 0
+    while True:
+        attempts += 1
+        try:
+            with urllib.request.urlopen(url, timeout=min(5, max(.1, deadline - time.monotonic()))) as response:
+                code = response.status
+        except urllib.error.HTTPError as error:
+            code = error.code
+            error.close()
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            code = None
+        if code == expected:
+            return
+        # Auth regressions (e.g. anonymous 200) and permanent 4xx fail immediately.
+        transient = code is None or code in (500, 502, 503, 504)
+        if not transient or time.monotonic() >= deadline:
+            detail = {'url': url, 'expected': expected, 'actual': code, 'attempts': attempts}
+            print('RELEASE_HEALTH_FAILED ' + json.dumps(detail), flush=True)
+            raise ValueError('Read-only health check failed: ' + json.dumps(detail))
+        time.sleep(min(1, max(0, deadline - time.monotonic())))
+
+
 def healthy(production):
     for _ in range(60):
         state = json.loads(run(['docker', 'inspect', 'mufengtongxue-stock-back-1']))[0]['State']
@@ -193,13 +218,7 @@ def healthy(production):
     run(compose(production) + ['exec', '-T', 'articles', 'nginx', '-t'])
     run(compose(production) + ['exec', '-T', 'articles', 'nginx', '-s', 'reload'])
     for url, expected in [('http://127.0.0.1:8081/', 200), ('http://127.0.0.1:3000/api/auth/me', 401), ('http://127.0.0.1:8082/', 403)]:
-        try:
-            with urllib.request.urlopen(url, timeout=10) as response:
-                code = response.status
-        except urllib.error.HTTPError as error:
-            code = error.code
-        if code != expected:
-            raise ValueError('Read-only health check failed')
+        wait_http_status(url, expected)
 
 
 def changed_services(previous, candidate):
