@@ -37,8 +37,8 @@ import CandidateEnvironment from './CandidateEnvironment';
 import StrategyRules from './StrategyRules';
 import StockChart from './StockChart';
 import CandidateProfit, { useCandidateProfit } from './CandidateProfit';
-import { RiskTags, useWorkbench } from '../basic/components/workbench';
-import RiskInspect from '../basic/components/RiskInspect';
+import { useWorkbench } from '../basic/components/workbench';
+import CandidateRisk, { useCandidateRisks } from './CandidateRisk';
 import { CandidateComparison, SignalPerformance } from './InsightPanels';
 import './strategy.sass';
 
@@ -113,6 +113,7 @@ function StrategyPage() {
   const filtered = (listCurrent ? items : []).filter((row) => (!linkedCode || row.tsCode === linkedCode)
     && (!keyword || `${row.tsCode} ${row.name}`.toLowerCase().includes(keyword.trim().toLowerCase())));
   const riskState = useWorkbench('risk', { date }, !!date && view === 'candidates' && listCurrent && !tableLoading);
+  const candidateRisks = useCandidateRisks(date, !!date && view === 'candidates' && listCurrent && !tableLoading);
   const financials = useCandidateProfit(date, items.map((row) => row.tsCode), view === 'candidates' && listCurrent && !tableLoading);
   const labels = useInsight<any[]>('candidate-labels', { date, codes: items.map((row) => row.tsCode).sort() }, needsCandidates && listCurrent && !tableLoading && items.length > 0);
   const labelsMap = new Map(labels.data?.map((row) => [row.tsCode, row]) || []);
@@ -145,10 +146,7 @@ function StrategyPage() {
       title: <Tooltip title="所选交易日之前已披露的最近三个财报期扣非盈亏及最新业绩预告，悬停查看金额">近期业绩</Tooltip>, key: 'profit', width: 260, render: (_: any, row: any) => <CandidateProfit row={financials.rows.get(row.tsCode)} error={financials.error} stopped={financials.stopped} retry={financials.retry} />,
     },
     {
-      title: '风险提示', key: 'risks', width: 150, render: (_: any, row: any) => <RiskTags data={riskState.data} code={row.tsCode} date={date} />,
-    },
-    {
-      title: '风险核验', key: 'riskCheck', width: 125, render: (_: any, row: any) => <RiskInspect code={row.tsCode} date={date} />,
+      title: '风险提示', key: 'risks', width: 260, render: (_: any, row: any) => <CandidateRisk base={riskState.data} state={candidateRisks} code={row.tsCode} name={row.name} date={date} />,
     },
     ...trendColumns(strategy),
     ...strategyColumns.slice(1).filter((column) => visibleColumns.includes(String(column.key))),

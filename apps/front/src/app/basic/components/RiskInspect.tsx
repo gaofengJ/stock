@@ -264,12 +264,21 @@ export function RiskDetails({ code, date }: { code: string; date: string }) {
   );
 }
 
-export default function RiskInspect({ code, date, name }: { code: string; date: string; name?: string }) {
+export default function RiskInspect({
+  code, date, name, trigger, extra,
+}: { code: string; date: string; name?: string; trigger?: React.ReactNode; extra?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <InteractionButton intent="preview" aria-label={`${name || code}风险资料`} size="small" onClick={() => setOpen(true)}>风险资料</InteractionButton>
-      <Modal className="basic-risk-modal" open={open} title={`${name ? `${name} ` : ''}${code} 风险资料`} onCancel={() => setOpen(false)} footer={null} width={1000} destroyOnClose>{open && <RiskDetails code={code} date={date} />}</Modal>
+      {trigger ? <button type="button" className="candidate-risk-trigger" aria-label={`${name || code}风险资料`} onClick={() => setOpen(true)}>{trigger}</button> : <InteractionButton intent="preview" aria-label={`${name || code}风险资料`} size="small" onClick={() => setOpen(true)}>风险资料</InteractionButton>}
+      <Modal className="basic-risk-modal" open={open} title={`${name ? `${name} ` : ''}${code} 风险资料`} onCancel={() => setOpen(false)} footer={null} width={1000} destroyOnClose>
+        {open && (
+        <>
+          {extra}
+          <RiskDetails code={code} date={date} />
+        </>
+        )}
+      </Modal>
     </>
   );
 }

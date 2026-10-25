@@ -7,6 +7,7 @@ import { Throttle } from '@nestjs/throttler';
 import { readThrottleTracker } from '@/modules/auth/read-throttle-tracker';
 
 import { CandidateFinancialService } from './candidate-financial.service';
+import { CandidateRiskService } from './candidate-risk.service';
 import { StrategyService } from './strategy.service';
 import { TabItem } from './strategy.entity';
 import { StrategyListQueryDto, StrategyChartQueryDto } from './strategy.dto';
@@ -15,6 +16,7 @@ import { InsightService } from './insight.service';
 import {
   CandidateDetailsDto,
   CandidateFinancialDto,
+  CandidateRiskDto,
   InsightDateDto,
   PerformanceDto,
   PopularityDto,
@@ -27,6 +29,7 @@ export class StrategyController {
     private readonly strategyService: StrategyService,
     private insights: InsightService,
     private financials: CandidateFinancialService,
+    private risks: CandidateRiskService,
   ) {}
 
   @Permit('strategy:read')
@@ -51,6 +54,15 @@ export class StrategyController {
   @Get('/candidate-financials')
   candidateFinancials(@Query() q: CandidateFinancialDto) {
     return this.financials.list(q.date, q.codes);
+  }
+
+  @Permit('strategy:read')
+  @Get('/candidate-risks')
+  @Throttle({
+    default: { limit: 30, ttl: 10000, getTracker: readThrottleTracker },
+  })
+  candidateRisks(@Query() q: CandidateRiskDto) {
+    return this.risks.list(q.date, q.codes, q.detail === 'true');
   }
 
   @Permit('strategy:read')
