@@ -42,6 +42,7 @@ export async function themeReviewCanvas(groups: ThemeGroup[], date: string, scop
   ctx.fillText(`${date}    ${scope}    当前筛选 ${groups.reduce((sum, g) => sum + g.count, 0)} 只    ${groups.length} 个分组`, 30, 72);
   ctx.fillText('按同花顺热点复盘原始题材归组。题材与个股解析来源：同花顺。', 30, 108);
   let y = 154;
+  const breaks: number[] = [];
   sections.forEach(({ group, rows }) => {
     ctx.fillStyle = colors.surfaceMuted; ctx.fillRect(30, y, 1420, 56);
     ctx.font = `600 23px ${font}`; ctx.fillStyle = colors.text; ctx.fillText(`${group.name}（${group.count}只）`, 44, y + 14);
@@ -62,10 +63,12 @@ export async function themeReviewCanvas(groups: ThemeGroup[], date: string, scop
       });
       ctx.strokeStyle = colors.border; ctx.beginPath(); ctx.moveTo(30, y + rowHeight); ctx.lineTo(1450, y + rowHeight); ctx.stroke();
       y += rowHeight;
+      breaks.push(y);
     });
   });
   ctx.fillStyle = colors.secondary; ctx.font = `18px ${font}`;
   ctx.fillText(`木风同学    数据获取时间：${beijingTime(fetchedAt || undefined)}    资料解析及来源链接可在站内查看`, 30, y + 22);
+  canvas.dataset.reviewBreaks = JSON.stringify(breaks);
   return canvas;
 }
 

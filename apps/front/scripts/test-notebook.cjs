@@ -154,6 +154,40 @@ test('long candidate evidence survives packet export, result import and rendered
 });
 
 const platformImages = load('../src/app/review/platform-images.ts');
+const captureImage = load('../src/app/review/capture-image.ts');
+test('long-image pages follow row boundaries and cover every pixel exactly once',()=>{
+ const ranges=captureImage.imageRanges(14200,[76,5980,6030,11920,12080,14000]);
+ assert.deepEqual(ranges,[{start:0,height:5980},{start:5980,height:5940},{start:11920,height:2280}]);
+ assert.equal(ranges.reduce((n,p)=>n+p.height,0),14200);
+ for(let i=1;i<ranges.length;i++)assert.equal(ranges[i-1].start+ranges[i-1].height,ranges[i].start);
+});
+test('oversized real-width canvases split, adapt compression and respect the remaining article budget',()=>{
+ const old=global.document,draws=[],qualities=[];
+ const encoded=(type,length)=>(type==='image/png'?'data:image/png;base64,iVBORw0KGgo':'data:image/jpeg;base64,/9j/')+'A'.repeat(length);
+ const source={width:1440,height:14200};
+ global.document={createElement:()=>({width:0,height:0,getContext:()=>({drawImage:(...args)=>draws.push(args)}),toDataURL:(type,q)=>{qualities.push(q);return encoded(type,type==='image/png'?1900000:q===0.92?1000000:700000);}})};
+ try{
+  const pages=captureImage.encodeCapture(source,2400000,10,[5980,11920]);
+  assert.equal(pages.length,3);assert(pages.every(p=>p.length<3000000));assert(pages.reduce((n,p)=>n+p.length,0)<=2400000);
+  assert(qualities.includes(0.86));assert.equal(draws.reduce((n,args)=>n+args[4],0),source.height);
+  assert.throws(()=>captureImage.encodeCapture(source,6000000,2),/空间不足/);
+  assert.throws(()=>captureImage.encodeCapture(source,1000000,10),/总量超限/);
+ }finally{global.document=old;}
+});
+test('incomplete multipart captures stay missing; complete replacements remove old pages and preserve uploads',()=>{
+ const base={id:platformImages.imageId('limits'),data:png,caption:'涨停',source:'https://site.test/limits?imageParts=3&imageSet=one',after:'涨停板复盘'};
+ const parts=[0,1,2].map(i=>({...base,id:`platform-dark-v1-limits-${i}`}));
+ assert(platformImages.missingPlatformImages(parts.slice(0,2)).includes('limits'));
+ assert(!platformImages.missingPlatformImages(parts).includes('limits'));
+ assert(platformImages.missingPlatformImages([parts[0],parts[1],{...parts[2],source:parts[2].source.replace('one','two')}]).includes('limits'));
+ const article={body:'保留原文',feishuUrl:'',images:[...parts,{...base,id:'upload-user'}]};
+ const merged=platformImages.mergePlatformImages(article,[{...base,source:'https://site.test/limits?imageSet=new'}]);
+ assert.deepEqual(merged.images.map(i=>i.id),['upload-user',base.id]);assert.equal(merged.body,article.body);
+ assert.deepEqual(serverContract.validateArticle(article),article);
+ const note=exp.emptyNotebook();note.article=article;
+ const restored=load('../../back/src/modules/review/notebook.content.ts').parseNotebook(JSON.stringify(note));
+ assert.deepEqual(restored.article.images,article.images);
+});
 test('automatic preparation only requests missing platform groups and reuses saved images', () => {
  const keys = platformImages.captureSources.map(source => source.key);
  const images = keys.map(key => ({ id: platformImages.imageId(key) }));

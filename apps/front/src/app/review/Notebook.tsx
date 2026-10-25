@@ -214,11 +214,11 @@ export default function Notebook({
         if (!before.revision) throw new Error('暂时无法确认数据版本，请稍后重试');
         const keys = onlyMissing ? missingPlatformImages(currentPlatformImages(current.current.article?.images || [], before.revision)) : captureSources.map((item) => item.key);
         if (!keys.length) return '';
-        const [research, captured] = await Promise.all([loadResearch(date, abort.signal), capturePlatform(date, abort.signal, report, keys, before.revision, async (image) => {
+        const [research, captured] = await Promise.all([loadResearch(date, abort.signal), capturePlatform(date, abort.signal, report, keys, before.revision, async (_image, group) => {
           const { data: statusNow } = await marketRequest<MarketStatus>('status', {}, { signal: abort.signal, autoShowError: false });
           if (statusNow.revision !== before.revision) throw Error('数据版本变化，请重新准备');
-          changed({ ...current.current, article: mergePlatformImages(current.current.article || emptyArticle(), [image], before.revision) });
-        })]);
+          changed({ ...current.current, article: mergePlatformImages(current.current.article || emptyArticle(), group, before.revision) });
+        }, currentPlatformImages(current.current.article?.images || [], before.revision))]);
         if (abort.signal.aborted) throw new DOMException('已停止准备，完成的图片已保留', 'AbortError');
         const { data: after } = await marketRequest<MarketStatus>('status', {}, { signal: abort.signal, autoShowError: false });
         if (before.revision !== after.revision) throw new Error('准备期间数据已更新，原有记录已保留。请重新准备，避免混用不同版本的数据。');

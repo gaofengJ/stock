@@ -1,5 +1,6 @@
 /* eslint-disable no-restricted-syntax, no-await-in-loop, no-loop-func, no-continue -- Sequential captures have per-page and batch deadlines. */
 import { Article, ArticleImage, validateArticle } from './article-contract';
+import { encodeCapture } from './capture-image';
 
 export const captureSources = [
   {
@@ -19,8 +20,17 @@ export const captureSources = [
   },
 ];
 export const imageId = (key: string) => `platform-dark-v1-${key}-0`;
+const belongsTo = (image: ArticleImage, key: string) => new RegExp(`^platform-dark-v1-${key}-\\d+$`).test(image.id);
+function completeGroup(images: ArticleImage[], key: string) {
+  const first = images.find((image) => image.id === imageId(key));
+  if (!first) return false;
+  try {
+    const count = Number(new URL(first.source || '', 'https://stock.invalid').searchParams.get('imageParts') || 1);
+    return Number.isInteger(count) && count > 0 && count <= 20 && Array.from({ length: count }, (_, index) => index).every((index) => images.some((image) => image.id === `platform-dark-v1-${key}-${index}` && image.source === first.source));
+  } catch { return false; }
+}
 export function missingPlatformImages(images: ArticleImage[]) {
-  return captureSources.filter((item) => !images.some((image) => image.id === imageId(item.key))).map((item) => item.key);
+  return captureSources.filter((item) => !completeGroup(images, item.key)).map((item) => item.key);
 }
 export function currentPlatformImages(images: ArticleImage[], revision: string) {
   return images.filter((image) => {
@@ -31,8 +41,9 @@ export function currentPlatformImages(images: ArticleImage[], revision: string) 
 export function mergePlatformImages(article: Article, images: ArticleImage[], revision?: string) {
   const existing = revision ? currentPlatformImages(article.images, revision) : article.images;
   const ids = new Set(images.map((image) => image.id));
+  const replaced = captureSources.filter((item) => completeGroup(images, item.key));
   const complete = missingPlatformImages([...existing, ...images]).length === 0;
-  return validateArticle({ ...article, images: [...existing.filter((image) => !ids.has(image.id) && !(complete && image.id.startsWith('platform-') && !image.id.startsWith('platform-dark-v1-'))), ...images] });
+  return validateArticle({ ...article, images: [...existing.filter((image) => !ids.has(image.id) && !replaced.some((item) => belongsTo(image, item.key)) && !(complete && image.id.startsWith('platform-') && !image.id.startsWith('platform-dark-v1-'))), ...images] });
 }
 const pause = (ms: number) => new Promise<void>((resolve) => { setTimeout(resolve, ms); });
 async function bounded<T>(work: Promise<T>, ms: number, signal: AbortSignal): Promise<T> {
@@ -44,9 +55,10 @@ async function bounded<T>(work: Promise<T>, ms: number, signal: AbortSignal): Pr
   })]).finally(() => { clearTimeout(timer); signal.removeEventListener('abort', abort); });
 }
 // eslint-disable-next-line default-param-last -- Preserve existing callers while adding incremental capture.
-export async function capturePlatform(date: string, signal: AbortSignal, progress: (message: string) => void, keys = captureSources.map((item) => item.key), revision = '', onCaptured?: (image: ArticleImage) => Promise<void>) {
+export async function capturePlatform(date: string, signal: AbortSignal, progress: (message: string) => void, keys = captureSources.map((item) => item.key), revision = '', onCaptured?: (image: ArticleImage, group: ArticleImage[]) => Promise<void>, existingImages: ArticleImage[] = []) {
   const images: ArticleImage[] = []; const failures: string[] = [];
   const selected = captureSources.filter((source) => keys.includes(source.key));
+  let accepted = existingImages;
   const batchDeadline = Date.now() + 120000;
   for (const [index, item] of selected.entries()) {
     if (signal.aborted) break;
@@ -90,13 +102,28 @@ export async function capturePlatform(date: string, signal: AbortSignal, progres
       const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('浏览器不支持图片导出');
       ctx.fillStyle = '#1c1f26'; ctx.fillRect(0, 0, width, height); ctx.fillStyle = '#e6e8ed'; ctx.font = '26px "Microsoft YaHei", sans-serif'; ctx.fillText(`${date}  ${item.title}  全市场`, 24, 48);
       let top = 76; canvases.forEach((part, index) => { ctx.drawImage(part, 0, top, width, heights[index]); top += heights[index]; });
-      let data = canvas.toDataURL('image/png'); if (data.length > 1400000) data = canvas.toDataURL('image/jpeg', 0.92);
-      if (data.length > 3000000) throw new Error('高清长图超出大小限制');
-      const image: ArticleImage = {
-        id: imageId(item.key), data, caption: `${date} ${item.title}（暗色，${item.charts.length}组平台原图）`, source: `${window.location.origin}${item.path}?date=${date}${item.query}&dataRevision=${encodeURIComponent(revision)}`, after: item.title,
-      };
-      if (onCaptured) await bounded(onCaptured(image), batchDeadline - Date.now(), signal);
-      images.push(image);
+      const breaks: number[] = []; let offset = 76;
+      canvases.forEach((part, index) => {
+        try { for (const point of JSON.parse(part.dataset?.reviewBreaks || '[]')) if (typeof point === 'number') breaks.push(offset + Math.round((point * width) / part.width)); } catch { /* Missing optional row boundaries falls back to complete pixel ranges. */ }
+        offset += heights[index]; breaks.push(offset);
+      });
+      const retained = accepted.filter((image) => !belongsTo(image, item.key));
+      const missing = missingPlatformImages(accepted);
+      const future = selected.slice(index + 1).filter((source) => missing.includes(source.key));
+      const weight = (key: string) => (key === 'limits' ? 3 : 1);
+      const budget = Math.floor(((6000000 - retained.reduce((sum, image) => sum + image.data.length, 0)) * weight(item.key)) / (weight(item.key) + future.reduce((sum, source) => sum + weight(source.key), 0)));
+      const encoded = encodeCapture(canvas, budget, 20 - retained.length - future.length, breaks);
+      const source = `${window.location.origin}${item.path}?date=${date}${item.query}&dataRevision=${encodeURIComponent(revision)}${encoded.length > 1 ? `&imageParts=${encoded.length}&imageSet=${crypto.randomUUID()}` : ''}`;
+      const group: ArticleImage[] = encoded.map((data, part) => ({
+        id: `platform-dark-v1-${item.key}-${part}`,
+        data,
+        caption: `${date} ${item.title}（暗色，${item.charts.length}组平台原图${encoded.length > 1 ? `，第${part + 1}/${encoded.length}张` : ''}）`,
+        source,
+        after: item.title,
+      }));
+      if (onCaptured) await bounded(onCaptured(group[0], group), batchDeadline - Date.now(), signal);
+      accepted = mergePlatformImages({ body: '', feishuUrl: '', images: accepted }, group).images;
+      images.push(...group);
     } catch (error) { if (signal.aborted) break; failures.push(`${item.title}：${(error as Error).message}`); } finally { frame.remove(); }
   }
   return { images, failures };
