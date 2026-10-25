@@ -68,8 +68,9 @@ export function reviewDocument(date: string, value: NotebookContent, answer: str
   if (headings.some((heading) => !sections.get(heading))) throw Error('分析正文缺少必要章节，已保留结果和原文，请在面板中重新生成。');
   let body = documentTemplate(date, value);
   if (connected) {
-    const original = body.slice(body.indexOf('## 策略选股'));
-    body = [`# ${value.public.title || `${date}复盘`}`, '> 本文由 AI 生成，仅供参考。', ...headings.map((heading) => `### ${heading}\n\n**AI 独立分析**\n\n${sections.get(heading)}`), '## 附图：情绪与板块明细', original].join('\n\n');
+    const original = body.slice(body.indexOf('## 策略选股')).split(/(?=^## )/m).filter((block) => block.slice(block.indexOf('\n')).trim()).join('');
+    const appendix = value.article?.images.some((image) => ['情绪指标', '20日板块轮动', '涨停板复盘'].includes(image.after));
+    body = [`# ${value.public.title || `${date}复盘`}`, '> 本文由 AI 生成，仅供参考。', ...headings.map((heading) => `### ${heading}\n\n**AI 独立分析**\n\n${sections.get(heading)}`), ...(appendix ? ['## 附图：情绪与板块明细'] : []), original].filter(Boolean).join('\n\n');
   } else {
     headings.forEach((heading) => {
       const marker = heading === '涨停板复盘' ? `## ${heading}` : `### ${heading}`;
