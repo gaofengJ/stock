@@ -31,6 +31,36 @@ test('week columns start on Monday and six-row months retain their final days', 
   assert.equal(monthDates(2028, 1).filter(Boolean).length, 29);
 });
 
+const focusSandbox = { exports: {} };
+vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/app/basic/trade-cal/investment-focus.ts'), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, focusSandbox);
+const { isAShareFocusEvent } = focusSandbox.exports;
+test('A-share focus keeps key domestic, global policy and sector events instead of all highly rated foreign data', () => {
+  for (const event of [
+    { source: 'cn_schedule', title: '中国制造业PMI' },
+    { source: 'eco_cal', country: '美国', title: '核心CPI年率' },
+    { source: 'eco_cal', country: '美国', title: '非农就业人口' },
+    { source: 'eco_cal', country: '美国', title: '美联储利率决议' },
+    { source: 'eco_cal', country: '欧元区', title: '欧洲央行利率决定' },
+    { source: 'eco_cal', country: '美国', title: '美联储缩减资产负债表计划' },
+    { source: 'investment_calendar', title: '全国两会召开' },
+    { source: 'investment_calendar', title: '中国共产党第二十届中央委员会第四次全体会议' },
+    { source: 'investment_calendar', title: 'CES国际消费电子展' },
+    { source: 'investment_calendar', title: 'ESMO欧洲肿瘤内科学会大会' },
+    { source: 'investment_calendar', title: '产业价格调整', sectors: ['储能'] },
+    { source: 'investment_calendar', title: '关税调整政策发布' },
+  ]) assert.equal(isAShareFocusEvent(event), true, JSON.stringify(event));
+  for (const event of [
+    { source: 'eco_cal', country: '美国', title: '美国联邦储备银行储备金余额', importance: 3 },
+    { source: 'eco_cal', country: '美国', title: '美联储资产负债表', importance: 3 },
+    { source: 'eco_cal', country: '澳大利亚', title: '制造业和服务业PMI(十月)', importance: 3 },
+    { source: 'eco_cal', country: '德国', title: '制造业PMI', importance: 3 },
+    { source: 'eco_cal', country: '英国', title: '住房贷款许可' },
+    { source: 'investment_calendar', title: '电影首映定档', sectors: ['影视'] },
+    { source: 'investment_calendar', title: '某地文化论坛举行' },
+    { source: 'investment_calendar', title: ' ' },
+  ]) assert.equal(isAShareFocusEvent(event), false, JSON.stringify(event));
+});
+
 
 // Exercise the actual request hook with controlled responses and committed effects.
 function workbenchHook() {

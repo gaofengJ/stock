@@ -10,6 +10,9 @@
 .calendar-legend .unknown { background: transparent; border: 1px dashed var(--text-secondary); }
 .trading-months { display: grid; gap: 12px; }
 .trading-months.annual { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1180px) { .trading-months.annual { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 820px) { .trading-months.annual { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 360px) { .trading-months.annual { grid-template-columns: minmax(0, 1fr); } }
 .trading-months.monthly { max-width: 900px; margin: 0 auto; }
 .trading-month { padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 6px; }
 .trading-month h2 { font-size: 14px; font-weight: 600; margin: 0 0 6px; }
@@ -44,6 +47,7 @@
 .investment-calendar .trading-months.monthly { max-width: none; }
 .investment-calendar .trading-day[aria-pressed="true"] { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 .investment-day h3 { margin: 0; font-size: 14px; }
+.calendar-focus-note { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.75; }
 .investment-detail { overflow-wrap: anywhere; justify-items: start; }
 .investment-detail p { margin: 0; }
 .investment-calendar .ant-input-search { max-width: 260px; }

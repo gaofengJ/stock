@@ -11,7 +11,7 @@ if (!['127.0.0.1', 'localhost'].includes(new URL(base).hostname)) throw new Erro
 const output = process.env.TEST_ARTIFACT_DIR || '/tmp/stock-frontend-resilience';
 fs.mkdirSync(output, { recursive: true });
 const date = '2026-10-12';
-const routes = ['/review', '/news', '/analysis/chains', '/analysis/overview', '/strategy', '/basic/stock', '/basic/active-funds'];
+const routes = ['/review', '/news', '/analysis/chains', '/analysis/overview', '/strategy', '/basic/stock', '/basic/active-funds', '/basic/trade-cal'];
 const account = { id: 91, username: 'fixture', nickname: '测试账户', roles: [{ id: 1, code: 'admin', name: '管理员' }], permissions: routes, catalog: routes.map(route => ({ code: route, route, name: route, group: 'fixture' })), mustChangePassword: false };
 const ok = (route, data) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ code: 0, data }) });
 const wait = async (predicate, label) => { for (let i = 0; i < 200; i++) { if (predicate()) return; await new Promise(resolve => setTimeout(resolve, 50)); } throw new Error(`Timed out: ${label}`); };
@@ -204,9 +204,45 @@ async function fundsLayoutTest(browser) {
   console.log('PASS funds: compact single-line rows, full details and aligned pagination at desktop and mobile widths');
 }
 
+async function calendarFocusTest(browser) {
+  let calendarRequests = 0;
+  const context = await mockContext(browser, async (route, url) => {
+    if (url.pathname !== '/api/basic/workbench/market-events') return false;
+    calendarRequests += 1;
+    await ok(route, { date, sources: [], items: [
+      { date, title: '美联储资产负债表', country: '美国', source: 'eco_cal' },
+      { date, title: '美国联邦储备银行储备金余额', country: '美国', source: 'eco_cal' },
+      { date, title: '核心CPI年率', country: '美国', source: 'eco_cal' },
+      { date, title: '半导体产业展会', source: 'investment_calendar', sectors: ['芯片'] },
+    ] });
+    return true;
+  });
+  const page = await context.newPage();
+  await page.goto(`${base}/basic/trade-cal/?date=${date}`, { waitUntil: 'networkidle' });
+  await page.getByRole('heading', { name: `${date} A股重点事件（2项）`, exact: true }).waitFor();
+  assert.equal(await page.getByText('美联储资产负债表', { exact: true }).count(), 0);
+  const requests = calendarRequests;
+  await page.getByText('全年', { exact: true }).click();
+  await page.locator('.trading-months.annual').waitFor();
+  assert.equal(await page.locator('.trading-month').count(), 12);
+  assert.equal(await page.getByRole('textbox', { name: '选择日历年份', exact: true }).isEnabled(), true);
+  assert.equal(calendarRequests, requests, 'annual view must not fetch twelve months of events');
+  await page.getByText('全部事件', { exact: true }).click();
+  await page.getByRole('heading', { name: `${date} 全部投资事件（4项）`, exact: true }).waitFor();
+  assert.equal(calendarRequests, requests, 'display filtering uses the already loaded events');
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await page.locator('.trading-month').count(), 12);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  await page.getByText('按月', { exact: true }).click();
+  await page.locator('.trading-months.monthly').waitFor();
+  assert.equal(await page.locator('.trading-month').count(), 1);
+  await context.close();
+  console.log('PASS calendar: year/month views at desktop and mobile widths, focused events, full-list recovery and no duplicate requests');
+}
+
 (async () => {
   const browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_EXECUTABLE ? { executablePath: process.env.CHROMIUM_EXECUTABLE } : {}) });
-  try { await notebookTest(browser); await focusTest(browser); await requestScopeTest(browser); await fundsLayoutTest(browser); }
+  try { await notebookTest(browser); await focusTest(browser); await requestScopeTest(browser); await fundsLayoutTest(browser); await calendarFocusTest(browser); }
   catch (error) {
     for (const context of browser.contexts()) for (const page of context.pages()) {
       await page.screenshot({ path: path.join(output, 'resilience-failure.png'), timeout: 5000 }).catch(() => {});
