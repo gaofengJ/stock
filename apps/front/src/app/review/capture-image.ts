@@ -25,7 +25,7 @@ export function encodeCapture(canvas: HTMLCanvasElement, budget: number, maxPart
   try {
     const png = pages.map((page) => page.toDataURL('image/png'));
     if (png.every((data) => data.startsWith('data:image/png;base64,') && data.length <= 1400000) && png.reduce((sum, data) => sum + data.length, 0) <= budget) return png;
-    for (const quality of [0.92, 0.86, 0.8]) {
+    for (const quality of [0.92, 0.86, 0.8, 0.74, 0.68]) {
       const images = pages.map((page) => page.toDataURL('image/jpeg', quality));
       if (images.every((data) => data.startsWith('data:image/jpeg;base64,') && data.length <= 3000000) && images.reduce((sum, data) => sum + data.length, 0) <= budget) return images;
     }

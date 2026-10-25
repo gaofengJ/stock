@@ -172,6 +172,8 @@ test('oversized real-width canvases split, adapt compression and respect the rem
   assert(qualities.includes(0.86));assert.equal(draws.reduce((n,args)=>n+args[4],0),source.height);
   assert.throws(()=>captureImage.encodeCapture(source,6000000,2),/空间不足/);
   assert.throws(()=>captureImage.encodeCapture(source,1000000,10),/总量超限/);
+   const dense={width:1440,height:4000,toDataURL:(type,q)=>encoded(type,type==='image/jpeg'&&q===0.68?1200000:2000000)};
+   assert(captureImage.encodeCapture(dense,1500000,1)[0].length<1500000);
  }finally{global.document=old;}
 });
 test('incomplete multipart captures stay missing; complete replacements remove old pages and preserve uploads',()=>{
