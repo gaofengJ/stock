@@ -8,5 +8,6 @@ import StockActionProvider from '@/components/StockActions/Provider';
 import { isDiscoveryPath } from './site';
 
 export default function DiscoveryBoundary({ children }: { children: ReactNode }) {
-  return isDiscoveryPath(usePathname()) ? <>{children}</> : <AccountBoundary><StockActionProvider>{children}</StockActionProvider></AccountBoundary>;
+  const path = usePathname();
+  return isDiscoveryPath(path) || path.replace(/\/$/, '') === '/domain-transfer' ? <>{children}</> : <AccountBoundary><StockActionProvider>{children}</StockActionProvider></AccountBoundary>;
 }

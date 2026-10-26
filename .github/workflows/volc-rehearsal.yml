@@ -103,7 +103,7 @@ jobs:
           export FRONT_TEST_URL=http://127.0.0.1:8087
           export TEST_ARTIFACT_DIR=/tmp/stock-browser-artifacts
           browser_test_status=0
-          for script in verify-chains-browser verify-audit-browser verify-resilience-browser verify-review-handoff-browser verify-review-workflow-browser; do
+          for script in verify-domain-transfer-browser verify-chains-browser verify-audit-browser verify-resilience-browser verify-review-handoff-browser verify-review-workflow-browser; do
             node "apps/front/scripts/$script.cjs" || browser_test_status=1
           done
           exit "$browser_test_status"

@@ -270,6 +270,7 @@ export default function Notebook({
       {localError && <Alert type="error" message={localError} />}
       {error && <Alert type="warning" message={error} action={!snapshot && <Button onClick={() => setAttempt((x) => x + 1)}>重新读取</Button>} />}
       {evidenceError && evidenceError !== error && <Alert type="warning" message={evidenceError} />}
+      <p className="review-caption"><Link href="/domain-transfer/">从旧 IP 恢复本机草稿</Link></p>
       {!publishing && snapshot && (
       <NotebookHistory
         snapshot={snapshot}

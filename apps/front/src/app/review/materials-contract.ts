@@ -1,4 +1,5 @@
 import { bounded, object } from './article-contract';
+import { normalizeSiteText } from '../../discovery/urls';
 
 export interface MaterialLink { id: string; title: string; url: string; note: string }
 export interface CalendarMaterial { id: string; date: string; title: string; detail: string; source: string }
@@ -10,7 +11,7 @@ export function materialUrl(input: unknown) {
   const text = bounded(input, 1500);
   const url = new URL(text);
   if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) throw new Error('请输入完整的 http 或 https 素材链接');
-  return text;
+  return normalizeSiteText(text);
 }
 export function validateMaterials(input: unknown): Materials {
   const value = object(input);

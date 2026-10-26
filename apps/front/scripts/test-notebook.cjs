@@ -28,6 +28,25 @@ test('published snapshot matches the preview and never imports private writing',
 const contract=load('../src/app/review/article-contract.ts');
 const serverContract=load('../../back/src/modules/review/article-contract.ts');
 const handoff=load('../src/app/review/article-handoff.ts');
+test('domain migration changes only website links while preserving content and query context',()=>{
+ const urls=load('../src/discovery/urls.ts');
+ assert.equal(urls.publicSiteLink('/review/?date=2026-10-23&dataRevision=7#notes'),'https://stock.mufengtongxue.com/review/?date=2026-10-23&dataRevision=7#notes');
+ for(const value of ['https://14.103.103.40/','https://14.103.103.4.evil.test/','https://14.103.103.4:3000/','https://14.103.103.4@evil.test/','https://third.test/?url=https://14.103.103.4/']) assert.equal(urls.normalizeSiteText(value),value);
+ const c=exp.emptyNotebook(); c.private.marketJudgment='原文 [资料](https://14.103.103.4/analysis/?date=2026-10-23)';
+ const packet=handoff.reviewPacket('2026-10-23',7,c,'https://14.103.103.4');
+ assert.ok(JSON.stringify(packet).includes('https://stock.mufengtongxue.com/analysis/?date=2026-10-23'));
+ assert.ok(c.private.marketJudgment.includes('14.103.103.4'),'export does not mutate original notes');
+ assert.ok(!JSON.stringify(packet).includes('https://14.103.103.4'));
+});
+test('local recovery accepts supported records and excludes cookies and other account identities',()=>{
+ const transfer=load('../src/discovery/transfer.ts');
+ const data={schema:transfer.transferSchema,notebooks:[],storage:[{key:'stock-review-draft:v1:17:2026-10-23',value:'original draft'}]};
+ assert.equal(transfer.storageOwner(data.storage[0].key),17);
+ assert.equal(transfer.storageOwner('personal-ai-model:18'),18);
+ assert.deepEqual(transfer.parseTransfer(JSON.stringify(data)),data);
+ for(const key of ['stock_session','auth-token','unrelated-setting']) assert.throws(()=>transfer.parseTransfer(JSON.stringify({...data,storage:[{key,value:'secret'}]})));
+ assert.throws(()=>transfer.parseTransfer(JSON.stringify({...data,notebooks:[{key:'bad',value:{}}]})));
+});
 const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII=';
 function illustrated(){const c=exp.emptyNotebook(); c.private.execution='PRIVATE_SECRET';c.article={body:'# 日报\n\n## 市场\n数据\n\n## 计划\n等待验证',feishuUrl:'',images:[{id:'chart-1',data:png,caption:'市场图',source:'行情日期 2026-09-30',after:'市场'}]};return c;}
 test('illustrated versions round trip images and source, export to offline HTML, exclude private data',()=>{

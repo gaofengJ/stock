@@ -48,6 +48,8 @@
 
 ## 2026-10-15 正式运行补充
 
+2026-10-26 域名备案与 HTTPS 已接入，当前正式入口为 `https://stock.mufengtongxue.com`。以下 IP 试运行描述为迁移历史；链接、草稿恢复与后续域名检查见 `docs/domain-transition.md`。运维 SSH 和服务器内部地址继续使用 IP。
+
 - 主库与独立测试库最终迁移及业务验证完成；新端生产、发布、新闻、本地备份和健康 timer 已启用，仓库 `VOLC_PRODUCTION_ENABLED=true`。域名仍待接入备案，先使用新 IP HTTPS。持续异机备份按用户决定延期，邮件收件未验证。
 - GitHub 返回旧的 2026-10-12 queued 新闻 run，但取消和强制取消均报告已结束。新机 `/etc/stock-news-dispatch.env` 显式设置 `NEWS_DISPATCH_NOT_BEFORE=2026-10-14T16:04:00Z`，仅忽略切换前旧 run。默认不设置则保留全部运行记录；新 run 及未知时间仍参与重复保护。不得用滚动时间阈值跳过当前运行。
 - 原文和译文 receiver 使用 `stock-deploy`。既有 `.delivery.lock` 需要该用户读写 ACL，现有两个 feed 需要只读 ACL，目录需要新建文件的默认 ACL。安装后须实际验证锁与读取，再以真实生产投递确认 `published=true`，validate-only 不足以证明写权限。新文件由 receiver 原子替换，数据库不向 receiver 开放。
