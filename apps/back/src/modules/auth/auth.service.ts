@@ -29,6 +29,8 @@ import { randomAvatar, AVATARS } from './avatar';
 
 export const COOKIE = 'stock_session';
 export const TRIAL_COOKIE = 'stock_trial';
+export const GUEST_TRIAL_MINUTES = 30;
+const GUEST_TRIAL_MS = GUEST_TRIAL_MINUTES * 60 * 1000;
 export const digest = (value: string) =>
   createHash('sha256').update(value).digest('hex');
 export interface CurrentUser {
@@ -203,7 +205,7 @@ export class AuthService implements OnModuleInit {
     if (!token && start && reply) {
       token = randomBytes(32).toString('hex');
       await this.db.query(
-        'INSERT INTO t_auth_session(user_id,token_hash,csrf_hash,last_seen_at,expires_at) VALUES (NULL,?,?,UTC_TIMESTAMP(6),DATE_ADD(UTC_TIMESTAMP(6),INTERVAL 5 MINUTE))',
+        `INSERT INTO t_auth_session(user_id,token_hash,csrf_hash,last_seen_at,expires_at) VALUES (NULL,?,?,UTC_TIMESTAMP(6),DATE_ADD(UTC_TIMESTAMP(6),INTERVAL ${GUEST_TRIAL_MINUTES} MINUTE))`,
         [digest(token), digest(`trial:${token}`)],
       );
       reply.setCookie(TRIAL_COOKIE, token, {
@@ -217,7 +219,9 @@ export class AuthService implements OnModuleInit {
       'SELECT GREATEST(0,TIMESTAMPDIFF(MICROSECOND,UTC_TIMESTAMP(6),expires_at) DIV 1000) remainingMs FROM t_auth_session WHERE token_hash=? AND csrf_hash=? AND user_id IS NULL AND revoked_at IS NULL',
       [digest(token), digest(`trial:${token}`)],
     );
-    return { remainingMs: Math.min(300000, Number(row?.remainingMs || 0)) };
+    return {
+      remainingMs: Math.min(GUEST_TRIAL_MS, Number(row?.remainingMs || 0)),
+    };
   }
 
   async access(req: AuthRequest, reply: FastifyReply, start: boolean) {

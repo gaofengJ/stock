@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { WorkbenchModule } from '../basic/workbench/workbench.module';
 import { CandidateFinancialService } from './candidate-financial.service';
+import { CandidateRiskService } from './candidate-risk.service';
 import { StrategyController } from './strategy.controller';
 import { StrategyService } from './strategy.service';
 import { StrategyCacheService } from './strategy-cache.service';
@@ -12,6 +13,7 @@ const services = [
   StrategyCacheService,
   StrategyReadService,
   CandidateFinancialService,
+  CandidateRiskService,
 ];
 
 @Module({

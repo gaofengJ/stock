@@ -34,7 +34,7 @@ function BasicActiveFundsPage() {
 
   const [detail, setDetail] = useState<NSGetBasicActiveFundsList.IRes[number] | null>(null);
   const activeFundsColumns = useActiveFundsColumns(keyword, setDetail);
-  const { ref, pagination } = useCalendarPagination(keyword, 88);
+  const { ref, pagination } = useCalendarPagination(keyword, 44, 100);
 
   // activeFundsData 的初始值
   const initialActiveFundsData: {
@@ -91,7 +91,7 @@ function BasicActiveFundsPage() {
         )}
         {loadError && <Alert type="error" message={loadError} showIcon action={<Button size="small" onClick={getActiveFunds}>重试</Button>} />}
         <p className="active-funds-muted">公开名录中的营业部关联线索，点击席位查看龙虎榜记录；未收录席位不代表没有交易活动。</p>
-        <div ref={ref}>
+        <div ref={ref} className="active-funds-table-area">
           <Table
             locale={{ emptyText: loading ? '加载中…' : (loadError || '没有符合条件的数据') }}
             rootClassName="active-funds-table"

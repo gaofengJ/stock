@@ -9,7 +9,7 @@ import { Ladder, LimitRow, MarketSeries } from '@/api/market';
 import Link, { InteractionButton } from '@/components/Interaction';
 import { StockIdentity } from '@/components/StockActions';
 import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import dayjs from 'dayjs';
 import SectorFilter from '@/components/SectorFilter';
 import StrongTrajectories from '../components/StrongTrajectories';
@@ -67,7 +67,6 @@ function LadderGroups({ items }: { items: LimitRow[] }) {
 
 function ChainsPage() {
   const params = useSearchParams();
-  const router = useRouter();
   const tab = chainView(params.get('view'));
   const sector = params.get('sector') || undefined;
   const { date, scope, status } = useMarket();
@@ -79,16 +78,20 @@ function ChainsPage() {
     }).forEach(([key, value]) => {
       if (value) query.set(key, value); else query.delete(key);
     });
-    router.push(`/analysis/chains/?${query}`, { scroll: false });
+    // Same-page filters are client state. Next synchronizes search params and
+    // Back/Forward through its native History integration without a route fetch.
+    window.history.pushState(null, '', `/analysis/chains/?${query}`);
   };
   const setSector = (value?: string) => navigate('ladder', { sector: value });
   const setTrajectorySector = (value?: string) => navigate('trajectory', { trajectorySector: value });
   const openLadder = (day: string) => navigate('ladder', { date: day, sector: undefined, code: undefined });
-  const series = useMarketData<MarketSeries>('chains', { days: 730 }, tab !== 'trajectory');
-  const ladder = useMarketData<Ladder>('ladder', { sector }, tab === 'ladder');
+  const summary = useMarketData<MarketSeries>('chains', { days: 20 }, tab === 'ladder', true);
+  const series = useMarketData<MarketSeries>('chains', {}, tab === 'history', true);
+  const ladder = useMarketData<Ladder>('ladder', { sector }, tab === 'ladder', true);
   return (
     <MarketShell title="连板分析" path="/analysis/chains">
       <Tabs
+        className="market-tabs"
         activeKey={tab}
         onChange={(view) => navigate(view)}
         items={[
@@ -98,9 +101,9 @@ function ChainsPage() {
             children: (
               <>
                 <SectionTitle title="市场晋级概况" description="按顶部统计范围内的数据源非ST样本计算。晋级率跟踪昨日同一批股票，停牌视为未晋级；高位指昨日四板及以上。不受下方行业／概念筛选影响。" />
-                <DataState loading={series.loading} error={series.error} retry={series.retry} empty={!series.data?.snapshot}>
+                <DataState loading={summary.loading} error={summary.error} retry={summary.retry} empty={!summary.data?.snapshot}>
                   <Row gutter={[16, 16]} className="market-metrics">
-                    {series.data?.snapshot?.upgrades.map((r) => (
+                    {summary.data?.snapshot?.upgrades.map((r) => (
                       <Col xs={24} sm={12} xl={6} key={r.from}>
                         <Card size="small" title={r.from === 4 ? '高位晋级' : `${r.from}进${r.from + 1}`}>
                           <strong className="metric-value">
@@ -122,7 +125,7 @@ function ChainsPage() {
                   </Row>
                 </DataState>
                 <SectionTitle title="股票梯队与去向" />
-                <div className="chains-filter">
+                <div className="market-filter-row chains-filter">
                   <SectorFilter value={sector} onChange={setSector} />
                   <span className="chains-filter-note">仅筛选当日股票梯队与昨日连板股去向</span>
                 </div>
@@ -189,7 +192,7 @@ function ChainsPage() {
                   <SectionTitle title="市场历史走势" description="按顶部统计范围计算，不受股票行业／概念筛选影响。" />
                   <TrendRange />
                 </div>
-                <div className="chains-history-toolbar mb-16">
+                <div className="market-filter-row chains-history-toolbar">
                   <span className="market-note">点击图表数据或日期查看当日梯队，或选择日期：</span>
                   <DatePicker aria-label="梯队明细日期" allowClear={false} value={dayjs(detailDate || date)} onChange={(value) => { if (value) setDetailDate(value.format('YYYY-MM-DD')); }} disabledDate={(value) => !(status?.dates || []).includes(value.format('YYYY-MM-DD'))} />
                   <Button size="small" onClick={() => openLadder(detailDate || date)}>查看当日梯队</Button>

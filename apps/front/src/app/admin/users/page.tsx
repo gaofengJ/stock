@@ -281,6 +281,9 @@ export default function Page() {
         ]}
       />
       <Modal
+        className="admin-modal"
+        centered
+        width={560}
         title={`编辑账户：${editing?.username || ''}`}
         open={!!editing}
         onCancel={() => { if (!busy) setEditing(null); }}
@@ -329,6 +332,9 @@ export default function Page() {
         </Form>
       </Modal>
       <Modal
+        className="admin-modal"
+        centered
+        width={560}
         title={`重置密码：${reset?.username || ''}`}
         open={!!reset}
         onCancel={() => { if (!busy) setReset(null); }}
@@ -360,6 +366,9 @@ export default function Page() {
         </Form>
       </Modal>
       <Modal
+        className="admin-modal"
+        centered
+        width={560}
         title="创建用户"
         open={creating}
         onCancel={() => { if (!busy) setCreating(false); }}

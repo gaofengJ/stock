@@ -56,14 +56,21 @@ export async function loadResearch(date: string, signal?: AbortSignal): Promise<
     },
     {
       key: 'sectors',
-      title: '题材板块表现',
+      title: '行业多周期对照',
       path: '/analysis/sectors',
       endpoint: 'sectors',
       unit: '%',
       read: (d: any) => {
-        const top = [...d.items].filter((i: any) => i.day !== null).sort((a: any, b: any) => b.day - a.day).slice(0, 8);
+        const rows = d.items.filter((i: any) => i.asOf === date);
+        const ranked = (key: string) => [...rows].filter((i: any) => typeof i[key] === 'number' && Number.isFinite(i[key])).sort((a: any, b: any) => b[key] - a[key]);
+        const selected = new Map<string, any>();
+        ['day', 'five', 'twenty'].forEach((key) => ranked(key).slice(0, 2).forEach((row: any) => selected.set(row.code, row)));
+        const divergence = ranked('twenty').slice(0, 10).filter((i: any) => typeof i.day === 'number' && i.day < 0).sort((a: any, b: any) => a.day - b.day)[0];
+        if (divergence) selected.set(divergence.code, divergence);
+        const weak = ranked('day').at(-1); if (weak) selected.set(weak.code, weak);
+        const top = [...selected.values()].slice(0, 8);
         if (!top.length) throw new Error('板块行情尚未就绪');
-        return { text: top.map((i: any) => `${i.name}：当日 ${n(i.day)}%，5 日 ${n(i.five)}%，涨停 ${count(i.limitUp)} 家，最高 ${count(i.maxHeight)} 板。`).join('\n'), points: points(top.map((i: any) => ({ label: i.name, value: i.day }))) };
+        return { text: `行业精选${top.length}个（有效行业${rows.length}个）：三周期领先、强势回落和当日落后对照，非全市场排行。行业与涨停题材不可直接等同。\n${top.map((i: any) => `${i.name}：当日 ${n(i.day)}%，5 日 ${n(i.five)}%，20 日 ${n(i.twenty)}%，涨停 ${count(i.limitUp)} 家，最高 ${count(i.maxHeight)} 板。`).join('\n')}`, points: points(top.map((i: any) => ({ label: i.name, value: i.day }))) };
       },
     },
     {
@@ -82,7 +89,7 @@ export async function loadResearch(date: string, signal?: AbortSignal): Promise<
   const sections: Evidence[] = await Promise.all(definitions.map(async (def) => {
     const source = `${def.path}?date=${date}`;
     try {
-      const response = await marketRequest<any>(def.endpoint, { date, ...(def.endpoint === 'sectors' ? { kind: 'N', period: 1 } : {}) }, { signal, autoShowError: false });
+      const response = await marketRequest<any>(def.endpoint, { date, ...(def.endpoint === 'sectors' ? { kind: 'I', period: 20 } : {}) }, { signal, autoShowError: false });
       const { data } = response;
       if (data.date !== date) throw new Error('返回日期与所选日期不一致');
       return {

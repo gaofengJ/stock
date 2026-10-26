@@ -31,7 +31,7 @@ def main():
     base = state['Config']['Image']
     if not re.fullmatch(r'stock-personal-console:[a-zA-Z0-9_.-]+', base):
         raise RuntimeError('unexpected_console_image')
-    digest = hashlib.sha256(b''.join(p.read_bytes() for p in sorted(ROOT.glob('*.mjs')))).hexdigest()[:12]
+    digest = hashlib.sha256(b''.join(p.read_bytes() for p in sorted([*ROOT.glob('*.mjs'), *ROOT.glob('skills/**/*.md')]))).hexdigest()[:12]
     image = 'stock-personal-console:review-stream-' + digest
     backup = NAME + '-before-review-' + digest
     (ROOT / 'Dockerfile').write_text('FROM ' + base + '\nCOPY core.mjs runner.mjs server.mjs context.mjs stream.mjs /app/\nCOPY skills/ /app/skills/\n')

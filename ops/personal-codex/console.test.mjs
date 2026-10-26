@@ -40,7 +40,7 @@ test('idempotency, budget reservation, restart and conversation controls survive
     assert.throws(() => s.admit({ ...input, message: 'changed' }));
     assert.throws(() => s.admit(task()));
     assert.equal(s.usedToday().tokens, 32000);
-    first.status = 'completed'; first.snapshot = { date: input.date, version:'review/v3' }; first.answer = '结论'; first.usage = { input_tokens: 100, output_tokens: 20 }; s.save();
+    first.status = 'completed'; first.snapshot = { date: input.date, version:'review/v4' }; first.answer = '结论'; first.usage = { input_tokens: 100, output_tokens: 20 }; s.save();
     assert.equal(s.usedToday().tokens, 120);
     assert.throws(() => s.admit(task(), { maxCalls: 1 }));
     assert.throws(() => s.admit(task(), { dailyTokens: 32000 }));

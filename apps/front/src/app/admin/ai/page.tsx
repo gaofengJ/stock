@@ -1,111 +1,94 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import {
-  Alert, Button, Card, Space, Typography,
+  Alert, Button, Drawer, Tabs,
 } from 'antd';
-import { SettingOutlined } from '@ant-design/icons';
-import PageHeading from '@/auth/PageHeading';
 import { useAccount } from '@/auth/Boundary';
 import { isPersonalAiOwner } from '@/auth/client';
-import ModelControls from '@/components/PersonalAi/ModelControls';
-import {
-  ConsoleState, consoleRequest, defaultChoice, Metadata, ModelChoice, readChoice, saveChoice, supportsChoice,
-} from '@/components/PersonalAi/client';
+import TaskState, { useAiTasks } from '@/components/PersonalAi/TaskState';
+import AnalysisPanel from '@/components/PersonalAi/AnalysisPanel';
+import { consoleRequest, Task } from '@/components/PersonalAi/client';
+import { mayLeaveResearch } from '@/utils/research-navigation';
+import PageHeading from '@/auth/PageHeading';
+import { RobotOutlined } from '@ant-design/icons';
+import Settings from './Settings';
+import TaskHistory from './TaskHistory';
+import './workspace.css';
 import '@/components/PersonalAi/personal-ai.css';
+import '@/app/review/review.css';
 
-function Settings({ ownerId }: { ownerId: number }) {
-  const [state, setState] = useState<ConsoleState | null>(null);
-  const [choice, setChoice] = useState<ModelChoice>(defaultChoice);
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
-  const [busy, setBusy] = useState(false);
-  const load = async () => setState(await consoleRequest<ConsoleState>('/status'));
+const tabs = ['history', 'settings'];
+function Workspace({ ownerId }: { ownerId: number }) {
+  const params = useSearchParams();
+  const router = useRouter();
+  const context = useAiTasks();
+  const [searchError, setSearchError] = useState('');
+  const [selected, setSelected] = useState<Task | null>(null);
+  const requested = params?.get('tab') || (params?.get('aiTask') ? 'history' : 'settings');
+  const tab = tabs.includes(requested) ? requested : 'settings';
+  const taskId = params?.get('aiTask') || '';
   useEffect(() => {
+    if (requested === 'review') { const query = new URLSearchParams(params?.toString()); query.delete('tab'); query.set('view', 'article'); router.replace(`/review/?${query}`); }
+  }, [requested, params, router]);
+  const update = async (values: Record<string, string>) => {
+    if (!await mayLeaveResearch()) return;
+    const url = new URL(window.location.href);
+    Object.entries(values).forEach(([key, value]) => { if (value) url.searchParams.set(key, value); else url.searchParams.delete(key); });
+    window.history.pushState(null, '', url); setSelected(null);
+  };
+  useEffect(() => {
+    if (!taskId) { setSelected(null); return undefined; }
     let active = true;
-    setChoice(readChoice(ownerId));
-    consoleRequest<ConsoleState>('/status').then((value) => { if (active) setState(value); }).catch((reason) => { if (active) setError(reason.message); });
+    const task = context?.state?.tasks.find((row) => row.id === taskId);
+    if (task) setSelected(task);
+    else consoleRequest<Task>(`/tasks/${encodeURIComponent(taskId)}`).then((value) => { if (active) setSelected(value); }).catch(() => { if (active) setSearchError('任务读取失败，请刷新重试'); });
     return () => { active = false; };
-  }, [ownerId]);
-  const metadata = state?.metadata;
-  const remaining = metadata?.quota.primary ? `${Math.max(0, 100 - metadata.quota.primary.usedPercent)}%` : '尚未查询';
+  }, [taskId, context?.state?.tasks]);
   return (
-    <div className="personal-ai-stack personal-ai-settings">
-      <PageHeading title="模型设置" description="管理个人分析的默认模型，查看订阅状态和用量。" icon={<SettingOutlined />} />
-      {error && <Alert type="error" showIcon message={error} action={<Button size="small" onClick={() => { setError(''); load().catch((reason) => setError(reason.message)); }}>重试</Button>} />}
-      {notice && <Alert type="success" showIcon message={notice} />}
-      <div className="personal-ai-metrics">
-        <div className="personal-ai-metric">
-          <span>今日分析次数</span>
-          <strong>{state ? `${state.today.calls} / ${state.limits.dailyCalls}` : '—'}</strong>
-        </div>
-        <div className="personal-ai-metric">
-          <span>今日 Token 预算占用</span>
-          <strong>{state?.today.tokens.toLocaleString() ?? '—'}</strong>
-          <span>
-            每日准入预算
-            {state?.limits.dailyTokens.toLocaleString() ?? '200,000'}
-          </span>
-        </div>
-        <div className="personal-ai-metric">
-          <span>订阅窗口剩余额度</span>
-          <strong>{remaining}</strong>
-          <span>{metadata ? '最近一次查询结果' : '点击下方刷新订阅状态'}</span>
-        </div>
-      </div>
-      <Card size="small" title="默认模型">
-        <div className="personal-ai-stack">
-          <ModelControls value={choice} onChange={(value) => { setChoice(value); setNotice(''); }} metadata={metadata} />
-          <Typography.Text type="secondary">初始默认为 GPT-6.1 Sol / High。设置保存在当前浏览器，仅用于你的账号；每次分析仍可单独选择。</Typography.Text>
-          <Space wrap>
-            <Button
-              type="primary"
-              disabled={!supportsChoice(metadata, choice)}
-              onClick={() => {
-                try { saveChoice(ownerId, choice); setNotice('默认模型已保存，重新打开业务分析面板后生效。'); setError(''); } catch { setError('浏览器未允许保存设置，请在每次分析时选择模型。'); }
-              }}
-            >
-              保存设置
-            </Button>
-            <Button onClick={() => { setChoice(defaultChoice); setNotice('已恢复默认选择，点击保存设置后生效。'); }}>恢复默认</Button>
-          </Space>
-        </div>
-      </Card>
-      <Card
-        size="small"
-        title="订阅状态"
-        extra={(
-          <Button
-            loading={busy}
-            onClick={async () => {
-              setBusy(true); setError(''); setNotice('');
-              try { await consoleRequest<Metadata>('/account', 'POST', {}); await load(); setNotice('订阅状态、模型目录与额度已刷新，未调用模型。'); } catch (reason) { setError(reason instanceof Error ? reason.message : '状态刷新失败，请稍后重试。'); } finally { setBusy(false); }
-            }}
-          >
-            刷新状态
-          </Button>
+    <div className="admin-ai-workspace personal-ai-stack">
+      <PageHeading title="AI 设置" description="配置复盘模型，管理用量并查看历史任务。" icon={<RobotOutlined />} />
+      <Tabs
+        activeKey={tab}
+        onChange={(value) => { update({ tab: value, aiTask: '' }); }}
+        items={[
+          { key: 'settings', label: '模型设置' }, { key: 'history', label: '历史任务' },
+        ]}
+      />
+      <Link href="/review/?view=article">前往每日复盘制作图文</Link>
+      {tab === 'history' && (
+      <>
+        {searchError && <Alert type="error" message={searchError} />}
+        {context?.error && <Alert type="error" message={context.error} />}
+        <TaskHistory tasks={context?.state?.tasks || []} loading={!context?.state && !context?.error} selectedId={taskId} onRefresh={() => context?.refresh() || Promise.resolve()} onSelect={(task) => { update({ tab: 'history', aiTask: task.id, date: task.date }); }} />
+        <Drawer
+          className="admin-drawer ai-task-drawer"
+          title="AI 任务详情"
+          width="min(1040px, 100vw)"
+          open={!!taskId}
+          onClose={() => { update({ aiTask: '' }); }}
+          footer={(
+            <div className="admin-overlay-footer">
+              <span className="personal-ai-caption">查看记录不会发起新的分析。</span>
+              <Button onClick={() => { update({ aiTask: '' }); }}>关闭</Button>
+            </div>
 )}
-      >
-        <div className="personal-ai-stack">
-          <Typography.Text>{metadata ? `已登录 ${metadata.plan.toUpperCase()} 订阅` : '订阅状态尚未查询'}</Typography.Text>
-          <Typography.Text type="secondary">仅刷新登录与额度信息，不发起分析，不购买 credits。</Typography.Text>
-        </div>
-      </Card>
-      <Card size="small" title="业务入口">
-        <div className="personal-ai-stack">
-          <Typography.Text type="secondary">进入相应业务页面后，从当前日期和候选范围发起分析。</Typography.Text>
-          <Space wrap>
-            <Button href="/review/">每日复盘</Button>
-            <Button href="/strategy/">策略选股</Button>
-          </Space>
-        </div>
-      </Card>
-      <Typography.Paragraph type="secondary">仅本人管理员可用。每次手动分析才消耗订阅用量，单次最多运行180秒，同时只执行1个任务。Token预算是准入控制，执行中的任务可能超过预留量。凭据保留在服务器，不发送到页面；不使用 API Key，不自动购买 credits。</Typography.Paragraph>
+        >
+          <div className="admin-overlay-stack">
+            {!selected && <p role="status">{searchError || '正在读取任务详情…'}</p>}
+            {selected?.skill === 'market-review' && selected.answer && <Button type="primary" onClick={() => { router.push(`/review/?view=article&date=${selected.date}&aiTask=${encodeURIComponent(selected.id)}`); }}>核对并应用到图文</Button>}
+            {selected && <AnalysisPanel readOnly key={selected.id} ownerId={ownerId} skill={selected.skill} date={selected.date} strategy={selected.strategy} candidates={selected.codes.map((code) => ({ code }))} initialTaskId={selected.id} />}
+          </div>
+        </Drawer>
+      </>
+      )}
+      {tab === 'settings' && <Settings ownerId={ownerId} />}
     </div>
   );
 }
-
-export default function ModelSettingsPage() {
+export default function AiToolsPage() {
   const { user } = useAccount();
-  return isPersonalAiOwner(user) ? <Settings ownerId={user!.id} /> : <Alert type="error" message="仅绑定的本人管理员可用。" />;
+  return isPersonalAiOwner(user) ? <TaskState><Workspace ownerId={user!.id} /></TaskState> : <Alert type="error" message="仅绑定的本人管理员可用。" />;
 }

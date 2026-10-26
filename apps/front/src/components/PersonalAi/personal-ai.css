@@ -1,4 +1,19 @@
 .personal-ai-stack{display:flex;flex-direction:column;gap:16px;min-width:0;color:var(--color-black)}
+.personal-ai-panel { gap: 20px; }
+.personal-ai-panel > .ant-alert { margin: 0; }
+.personal-ai-panel .personal-ai-context p { margin: 8px 0 0; line-height: 1.7; }
+.personal-ai-form { padding: 20px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); }
+.personal-ai-form .ant-form-item { margin-bottom: 0; }
+.personal-ai-prompts { margin-top: 16px; }
+.personal-ai-prompts .ant-btn { white-space: normal; height: auto; min-height: 28px; }
+.personal-ai-panel .ant-card-head { min-height: 48px; padding-inline: 20px; }
+.personal-ai-panel .ant-card-body { padding: 20px; }
+.personal-ai-history > div { min-width: 0; overflow-wrap: anywhere; }
+.personal-ai-history > .ant-btn { flex-shrink: 0; }
+.personal-ai-modal .ant-modal-content { max-height: calc(100dvh - 48px); display: flex; flex-direction: column; }
+.personal-ai-modal .ant-modal-body { min-height: 0; overflow-y: auto; overflow-wrap: anywhere; }
+.personal-ai-modal .ant-modal-footer { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--color-border); }
+@media (max-width: 600px) { .personal-ai-form, .personal-ai-panel .ant-card-body { padding: 16px; } .personal-ai-history { flex-wrap: wrap; } }
 .personal-ai-stack .ant-typography{margin-bottom:0}
 .personal-ai-models{display:grid;grid-template-columns:minmax(170px,1fr) minmax(150px,1fr);gap:16px}
 .personal-ai-models .select-field,.personal-ai-models .ant-select{width:100%;min-width:0}

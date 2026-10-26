@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import dayjs from 'dayjs';
 import {
-  Button, Segmented, Select, Space,
+  Button, DatePicker, Segmented, Select, Space,
 } from 'antd';
 import { Lunar } from 'lunar-typescript';
 import SelectField from '@/components/SelectField';
@@ -16,23 +16,17 @@ export default function TradeCalendarGrid({
   items: NSGetBasicTradeCalList.IRes; year: string; onSelect: (date: string) => void; selected?: string; events?: Record<string, number>; initialMonth?: number;
 }) {
   const [month, setMonth] = useState(initialMonth ?? dayjs().month());
-  const [wide, setWide] = useState(false);
-  const [mode, setMode] = useState('year');
-  useEffect(() => {
-    const query = window.matchMedia('(min-width: 1180px) and (min-height: 1000px)');
-    const update = () => setWide(query.matches);
-    update(); query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
-  }, []);
+  const [mode, setMode] = useState(events ? 'month' : 'year');
   const statuses = useMemo(() => new Map(items.map((r) => [r.calDate, Number(r.isOpen) === 1])), [items]);
   useEffect(() => { if (initialMonth !== undefined) setMonth(initialMonth); }, [initialMonth]);
-  const annual = !events && wide && mode === 'year';
+  const annual = mode === 'year';
   const months = annual ? Array.from({ length: 12 }, (_, i) => i) : [month];
   return (
     <div>
       <div className="calendar-view-tools">
         <Space wrap>
-          {!events && <Segmented aria-label="交易日历视图" value={annual ? 'year' : 'month'} onChange={(v) => setMode(String(v))} options={[{ value: 'year', label: '全年', disabled: !wide || !!events }, { value: 'month', label: '按月' }]} />}
+          <Segmented aria-label="交易日历视图" value={mode} onChange={(v) => setMode(String(v))} options={[{ value: 'year', label: '全年' }, { value: 'month', label: '按月' }]} />
+          {annual && <SelectField label="年份"><DatePicker aria-label="选择日历年份" picker="year" value={dayjs(`${year}-01-01`)} allowClear={false} onChange={(value) => { if (value) onSelect(dayjs(selected || `${year}-01-01`).year(value.year()).format('YYYY-MM-DD')); }} /></SelectField>}
           {!annual && (
           <Space>
             <Button aria-label="上一个月" disabled={month === 0} onClick={() => { setMonth((v) => v - 1); if (events) onSelect(`${year}-${String(month).padStart(2, '0')}-01`); }}>‹</Button>

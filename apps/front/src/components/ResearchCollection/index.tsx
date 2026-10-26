@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import {
   Button, Drawer, Empty, Space, message,
 } from 'antd';
+import type { ButtonProps } from 'antd';
+import { CheckOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useAccount } from '@/auth/Boundary';
@@ -22,7 +24,9 @@ export function useCollection(owner: number, date: string) {
   }, [owner, date]);
   return items;
 }
-export function CollectButton({ item, label = '收录到本日复盘' }: { item: Omit<CollectedItem, 'createdAt'>; label?: string }) {
+export function CollectButton({
+  item, label = '收录到本日复盘', className, icon, type, onAction,
+}: { item: Omit<CollectedItem, 'createdAt'>; label?: string; onAction?: () => void } & Pick<ButtonProps, 'className' | 'icon' | 'type'>) {
   const { user } = useAccount(); const allowed = !!user?.roles.some((role) => role.code === 'admin') && !user.guest;
   const fallback = useDefaultTradeDate(allowed && !item.date);
   const date = item.date || (fallback.ready ? fallback.tradeDate : '');
@@ -32,6 +36,10 @@ export function CollectButton({ item, label = '收录到本日复盘' }: { item:
   return (
     <Button
       size="small"
+      className={className}
+      type={type}
+      icon={icon && collected ? <CheckOutlined /> : icon}
+      aria-pressed={collected}
       onClick={() => {
         try {
           if (collected) writeCollection(user.id, date, pending.filter((row) => row.id !== item.id));
@@ -41,6 +49,7 @@ export function CollectButton({ item, label = '收录到本日复盘' }: { item:
             });
           }
           message.success(collected ? '已撤回待收录素材' : `已加入 ${date} 复盘，回到复盘后保存即可同步`);
+          onAction?.();
         } catch (error) { message.error((error as Error).message || '本机空间不足，素材未收录'); }
       }}
     >

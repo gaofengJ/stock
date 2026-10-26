@@ -38,7 +38,7 @@ export class MarketController {
   @Get('popularity')
   @Permit('analysis:senti')
   popularity(@Query() q: PopularityDto) {
-    return this.insights.popularity(q.date, true, q.code);
+    return this.insights.popularity(q.date, true, q.code, q.latest === 'true');
   }
 
   @Get('extremes')

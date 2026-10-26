@@ -7,7 +7,7 @@ import {
   useCallback, useEffect, useRef, useState,
 } from 'react';
 import {
-  Alert, Button, DatePicker, Descriptions, Drawer, Dropdown, Form, Input, Modal, Select, Space, Tag, Tooltip, Typography, message,
+  Alert, Button, DatePicker, Descriptions, Drawer, Dropdown, Form, Input, Modal, Select, Space, Tabs, Tag, Tooltip, Typography, message,
 } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 import Table from '@/components/DataTable';
@@ -336,7 +336,14 @@ export default function Page() {
                         if (key === 'pause') control(r.id, 'pause');
                         else {
                           modal.confirm({
-                            title: `取消任务 #${r.id}？`, content: '已保存的数据会保留；正在执行的任务将在当前批次结束后停止。', okText: '取消任务', okButtonProps: { danger: true }, cancelText: '保留任务', onOk: () => control(r.id, 'cancel'),
+                            className: 'admin-modal',
+                            centered: true,
+                            title: `取消任务 #${r.id}？`,
+                            content: '已保存的数据会保留；正在执行的任务将在当前批次结束后停止。',
+                            okText: '取消任务',
+                            okButtonProps: { danger: true },
+                            cancelText: '保留任务',
+                            onOk: () => control(r.id, 'cancel'),
                           });
                         }
                       },
@@ -351,28 +358,14 @@ export default function Page() {
         ]}
       />
       <Drawer
+        className="admin-drawer sync-detail-drawer"
         title={selected ? `同步任务 #${selected}` : '同步任务'}
-        width={860}
+        width="min(1120px, 100vw)"
         open={!!selected}
-        onClose={() => {
-          setSelected(null);
-          setDetail(null);
-        }}
-      >
-        {detailError && <Alert type="error" message={detailError} showIcon action={<Button size="small" onClick={() => setDetailVersion((v) => v + 1)}>重试</Button>} />}
-        {!detail && !detailError && <Typography.Paragraph>加载中…</Typography.Paragraph>}
-        {detail && (
-          <>
-            <Alert
-              type={isHistorical(detail) || detail.handling === 'source-wait' ? 'info' : ({ failed: 'error', interrupted: 'error', success: 'success' } as const)[detail.status as 'failed' | 'interrupted' | 'success'] || 'info'}
-              showIcon
-              message={handlingLabels[detail.handling] || labels[detail.status] || detail.status}
-              description={handlingMessage(detail) || jobGuidance(detail.status)}
-            />
-            {detail.successorId && <Button type="link" onClick={() => openDetail(detail.successorId)}>{`查看后续任务 #${detail.successorId}`}</Button>}
-            <Typography.Paragraph>{modes.find((m) => m.value === detail.mode)?.scope}</Typography.Paragraph>
-            {canRun && (
-              <div className="sync-detail-recollect">
+        footer={(
+          <div className="admin-overlay-footer">
+            {canRun && detail && (
+              <div className="sync-detail-create">
                 <Button
                   disabled={!!busy || submitting}
                   onClick={() => {
@@ -385,74 +378,151 @@ export default function Page() {
                     document.getElementById('sync-maintenance')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }}
                 >
-                  用这些日期重新获取行情
+                  以此日期范围新建任务
                 </Button>
-                <span>填写上方维护表单，确认日期后提交新任务。</span>
               </div>
             )}
-            <Descriptions
-              column={1}
+            <Button onClick={() => { setSelected(null); setDetail(null); }}>关闭</Button>
+          </div>
+        )}
+        onClose={() => {
+          setSelected(null);
+          setDetail(null);
+        }}
+      >
+        <div className="admin-overlay-stack">
+          {detailError && <Alert type="error" message={detailError} showIcon action={<Button size="small" onClick={() => setDetailVersion((v) => v + 1)}>重试</Button>} />}
+          {!detail && !detailError && <Typography.Paragraph>加载中…</Typography.Paragraph>}
+          {detail && (
+          <>
+            <Alert
+              type={isHistorical(detail) || detail.handling === 'source-wait' ? 'info' : ({ failed: 'error', interrupted: 'error', success: 'success' } as const)[detail.status as 'failed' | 'interrupted' | 'success'] || 'info'}
+              showIcon
+              message={handlingLabels[detail.handling] || labels[detail.status] || detail.status}
+              description={handlingMessage(detail) || jobGuidance(detail.status)}
+            />
+            {detail.successorId && <Button type="link" onClick={() => openDetail(detail.successorId)}>{`查看后续任务 #${detail.successorId}`}</Button>}
+            <dl className="sync-detail-overview">
+              <div>
+                <dt>任务类型</dt>
+                <dd>{modeLabel(detail.mode)}</dd>
+              </div>
+              <div>
+                <dt>触发人</dt>
+                <dd>{detail.actor_id === null ? '系统自动' : `@${detail.actor_name}`}</dd>
+              </div>
+              <div>
+                <dt>同步日期范围</dt>
+                <dd>{`${detail.startDate} 至 ${detail.endDate}`}</dd>
+              </div>
+            </dl>
+            <p className="sync-detail-scope">{modes.find((m) => m.value === detail.mode)?.scope}</p>
+            <Tabs
+              key={selected}
+              className="sync-detail-tabs"
+              defaultActiveKey="data"
               items={[
-                { key: 'mode', label: '任务类型', children: modeLabel(detail.mode) },
-                { key: 'actor', label: '触发人', children: detail.actor_id === null ? '系统自动' : `@${detail.actor_name}` },
-                { key: 'range', label: '同步日期范围', children: `${detail.startDate} 至 ${detail.endDate}` },
-                { key: 'created', label: '创建时间（北京）', children: formatTime(detail.created_at) },
-                { key: 'started', label: '开始时间（北京）', children: formatTime(detail.started_at) },
-                { key: 'finished', label: '完成时间（北京）', children: formatTime(detail.finished_at) },
                 {
-                  key: 'state',
-                  label: '原始执行结果',
-                  children: labels[detail.status],
+                  key: 'data',
+                  label: '数据明细',
+                  children: (
+                    <>
+                      <Typography.Paragraph className="sync-detail-note">
+                        下表为该日期范围的最新数据状态，可能包含后续任务补齐的结果。
+                      </Typography.Paragraph>
+                      <Table
+                        rowKey={(r: { task: string; tradeDate: string }) => r.task + r.tradeDate}
+                        autoHeight
+                        size="middle"
+                        scroll={{ x: 940 }}
+                        pagination={{
+                          defaultPageSize: 10, showSizeChanger: false, hideOnSinglePage: true, showTotal: (total) => `共 ${total} 条`,
+                        }}
+                        dataSource={detail.dates}
+                        columns={[
+                          { title: '日期', width: 112, dataIndex: 'tradeDate' },
+                          {
+                            title: '阶段',
+                            width: 160,
+                            dataIndex: 'task',
+                            render: (v) => ({
+                              daily: '个股行情', 'market-index': '指数日线', market: '市场汇总', 'market-breadth': '均线广度', 'ths-catalog': '同花顺目录', 'ths-daily': '同花顺板块行情', 'strategy-factor': '策略复权行情', 'stock-insight': '市场与策略观察', 'ths-hot': '同花顺日终人气',
+                            }[v as string] || v),
+                          },
+                          {
+                            title: '状态',
+                            width: 130,
+                            dataIndex: 'status',
+                            render: (v) => (v === 'skipped' ? '已忽略，不再补齐' : labels[v] || v),
+                          },
+                          {
+                            title: '行情条数', width: 100, align: 'right', dataIndex: 'dailyCount',
+                          },
+                          {
+                            title: '涨跌停条数', width: 100, align: 'right', dataIndex: 'limitCount',
+                          },
+                          {
+                            title: '情绪条数', width: 100, align: 'right', dataIndex: 'sentiCount',
+                          },
+                          {
+                            title: '说明', width: 238, dataIndex: 'error', render: (v) => (v ? errorMessage(v, '同步失败，请查看服务日志') : '—'),
+                          },
+                        ]}
+                      />
+                    </>
+                  ),
                 },
-                { key: 'stage', label: '进度', children: progressText(detail) },
-                { key: 'failures', label: '失败次数', children: `${detail.retry_count || 0} / ${detail.maxFailures}` },
-                { key: 'retry', label: '下次重试（北京）', children: formatTime(detail.next_retry_at) },
-                { key: 'progress', label: '最近进展（北京）', children: detail.last_progress_at ? formatTime(detail.last_progress_at) : '尚无完成记录' },
                 {
-                  key: 'dates',
-                  label: '实际执行日期',
-                  children:
+                  key: 'execution',
+                  label: '执行信息',
+                  children: <Descriptions
+                    bordered
+                    size="small"
+                    column={{ xs: 1, sm: 1, md: 2 }}
+                    items={[
+                      { key: 'mode', label: '任务类型', children: modeLabel(detail.mode) },
+                      { key: 'actor', label: '触发人', children: detail.actor_id === null ? '系统自动' : `@${detail.actor_name}` },
+                      {
+                        key: 'range', span: 2, label: '同步日期范围', children: `${detail.startDate} 至 ${detail.endDate}`,
+                      },
+                      { key: 'created', label: '创建时间（北京）', children: formatTime(detail.created_at) },
+                      { key: 'started', label: '开始时间（北京）', children: formatTime(detail.started_at) },
+                      { key: 'finished', label: '完成时间（北京）', children: formatTime(detail.finished_at) },
+                      {
+                        key: 'state',
+                        label: '原始执行结果',
+                        children: labels[detail.status],
+                      },
+                      {
+                        key: 'stage', span: 2, label: '进度', children: progressText(detail),
+                      },
+                      { key: 'failures', label: '失败次数', children: `${detail.retry_count || 0} / ${detail.maxFailures}` },
+                      { key: 'retry', label: '下次重试（北京）', children: formatTime(detail.next_retry_at) },
+                      { key: 'progress', label: '最近进展（北京）', children: detail.last_progress_at ? formatTime(detail.last_progress_at) : '尚无完成记录' },
+                      {
+                        key: 'dates',
+                        span: 2,
+                        label: '实际执行日期',
+                        children:
                     (typeof detail.completed_dates === 'string'
                       ? JSON.parse(detail.completed_dates)
                       : detail.completed_dates || []
                     ).join('、') || '尚无',
+                      },
+                      {
+                        key: 'error',
+                        span: 2,
+                        label: '错误摘要',
+                        children: detail.error ? errorMessage(detail.error, '同步失败，请查看服务日志') : '无',
+                      },
+                    ]}
+                  />,
                 },
-                {
-                  key: 'error',
-                  label: '错误摘要',
-                  children: detail.error ? errorMessage(detail.error, '同步失败，请查看服务日志') : '无',
-                },
-              ]}
-            />
-            <Typography.Paragraph type="secondary">
-              下表为该日期范围的最新数据状态，可能包含后续任务补齐的结果。
-            </Typography.Paragraph>
-            <Table
-              rowKey={(r: { task: string; tradeDate: string }) => r.task + r.tradeDate}
-              size="small"
-              dataSource={detail.dates}
-              columns={[
-                { title: '日期', dataIndex: 'tradeDate' },
-                {
-                  title: '阶段',
-                  dataIndex: 'task',
-                  render: (v) => ({
-                    daily: '个股行情', 'market-index': '指数日线', market: '市场汇总', 'market-breadth': '均线广度', 'ths-catalog': '同花顺目录', 'ths-daily': '同花顺板块行情', 'strategy-factor': '策略复权行情', 'stock-insight': '市场与策略观察', 'ths-hot': '同花顺日终人气',
-                  }[v as string] || v),
-                },
-                {
-                  title: '状态',
-                  dataIndex: 'status',
-                  render: (v) => (v === 'skipped' ? '已忽略，不再补齐' : labels[v] || v),
-                },
-                { title: '行情条数', dataIndex: 'dailyCount' },
-                { title: '涨跌停条数', dataIndex: 'limitCount' },
-                { title: '情绪条数', dataIndex: 'sentiCount' },
-                { title: '说明', dataIndex: 'error', render: (v) => (v ? errorMessage(v, '同步失败，请查看服务日志') : '—') },
               ]}
             />
           </>
-        )}
+          )}
+        </div>
       </Drawer>
     </>
   );

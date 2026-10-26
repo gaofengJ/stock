@@ -16,6 +16,7 @@ export const sourceNames: Record<string, string> = {
   stk_high_shock: '严重异动',
   stk_alert: '交易所提示',
   share_float: '解禁',
+  pledge_stat: '股份质押统计',
   investment_calendar: '投资事件',
   eco_cal: '全球经济数据',
   cn_schedule: '国内数据发布日程',

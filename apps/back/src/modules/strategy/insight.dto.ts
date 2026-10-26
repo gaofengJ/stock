@@ -38,8 +38,22 @@ export class CandidateFinancialDto extends InsightDateDto {
   @Matches(/^\d{6}\.(SH|SZ|BJ)$/, { each: true })
   codes: string[];
 }
+export class CandidateRiskDto extends InsightDateDto {
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.split(',') : value,
+  )
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ArrayUnique()
+  @Matches(/^\d{6}\.(SH|SZ|BJ)$/, { each: true })
+  codes: string[];
+
+  @IsOptional() @IsIn(['true', 'false']) detail?: string;
+}
 export class PopularityDto extends InsightDateDto {
   @IsOptional() @Matches(/^\d{6}\.(SH|SZ|BJ)$/) code?: string;
+
+  @IsOptional() @IsIn(['true', 'false']) latest?: string;
 }
 export class ExtremesDto extends InsightDateDto {
   @IsOptional() @IsIn(MARKET_SCOPES) scope: MarketScope = 'all';

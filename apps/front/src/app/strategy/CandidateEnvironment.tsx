@@ -46,8 +46,9 @@ export default function CandidateEnvironment({ date }: { date: string }) {
           <span>
             大盘环境
             <small className="strategy-caption">
-              全市场 ·
-              {date}
+              <span>全市场</span>
+              {' '}
+              <span>{date}</span>
             </small>
           </span>
           <HelpTooltip label="大盘环境" title="沪深京全部A股，均线采用复权价格；仅作背景参考，不影响选股。" />

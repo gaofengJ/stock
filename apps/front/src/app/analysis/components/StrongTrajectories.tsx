@@ -66,10 +66,11 @@ export default function StrongTrajectories({ sector, onSectorChange, active }: {
   const [showSignals, setShowSignals] = useState(false); const [detail, setDetail] = useState<{ row: TrajectoryRow; cell: TrajectoryCell } | null>(null);
   const request = useMarketData<TrajectoryBoard>('trajectories', {
     trajectoryDays: count, days: 20, sector, ...(code ? { code } : {}),
-  }, active);
-  const signals = useMarketData<StrategySignals>('strategy-signals', { trajectoryDays: count, days: 20, ...(code ? { code } : {}) }, active && showSignals && allowedPath(user, '/strategy'));
+  }, active, true);
+  const signals = useMarketData<StrategySignals>('strategy-signals', { trajectoryDays: count, days: 20, ...(code ? { code } : {}) }, active && showSignals && allowedPath(user, '/strategy'), true);
   useEffect(() => { setDetail(null); }, [date, scope, sector, count, code, keyword, active]);
   const data = request.data?.date === date ? request.data : null;
+  const rows = useMemo(() => filterTrajectories(data?.items || [], date, keyword, state), [data, date, keyword, state]);
   const signalMap = useMemo(() => new Map(signals.data?.items.map((r) => [`${r.date}:${r.tsCode}`, r.strategies]) || []), [signals.data]);
   const labels = new Map(signals.data?.strategies.map((r) => [r.key, r.label]) || []);
   const readySignals = new Set(!signals.loading && !signals.error ? Object.values(signals.data?.readyByStrategy || { legacy: signals.data?.readyDates || [] }).flat() : []);
@@ -90,9 +91,9 @@ export default function StrongTrajectories({ sector, onSectorChange, active }: {
   return (
     <div className="chains-trajectory">
       <SectionTitle title="强势股多日轨迹" description="跟踪区间内涨停、炸板股票；未涨停且有成交时高度为0，缺数据保留空态。" />
-      <div className="chains-trajectory-filters">
+      <div className="market-filter-row chains-trajectory-filters">
         <SectorFilter value={sector} onChange={onSectorChange} />
-        <Input.Search aria-label="搜索轨迹股票" allowClear placeholder="股票名称／代码" value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ width: 190 }} />
+        <Input.Search className="market-filter-keyword" aria-label="搜索轨迹股票" allowClear placeholder="股票名称／代码" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
         <SelectField label="轨迹范围"><Select aria-label="轨迹范围" value={count} onChange={setCount} options={[5, 10, 20].map((value) => ({ value, label: `近${value}个交易日` }))} /></SelectField>
         <SelectField label="所选日状态"><Select aria-label="所选日状态" value={state} onChange={setState} style={{ width: 148 }} options={[{ value: 'all', label: '全部状态' }, ...['连板', '首板', '断板', '炸板', '跌停', '交易', '无成交', '待补齐'].map((value) => ({ value, label: value === '交易' ? '普通交易（未涨停）' : value }))]} /></SelectField>
         {allowedPath(user, '/strategy') && <Checkbox checked={showSignals} onChange={(e) => setShowSignals(e.target.checked)}>显示策略命中</Checkbox>}
@@ -115,13 +116,14 @@ export default function StrongTrajectories({ sector, onSectorChange, active }: {
           rowKey="tsCode"
           size="small"
           bordered
+          virtual
           pagination={false}
           maxBodyHeight={960}
           minBodyHeight={120}
           bottomSpacing={24}
           scroll={{ x: 260 + (data?.dates.length || count) * 105 }}
           locale={{ emptyText: keyword || state !== 'all' || sector ? '当前筛选条件下无匹配股票' : '当前区间内无涨停或炸板股票' }}
-          dataSource={filterTrajectories(data?.items || [], date, keyword, state)}
+          dataSource={rows}
           columns={[
             {
               title: '股票',

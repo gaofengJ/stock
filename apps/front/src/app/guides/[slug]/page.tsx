@@ -6,6 +6,7 @@ import {
   guides, publicMetadata, siteName, siteUrl,
 } from '@/discovery/site';
 import { guideSections } from '@/discovery/content';
+import { guestTrialMinutes } from '@/auth/trial';
 
 export const dynamicParams = false;
 export function generateStaticParams() { return guides.map((guide) => ({ slug: guide.slug })); }
@@ -33,7 +34,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
           '@context': 'https://schema.org',
           '@graph': [
             {
-              '@type': 'Article', headline: guide.title, description: guide.description, mainEntityOfPage: url, datePublished: '2026-10-06', dateModified: '2026-10-06', author: { '@type': 'Organization', name: siteName, url: siteUrl }, inLanguage: 'zh-CN',
+              '@type': 'Article', headline: guide.title, description: guide.description, mainEntityOfPage: url, datePublished: '2026-10-06', dateModified: '2026-10-24', author: { '@type': 'Organization', name: siteName, url: siteUrl }, inLanguage: 'zh-CN',
             },
             {
               '@type': 'BreadcrumbList',
@@ -54,7 +55,17 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
         />
         <h1>{guide.title}</h1>
         <p className="discovery-intro">{guide.description}</p>
-        <p className="discovery-caption">更新于2026年10月6日 · 本站原创使用指南</p>
+        <div className="discovery-meta">
+          <span>更新于2026年10月24日</span>
+          <span>使用指南</span>
+        </div>
+        <aside className="discovery-tool-entry" aria-label="进入工具">
+          <div>
+            <strong>边看边操作</strong>
+            <p>{`工具可体验 ${guestTrialMinutes} 分钟，公开指南不计时。`}</p>
+          </div>
+          <div className="discovery-actions"><Link className="discovery-action primary" href={guide.tool}>{`打开${guide.toolName}`}</Link></div>
+        </aside>
         {guideSections[guide.slug].map((section) => (
           <section key={section.heading}>
             <h2>{section.heading}</h2>
@@ -62,11 +73,6 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
             {section.steps && <ol>{section.steps.map((step) => <li key={step}>{step}</li>)}</ol>}
           </section>
         ))}
-        <section>
-          <h2>进入工具</h2>
-          <p>公开指南不计入体验时间。工具可体验5分钟，登录或免费注册后继续浏览获授权的功能。</p>
-          <Link className="discovery-action primary" href={guide.tool}>{`打开${guide.toolName}`}</Link>
-        </section>
         <section className="discovery-related">
           <h2>继续阅读</h2>
           <ul>{guides.filter((item) => item.slug !== guide.slug).map((item) => <li key={item.slug}><Link href={`/guides/${item.slug}/`}>{item.title}</Link></li>)}</ul>

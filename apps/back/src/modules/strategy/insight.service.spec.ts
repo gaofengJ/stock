@@ -308,7 +308,7 @@ describe('InsightService observation boundaries', () => {
       }),
     ).toEqual(['000001.SZ']);
   });
-  it('uses the immediately preceding trading session, never an older available snapshot', async () => {
+  it('compares the preceding actual snapshot even when a calendar date has no snapshot', async () => {
     const { service, db } = setup();
     const stock = {
       code: '000001.SZ',
@@ -327,11 +327,15 @@ describe('InsightService observation boundaries', () => {
         return [{ tradeDate: days[0] }, { tradeDate: days[2] }];
       return [];
     });
+    jest
+      .spyOn(service as any, 'hotDates')
+      .mockResolvedValue([days[0], days[2]]);
     const result = await service.popularity(days[0]);
+    expect(result.previousDate).toBe(days[2]);
     expect(result.items[0]).toMatchObject({
-      state: 'unknown',
-      change: null,
-      streak: 1,
+      state: 'ranked',
+      change: 0,
+      streak: 2,
       streakCapped: true,
     });
     expect(result.exited).toEqual([]);
@@ -371,6 +375,7 @@ describe('historical hot-rank source gaps', () => {
       {} as any,
     );
     jest.spyOn(service as any, 'calendar').mockResolvedValue(days);
+    jest.spyOn(service as any, 'hotCalendar').mockReturnValue(days);
     jest.spyOn(service as any, 'revisions').mockResolvedValue([]);
     const sync = jest.spyOn(service, 'syncHot').mockResolvedValue(undefined);
     return { service, sync, manager };

@@ -34,7 +34,7 @@ export default function TaskBar() {
           </Space>
 )}
       />
-      <Drawer title="AI 任务与结果" width={760} styles={{ wrapper: { maxWidth: '100vw' } }} open={open} onClose={() => setOpen(false)}>{open && <AnalysisPanel readOnly key={task.id} ownerId={user.id} skill={task.skill} date={task.date} strategy={task.strategy} candidates={task.codes.map((code) => ({ code }))} initialTaskId={task.id} />}</Drawer>
+      <Drawer className="personal-ai-drawer" title="AI 任务与结果" width="min(1040px, 100vw)" styles={{ wrapper: { maxWidth: '100vw' } }} open={open} onClose={() => setOpen(false)} footer={<Button onClick={() => setOpen(false)}>关闭</Button>}>{open && <AnalysisPanel readOnly key={task.id} ownerId={user.id} skill={task.skill} date={task.date} strategy={task.strategy} candidates={task.codes.map((code) => ({ code }))} initialTaskId={task.id} />}</Drawer>
     </>
   );
 }

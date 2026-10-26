@@ -4,13 +4,49 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: Rebuild all modules, including unchanged sources and runtime bases
+        type: boolean
+        default: false
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: volc-rehearsal-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      back: ${{ steps.modules.outputs.back }}
+      front: ${{ steps.modules.outputs.front }}
+      article: ${{ steps.modules.outputs.article }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: |
+            ops/volc
+            .github
+      - name: Resolve verified module inputs and immutable reuse
+        id: modules
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FORCE_REBUILD: ${{ inputs.force_rebuild || 'false' }}
+        run: |
+          args=()
+          if [ "$FORCE_REBUILD" = true ]; then args+=(--force); fi
+          python3 ops/volc/module_release.py --commit '${{ github.sha }}' --output /tmp/stock-plan/plan.json "${args[@]}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stock-volc-plan-${{ github.sha }}
+          path: /tmp/stock-plan/
+          retention-days: 30
+          if-no-files-found: error
   contracts:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -28,6 +64,8 @@ jobs:
           node --test .github/scripts/test-release-tools.cjs .github/scripts/test-publish-verified-image.cjs .github/scripts/test-indexnow.cjs
           node --test ops/personal-codex/*.test.mjs
   frontend:
+    needs: plan
+    if: needs.plan.outputs.front == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +83,7 @@ jobs:
       - run: pnpm -C apps/front run lint
       - name: Frontend behavior checks
         run: |
-          node --test apps/front/scripts/test-display.cjs apps/front/scripts/test-errors.cjs apps/front/scripts/test-market-compatibility.cjs apps/front/scripts/test-guest-access.cjs apps/front/scripts/test-market-environment.cjs apps/front/scripts/test-blog-paths.cjs apps/front/scripts/test-intraday-counts.cjs apps/front/scripts/test-live-research.cjs apps/front/scripts/test-playbook.cjs apps/front/scripts/test-admin-polling.cjs
+          node --test apps/front/scripts/test-market-tab-data.cjs apps/front/scripts/test-display.cjs apps/front/scripts/test-errors.cjs apps/front/scripts/test-market-compatibility.cjs apps/front/scripts/test-guest-access.cjs apps/front/scripts/test-market-environment.cjs apps/front/scripts/test-blog-paths.cjs apps/front/scripts/test-intraday-counts.cjs apps/front/scripts/test-live-research.cjs apps/front/scripts/test-playbook.cjs apps/front/scripts/test-admin-polling.cjs
           pnpm -C apps/front run test:profile
       - run: pnpm -C apps/front run build
       - name: Install browser and system dependencies
@@ -65,7 +103,7 @@ jobs:
           export FRONT_TEST_URL=http://127.0.0.1:8087
           export TEST_ARTIFACT_DIR=/tmp/stock-browser-artifacts
           browser_test_status=0
-          for script in verify-audit-browser verify-resilience-browser verify-review-handoff-browser verify-review-workflow-browser; do
+          for script in verify-chains-browser verify-audit-browser verify-resilience-browser verify-review-handoff-browser verify-review-workflow-browser; do
             node "apps/front/scripts/$script.cjs" || browser_test_status=1
           done
           exit "$browser_test_status"
@@ -112,6 +150,8 @@ jobs:
           retention-days: 2
           if-no-files-found: error
   verify:
+    needs: plan
+    if: needs.plan.outputs.back == 'true'
     runs-on: ubuntu-24.04
     services:
       mysql:
@@ -176,6 +216,8 @@ jobs:
 # Intentionally no SSH, production Secrets, database migration, or deployment job.
 
   articles:
+    needs: plan
+    if: needs.plan.outputs.article == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:

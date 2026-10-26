@@ -88,6 +88,21 @@ export class InsightService {
     ).map((r) => r.calDate);
   }
 
+  private hotCalendar(date: string, count: number) {
+    normalizeDate(date);
+    return Array.from({ length: count }, (_, i) =>
+      dayjs(date).subtract(i, 'day').format('YYYY-MM-DD'),
+    );
+  }
+
+  private async hotDates() {
+    const rows: { date: string }[] = await this.db.query(
+      "SELECT DATE_FORMAT(h.trade_date,'%Y-%m-%d') date FROM t_source_ths_hot h WHERE h.trade_date<=? AND JSON_LENGTH(h.data)>0 AND EXISTS (SELECT 1 FROM t_sync_run s WHERE s.task='ths-hot' AND s.trade_date=h.trade_date AND s.status='success') AND NOT EXISTS (SELECT 1 FROM t_sync_day_policy p WHERE p.trade_date=h.trade_date) ORDER BY h.trade_date DESC LIMIT 730",
+      [shanghaiDate()],
+    );
+    return rows.map((r) => r.date);
+  }
+
   private async revisions(
     start: string,
     end: string,
@@ -375,17 +390,18 @@ export class InsightService {
     if (!dates.length) return;
     const start = dates.at(-1)!;
     for (const mode of ['insights', 'hot']) {
+      const endDate = mode === 'hot' ? shanghaiDate() : dates[0];
       const [failure] = await manager.query(
         "SELECT error,updated_at updatedAt,DATE_FORMAT(end_date,'%Y-%m-%d') endDate FROM t_admin_job WHERE mode=? AND actor_id IS NULL AND status='failed' ORDER BY id DESC LIMIT 1",
         [mode],
       );
-      if (automaticSyncRetryBlocked(failure, dates[0])) continue;
+      if (automaticSyncRetryBlocked(failure, endDate)) continue;
       await manager.query(
         "INSERT INTO t_admin_job(actor_id,actor_name,start_date,end_date,status,active_key,mode,stage) VALUES(NULL,?,?,?,'queued',?,?,'等待增量计算') ON DUPLICATE KEY UPDATE start_date=LEAST(start_date,VALUES(start_date)),end_date=GREATEST(end_date,VALUES(end_date))",
         [
           mode === 'hot' ? '同花顺日终人气' : '市场与策略观察统计',
           start,
-          dates[0],
+          endDate,
           `stock-${mode}-history`,
           mode,
         ],
@@ -393,7 +409,7 @@ export class InsightService {
     }
   }
 
-  @Cron('0 40 22 * * 1-5', { timeZone: 'Asia/Shanghai' })
+  @Cron('0 40 22 * * *', { timeZone: 'Asia/Shanghai' })
   async enqueueEvening() {
     if (
       process.env.SCHEDULE_ENABLED === 'false' ||
@@ -415,12 +431,12 @@ export class InsightService {
     normalizeDate(end);
     return this.writes.withLock(
       async (manager) => {
+        const cutoff = hot ? shanghaiDate() : latestSyncDate();
+        const through = end < cutoff ? end : cutoff;
         const days = (
-          await this.calendar(
-            end < latestSyncDate() ? end : latestSyncDate(),
-            730,
-            manager,
-          )
+          hot
+            ? this.hotCalendar(through, 730)
+            : await this.calendar(through, 730, manager)
         ).filter((d) => d >= start);
         const protectedRows: { date: string }[] = await manager.query(
           "SELECT DATE_FORMAT(trade_date,'%Y-%m-%d') date FROM t_sync_day_policy WHERE trade_date BETWEEN ? AND ?",
@@ -439,7 +455,7 @@ export class InsightService {
             })
           : [];
         const ignoredDates = ignored.map((r) => r.tradeDate);
-        const revisions = await this.revisions(start, end, manager);
+        const revisions = hot ? [] : await this.revisions(start, end, manager);
         const records = hot
           ? await manager.find(ThsHotEntity, { select: ['tradeDate'] })
           : await manager.find(StockInsightEntity, {
@@ -703,11 +719,19 @@ export class InsightService {
   }
 
   async popularity(
-    date: string,
+    requestedDate: string,
     history = true,
     code: string | undefined = undefined,
+    latest = false,
   ) {
-    const dates = await this.calendar(date, history ? 20 : 2);
+    normalizeDate(requestedDate);
+    const availableDates = await this.hotDates();
+    const date = latest
+      ? availableDates.find((d) => d <= requestedDate) || requestedDate
+      : requestedDate;
+    const dates = availableDates
+      .filter((d) => d <= date)
+      .slice(0, history ? 20 : 2);
     const policies: { date: string }[] = await this.db.query(
       "SELECT DATE_FORMAT(trade_date,'%Y-%m-%d') date FROM t_sync_day_policy WHERE trade_date IN (?)",
       [dates.length ? dates : [date]],
@@ -732,7 +756,8 @@ export class InsightService {
         .map((r) => [r.tradeDate, r]),
     );
     const current = byDate.get(date);
-    const previous = byDate.get(dates[1]);
+    const previousDate = dates.find((d) => d < date);
+    const previous = previousDate ? byDate.get(previousDate) : undefined;
     const stage = await this.db.manager.findOneBy(SyncRunEntity, {
       task: 'ths-hot',
       tradeDate: date,
@@ -767,12 +792,16 @@ export class InsightService {
             })),
         };
       });
+    const [marketDate] = await this.calendar(date, 1);
     return {
       date,
+      marketDate: marketDate || date,
+      availableDates,
+      latestDate: availableDates[0] || null,
       ready: !!current,
       complete: current?.data.length === 100,
       count: current?.data.length || 0,
-      previousDate: dates[1] || null,
+      previousDate: previousDate || null,
       previousReady: previous?.data.length === 100,
       rankTime: current?.rankTime || null,
       stage: stage ? { status: stage.status, error: stage.error } : null,

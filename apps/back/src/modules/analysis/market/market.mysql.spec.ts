@@ -254,6 +254,55 @@ mysqlDescribe('市场分析迁移、发布及持久化续跑', () => {
     await db.manager.insert(LimitEntity, limitRows(dates[0]));
   });
 
+  it('reads actual weekend popularity editions and excludes unsuccessful snapshots', async () => {
+    const editions = ['2024-03-04', '2024-03-03', '2024-03-02', '2024-03-01'];
+    for (const [i, tradeDate] of [...editions, '2024-03-05'].entries()) {
+      await db.manager.save(ThsHotEntity, {
+        tradeDate,
+        rankTime: `${tradeDate} 22:30:00`,
+        data: Array.from({ length: 100 }, (_, n) => ({
+          code: `${String(n + 1).padStart(6, '0')}.SZ`,
+          name: '榜单样本',
+          rank: ((n + i) % 100) + 1,
+          hot: 100,
+          time: `${tradeDate} 22:30:00`,
+        })),
+      });
+      await db.manager.save(SyncRunEntity, {
+        tradeDate,
+        task: 'ths-hot',
+        status: i === 4 ? 'failed' : 'success',
+      });
+    }
+    const insights = new InsightService(
+      db,
+      writes,
+      market,
+      {} as any,
+      {} as any,
+      {} as any,
+    );
+    const monday = await insights.popularity('2024-03-04', true, '000001.SZ');
+    expect(monday.availableDates).toEqual(editions);
+    expect(monday.previousDate).toBe('2024-03-03');
+    expect(monday.items[0]).toMatchObject({
+      previousRank: 2,
+      change: 1,
+      streak: 4,
+    });
+    expect(monday.items[0].history.map((r) => r.date)).toEqual(
+      [...editions].reverse(),
+    );
+    const sunday = await insights.popularity('2024-03-03');
+    expect(sunday).toMatchObject({
+      previousDate: '2024-03-02',
+      marketDate: '2024-03-01',
+    });
+    expect(
+      await insights.popularity('2024-03-05', true, undefined, true),
+    ).toMatchObject({ date: '2024-03-04', ready: true });
+  });
+
   it('annotates covered failures without changing history or hiding partial and cancelled repairs', async () => {
     const jobs = new JobsService(db, daily, {} as any, new DataLockService(db));
     const insert = async (

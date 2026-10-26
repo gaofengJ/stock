@@ -1,0 +1,9 @@
+.candidate-risk-trigger { width: 100%; padding: 4px 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.candidate-risk-trigger:focus-visible { outline: 2px solid var(--primary-color, #ed2458); outline-offset: 2px; }
+.candidate-risk-trigger:hover .basic-muted { text-decoration: underline; }
+.candidate-risk-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 3px; }
+.candidate-risk-tags:empty { display: none; }
+.candidate-risk-tags .ant-tag { margin: 0; white-space: normal; }
+.candidate-risk-evidence { margin-bottom: 24px; }
+.candidate-risk-evidence h3 { font-weight: 600; margin-bottom: 8px; }
+.candidate-risk-evidence .risk-evidence-list li { margin-bottom: 12px; }

@@ -154,6 +154,42 @@ test('long candidate evidence survives packet export, result import and rendered
 });
 
 const platformImages = load('../src/app/review/platform-images.ts');
+const captureImage = load('../src/app/review/capture-image.ts');
+test('long-image pages follow row boundaries and cover every pixel exactly once',()=>{
+ const ranges=captureImage.imageRanges(14200,[76,5980,6030,11920,12080,14000]);
+ assert.deepEqual(ranges,[{start:0,height:5980},{start:5980,height:5940},{start:11920,height:2280}]);
+ assert.equal(ranges.reduce((n,p)=>n+p.height,0),14200);
+ for(let i=1;i<ranges.length;i++)assert.equal(ranges[i-1].start+ranges[i-1].height,ranges[i].start);
+});
+test('oversized real-width canvases split, adapt compression and respect the remaining article budget',()=>{
+ const old=global.document,draws=[],qualities=[];
+ const encoded=(type,length)=>(type==='image/png'?'data:image/png;base64,iVBORw0KGgo':'data:image/jpeg;base64,/9j/')+'A'.repeat(length);
+ const source={width:1440,height:14200};
+ global.document={createElement:()=>({width:0,height:0,getContext:()=>({drawImage:(...args)=>draws.push(args)}),toDataURL:(type,q)=>{qualities.push(q);return encoded(type,type==='image/png'?1900000:q===0.92?1000000:700000);}})};
+ try{
+  const pages=captureImage.encodeCapture(source,2400000,10,[5980,11920]);
+  assert.equal(pages.length,3);assert(pages.every(p=>p.length<3000000));assert(pages.reduce((n,p)=>n+p.length,0)<=2400000);
+  assert(qualities.includes(0.86));assert.equal(draws.reduce((n,args)=>n+args[4],0),source.height);
+  assert.throws(()=>captureImage.encodeCapture(source,6000000,2),/空间不足/);
+  assert.throws(()=>captureImage.encodeCapture(source,1000000,10),/总量超限/);
+   const dense={width:1440,height:4000,toDataURL:(type,q)=>encoded(type,type==='image/jpeg'&&q===0.68?1200000:2000000)};
+   assert(captureImage.encodeCapture(dense,1500000,1)[0].length<1500000);
+ }finally{global.document=old;}
+});
+test('incomplete multipart captures stay missing; complete replacements remove old pages and preserve uploads',()=>{
+ const base={id:platformImages.imageId('limits'),data:png,caption:'涨停',source:'https://site.test/limits?imageParts=3&imageSet=one',after:'涨停板复盘'};
+ const parts=[0,1,2].map(i=>({...base,id:`platform-dark-v1-limits-${i}`}));
+ assert(platformImages.missingPlatformImages(parts.slice(0,2)).includes('limits'));
+ assert(!platformImages.missingPlatformImages(parts).includes('limits'));
+ assert(platformImages.missingPlatformImages([parts[0],parts[1],{...parts[2],source:parts[2].source.replace('one','two')}]).includes('limits'));
+ const article={body:'保留原文',feishuUrl:'',images:[...parts,{...base,id:'upload-user'}]};
+ const merged=platformImages.mergePlatformImages(article,[{...base,source:'https://site.test/limits?imageSet=new'}]);
+ assert.deepEqual(merged.images.map(i=>i.id),['upload-user',base.id]);assert.equal(merged.body,article.body);
+ assert.deepEqual(serverContract.validateArticle(article),article);
+ const note=exp.emptyNotebook();note.article=article;
+ const restored=load('../../back/src/modules/review/notebook.content.ts').parseNotebook(JSON.stringify(note));
+ assert.deepEqual(restored.article.images,article.images);
+});
 test('automatic preparation only requests missing platform groups and reuses saved images', () => {
  const keys = platformImages.captureSources.map(source => source.key);
  const images = keys.map(key => ({ id: platformImages.imageId(key) }));
@@ -372,4 +408,22 @@ test('stopping a capture retains each completed callback and never accepts anoth
   const stale=[];await capture.capturePlatform('2026-10-23',new AbortController().signal,()=>{},['overview'],'r2',async image=>stale.push(image));
   assert.equal(stale.length,0);
  } finally {global.document=realDocument;global.window=realWindow;}
+});
+
+
+test('connected review preserves notes and opt-in privacy, renders a safe comparison table and keeps old drafts readable', () => {
+ const c=exp.emptyNotebook();c.private.marketJudgment='用户判断不能被改写';c.private.execution='PRIVATE_HOLDING';c.private.lesson='自己的总结';c.public.summary='已有公开原文';
+ const headings=['核心判断','市场与情绪','主线与梯队','板块多周期对照','后续验证'];
+ const answer=headings.map(h=>`### ${h}\n\n${h==='板块多周期对照'?'| 行业 | 当日% | 5日% | 20日% | 结构判断 |\n| --- | --- | --- | --- | --- |\n| <script>x</script> | 2 | 4 | 缺失 | 当日新强 |':'跨模块证据与反证'}`).join('\n\n');
+ const body=exp.reviewDocument('2026-10-23',c,answer);
+ assert(body.includes(c.private.marketJudgment)&&body.includes(c.private.lesson)&&body.includes(c.public.summary));assert(!body.includes('PRIVATE_HOLDING'));
+ assert.equal(exp.nativeAnswer(body),answer);
+ const images=['市场概览','情绪指标','连板分析','20日板块轮动','涨停板复盘'].map((after,i)=>({id:'img-'+i,data:png,caption:after,source:'合成测试',after}));
+ const rendered=contract.illustratedText(body,images);assert.equal(rendered,serverContract.illustratedText(body,images));
+ for(const image of images)assert.equal(rendered.split('review-image:'+image.id).length-1,1);
+ assert(rendered.indexOf('跨模块证据与反证')<rendered.indexOf('review-image:img-0'));
+ assert(rendered.indexOf('## 附图')<rendered.indexOf('review-image:img-3'));
+ for(const target of ['feishu','wechat','xueqiu']) {const html=exp.noteHtml(rendered,images,target);assert(html.includes('<table'));assert(!html.includes('<script>'));assert(html.includes('&lt;script&gt;'));assert.equal((html.match(/<img /g)||[]).length,5);}
+ const legacy=['市场概览','情绪指标','连板分析','20日板块轮动','涨停板复盘'].map(h=>`### ${h}\n\n旧版证据`).join('\n\n');assert.equal(exp.nativeAnswer(exp.reviewDocument('2026-10-23',c,legacy)),legacy);
+ assert.throws(()=>exp.reviewDocument('2026-10-23',c,'### 核心判断\n\n只有一节'),/缺少必要章节/);
 });

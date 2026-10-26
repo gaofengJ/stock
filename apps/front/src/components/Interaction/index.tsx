@@ -56,6 +56,7 @@ export const InteractionButton = forwardRef<ComponentRef<typeof Button>, Interac
     expand: expanded ? <CaretUpOutlined /> : <CaretDownOutlined />,
     popover: <CaretDownOutlined />,
   };
+  const defaultIcon = marks[intent] ? <span aria-hidden="true">{marks[intent]}</span> : undefined;
   return (
     <Button
       ref={ref}
@@ -67,7 +68,7 @@ export const InteractionButton = forwardRef<ComponentRef<typeof Button>, Interac
       aria-pressed={intent === 'select' ? selected : undefined}
       aria-expanded={intent === 'expand' ? expanded : props['aria-expanded']}
       aria-haspopup={intent === 'preview' ? 'dialog' : props['aria-haspopup']}
-      icon={icon || (marks[intent] ? <span aria-hidden="true">{marks[intent]}</span> : undefined)}
+      icon={icon === undefined ? defaultIcon : icon}
       iconPosition={intent === 'preview' ? 'start' : 'end'}
     >
       <span className="interaction-label">{children}</span>

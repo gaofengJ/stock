@@ -104,7 +104,7 @@ describe('guest access and login activity', () => {
         maxAge: 31536000,
       }),
     );
-    expect(db.query.mock.calls[0][0]).toContain('INTERVAL 5 MINUTE');
+    expect(db.query.mock.calls[0][0]).toContain('INTERVAL 30 MINUTE');
     db.query.mockClear();
     reply.setCookie.mockClear();
     await expect(
@@ -130,6 +130,24 @@ describe('guest access and login activity', () => {
     ).resolves.toEqual({ user: null, trial: null });
     expect(db.query).not.toHaveBeenCalled();
   });
+
+  it.each([1800000, 1799999, 600000, 1, 0])(
+    'returns the server remaining time %i without extending an existing trial',
+    async (remainingMs) => {
+      const db = { query: jest.fn().mockResolvedValue([{ remainingMs }]) };
+      const auth = new AuthService(db as any);
+      const reply = { setCookie: jest.fn() };
+      await expect(
+        auth.trial(
+          { cookies: { [TRIAL_COOKIE]: 'a'.repeat(64) } } as any,
+          reply as any,
+          true,
+        ),
+      ).resolves.toEqual({ remainingMs });
+      expect(db.query).toHaveBeenCalledTimes(1);
+      expect(reply.setCookie).not.toHaveBeenCalled();
+    },
+  );
 
   it('records administrator and regular logins with login-time identity and registration event', async () => {
     const auth = new AuthService({} as any);

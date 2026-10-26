@@ -5,8 +5,9 @@ import StockActions, { StockLink } from '@/components/StockActions';
 
 import { useEffect, useState } from 'react';
 import {
-  Alert, Button, Empty, Modal, Segmented, Space, Tag,
+  Alert, Button, DatePicker, Empty, Modal, Segmented, Space, Tag,
 } from 'antd';
+import dayjs from 'dayjs';
 import Table from '@/components/DataTable';
 import CChart from '@/components/CChart';
 import HelpTooltip from '@/components/HelpTooltip';
@@ -17,7 +18,7 @@ import useInsight from './useInsight';
 import './popularity.css';
 
 export interface HotRow { code: string; name: string; rank: number; previousRank: number | null; change: number | null; state: string; streak: number; streakCapped: boolean; history: { date: string; rank: number | null; ready: boolean }[] }
-export interface Popularity { date: string; ready: boolean; complete: boolean; count: number; previousReady: boolean; previousDate: string | null; rankTime: string | null; items: HotRow[]; exited: { code: string; name: string; rank: number }[]; stage: { status: string; error: string | null } | null }
+export interface Popularity { date: string; marketDate: string; availableDates: string[]; latestDate: string | null; ready: boolean; complete: boolean; count: number; previousReady: boolean; previousDate: string | null; rankTime: string | null; items: HotRow[]; exited: { code: string; name: string; rank: number }[]; stage: { status: string; error: string | null } | null }
 export function rankChange(row?: HotRow) {
   if (row?.change != null) {
     let label = '持平';
@@ -43,8 +44,8 @@ export function PopularityTrend({
   const current = state.data?.items.find((row) => row.code === code);
   const spansYears = current?.history.some((point) => point.date.slice(0, 4) !== current.history[0]?.date.slice(0, 4));
   return (
-    <Modal className="popularity-trend-modal" title={`${current?.name || name || code || ''} - 近20个交易日人气排名`} open={!!code} onCancel={onClose} footer={null} width={900} style={{ top: 24, maxWidth: 'calc(100vw - 32px)' }}>
-      {code && <StockActions code={code} name={current?.name || name} date={date} />}
+    <Modal className="popularity-trend-modal" title={`${current?.name || name || code || ''} - 近20期榜单人气排名`} open={!!code} onCancel={onClose} footer={null} width={900} style={{ top: 24, maxWidth: 'calc(100vw - 32px)' }}>
+      {code && <StockActions code={code} name={current?.name || name} date={state.data?.marketDate || date} />}
       <div className="popularity-trend-chart">
         {current ? (
           <CChart genOptions={() => ({
@@ -78,13 +79,23 @@ export function PopularityTrend({
   );
 }
 
-export function PopularityChanges({ date, code, endpoint = '/analysis/market/popularity' }: { date: string; code?: string | null; endpoint?: string }) {
-  const state = useInsight<Popularity>(endpoint, { date });
+export function PopularityChanges({
+  date: inputDate, code, endpoint = '/analysis/market/popularity', calendarMode = false,
+}: { date: string; code?: string | null; endpoint?: string; calendarMode?: boolean }) {
+  const [requestedDate, setRequestedDate] = useState(inputDate);
+  useEffect(() => { setRequestedDate(inputDate); }, [inputDate]);
+  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(new Date());
+  const queryDate = calendarMode ? requestedDate || today : inputDate;
+  const state = useInsight<Popularity>(endpoint, { date: queryDate, ...(calendarMode && !requestedDate ? { latest: 'true' } : {}) });
   const [filter, setFilter] = useState('all');
   const [focusCode, setFocusCode] = useState(code || '');
   useEffect(() => { setFocusCode(code || ''); }, [code]);
   const [selected, setSelected] = useState<HotRow | null>(null);
   const { data } = state;
+  const date = data?.date || queryDate;
+  const stockDate = data?.marketDate || date;
+  const availableDates = new Set(data?.availableDates || []);
+  useEffect(() => { setSelected(null); }, [date]);
   const unavailableMessage = () => {
     if (data?.stage?.status === 'skipped') return '该日人气数据已标记为不再补齐。';
     if (data?.stage?.status === 'failed') return '日终人气数据暂不可用，请查看同步任务。';
@@ -94,6 +105,14 @@ export function PopularityChanges({ date, code, endpoint = '/analysis/market/pop
 
   return (
     <div className="strategy-insight-panel popularity-panel">
+      {calendarMode && (
+      <Space wrap size={[16, 12]} className="popularity-date-controls">
+        <span>榜单日期</span>
+        <DatePicker id="popularity-date" aria-label="榜单日期" allowClear={false} value={dayjs(date)} disabledDate={(d) => !availableDates.has(d.format('YYYY-MM-DD'))} onChange={(d) => { if (d) setRequestedDate(d.format('YYYY-MM-DD')); }} />
+        <Button size="small" disabled={!requestedDate} onClick={() => setRequestedDate('')}>最新榜单</Button>
+        <span className="market-note">每日北京时间22:40起同步日终榜单</span>
+      </Space>
+      )}
       <Space wrap size={[12, 8]} className="popularity-heading">
         <strong>同花顺日终热股 Top100</strong>
         {focusCode && (
@@ -103,14 +122,15 @@ export function PopularityChanges({ date, code, endpoint = '/analysis/market/pop
         </Space>
         )}
         <span>{data?.rankTime || '日终榜单待更新'}</span>
-        <HelpTooltip label="人气变化口径" title="对比上一交易日日终榜单，展示名次变化。上升表示排名前移，下降表示排名后移。" />
+        <HelpTooltip label="人气变化口径" title="对比上一份实际取得的日终榜单，包含非交易日。连续上榜按榜单期数统计；缺位不判为新上榜或离榜。" />
       </Space>
+      {data?.previousDate && <p className="market-note">{`对比榜单：${data.previousDate} → ${data.date}`}</p>}
       {data?.ready && (!data.complete || !data.previousReady) && <Alert className="mb-16" type="info" message={`当日返回 ${data.count}/100 条。前后榜单有缺位时，仅比较已有排名，不将缺数据判为新上榜或离榜。`} />}
       {data && !data.ready && <Alert className="mb-16" type={data.stage?.status === 'failed' ? 'warning' : 'info'} message={unavailableMessage()} />}
       <div className="popularity-filters">
         <Segmented aria-label="人气变化筛选" value={filter} onChange={(v) => setFilter(String(v))} options={[{ label: '全部', value: 'all' }, { label: '排名上升', value: 'up' }, { label: '排名下降', value: 'down' }, { label: '新上榜', value: 'new' }, { label: '离榜', value: 'exit' }]} />
       </div>
-      {filter === 'exit' ? <Table rowKey="code" pagination={false} maxBodyHeight={Number.POSITIVE_INFINITY} bottomSpacing={24} dataSource={data?.exited.filter((r) => !focusCode || r.code === focusCode) || []} locale={{ emptyText: !data?.complete ? '当日榜单不完整，暂不判断离榜' : '没有离榜股票' }} columns={[{ title: '股票', dataIndex: 'name', render: (_, r) => <StockLink code={r.code} name={r.name} date={date} /> }, { title: '代码', dataIndex: 'code', render: (_, r) => <StockLink code={r.code} name={r.name} label={r.code} date={date} /> }, { title: '上一交易日排名', dataIndex: 'rank' }]} />
+      {filter === 'exit' ? <Table rowKey="code" pagination={false} maxBodyHeight={Number.POSITIVE_INFINITY} bottomSpacing={24} dataSource={data?.exited.filter((r) => !focusCode || r.code === focusCode) || []} locale={{ emptyText: !data?.complete ? '当日榜单不完整，暂不判断离榜' : '没有离榜股票' }} columns={[{ title: '股票', dataIndex: 'name', render: (_, r) => <StockLink code={r.code} name={r.name} date={stockDate} /> }, { title: '代码', dataIndex: 'code', render: (_, r) => <StockLink code={r.code} name={r.name} label={r.code} date={stockDate} /> }, { title: '上一期排名', dataIndex: 'rank' }]} />
         : (
           <Table
             rowKey="code"
@@ -120,14 +140,14 @@ export function PopularityChanges({ date, code, endpoint = '/analysis/market/pop
             maxBodyHeight={Number.POSITIVE_INFINITY}
             bottomSpacing={24}
             columns={[
-              { title: '排名', dataIndex: 'rank', width: 85 }, { title: '股票', key: 'stock', render: (_, r) => <StockLink code={r.code} name={r.name} label={`${r.name} ${r.code.split('.')[0]}`} date={date} /> },
+              { title: '排名', dataIndex: 'rank', width: 85 }, { title: '股票', key: 'stock', render: (_, r) => <StockLink code={r.code} name={r.name} label={`${r.name} ${r.code.split('.')[0]}`} date={stockDate} /> },
               {
-                title: '上一交易日', dataIndex: 'previousRank', align: 'right', render: (v) => v ?? '—',
+                title: '上一期排名', dataIndex: 'previousRank', align: 'right', render: (v) => v ?? '—',
               }, {
-                title: '较上一交易日', key: 'change', align: 'right', sorter: (a, b) => (a.change ?? -Infinity) - (b.change ?? -Infinity), render: (_, r) => rankChange(r),
+                title: '较上一期', key: 'change', align: 'right', sorter: (a, b) => (a.change ?? -Infinity) - (b.change ?? -Infinity), render: (_, r) => rankChange(r),
               },
               {
-                title: '连续上榜', key: 'streak', align: 'right', render: (_, r) => `${r.streakCapped ? '≥' : ''}${r.streak}个交易日`,
+                title: '连续上榜', key: 'streak', align: 'right', render: (_, r) => `${r.streakCapped ? '≥' : ''}${r.streak}期`,
               }, { title: '走势', key: 'trend', render: (_, r) => <InteractionButton intent="preview" onClick={() => setSelected(r)}>排名趋势</InteractionButton> },
             ]}
           />

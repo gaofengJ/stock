@@ -40,6 +40,7 @@ const caps: Record<string, number> = {
   stk_high_shock: 1000,
   stk_alert: 1000,
   share_float: 6000,
+  pledge_stat: 1000,
   disclosure_date: 6000,
   forecast: 3500,
   express: 1000,
