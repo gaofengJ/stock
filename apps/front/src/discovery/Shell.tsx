@@ -26,6 +26,7 @@ export default function DiscoveryShell({ children }: { children: ReactNode }) {
       <footer className="discovery-footer">
         <span>{siteName}</span>
         <span>数据与历史统计用于辅助研究，请结合公告原文核实。</span>
+        <a className="discovery-filing" href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">沪ICP备2026056391号-1</a>
       </footer>
     </div>
   );
