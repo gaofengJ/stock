@@ -11,6 +11,7 @@ import { PrepareAnalysis } from '@/components/PersonalAi/AnalysisPanel';
 import BusinessAction from '@/components/PersonalAi/BusinessAction';
 import { Task } from '@/components/PersonalAi/client';
 import { copyText } from '@/utils/clipboard';
+import { siteUrl } from '@/discovery/site';
 import {
   Article, ArticleImage, emptyArticle, illustratedText, validateArticle,
 } from './article-contract';
@@ -155,8 +156,8 @@ export default function ArticleEditor({
                     date, revision, generation, content: { ...content, article },
                   };
                   if (!saved) { setHandoffNotice('尚未完成保存，请检查页面提示后重试。新的修改会继续保留。'); return; }
-                  const packet = reviewPacket(saved.date, saved.revision, saved.content, window.location.origin, saved.generation);
-                  const prompt = `使用 $stock-review-feishu 生成 ${saved.date} 的飞书图文复盘。网站：${window.location.origin}/review/?date=${saved.date}，保存版本 ${saved.revision}。使用随任务附上的图文资料包（stock-review/v2）；如未附上，请先索取资料包。保留资料包 userNotes 的非空原文，并另外写 AI 独立分析，空白不能当作空仓或无交易。标题默认 ${saved.content.public.title || `${saved.date}复盘`}；优先使用已有平台图片；缺少市场概览、情绪指标、连板分析、20日板块轮动或全部涨停长图时，按资料链接补取五张暗色长图，不重复取已有图片。开头声明本文由AI生成，仅供参考。正文依次为核心判断、市场与情绪、主线与梯队、板块多周期对照、后续验证。以关联证据组织分析；板块从当日、5日、20日领先及分歧方向选3至5个，在一张表并列比较三个周期，缺值注明缺失，不堆三套榜单。先文字后相关配图，20日轮动图只作中期背景。策略选股只列股票名和策略标签；闲聊默认空白；二级标题之间留空行；不单列明日计划。正常目标10分钟，20分钟硬停止并保留可续接进度。已有 ${saved.content.article?.images.length || 0} 张图片，仅在缺少必需图片时按 materials.links 补取，最终必须嵌入真实图片。完成后用同日期和版本的结果包通过“导入 Codex 结果”选择结果包回填，再保存记录。不得覆盖用户原文。执行记录授权：${saved.content.materials?.includeExecution ? '仅限私人飞书文档' : '未包含，不读取'}。本次任务由 Codex 执行并生成飞书云文档。\n\n用户记录：\n${JSON.stringify(packet.userNotes)}\n\n图片来源：\n${JSON.stringify(packet.materials.links)}`;
+                  const packet = reviewPacket(saved.date, saved.revision, saved.content, siteUrl, saved.generation);
+                  const prompt = `使用 $stock-review-feishu 生成 ${saved.date} 的飞书图文复盘。网站：${siteUrl}/review/?date=${saved.date}，保存版本 ${saved.revision}。使用随任务附上的图文资料包（stock-review/v2）；如未附上，请先索取资料包。保留资料包 userNotes 的非空原文，并另外写 AI 独立分析，空白不能当作空仓或无交易。标题默认 ${saved.content.public.title || `${saved.date}复盘`}；优先使用已有平台图片；缺少市场概览、情绪指标、连板分析、20日板块轮动或全部涨停长图时，按资料链接补取五张暗色长图，不重复取已有图片。开头声明本文由AI生成，仅供参考。正文依次为核心判断、市场与情绪、主线与梯队、板块多周期对照、后续验证。以关联证据组织分析；板块从当日、5日、20日领先及分歧方向选3至5个，在一张表并列比较三个周期，缺值注明缺失，不堆三套榜单。先文字后相关配图，20日轮动图只作中期背景。策略选股只列股票名和策略标签；闲聊默认空白；二级标题之间留空行；不单列明日计划。正常目标10分钟，20分钟硬停止并保留可续接进度。已有 ${saved.content.article?.images.length || 0} 张图片，仅在缺少必需图片时按 materials.links 补取，最终必须嵌入真实图片。完成后用同日期和版本的结果包通过“导入 Codex 结果”选择结果包回填，再保存记录。不得覆盖用户原文。执行记录授权：${saved.content.materials?.includeExecution ? '仅限私人飞书文档' : '未包含，不读取'}。本次任务由 Codex 执行并生成飞书云文档。\n\n用户记录：\n${JSON.stringify(packet.userNotes)}\n\n图片来源：\n${JSON.stringify(packet.materials.links)}`;
                   download(`${saved.date}-review-v${saved.revision}.json`, JSON.stringify(packet, null, 2), 'application/json');
                   const copied = await copyText(prompt);
                   const message = copied ? '任务已复制，资料包已发起下载。请在 Codex 粘贴任务并附上资料包后发送。' : '资料包已发起下载，任务未能自动复制。请在弹窗中复制，并将资料包一同交给 Codex。';

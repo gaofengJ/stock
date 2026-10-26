@@ -107,7 +107,7 @@ export function allowedPath(user: Account | null, path: string): boolean {
     return !!user && !user.guest && !!user.roles?.some((role) => role.code === 'admin');
   }
   if (p === '/') return !!user;
-  if (p === '/profile' || p === '/feedback') return !!user && !user.guest;
+  if (p === '/profile' || p === '/feedback' || p === '/domain-transfer') return !!user && !user.guest;
   return !!user?.catalog.some(
     (x) => x.route
       && user.permissions.includes(x.code)

@@ -30,9 +30,9 @@ def assess(value, now, production, offhost_policy='required'):
     return issues
 
 
-def http_code(path):
+def http_code(path, origin='https://14.103.103.4'):
     try:
-        with urllib.request.urlopen('https://14.103.103.4' + path, timeout=20) as response:
+        with urllib.request.urlopen(origin + path, timeout=20) as response:
             return response.status
     except urllib.error.HTTPError as error:
         return error.code
@@ -52,6 +52,10 @@ if __name__ == '__main__':
     for path, expected in [('/',200),('/api/auth/me',401),('/blog-frame/',403)]:
         code=http_code(path);codes[path]=code
         if code != (expected if args.production else 503): issues.append('https_status:'+path)
+    if args.production:
+        for path, expected in [('/', 200), ('/robots.txt', 200), ('/sitemap.xml', 200), ('/domain-transfer/', 200), ('/api/auth/me', 401), ('/blog-frame/', 403)]:
+            code = http_code(path, 'https://stock.mufengtongxue.com'); codes['domain:' + path] = code
+            if code != expected: issues.append('domain_https_status:' + path)
     print(json.dumps({'mode':'production' if args.production else 'isolated-transport-check',
                       'healthy':not issues if args.production else None,'checksPassed':not issues,
                       'issues':issues,'https':codes,'server':value,

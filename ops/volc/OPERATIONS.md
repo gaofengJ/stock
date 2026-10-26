@@ -2,7 +2,7 @@
 
 ## 当前生产方式（2026-10-23）
 
-- 火山 ECS 的 HTTPS IP 入口为 `https://14.103.103.4`。域名接入由用户明确暂缓；不要照旧迁移记录修改 DNS。
+- 正式入口为 `https://stock.mufengtongxue.com`，备案与域名 HTTPS 已启用。IP 保留服务器检查、API 兼容和本机草稿恢复入口；普通网页跳转正式域名。技术博客继续使用 `blog.mufengtongxue.com`。
 - 管理员使用 `stock-admin` 的独立 Ed25519 密钥登录并通过 sudo 管理。root 远程登录、SSH 密码登录和键盘交互认证已关闭。CI 的 `stock-deploy` 仍只有受限命令，无 shell、sudo 或 Docker 权限。
 - 管理员私钥在操作机的 SSH 目录，绝不进入仓库或 CI。安装与验证工具为 `harden_ssh.py`。先验证第二个独立密钥会话再执行 restrict；云控制台保留恢复途径。
 - 生产应用必须同时加载 `compose.app.yaml` 和 `compose.production.yaml`。基础文件关闭采集，生产覆盖文件开启正常定时任务，启动时不触发历史全量导入。

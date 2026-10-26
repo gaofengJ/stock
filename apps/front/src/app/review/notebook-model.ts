@@ -1,3 +1,4 @@
+import { normalizeSiteText } from '../../discovery/urls';
 import { ReviewWorkspace } from './workspace-contract';
 import { Materials } from './materials-contract';
 import {
@@ -91,7 +92,7 @@ export function notesSignature(value: NotebookContent) {
 }
 /* eslint-enable no-bitwise */
 export function currentArticleBody(date: string, value: NotebookContent) {
-  return value.article?.composition ? reviewDocument(date, value, value.article.composition.answer) : value.article?.body || '';
+  return normalizeSiteText(value.article?.composition ? reviewDocument(date, value, value.article.composition.answer) : value.article?.body || '');
 }
 export function synchronizeArticle(date: string, value: NotebookContent): NotebookContent {
   if (!value.article?.composition) return value;
@@ -110,7 +111,7 @@ export function publicText(date: string, value: NotebookContent, _channel: 'wech
     ['一条总结', p.lesson],
     ['资料来源与时间', p.sources],
   ];
-  return [`# ${p.title || `${date}复盘`}`, `复盘日期：${date}`, ...entries.filter(([, v]) => v?.trim()).map(([label, text]) => `## ${label}\n${text}`)].join('\n\n');
+  return normalizeSiteText([`# ${p.title || `${date}复盘`}`, `复盘日期：${date}`, ...entries.filter(([, v]) => v?.trim()).map(([label, text]) => `## ${label}\n${text}`)].join('\n\n'));
 }
 export const escapeHtml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
   .replace(/'/g, '&#39;');
@@ -144,7 +145,7 @@ export function noteHtml(text: string, images: ArticleImage[] = [], target: Arti
     const imageId = line.match(/^!\[.*\]\(review-image:([a-zA-Z0-9_-]+)\)$/)?.[1];
     const embedded = line.match(/^!\[(.*)\]\((data:image\/(?:png|jpeg);base64,[a-zA-Z0-9+/]+={0,2})\)$/);
     const media = images.find((item) => item.id === imageId) || (embedded ? { data: embedded[2], caption: embedded[1], source: '' } : null);
-    if (media && /^data:image\/(png|jpeg);base64,[a-zA-Z0-9+/]+={0,2}$/.test(media.data)) return `<p style="margin:16px 0 8px;padding:0;line-height:0;"><img src="${media.data}" alt="${escapeHtml(media.caption)}" style="display:block;width:100%;max-width:100%;height:auto;margin:0;border:0;"/></p><p style="${paragraphStyle}font-size:12px;color:#666;">${escapeHtml(media.caption)}${media.source ? `<br/>来源：${escapeHtml(media.source)}` : ''}</p>`;
+    if (media && /^data:image\/(png|jpeg);base64,[a-zA-Z0-9+/]+={0,2}$/.test(media.data)) return `<p style="margin:16px 0 8px;padding:0;line-height:0;"><img src="${media.data}" alt="${escapeHtml(media.caption)}" style="display:block;width:100%;max-width:100%;height:auto;margin:0;border:0;"/></p><p style="${paragraphStyle}font-size:12px;color:#666;">${escapeHtml(media.caption)}${media.source ? `<br/>来源：${escapeHtml(normalizeSiteText(media.source))}` : ''}</p>`;
     const heading = line.match(/^(#{1,3}) (.*)$/);
     if (heading) {
       const level = heading[1].length;

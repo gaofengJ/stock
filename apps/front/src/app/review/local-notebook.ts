@@ -26,3 +26,25 @@ export async function localNotebook(owner: number, date: string, value?: LocalNo
     tx.onabort = () => { db.close(); reject(tx.error || Error('本机草稿保存中断')); };
   });
 }
+
+export async function allLocalNotebooks(): Promise<{ key: string; value: LocalNotebook }[]> {
+  const db = await database();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('drafts', 'readonly'); const store = tx.objectStore('drafts');
+    const keys = store.getAllKeys(); const values = store.getAll();
+    tx.oncomplete = () => { db.close(); resolve(keys.result.map((key, index) => ({ key: String(key), value: values.result[index] }))); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  });
+}
+
+export async function restoreMissingNotebook(key: string, value: LocalNotebook): Promise<boolean> {
+  const db = await database();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('drafts', 'readwrite'); const store = tx.objectStore('drafts'); let added = false;
+    const request = store.get(key);
+    request.onsuccess = () => { if (request.result === undefined) { store.add(value, key); added = true; } };
+    tx.oncomplete = () => { db.close(); resolve(added); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+    tx.onabort = () => { db.close(); reject(tx.error || Error('恢复失败')); };
+  });
+}

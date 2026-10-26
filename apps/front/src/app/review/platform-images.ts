@@ -1,3 +1,4 @@
+import { siteUrl } from '../../discovery/site';
 /* eslint-disable no-restricted-syntax, no-await-in-loop, no-loop-func, no-continue -- Sequential captures have per-page and batch deadlines. */
 import { Article, ArticleImage, validateArticle } from './article-contract';
 import { encodeCapture } from './capture-image';
@@ -113,7 +114,7 @@ export async function capturePlatform(date: string, signal: AbortSignal, progres
       const weight = (key: string) => (key === 'limits' ? 3 : 1);
       const budget = Math.floor(((6000000 - retained.reduce((sum, image) => sum + image.data.length, 0)) * weight(item.key)) / (weight(item.key) + future.reduce((sum, source) => sum + weight(source.key), 0)));
       const encoded = encodeCapture(canvas, budget, 20 - retained.length - future.length, breaks);
-      const source = `${window.location.origin}${item.path}?date=${date}${item.query}&dataRevision=${encodeURIComponent(revision)}${encoded.length > 1 ? `&imageParts=${encoded.length}&imageSet=${crypto.randomUUID()}` : ''}`;
+      const source = `${siteUrl}${item.path}?date=${date}${item.query}&dataRevision=${encodeURIComponent(revision)}${encoded.length > 1 ? `&imageParts=${encoded.length}&imageSet=${crypto.randomUUID()}` : ''}`;
       const group: ArticleImage[] = encoded.map((data, part) => ({
         id: `platform-dark-v1-${item.key}-${part}`,
         data,

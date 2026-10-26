@@ -6,7 +6,7 @@ ROOT=pathlib.Path('/opt/stock-personal-console')
 SOURCE=ROOT/'source'
 SERVICE='stock-personal-console'
 BACK='mufengtongxue-stock-back-1'
-ORIGIN='https://14.103.103.4'
+ORIGIN='https://stock.mufengtongxue.com'
 def run(args, **kw):
     p=subprocess.run(args,capture_output=True,timeout=kw.pop('timeout',30),**kw)
     if p.returncode:raise RuntimeError('command_failed:'+args[0])
