@@ -27,9 +27,10 @@ export default function DiscoveryShell({ children }: { children: ReactNode }) {
         <span>
           {siteName}
           {' '}
-          · 行情、选股与复盘
+          行情、选股与复盘
         </span>
         <span>数据与历史统计用于辅助研究，请结合公告原文核实。</span>
+        <a className="discovery-filing" href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">沪ICP备2026056391号-1</a>
       </footer>
     </div>
   );

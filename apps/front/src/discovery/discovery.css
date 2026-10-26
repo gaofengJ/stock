@@ -55,3 +55,4 @@
   .discovery-article { padding: 20px; }
   .discovery-footer { padding-inline: 16px; }
 }
+.discovery-footer .discovery-filing { flex-basis: 100%; text-align: center; color: inherit; }
