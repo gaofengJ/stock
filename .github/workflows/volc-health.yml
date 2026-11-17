@@ -4,8 +4,8 @@ on:
   schedule:
     - cron: '7,22,37,52 * * * *'
   push:
-    branches: [codex/stock-volc-migration]
-    paths: [.github/workflows/volc-health.yml]
+    branches: [master, codex/stock-volc-migration]
+    paths: [.github/workflows/volc-health.yml, ops/volc/check_remote_health.py]
 permissions:
   contents: read
 concurrency:
@@ -17,7 +17,7 @@ jobs:
       (github.ref == 'refs/heads/master' && vars.VOLC_PRODUCTION_ENABLED == 'true') ||
       (github.ref == 'refs/heads/codex/stock-volc-migration' && github.event_name != 'schedule')
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
       - name: Check HTTPS and the fixed operational summary

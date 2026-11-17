@@ -67,3 +67,70 @@ class HealthTest(unittest.TestCase):
         with self.assertRaises(ValueError):assess(value,NOW,True,'ignore-everything')
 
 if __name__=='__main__':unittest.main()
+
+class AlertRecoveryTest(unittest.TestCase):
+    def snapshot(self, **patches):
+        return dict(checkedAt=dt.datetime.now(dt.timezone.utc).isoformat(),
+                    production=True, maintenance=False, backendHealthy=True,
+                    databaseHealthy=True, backupHealthy=True, recurringOffhostVerified=False,
+                    operationalIssues=['health_workflow_stalled'], **patches)
+
+    def test_previous_queue_delay_does_not_fail_current_successful_probe(self):
+        import check_remote_health as h
+        codes = [200, 401, 403, 200, 200, 200, 200, 401, 403]
+        with patch.object(h, 'read_snapshot', return_value=self.snapshot()), \
+             patch.object(h, 'http_code', side_effect=codes):
+            result = h.check(['fixture'], True, 'deferred')
+        self.assertTrue(result['checksPassed'])
+        self.assertIn('health_workflow_stalled', result['warnings'])
+        self.assertFalse(any(result['categories'].values()))
+
+    def test_real_failures_remain_fatal_even_with_old_queue_warning(self):
+        import check_remote_health as h
+        report = self.snapshot()
+        report.update(backupHealthy=False, databaseHealthy=False,
+                      operationalIssues=['health_workflow_stalled', 'news_sources_stale', 'health_dispatch_stale'])
+        with patch.object(h, 'read_snapshot', return_value=report), patch.object(h, 'http_code', return_value=503):
+            result = h.check(['fixture'], True, 'deferred')
+        self.assertFalse(result['checksPassed'])
+        self.assertIn('local_backup_unhealthy', result['categories']['availability'])
+        self.assertIn('databaseHealthy', result['categories']['availability'])
+        self.assertIn('news_sources_stale', result['categories']['data'])
+        self.assertIn('health_dispatch_stale', result['categories']['monitoring'])
+        self.assertIn('domain_https_status:/', result['issues'])
+
+    def test_dns_and_http_transients_retry_but_auth_and_certificate_errors_do_not(self):
+        import check_remote_health as h
+        import urllib.error
+        import ssl
+        with patch.object(h.time, 'sleep'):
+            retries = []
+            success = Mock(status=200)
+            success.__enter__ = Mock(return_value=success)
+            success.__exit__ = Mock(return_value=False)
+            with patch.object(h.urllib.request, 'urlopen', side_effect=[urllib.error.URLError('dns'), success]) as call:
+                self.assertEqual(h.http_code('/', retries=retries), 200)
+                self.assertEqual(call.call_count, 2)
+                self.assertEqual(len(retries), 1)
+            for code in (401, 403):
+                with patch.object(h.urllib.request, 'urlopen', side_effect=urllib.error.HTTPError('fixture', code, '', {}, None)) as call:
+                    self.assertEqual(h.http_code('/api/auth/me'), code)
+                    self.assertEqual(call.call_count, 1)
+            with patch.object(h.urllib.request, 'urlopen', side_effect=urllib.error.HTTPError('fixture', 503, '', {}, None)) as call:
+                self.assertEqual(h.http_code('/'), 503)
+                self.assertEqual(call.call_count, 3)
+            with patch.object(h.urllib.request, 'urlopen', side_effect=urllib.error.URLError(ssl.SSLCertVerificationError('certificate'))) as call:
+                self.assertEqual(h.http_code('/'), 0)
+                self.assertEqual(call.call_count, 1)
+
+    def test_ssh_retries_are_bounded_and_return_current_snapshot(self):
+        import check_remote_health as h
+        import subprocess
+        raw = json.dumps(self.snapshot()).encode()
+        with patch.object(h.time, 'sleep'), patch.object(h.subprocess, 'check_output', side_effect=[subprocess.TimeoutExpired('ssh', 30), raw]) as call:
+            self.assertEqual(h.read_snapshot(['fixture']), json.loads(raw))
+            self.assertEqual(call.call_count, 2)
+        with patch.object(h.time, 'sleep'), patch.object(h.subprocess, 'check_output', side_effect=subprocess.TimeoutExpired('ssh', 30)) as call:
+            with self.assertRaisesRegex(RuntimeError, 'health_snapshot_unreachable'):
+                h.read_snapshot(['fixture'])
+            self.assertEqual(call.call_count, 3)
