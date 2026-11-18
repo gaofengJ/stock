@@ -54,7 +54,7 @@ jobs:
         id: bloomberg
         continue-on-error: true
         run: python3 .github/scripts/bloomberg_relay.py collect --file bloomberg.json
-      - name: Deliver original Bloomberg through restricted SSH
+      - name: Deliver original Bloomberg over HTTPS with SSH fallback
         id: original_bloomberg
         if: steps.bloomberg.outcome == 'success'
         continue-on-error: true
@@ -69,8 +69,8 @@ jobs:
           trap 'rm -f "$key"; rm -rf "$feed_dir"' EXIT
           printf '%s\n' "$UPLOAD_KEY" > "$key"
           cp bloomberg.json "$feed_dir/bloomberg.json"
-          python3 ops/volc/upload_news.py --directory "$feed_dir" --key "$key" --known-hosts ops/volc/known_hosts --mode "$NEWS_MODE"
-      - name: Deliver Sina independently through restricted SSH
+          python3 ops/volc/upload_news.py --directory "$feed_dir" --key "$key" --known-hosts ops/volc/known_hosts --mode "$NEWS_MODE" --transport https-with-ssh
+      - name: Deliver Sina independently over HTTPS with SSH fallback
         id: original_sina
         if: steps.sina.outcome == 'success'
         continue-on-error: true
@@ -85,7 +85,7 @@ jobs:
           trap 'rm -f "$key"; rm -rf "$feed_dir"' EXIT
           printf '%s\n' "$UPLOAD_KEY" > "$key"
           cp sina.json "$feed_dir/sina.json"
-          python3 ops/volc/upload_news.py --directory "$feed_dir" --key "$key" --known-hosts ops/volc/known_hosts --mode "$NEWS_MODE"
+          python3 ops/volc/upload_news.py --directory "$feed_dir" --key "$key" --known-hosts ops/volc/known_hosts --mode "$NEWS_MODE" --transport https-with-ssh
       - uses: actions/setup-python@v5
         if: steps.bloomberg.outcome == 'success'
         with:
@@ -151,7 +151,7 @@ jobs:
             echo '::warning::Translation unavailable; original delivery outcome is reported separately.'
           fi
           du -sh .argos-venv .argos .translation-cache 2>/dev/null || true
-      - name: Deliver translation independently through restricted SSH
+      - name: Deliver translation independently over HTTPS with SSH fallback
         id: translated_upload
         if: steps.translate.outcome == 'success'
         continue-on-error: true
@@ -166,7 +166,7 @@ jobs:
           trap 'rm -f "$key"; rm -rf "$feed_dir"' EXIT
           printf '%s\n' "$UPLOAD_KEY" > "$key"
           cp bloomberg.json "$feed_dir/bloomberg.json"
-          python3 ops/volc/upload_news.py --directory "$feed_dir" --key "$key" --known-hosts ops/volc/known_hosts --mode "$NEWS_MODE"
+          python3 ops/volc/upload_news.py --directory "$feed_dir" --key "$key" --known-hosts ops/volc/known_hosts --mode "$NEWS_MODE" --transport https-with-ssh
       - name: Report source delivery outcomes
         if: always()
         env:

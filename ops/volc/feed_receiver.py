@@ -9,12 +9,15 @@ import re
 import sys
 import tempfile
 
-from bloomberg_relay import MAX_BYTES, validate_feed as validate_bloomberg
+from bloomberg_relay import MAX_BYTES, valid_translation, validate_feed as validate_bloomberg
 from sina_relay import validate_feed as validate_sina
 
 
+COMMAND = re.compile(r'news (validate|publish) (bloomberg|sina) ([a-f0-9]{64})')
+
+
 def receive(command, stream, root=Path('/srv/stock/news'), enabled=Path('/etc/stock-news-delivery.enabled')):
-    match = re.fullmatch(r'news (validate|publish) (bloomberg|sina) ([a-f0-9]{64})', command)
+    match = COMMAND.fullmatch(command)
     if not match:
         raise ValueError('Only a checksummed supported news feed is allowed')
     mode, source, expected = match.groups()
@@ -36,6 +39,20 @@ def receive(command, stream, root=Path('/srv/stock/news'), enabled=Path('/etc/st
             previous = json.loads(target.read_text())
             if previous['generated_at'] > feed['generated_at']:
                 raise ValueError('Refusing to replace a newer feed')
+            if source == 'bloomberg' and previous['generated_at'] == feed['generated_at']:
+                # A replay of the original must preserve translations already written
+                # for the same article text, including after a lost HTTPS receipt.
+                translated = {item['id']: item['translation'] for item in previous['items']
+                              if 'translation' in item}
+                for item in feed['items']:
+                    prior = translated.get(item['id'])
+                    if 'translation' not in item and prior:
+                        item['translation'] = prior
+                        if not valid_translation(item):
+                            del item['translation']
+            if previous == feed:
+                receipt['published'] = True
+                return receipt
         temporary = None
         try:
             with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=root, prefix='.delivery-', delete=False) as output:

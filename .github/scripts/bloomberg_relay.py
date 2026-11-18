@@ -3,11 +3,14 @@ import argparse
 import datetime as dt
 import email.utils
 import hashlib
+import http.client
 import json
 import os
 import re
 from pathlib import Path
 import tempfile
+import time
+import urllib.error
 import urllib.request
 import urllib.parse
 import xml.etree.ElementTree as ET
@@ -95,12 +98,33 @@ def parse_rss(raw, now=None):
     }, now)
 
 
+def fetch_public_feed(request, hostname):
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(request, timeout=15) as response:
+                origin = urllib.parse.urlparse(response.url)
+                if origin.scheme != 'https' or origin.hostname != hostname:
+                    raise ValueError('Unexpected feed redirect')
+                raw = response.read(MAX_BYTES + 1)
+                if len(raw) > MAX_BYTES:
+                    raise ValueError('Feed exceeds size limit')
+                length = response.getheader('Content-Length')
+                if length and length.isascii() and length.isdecimal() and len(raw) != int(length):
+                    raise http.client.IncompleteRead(raw)
+                return raw
+        except urllib.error.HTTPError as error:
+            if error.code not in (408, 429, 500, 502, 503, 504) or attempt == 2:
+                raise
+        except (urllib.error.URLError, TimeoutError, ConnectionError, http.client.HTTPException):
+            if attempt == 2:
+                raise
+        print(f'NEWS_COLLECTION_RETRY host={hostname} attempt={attempt + 1}/3', flush=True)
+        time.sleep(2 ** attempt)
+
+
 def collect(output):
     request = urllib.request.Request(RSS_URL, headers={'User-Agent': 'Mozilla/5.0', 'Accept': 'application/rss+xml,application/xml'})
-    with urllib.request.urlopen(request, timeout=20) as response:
-        if urllib.parse.urlparse(response.url).hostname != 'www.bloomberg.com':
-            raise ValueError('Unexpected feed redirect')
-        feed = parse_rss(response.read(MAX_BYTES + 1))
+    feed = parse_rss(fetch_public_feed(request, 'www.bloomberg.com'))
     output.write_text(json.dumps(feed, ensure_ascii=False), encoding='utf-8')
     print('BLOOMBERG_COLLECTED items={} generated_at={}'.format(len(feed['items']), feed['generated_at']))
 

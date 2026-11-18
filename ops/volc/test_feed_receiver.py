@@ -49,6 +49,7 @@ class FeedReceiverTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.invoke(root, 'publish', b'{}')
             self.assertEqual(target.read_bytes(), previous)
+            self.feed['items'][0]['title'] = '新版标题'
             with patch('pathlib.Path.replace', side_effect=OSError('disk failure')):
                 with self.assertRaises(OSError):
                     self.invoke(root, 'publish')
@@ -63,6 +64,29 @@ class FeedReceiverTest(unittest.TestCase):
             data = (root / 'sina.json').read_bytes()
             self.assertEqual(self.invoke(root, 'publish'), first)
             self.assertEqual((root / 'sina.json').read_bytes(), data)
+
+    def test_bloomberg_original_replay_preserves_translation(self):
+        item = dict(self.feed['items'][0])
+        item['id'] = item['url'] = 'https://www.bloomberg.com/test'
+        original = dict(self.feed, source='bloomberg-markets', items=[item])
+        translation = {'engine': 'argos', 'model': 'en_zh-1.9', 'title': '已翻译',
+                       'body': '摘要', 'source_hash': hashlib.sha256(
+                           (item['title'] + '\0' + item['content_html']).encode()).hexdigest()}
+
+        def publish(feed, root):
+            raw = json.dumps(feed).encode()
+            command = 'news publish bloomberg ' + hashlib.sha256(raw).hexdigest()
+            return feed_receiver.receive(command, io.BytesIO(raw), root, root / 'enabled')
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'enabled').touch()
+            publish(dict(original, items=[dict(item, translation=translation)]), root)
+            target = root / 'bloomberg.json'
+            previous = target.stat()
+            self.assertTrue(publish(original, root)['published'])
+            self.assertEqual(json.loads(target.read_bytes())['items'][0]['translation'], translation)
+            self.assertEqual(target.stat().st_ino, previous.st_ino)
 
     def test_newer_existing_feed_cannot_be_replaced(self):
         with tempfile.TemporaryDirectory() as tmp:

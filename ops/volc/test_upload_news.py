@@ -1,8 +1,11 @@
 import hashlib
 import io
 import json
+from pathlib import Path
 import subprocess
+import tempfile
 import unittest
+import urllib.error
 from contextlib import redirect_stdout, redirect_stderr
 from unittest.mock import patch
 
@@ -85,6 +88,45 @@ class UploadNewsTest(unittest.TestCase):
         run.return_value = self.success()
         with self.assertRaises(ValueError):
             upload_news.deliver(self.command, self.raw, 'sina', self.digest, 'validate')
+
+
+    @patch('upload_news.time.sleep')
+    @patch('upload_news.urllib.request.build_opener')
+    @patch('upload_news.subprocess.run')
+    def test_https_retries_network_failure_but_fails_closed_on_rejection(self, run, build_opener, sleep):
+        run.return_value = subprocess.CompletedProcess([], 0, b'signature', b'')
+        open_request = build_opener.return_value.open
+        open_request.side_effect = TimeoutError()
+        with self.assertRaises(upload_news.TransportUnavailable):
+            upload_news.deliver_https(Path('key'), self.raw, 'sina', self.digest, 'publish')
+        self.assertEqual(open_request.call_count, 3)
+        self.assertEqual(sleep.call_count, 2)
+        open_request.reset_mock()
+        sleep.reset_mock()
+        open_request.side_effect = urllib.error.HTTPError(upload_news.HTTPS_URL, 403, '', {}, None)
+        with self.assertRaisesRegex(ValueError, 'HTTP 403'):
+            upload_news.deliver_https(Path('key'), self.raw, 'sina', self.digest, 'publish')
+        open_request.assert_called_once()
+        sleep.assert_not_called()
+
+    @patch('upload_news.deliver')
+    @patch('upload_news.deliver_https')
+    def test_cli_falls_back_to_ssh_only_for_transport_failure(self, https, ssh):
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / 'sina.json').write_bytes(self.raw)
+            args = ['upload_news', '--key', 'key', '--known-hosts', 'hosts',
+                    '--directory', directory, '--transport', 'https-with-ssh']
+            https.side_effect = upload_news.TransportUnavailable('timeout')
+            ssh.return_value = {'published': False}
+            with patch('sys.argv', args), redirect_stdout(io.StringIO()) as output:
+                upload_news.main()
+                self.assertIn('transport=ssh', output.getvalue())
+            ssh.assert_called_once()
+            ssh.reset_mock()
+            https.side_effect = ValueError('bad signature')
+            with patch('sys.argv', args), self.assertRaisesRegex(ValueError, 'bad signature'):
+                upload_news.main()
+            ssh.assert_not_called()
 
 
 class DeliveryReportTest(unittest.TestCase):

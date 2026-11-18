@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/volc-news-check.yml
       - ops/volc/feed_receiver.py
+      - ops/volc/news_http_receiver.py
       - ops/volc/upload_news.py
       - ops/volc/ssh_dispatch.py
       - ops/volc/test_feed_receiver.py
@@ -26,7 +27,7 @@ jobs:
             .github
             ops/volc
       - name: Verify receiver boundaries
-        run: PYTHONPATH=.github/scripts:ops/volc python3 -m unittest ops/volc/test_feed_receiver.py
+        run: PYTHONPATH=.github/scripts:ops/volc python3 -m unittest ops/volc/test_feed_receiver.py ops/volc/test_news_http_receiver.py
       - name: Verify bounded transport retries and outcome reporting
         run: PYTHONPATH=ops/volc python3 -m unittest ops/volc/test_upload_news.py
       - name: Collect current public Sina feed
@@ -37,7 +38,7 @@ jobs:
         id: bloomberg
         continue-on-error: true
         run: python3 .github/scripts/bloomberg_relay.py collect --file bloomberg.json
-      - name: Validate through the restricted key without publishing or database writes
+      - name: Validate both delivery paths without production writes
         env:
           UPLOAD_KEY: ${{ secrets.VOLC_REHEARSAL_UPLOAD_KEY }}
         run: |
@@ -46,7 +47,8 @@ jobs:
           key="$RUNNER_TEMP/volc-news-validation-key"
           trap 'rm -f "$key"' EXIT
           printf '%s\n' "$UPLOAD_KEY" > "$key"
-          python3 ops/volc/upload_news.py --directory . --key "$key" --known-hosts ops/volc/known_hosts --mode validate
+          python3 ops/volc/upload_news.py --directory . --key "$key" --known-hosts ops/volc/known_hosts --mode validate --transport https
+          python3 ops/volc/upload_news.py --directory . --key "$key" --known-hosts ops/volc/known_hosts --mode validate --transport ssh
       - name: Require both sources
         if: steps.sina.outcome != 'success' || steps.bloomberg.outcome != 'success'
         run: exit 1

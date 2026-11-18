@@ -4,8 +4,10 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
-from bloomberg_relay import parse_rss, receive, validate_feed
+import urllib.error
+import urllib.request
+from unittest.mock import MagicMock, patch
+from bloomberg_relay import fetch_public_feed, parse_rss, receive, validate_feed
 
 NOW = dt.datetime(2026, 10, 1, 6, 0, tzinfo=dt.timezone.utc)
 RSS = b'''<rss><channel><item><title>Markets &amp; economy</title><link>https://www.bloomberg.com/news/articles/example</link><description>&lt;p&gt;Public summary&lt;/p&gt;</description><pubDate>Thu, 01 Oct 2026 05:30:00 GMT</pubDate></item></channel></rss>'''
@@ -28,6 +30,27 @@ class BloombergRelayTests(unittest.TestCase):
             validate_feed(feed, NOW + dt.timedelta(minutes=46))
         with self.assertRaises(ValueError):
             parse_rss(b'<!DOCTYPE rss><rss/>', NOW)
+
+    @patch('bloomberg_relay.time.sleep')
+    @patch('bloomberg_relay.urllib.request.urlopen')
+    def test_public_fetch_retries_timeout_and_truncation(self, urlopen, sleep):
+        request = urllib.request.Request('https://www.bloomberg.com/news.rss')
+        short = MagicMock(url=request.full_url)
+        short.read.return_value = RSS[:-1]
+        short.getheader.return_value = str(len(RSS))
+        complete = MagicMock(url=request.full_url)
+        complete.read.return_value = RSS
+        complete.getheader.return_value = str(len(RSS))
+        urlopen.side_effect = [TimeoutError(), MagicMock(__enter__=lambda _: short),
+                               MagicMock(__enter__=lambda _: complete)]
+        self.assertEqual(fetch_public_feed(request, 'www.bloomberg.com'), RSS)
+        self.assertEqual(sleep.call_count, 2)
+
+        urlopen.reset_mock(side_effect=True)
+        urlopen.side_effect = urllib.error.HTTPError(request.full_url, 403, 'forbidden', {}, None)
+        with self.assertRaises(urllib.error.HTTPError):
+            fetch_public_feed(request, 'www.bloomberg.com')
+        urlopen.assert_called_once()
 
     def test_failed_delivery_keeps_previous_feed_and_success_replaces_atomically(self):
         with tempfile.TemporaryDirectory() as directory:
