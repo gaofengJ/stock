@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import urllib.request
 import urllib.parse
-from bloomberg_relay import MAX_BYTES, MAX_AGE, SERVER_ROOT, iso_date, utc_now, receive_feed
+from bloomberg_relay import MAX_BYTES, MAX_AGE, SERVER_ROOT, fetch_public_feed, iso_date, utc_now, receive_feed
 
 SINA_URL = 'https://feed.mix.sina.com.cn/api/roll/get?pageid=384&lid=2519&num=30&page=1'
 
@@ -62,10 +62,7 @@ def parse_list(raw, now=None):
 
 def collect(output):
     request = urllib.request.Request(SINA_URL, headers={'User-Agent': 'Mozilla/5.0', 'Referer': 'https://finance.sina.com.cn/'})
-    with urllib.request.urlopen(request, timeout=20) as response:
-        if urllib.parse.urlparse(response.url).hostname != 'feed.mix.sina.com.cn':
-            raise ValueError('Unexpected Sina redirect')
-        feed = parse_list(response.read(MAX_BYTES + 1))
+    feed = parse_list(fetch_public_feed(request, 'feed.mix.sina.com.cn'))
     output.write_text(json.dumps(feed, ensure_ascii=False), encoding='utf-8')
     print('SINA_COLLECTED items={} generated_at={}'.format(len(feed['items']), feed['generated_at']))
 

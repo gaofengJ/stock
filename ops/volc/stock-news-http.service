@@ -1,0 +1,19 @@
+[Unit]
+Description=Verify and receive news collected by GitHub Actions
+After=network.target
+
+[Service]
+User=stock-deploy
+Group=stock-deploy
+ExecStart=/usr/bin/python3 -B /usr/local/lib/stock-news/news_http_receiver.py
+Restart=on-failure
+RestartSec=2s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/srv/stock/news
+
+[Install]
+WantedBy=multi-user.target

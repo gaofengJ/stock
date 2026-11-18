@@ -139,6 +139,31 @@ old server dispatch has stopped. Do not add a second scheduled collector. Retire
 this validation candidate's migration-branch push trigger after integration. The
 existing production workflow remains unchanged until this handover is approved.
 
+### Production news transport
+
+The production `bloomberg-news.yml` signs each feed command (mode, source and
+SHA-256 of the body) with the existing restricted upload key. It sends the feed
+to the stock domain over HTTPS and falls back to restricted SSH after transient
+transport failures. Signature or feed rejection and receipt mismatches fail
+the affected delivery. The workflow still checks both original feeds separately.
+
+Before activating this workflow, install `news_http_receiver.py` and
+`feed_receiver.py` in `/usr/local/lib/stock-news/` as root-owned files. Put the
+existing upload key's public part in `/etc/stock-news-http-signers` with principal
+`stock-news-ci`, restricted to namespace `stock-news-delivery-v1`. Install and
+enable `stock-news-http.service`. Apply the news location and rate zone from
+`nginx.domain.conf`; run `nginx -t` before reloading Nginx. The receiver binds
+loopback and runs as the same restricted user as the SSH receiver. Both paths
+use the same publish flag, lock, validation and atomic file replacement.
+
+Run `volc-news-check.yml` to exercise signed HTTPS and SSH in validate mode.
+For production, check the transport and checksummed receipts in the next
+server-dispatched run, then check the corresponding wakeup in
+`journalctl -u stock-news-wakeup.service`. To roll back the host, restore the
+previous Nginx config, reload it after `nginx -t`, and stop the HTTP receiver.
+The active workflow will use restricted SSH while the HTTPS upstream is down,
+so roll back the workflow before removing the proxy location.
+
 ### Explicit writer handover
 
 The base `compose.app.yaml` always disables every writer. Production requires the
