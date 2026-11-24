@@ -60,7 +60,7 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     retry: () => setAttempt((v) => v + 1),
     select: (change: Partial<Selection>) => {
       if (limitsPage && (change.date || change.scope)) {
-        updatePageQuery({ date: change.date || selection.date || status?.latestDate, scope: change.scope || selection.scope });
+        updatePageQuery({ date: change.date || selection.date || status?.latestDate || undefined, scope: change.scope || selection.scope });
       }
       setSelections((old) => ({ ...old, [path]: { ...selection, ...change } }));
     },
