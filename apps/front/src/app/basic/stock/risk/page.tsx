@@ -1,6 +1,7 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense } from 'react';
+import { updatePageQuery } from '@/utils/update-page-query';
 import { useSearchParams } from 'next/navigation';
 import {
   DatePicker, Input, Select, Space,
@@ -22,21 +23,23 @@ import {
 function Risk() {
   const params = useSearchParams();
   const fallback = useDefaultTradeDate();
-  const [selected, setSelected] = useState(params.get('date') || '');
+  const selected = params.get('date');
   const date = selected || (fallback.ready ? fallback.tradeDate : '');
-  const [keyword, setKeyword] = useState(params.get('code') || '');
-  const [sector, setSector] = useState<string>();
-  const [type, setType] = useState<string>();
-  const [page, setPage] = useState(1);
-  const [size, setSize] = useState(50);
+  const keyword = params.get('keyword') ?? params.get('code') ?? '';
+  const sector = params.get('sector') || undefined;
+  const type = params.get('type') || undefined;
+  const page = Math.max(1, parseInt(params.get('page') || '', 10) || 1);
+  const requestedSize = Number(params.get('size'));
+  const size = [20, 50, 100].includes(requestedSize) ? requestedSize : 50;
+  const filter = (changes: Record<string, string | undefined>) => updatePageQuery({ date, page: undefined, ...changes });
   const state = useWorkbench('risk', { date, keyword, sector }, !!date);
   return (
     <BasicShell title="风险与交易状态" path="/basic/stock/risk">
       <Space className="mb-16" wrap>
-        <DatePicker aria-label="交易日期" value={date ? dayjs(date) : null} allowClear={false} onChange={(value) => { if (value) { setSelected(value.format('YYYY-MM-DD')); setPage(1); } }} />
-        <Input.Search placeholder="股票代码／名称" defaultValue={keyword} allowClear onSearch={(value) => { setKeyword(value); setPage(1); }} />
-        <SectorFilter value={sector} onChange={(value) => { setSector(value); setPage(1); }} />
-        <SelectField label="风险类型"><Select aria-label="风险类型" allowClear placeholder="全部" value={type} onChange={(value) => { setType(value); setPage(1); }} style={{ width: 150 }} options={['ST', '减持', '停牌', '复牌', '异常波动', '严重异常波动', '交易所提示'].map((value) => ({ label: riskTypeLabel(value), value }))} /></SelectField>
+        <DatePicker aria-label="交易日期" value={date ? dayjs(date) : null} allowClear={false} onChange={(value) => { if (value) filter({ date: value.format('YYYY-MM-DD') }); }} />
+        <Input.Search placeholder="股票代码／名称" key={keyword} defaultValue={keyword} allowClear onSearch={(value) => filter({ code: undefined, keyword: value.trim() })} />
+        <SectorFilter value={sector} onChange={(value) => filter({ sector: value })} />
+        <SelectField label="风险类型"><Select aria-label="风险类型" allowClear placeholder="全部" value={type} onChange={(value) => filter({ type: value })} style={{ width: 150 }} options={['ST', '减持', '停牌', '复牌', '异常波动', '严重异常波动', '交易所提示'].map((value) => ({ label: riskTypeLabel(value), value }))} /></SelectField>
       </Space>
       <div className="risk-list-context">
         <SourceState data={state.data} error={state.error} retry={state.retry} pollingStopped={state.pollingStopped} />
@@ -49,7 +52,7 @@ function Risk() {
         rowKey={riskRowKey}
         dataSource={(state.data?.items || []).filter((record: any) => (!type || record.type === type) && (record.type !== '减持' || currentReduction(record, date)))}
         pagination={{
-          current: page, pageSize: size, showSizeChanger: true, pageSizeOptions: [20, 50, 100], onChange: (next, pageSize) => { setPage(pageSize !== size ? 1 : next); setSize(pageSize); }, showTotal: (total) => `共 ${total} 条记录`,
+          current: page, pageSize: size, showSizeChanger: true, pageSizeOptions: [20, 50, 100], onChange: (next, pageSize) => updatePageQuery({ date, page: String(pageSize !== size ? 1 : next), size: String(pageSize) }), showTotal: (total) => `共 ${total} 条记录`,
         }}
         scroll={{ x: 1250 }}
         columns={[

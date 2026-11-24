@@ -2,14 +2,15 @@
 
 /* eslint-disable react/no-danger, react/jsx-closing-tag-location -- HTML is produced by the escaping renderer; local raster images use data URLs. */
 /* eslint jsx-a11y/label-has-associated-control: ["error", { "assert": "htmlFor" }] */
-import { useRef, useState } from 'react';
+import { ReactNode, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   Alert, Button, Checkbox, Collapse, Input, Modal, Select, Space,
 } from 'antd';
 import { PrepareAnalysis } from '@/components/PersonalAi/AnalysisPanel';
 import BusinessAction from '@/components/PersonalAi/BusinessAction';
-import { Task } from '@/components/PersonalAi/client';
+import { useAiTasks } from '@/components/PersonalAi/TaskState';
+import { consoleRequest, Task } from '@/components/PersonalAi/client';
 import { copyText } from '@/utils/clipboard';
 import { siteUrl } from '@/discovery/site';
 import {
@@ -30,8 +31,9 @@ function download(name: string, text: string, type: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export default function ArticleEditor({
-  date, revision, content, disabled, dirty, onSave, generation = 0, previewDisabled = false, onChange, onMaterials, onStatus: reportStatus, prepareImages, openRequest = 0,
+  date, revision, content, disabled, dirty, onSave, generation = 0, previewDisabled = false, onChange, onMaterials, onStatus: reportStatus, prepareImages, openRequest = 0, materialTools, editingSource, onEditSource,
 }: {
+  materialTools: ReactNode; editingSource: boolean; onEditSource: (field: string) => void;
   prepareImages: PrepareAnalysis; openRequest?: number;
   date: string; revision: number; generation?: number; content: NotebookContent; disabled: boolean; dirty: boolean;
   onSave: () => Promise<SavedNotebook | null>;
@@ -41,7 +43,10 @@ export default function ArticleEditor({
   const legacy = Object.entries(content.public).some(([key, value]) => key !== 'title' && value.trim());
   const article = content.article || { ...emptyArticle(), body: legacy ? publicText(date, content, 'wechat') : '' };
   const missingImages = missingPlatformImages(article.images);
-  const savedStatus = revision ? `记录已保存，版本 ${revision}。` : '当天尚未保存。';
+  const tasks = useAiTasks();
+  const recent = tasks?.state?.tasks.filter((task) => task.skill === 'market-review' && task.date === date && task.status === 'completed').sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  const awaitingReview = recent && recent.id !== article.composition?.taskId;
+  const editLinks = <Space wrap>{[['marketJudgment', '市场判断'], ['themes', '涨停题材'], ['lesson', '当日总结']].map(([key, label]) => <Button key={key} type="link" onClick={() => onEditSource(key)}>{`修改${label}原文`}</Button>)}</Space>;
   const currentContent = useRef(content); currentContent.current = content;
   const current = useRef(article); current.current = article;
   const context = useRef({
@@ -60,7 +65,7 @@ export default function ArticleEditor({
   const [manualTask, setManualTask] = useState('');
   const [editBody, setEditBody] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [proposal, setProposal] = useState<{ answer: string; taskId: string; body: string } | null>(null);
+  const [proposal, setProposal] = useState<{ answer: string; taskId: string } | null>(null);
   const [undo, setUndo] = useState<Article | null>(null);
   const [handoffNotice, setHandoffNotice] = useState('');
   const onStatus = (message: string) => { setNotice(message); reportStatus(message); };
@@ -101,6 +106,35 @@ export default function ArticleEditor({
       setUndo(current.current); onChange(imported); setImportOpen(false); setError(''); setHandoffNotice(''); onStatus('成稿与图片已导入，预览确认后点击“保存”。');
     } catch (e) { setError((e as Error).message); }
   };
+  const reviewResult = (task: Task, selectedSection?: string) => {
+    if (!task.answer || task.skill !== 'market-review' || task.date !== context.current.date) throw Error('日期已切换，结果保留在分析记录中。');
+    const latest = currentContent.current;
+    let answer = task.answer || '';
+    if (selectedSection && latest.article?.composition) {
+      const extract = (text: string) => new Map(text.split(/^### /m).slice(1).map((block) => { const index = block.indexOf('\n'); return [block.slice(0, index).trim(), block.slice(index).trim()]; }));
+      const old = extract(latest.article.composition.answer); const incoming = extract(answer);
+      if (!incoming.get(selectedSection)) throw Error('所选章节没有可用结果');
+      old.set(selectedSection, incoming.get(selectedSection)!);
+      answer = [...old].map(([heading, body]) => `### ${heading}\n\n${body}`).join('\n\n');
+    }
+    setProposal({ answer, taskId: task.id });
+  };
+  const reviewLatest = async () => {
+    if (!recent) return;
+    setPending(true); setError('');
+    try { reviewResult(await consoleRequest<Task>(`/tasks/${encodeURIComponent(recent.id)}`)); } catch (e) { setError((e as Error).message); } finally { setPending(false); }
+  };
+  const applyAndSave = async () => {
+    if (!proposal || disabled || pending) return;
+    setPending(true);
+    try {
+      const latest = currentContent.current;
+      const composed = validateArticle({ ...current.current, body: reviewDocument(date, latest, proposal.answer), composition: { answer: proposal.answer, taskId: proposal.taskId, notesSignature: notesSignature(latest) } });
+      setUndo(current.current); onChange(composed); setProposal(null);
+      const saved = await onSave();
+      if (saved) { setNotice('成稿已保存，可以预览或撤销。'); setPreview(true); } else setError('成稿已留在当前草稿，请处理保存提示后重试。');
+    } catch (e) { setError((e as Error).message); } finally { setPending(false); }
+  };
   return (
     <div className="notebook-panel notebook-article-editor">
       <div className="notebook-panel-intro">
@@ -110,6 +144,8 @@ export default function ArticleEditor({
       {notice && <Alert type="info" message={notice} />}
       <section className="notebook-handoff" aria-label="保存与 AI 整理">
         <Space wrap size={12}>
+          {recent && <span>{`最近结果 ${new Date(recent.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Shanghai' })} ${awaitingReview ? '待核对' : '已应用'}`}</span>}
+          {awaitingReview && <Button type="primary" disabled={disabled || pending} onClick={reviewLatest}>核对成稿</Button>}
           <BusinessAction
             compact
             openRequest={openRequest}
@@ -118,23 +154,11 @@ export default function ArticleEditor({
             disabled={disabled || pending || handoffBusy}
             beforeStart={prepareImages}
             canApplySections={!!article.composition && /^### 核心判断\s*$/m.test(article.composition.answer)}
-            onComplete={(task: Task, selectedSection?: string) => {
-              if (task.date !== context.current.date) throw Error('日期已切换，结果保留在分析记录中。');
-              const latest = currentContent.current;
-              let answer = task.answer || '';
-              if (selectedSection && latest.article?.composition) {
-                const extract = (text: string) => new Map(text.split(/^### /m).slice(1).map((block) => { const index = block.indexOf('\n'); return [block.slice(0, index).trim(), block.slice(index).trim()]; }));
-                const old = extract(latest.article.composition.answer); const incoming = extract(answer);
-                if (!incoming.get(selectedSection)) throw Error('所选章节没有可用结果');
-                old.set(selectedSection, incoming.get(selectedSection)!);
-                answer = [...old].map(([heading, body]) => `### ${heading}\n\n${body}`).join('\n\n');
-              }
-              const body = reviewDocument(date, latest, answer);
-              setProposal({ answer, taskId: task.id, body });
-            }}
+            onComplete={reviewResult}
+            secondary={!!recent || !!article.body}
           />
 
-          <Button disabled={previewDisabled || handoffBusy} onClick={() => { setCopyNotice(''); setPreview(true); }}>预览</Button>
+          <Button type={article.body && !awaitingReview ? 'primary' : 'default'} disabled={previewDisabled || handoffBusy} onClick={() => { setCopyNotice(''); setPreview(true); }}>预览</Button>
           {article.feishuUrl && <a href={article.feishuUrl} target="_blank" rel="noopener noreferrer">打开飞书文档</a>}
         </Space>
         {!!missingImages.length && <p className="review-caption">生成时会补齐缺少的配图；已收录的图片直接复用。</p>}
@@ -142,7 +166,8 @@ export default function ArticleEditor({
         <Collapse items={[{
           key: 'external',
           label: '使用 Codex 生成飞书文档（可选）',
-          children: <Space wrap size={12}>
+          children: <Space direction="vertical">
+            <p>{`本次交给 Codex 的收录素材：${content.workspace?.items.filter((item) => item.includeInArticle).map((item) => item.title).join('、') || '无'}。`}</p>
             <Button
               aria-label="准备 Codex 任务"
               aria-busy={handoffBusy}
@@ -173,7 +198,7 @@ export default function ArticleEditor({
         }]}
         />
         {handoffNotice && <Alert type="info" message={<span role="status">{handoffNotice}</span>} />}
-        {!!article.body && !article.composition && <Alert type="warning" message="此正文来自旧版本或外部导入，修改个人记录后请核对正文再复制" action={<Button onClick={() => { const answer = nativeAnswer(article.body); if (answer) setProposal({ answer, taskId: 'legacy', body: reviewDocument(date, currentContent.current, answer) }); else setEditBody(true); }}>核对并同步原文</Button>} />}
+        {!!article.body && !article.composition && <Alert type="warning" message="此正文来自旧版本或外部导入，修改个人记录后请核对正文再复制" action={<Button onClick={() => { const answer = nativeAnswer(article.body); if (answer) setProposal({ answer, taskId: 'legacy' }); else setEditBody(true); }}>核对并同步原文</Button>} />}
         {article.composition?.taskId && article.composition.taskId !== 'legacy' && <Link href={`/review/?view=article&date=${date}&aiTask=${encodeURIComponent(article.composition.taskId)}`}>查看上次应用的 AI 结果</Link>}
         {article.composition && article.composition.notesSignature !== notesSignature(content) && <Alert type="info" message="预览已同步最新原文，AI 分析保持不变；保存后同步服务器正文" />}
         {undo && (
@@ -186,12 +211,13 @@ export default function ArticleEditor({
           撤销上次正文应用
         </Button>
         )}
-        <p className="review-caption">{dirty ? '有未保存的修改。' : savedStatus}</p>
+        {editLinks}
       </section>
       <Collapse items={[{
         key: 'materials',
-        label: `补充图片与来源（可选，已有 ${article.images.length} 张图片）`,
+        label: `本稿素材（已选 ${content.workspace?.items.filter((item) => item.includeInArticle).length || 0} 条，配图 ${article.images.length} 张）`,
         children: <div className="notebook-panel">
+          {materialTools}
           <section className="notebook-material-links">
             <h2>取图来源</h2>
             <p className="review-caption">可以直接交给 Skill 按这些链接取图；也可以补充上传图片。</p>
@@ -259,7 +285,7 @@ export default function ArticleEditor({
             <input hidden ref={upload} type="file" accept="image/png,image/jpeg,image/webp" multiple onChange={(e) => { addFiles(Array.from(e.target.files || [])); e.target.value = ''; }} />
             <Input.TextArea aria-label="粘贴配图" disabled={disabled || pending} placeholder="在这里按 Ctrl+V 粘贴截图。图片将交给 Skill 生成飞书图文。" rows={2} value="" onChange={() => {}} onPaste={(e) => { const files = Array.from(e.clipboardData.files).filter((f) => f.type.startsWith('image/')); if (files.length) { e.preventDefault(); addFiles(files); } }} />
             <div className="notebook-media-grid">
-              {article.images.map((image, index) => (image.id.startsWith('platform-') ? null : (
+              {article.images.map((image, index) => (
                 <div className="notebook-media-card" key={image.id}>
                   <img src={image.data} alt={image.caption || `配图 ${index + 1}`} />
                   <Input aria-label={`配图 ${index + 1} 图注`} disabled={disabled} placeholder="图注" value={image.caption} maxLength={300} onChange={(e) => replaceImage(image.id, { caption: e.target.value })} />
@@ -270,7 +296,7 @@ export default function ArticleEditor({
                     <Button disabled={disabled} onClick={() => update({ ...article, images: article.images.filter((i) => i.id !== image.id) })}>移除</Button>
                   </Space>
                 </div>
-              )))}
+              ))}
             </div>
           </section>
         </div>,
@@ -327,16 +353,17 @@ export default function ArticleEditor({
         centered
         title="核对 AI 结果后应用"
         width={1000}
-        open={!!proposal}
+        open={!!proposal && !editingSource}
         onCancel={() => setProposal(null)}
         footer={(
           <Space wrap>
             <Button onClick={() => setProposal(null)}>保留原稿</Button>
-            <Button type="primary" onClick={() => { if (!proposal) return; const latest = currentContent.current; setUndo(current.current); update({ ...(latest.article || emptyArticle()), body: reviewDocument(date, latest, proposal.answer), composition: { answer: proposal.answer, taskId: proposal.taskId, notesSignature: notesSignature(latest) } }); setProposal(null); onStatus('已应用到当前复盘，可撤销。预览后保存即可同步服务器。'); }}>应用到当前复盘</Button>
+            <Button type="primary" disabled={disabled || pending} onClick={applyAndSave}>应用并保存</Button>
           </Space>
 )}
       >
-        <p>只替换所选 AI 分析，个人记录与配图保留。此操作不会立即保存服务器。</p>
+        <p>确认后保存为新版本，个人记录和配图会保留。</p>
+        {editLinks}
         <div className="review-result-diff">
           <section>
             <h3>当前正文</h3>
@@ -344,13 +371,13 @@ export default function ArticleEditor({
           </section>
           <section>
             <h3>应用后正文</h3>
-            <pre>{proposal?.body}</pre>
+            <pre>{proposal && reviewDocument(date, content, proposal.answer)}</pre>
           </section>
         </div>
       </Modal>
       <Modal
         className={`notebook-preview-modal${preview ? ' notebook-preview-open' : ''}`}
-        open={preview}
+        open={preview && !editingSource}
         destroyOnClose
         title={content.public.title || `${date}复盘`}
         width={1000}
@@ -366,6 +393,7 @@ export default function ArticleEditor({
         <div className="notebook-copy-target">
           <label htmlFor="review-copy-target">粘贴到</label>
           <Select id="review-copy-target" value={target} disabled={copying} style={{ width: 160 }} options={Object.entries(targetNames).map(([value, label]) => ({ value, label }))} onChange={(value: ArticleTarget) => { setTarget(value); setCopyNotice(''); }} />
+          {editLinks}
           <span className="review-caption">预览和复制使用相同排版，图片保持原比例。</span>
         </div>
         {!!copyNotice && <Alert type="info" message={<span role="status">{copyNotice}</span>} />}

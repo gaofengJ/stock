@@ -89,7 +89,7 @@ export default function Page() {
           </details>
           <details>
             <summary>复盘记录如何保存？</summary>
-            <p>点击“保存”后，记录按账号和交易日期存入服务器，可跨设备读取。未保存的编辑请先保存，也可导出备份。</p>
+            <p>普通账号和游客的计划保存在当前浏览器，可在预览中导出 Markdown 备份。管理员的私人复盘点击“保存复盘”后，可用同一账号跨设备读取。</p>
           </details>
           <details>
             <summary>数据什么时候更新？</summary>

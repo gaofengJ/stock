@@ -10,7 +10,7 @@ import { activeTask, ConsoleState, consoleRequest } from './client';
 interface State { state: ConsoleState | null; error: string; refresh: () => Promise<ConsoleState> }
 const Context = createContext<State | null>(null);
 export const useAiTasks = () => useContext(Context);
-export default function TaskState({ children }: { children: ReactNode }) {
+export default function TaskState({ children, reviewDate }: { children: ReactNode; reviewDate?: string }) {
   const { user } = useAccount(); const capture = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('reviewCapture');
   const owner = isPersonalAiOwner(user) && !capture ? user!.id : 0;
   const [state, setState] = useState<ConsoleState | null>(null); const [error, setError] = useState('');
@@ -19,9 +19,9 @@ export default function TaskState({ children }: { children: ReactNode }) {
   const refresh = useCallback(() => {
     if (!owner) return Promise.reject(Error('仅本人可用'));
     if (pending.current) return pending.current;
-    const task = consoleRequest<ConsoleState>('/status').then((value) => { if (currentOwner.current === owner) { setState(value); setError(''); } return value; }).catch((reason) => { if (currentOwner.current === owner) setError((reason as Error).message); throw reason; }).finally(() => { if (pending.current === task) pending.current = null; });
+    const task = consoleRequest<ConsoleState>(reviewDate ? `/status?reviewDate=${encodeURIComponent(reviewDate)}` : '/status').then((value) => { if (currentOwner.current === owner) { setState(value); setError(''); } return value; }).catch((reason) => { if (currentOwner.current === owner) setError((reason as Error).message); throw reason; }).finally(() => { if (pending.current === task) pending.current = null; });
     pending.current = task; return task;
-  }, [owner]);
+  }, [owner, reviewDate]);
   useEffect(() => { setState(null); setError(''); pending.current = null; if (owner) refresh().catch(() => {}); }, [owner, refresh]);
   const running = state?.tasks.some((task) => activeTask(task.status));
   useEffect(() => {

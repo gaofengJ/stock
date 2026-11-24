@@ -4,10 +4,13 @@
 
 import { useSearchParams } from 'next/navigation';
 import { mayLeaveResearch } from '@/utils/research-navigation';
-import { useEffect, useRef, useState } from 'react';
 import {
-  Alert, Button, Card, Collapse, DatePicker, Input, Modal, Select, Space, Tabs, Tag, Tooltip,
+  ReactNode, useEffect, useRef, useState,
+} from 'react';
+import {
+  Alert, Button, Card, Checkbox, Collapse, DatePicker, Grid, Input, Modal, Select, Space, Tag, Tooltip,
 } from 'antd';
+import type { DatePickerProps } from 'antd';
 import dayjs from 'dayjs';
 import SelectField from '@/components/SelectField';
 import Layout from '@/components/Layout';
@@ -20,7 +23,7 @@ import { useAccount } from '@/auth/Boundary';
 import { isPersonalAiOwner } from '@/auth/client';
 import { useDefaultTradeDate } from '@/hooks/useDefaultTradeDate';
 import { numberText, scaledNumber, beijingTime } from '@/utils/format';
-import { WatchDraft } from './workspace-contract';
+import { CollectedItem, WatchDraft } from './workspace-contract';
 import StockChart from '../strategy/StockChart';
 import { trendDefaults } from '../strategy/strategy-options';
 import CandidateEnvironment from '../strategy/CandidateEnvironment';
@@ -44,8 +47,13 @@ function updateReviewView(key: string, value: string) {
   window.history.replaceState(null, '', url);
 }
 function Report({
-  date, account, capture, onSelection, generation = 0, refresh = 0, savedDraft, onDraft, simple = false,
-}: { date: string; account: number; generation?: number; refresh?: number; capture?: (text: string) => void; onSelection?: (items: string[]) => void; savedDraft?: WatchDraft; onDraft?: (draft: WatchDraft) => void; simple?: boolean }) {
+  date, account, capture, generation = 0, refresh = 0, savedDraft, onDraft, items, onInclude, previous, simple = false,
+}: { date: string; account: number; generation?: number; refresh?: number; capture?: (text: string) => void; savedDraft?: WatchDraft; onDraft?: (draft: WatchDraft) => void; simple?: boolean; previous?: (ineligible: (code: string) => string) => ReactNode; items?: CollectedItem[]; onInclude?: (id: string, checked: boolean) => void }) {
+  const narrow = Grid.useBreakpoint().md === false;
+  const [picking, setPicking] = useState(!simple);
+  const firstAdded = useRef('');
+  const [requested, setRequested] = useState(!simple);
+  const [editingCode, setEditingCode] = useState('');
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -77,9 +85,10 @@ function Report({
   } = useReviewDraft(account, date, generation, savedDraft, onDraft);
   const interacted = useRef(false);
   const update: typeof updateDraft = (patch) => { interacted.current = true; updateDraft(patch); };
-  useEffect(() => { onSelection?.(draft.selected.map((pick) => `${pick.name} ${pick.tsCode}`)); }, [draft.selected, onSelection]);
+  const needsCandidates = requested || draft.selected.length > 0 || !!previous || !!items?.some((item) => item.kind === 'stock');
   const risk = useWorkbench('risk', { date }, !!data);
   useEffect(() => {
+    if (!needsCandidates) return undefined;
     const abort = new AbortController(); let active = true;
     setLoading(true); setError('');
     request.get('/review/report', {
@@ -89,7 +98,7 @@ function Report({
       .catch((e) => { if (active) setError(errorMessage(e, '候选加载失败，请重试')); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; abort.abort(); };
-  }, [date, attempt, refresh]);
+  }, [date, attempt, refresh, needsCandidates]);
   const blocked = (row: any) => row.risk?.state === 'excluded' || risk.data?.items?.some((r: any) => r.tsCode === row.tsCode && (['ST', '停牌'].includes(r.type) || currentReduction(r, date)));
   const rows: any[] = data?.items || [];
   const eligible = rows.filter((r) => r.capState === 'within' && !blocked(r));
@@ -97,6 +106,7 @@ function Report({
   const capCount = rows.filter((r) => !blocked(r) && r.capState !== 'within').length;
   const selected = draft.selected.map((r) => r.tsCode);
   const chosen = draft.selected.map((pick) => ({ ...pick, row: rows.find((r) => r.tsCode === pick.tsCode) }));
+  const stockSources = new Map(items?.filter((item) => item.kind === 'stock').map((item) => [item.code, item]));
   const filtered = rows.filter((r) => (!keyword.trim() || `${r.tsCode} ${r.name}`.toLowerCase().includes(keyword.trim().toLowerCase()))
     && (strategy === 'all' || r.strategies.some((s: any) => s.key === strategy))
     && (filter === 'all' || (filter === 'selected' && selected.includes(r.tsCode)) || (filter === 'within' && r.capState === 'within' && !blocked(r)) || (filter === 'excluded' && blocked(r)) || (filter === 'missing' && r.capState === 'missing')));
@@ -120,17 +130,40 @@ function Report({
   const lastPage = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, lastPage);
   useEffect(() => { if (data && !loading && page > lastPage) updateReviewView('reviewPage', String(lastPage)); }, [lastPage, page, data, loading]);
-  const selectionReason = (row: any) => {
+  const admissionReason = (row: any) => {
     if (!ready) return '正在读取草稿';
-    if (selected.includes(row.tsCode)) return '';
     if (loading) return '候选更新中，请稍候';
+    if (error) return '候选加载失败，请重新获取候选后核验';
+    if (!row) return data?.complete ? '未入选当日策略候选' : '当日候选资料尚未齐全';
     if (blocked(row)) return '已知风险事项排除，不能加入观察名单';
     if (row.capState !== 'within') return '总市值需小于200亿元且资料完整';
     return '';
   };
+  const selectionReason = (row: any) => (selected.includes(row.tsCode) ? '' : admissionReason(row));
+  const reasonForCode = (code: string) => admissionReason(rows.find((row) => row.tsCode === code));
   const remove = (code: string) => update({ selected: draft.selected.filter((r) => r.tsCode !== code) });
   const toggle = (row: any) => {
-    if (!selectionReason(row)) update({ selected: selectWatchRows(draft.selected, [row], !selected.includes(row.tsCode)) });
+    if (selectionReason(row)) return;
+    const adding = !selected.includes(row.tsCode);
+    if (adding && !firstAdded.current) firstAdded.current = row.tsCode;
+    setEditingCode(adding ? row.tsCode : '');
+    update({ selected: selectWatchRows(draft.selected, [row], adding) });
+  };
+  const quickNote = (code: string, name: string) => (
+    <Input.TextArea
+      aria-label={`${name}快速填写观察条件`}
+      placeholder="观察理由与触发条件"
+      rows={2}
+      maxLength={2000}
+      value={draft.notes[code] || ''}
+      onChange={(event) => update({ notes: { ...draft.notes, [code]: event.target.value } })}
+    />
+  );
+  const finishPicking = () => {
+    setPicking(false);
+    const code = selected.includes(firstAdded.current) ? firstAdded.current : selected[0];
+    firstAdded.current = '';
+    if (code) requestAnimationFrame(() => document.getElementById(`review-note-${code}`)?.focus());
   };
   const goToStep = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ block: 'start' });
@@ -252,9 +285,28 @@ function Report({
         </section>
       </>
       )}
+      {error && !picking && needsCandidates && <Alert type="warning" message={error} action={<Button onClick={() => setAttempt((v) => v + 1)}>重试资格核对</Button>} />}
+      {previous?.(reasonForCode)}
+      {!!items?.some((item) => item.kind === 'stock' && item.code && !selected.includes(item.code)) && (
+        <section className="notebook-panel" aria-label="待核验股票线索">
+          <h3>待核验股票线索</h3>
+          {items.filter((item) => item.kind === 'stock' && item.code && !selected.includes(item.code)).map((item) => {
+            const row = rows.find((entry) => entry.tsCode === item.code);
+            const reason = admissionReason(row);
+            return (
+              <Space key={item.id} wrap>
+                <a href={item.url} target="_blank" rel="noreferrer">{item.title}</a>
+                <Button disabled={!!reason} aria-label={`将${item.name || item.code}加入观察`} onClick={() => toggle(row)}>加入观察</Button>
+                {reason && <span>{reason}</span>}
+              </Space>
+            );
+          })}
+        </section>
+      )}
       <div className={`review-workspace${simple ? ' review-workspace-simple' : ''}`}>
-        <details open={simple ? undefined : true} className="review-candidate-disclosure">
-          <summary>{simple ? '添加或调整观察股票' : '筛选观察股票'}</summary>
+        <div className="review-candidate-disclosure">
+          <Button aria-controls="review-candidates" aria-expanded={picking} onClick={() => { setPicking(!picking); setRequested(true); }}>{simple ? '添加股票' : '筛选观察股票'}</Button>
+          {picking && (
           <section id="review-candidates" className="review-candidates" aria-labelledby="review-candidates-title">
             <div className="review-section-heading">
               <h2 id="review-candidates-title" tabIndex={-1} className="review-step-title">
@@ -289,13 +341,13 @@ function Report({
             </div>
             <div className="review-selection" role="status">
               <span>{`已加入观察 ${selected.length} 只，翻页和筛选不影响名单`}</span>
-              {chosen.map(({ name, tsCode }) => <Tag key={tsCode} closable onClose={() => remove(tsCode)}>{name}</Tag>)}
+              {simple && <Button size="small" onClick={finishPicking}>完成选股</Button>}
             </div>
             <div id="review-candidate-table" data-review-date={date} data-review-ready={!loading && !!data}>
               <Table
                 loading={loading}
                 rowKey="tsCode"
-                dataSource={filtered}
+                dataSource={narrow ? ordered : filtered}
                 rowSelection={{
                   selectedRowKeys: selected,
                   preserveSelectedRowKeys: true,
@@ -318,9 +370,27 @@ function Report({
                 pagination={{
                   current: currentPage, pageSize, showSizeChanger: true, pageSizeOptions: [10, 20, 50], showTotal: (total) => `当前范围 ${total} 只`,
                 }}
-                scroll={{ x: 1180 }}
+                scroll={{ x: narrow ? '100%' : 1180 }}
                 locale={{ emptyText: error ? '候选数据未取得，请重试' : '当前范围没有股票，可调整筛选条件或保持空名单' }}
-                columns={[
+                columns={narrow ? [{
+                  title: '候选股票',
+                  key: 'compact',
+                  render: (_, r: any) => (
+                    <div className="review-mobile-stock">
+                      <StockLink showCollect={false} code={r.tsCode} name={r.name} date={date} onChart={(list) => openStock(r, list)} />
+                      <small>{r.tsCode}</small>
+                      <span>{r.strategies.map((item: any) => item.label).join('、')}</span>
+                      <span>{riskLabel(r)}</span>
+                      <details>
+                        <summary>行情与风险资料</summary>
+                        <p>{`收盘 ${numberText(r.close)} 元，总市值 ${scaledNumber(r.totalMv, 10000)} 亿元，流通市值 ${scaledNumber(r.circMv, 10000)} 亿元`}</p>
+                        <CandidateProfit row={financials.rows.get(r.tsCode)} error={financials.error} stopped={financials.stopped} retry={financials.retry} />
+                        <RiskInspect code={r.tsCode} name={r.name} date={date} />
+                      </details>
+                      {selected.includes(r.tsCode) && quickNote(r.tsCode, r.name)}
+                    </div>
+                  ),
+                }] : [
                   {
                     title: '股票与操作',
                     key: 'stock',
@@ -328,9 +398,10 @@ function Report({
                     render: (_, r: any) => (
                       <div className="review-stock-cell">
                         <div className="review-stock-heading">
-                          <StockLink code={r.tsCode} name={r.name} date={date} onChart={(list) => openStock(r, list)} />
+                          <StockLink showCollect={false} code={r.tsCode} name={r.name} date={date} onChart={(list) => openStock(r, list)} />
                           <span className="review-caption">{r.tsCode}</span>
                         </div>
+                        {selected.includes(r.tsCode) && (editingCode === r.tsCode ? quickNote(r.tsCode, r.name) : <Button size="small" onClick={() => setEditingCode(r.tsCode)}>写观察条件</Button>)}
                         <div className="review-stock-actions">
                           <RiskInspect code={r.tsCode} name={r.name} date={date} />
                         </div>
@@ -365,9 +436,11 @@ function Report({
                 ]}
               />
             </div>
+            {simple && <Button onClick={finishPicking}>返回今日名单</Button>}
           </section>
-        </details>
-        <section className="review-plan" id="review-plan" aria-labelledby="review-plan-title">
+          )}
+        </div>
+        <section hidden={simple && picking} className="review-plan" id="review-plan" aria-labelledby="review-plan-title">
           <Card
             title={(
               <div className="review-plan-title">
@@ -393,10 +466,16 @@ function Report({
                   <div key={tsCode} className="review-pick">
                     <div className="review-pick-summary">
                       <div className="review-pick-heading">
-                        <StockLink code={tsCode} name={row?.name || name} date={date} navigation={chosen.map((pick) => pick.row || pick)} onChart={row ? (list) => openStock(row, list) : undefined} />
+                        <StockLink showCollect={false} code={tsCode} name={row?.name || name} date={date} navigation={chosen.map((pick) => pick.row || pick)} onChart={row ? (list) => openStock(row, list) : undefined} />
                         <Button size="small" aria-label={`将${name}移出观察名单`} onClick={() => remove(tsCode)}>移出</Button>
                       </div>
                       <span className="review-caption">{tsCode}</span>
+                      {stockSources.get(tsCode) && (
+                      <>
+                        <a href={stockSources.get(tsCode)!.url} target="_blank" rel="noreferrer">查看观察来源</a>
+                        {onInclude && <Checkbox checked={!!stockSources.get(tsCode)!.includeInArticle} onChange={(event) => onInclude(stockSources.get(tsCode)!.id, event.target.checked)}>将来源纳入图文</Checkbox>}
+                      </>
+                      )}
                       <div className="review-stock-actions">
                         <RiskInspect code={tsCode} name={name} date={date} />
                       </div>
@@ -473,7 +552,7 @@ function Report({
                 )}
               </div>
               )}
-              <p role="status" className="review-caption">
+              <p hidden={simple} role="status" className="review-caption">
                 {capture && interacted.current ? '选股与文字已带入本篇复盘，点击顶部“保存复盘”保存。' : status}
               </p>
             </div>
@@ -540,7 +619,7 @@ function Report({
         <div className="review-help-content">
           <p>候选使用全部策略默认参数，合并重复股票。观察数量不限，限定总市值小于200亿元，排除已知ST、停牌，以及已核实的待开始或进行中减持计划。</p>
           <p>行情截至所选交易日收盘，公告按当日已披露信息筛选。历史日期使用当前可用资料回看；人工核验记录不会改变系统风险资料状态。</p>
-          <p>草稿按账号和交易日期保留。在私人复盘中保存整篇记录后，观察名单与备注可跨设备恢复；也可导出文件备份。</p>
+          <p>{capture ? '点击“保存复盘”后，观察名单和备注可用同一账号跨设备读取。' : '计划按账号和交易日期保存在当前浏览器。打开预览可导出 Markdown 文件备份。'}</p>
           <p>策略命中数量可能重叠，可使用候选表上方的策略筛选。</p>
           <Space wrap>{data?.strategies.map((s: any) => <Tag key={s.key}>{`${s.label}：${s.count ?? '暂不可用'}`}</Tag>)}</Space>
           <SourceState data={risk.data || data} error={risk.error} loading={risk.loading} pollingStopped={risk.pollingStopped} retry={risk.retry} />
@@ -557,6 +636,7 @@ function Report({
         headerAction={stock && <Tooltip title={selectionReason(stock)}><Button type={selected.includes(stock.tsCode) ? 'default' : 'primary'} disabled={!!selectionReason(stock)} onClick={() => toggle(stock)}>{selected.includes(stock.tsCode) ? '已观察，点击移出' : '加入观察'}</Button></Tooltip>}
         stockInfo={stock && (
         <div className="review-chart-evidence">
+          {selected.includes(stock.tsCode) && quickNote(stock.tsCode, stock.name)}
           <CandidateProfit row={financials.rows.get(stock.tsCode)} error={financials.error} stopped={financials.stopped} retry={financials.retry} />
           <RiskTags data={risk.data} code={stock.tsCode} date={date} />
           <RiskInspect code={stock.tsCode} name={stock.name} date={date} />
@@ -565,6 +645,15 @@ function Report({
       />
     </>
   );
+}
+
+function renderSavedDays(saved: Set<string>): NonNullable<DatePickerProps['cellRender']> {
+  return function SavedDay(value, { type, originNode }) {
+    if (type !== 'date' || !dayjs.isDayjs(value)) return originNode;
+    const date = dayjs(value).format('YYYY-MM-DD');
+    if (!saved.has(date)) return originNode;
+    return <span className="notebook-saved-day" title="已保存复盘" aria-label={`${date} 已保存复盘`}>{originNode}</span>;
+  };
 }
 
 export default function Page() {
@@ -583,20 +672,52 @@ export default function Page() {
   const defaultDate = fallback.ready ? fallback.tradeDate : '';
   const date = validDate(chosenDate) ? chosenDate : defaultDate;
   useEffect(() => { if (date && !validDate(chosenDate)) { const url = new URL(window.location.href); url.searchParams.set('date', date); window.history.replaceState(null, '', url); } }, [date, chosenDate]);
+  const admin = user?.roles.some((role) => role.code === 'admin') && !user.guest;
+  const dateControl = (saved: Set<string>) => (
+    <Space wrap>
+      <span>复盘交易日期</span>
+      <DatePicker
+        aria-label="复盘交易日期"
+        value={date ? dayjs(date) : null}
+        allowClear={false}
+        cellRender={renderSavedDays(saved)}
+        onChange={(v) => { if (v) changeDate(v.format('YYYY-MM-DD')); }}
+      />
+    </Space>
+  );
   return (
     <Layout showAsideMenu={false} headerMenuActive={EHeaderMenuKey.review}>
       <main className="review-page rounded-[6px] bg-bg-white">
         <h1 className="page-heading">每日复盘</h1>
         <p className="review-intro">记录当日观察，结合市场数据整理图文复盘。</p>
-        <Space className="mb-16" wrap>
-          <span>复盘交易日期</span>
-          <DatePicker aria-label="复盘交易日期" value={date ? dayjs(date) : null} allowClear={false} onChange={(v) => { if (v) changeDate(v.format('YYYY-MM-DD')); }} />
-          <span className="review-caption">切换日期会恢复该日草稿</span>
-        </Space>
-        {isPersonalAiOwner(user) && <Tabs activeKey={publishing ? 'article' : 'notes'} items={[{ key: 'notes', label: '复盘记录' }, { key: 'article', label: '图文复盘' }]} onChange={(view) => { const url = new URL(window.location.href); url.searchParams.set('view', view); url.searchParams.delete('aiTask'); window.history.pushState(null, '', url); }} />}
+        {!(date && admin) && dateControl(new Set())}
         {fallback.error && <Alert type="error" message={fallback.error} action={<Button onClick={fallback.retry}>重试</Button>} />}
-        {date && user && (user.roles.some((r) => r.code === 'admin') && !user.guest
-          ? <Notebook key={`${user.id}:${date}`} mode={publishing ? 'publish' : 'record'} date={date} onDirty={setNotebookDirty} renderTools={(capture, onSelection, generation, refresh, savedDraft, onDraft) => <Report simple key={generation} date={date} account={user.id} capture={capture} onSelection={onSelection} generation={generation} refresh={refresh} savedDraft={savedDraft} onDraft={onDraft} />} />
+        {date && user && (admin
+          ? (
+            <Notebook
+              dateControl={dateControl}
+              key={`${user.id}:${date}`}
+              mode={publishing ? 'publish' : 'record'}
+              date={date}
+              onDirty={setNotebookDirty}
+              renderTools={(tools) => (
+                <Report
+                  key={tools.generation}
+                  date={date}
+                  account={user.id}
+                  simple
+                  capture={tools.capture}
+                  generation={tools.generation}
+                  refresh={tools.refresh}
+                  savedDraft={tools.savedDraft}
+                  onDraft={tools.onDraft}
+                  items={tools.items}
+                  onInclude={tools.onInclude}
+                  previous={tools.previous}
+                />
+              )}
+            />
+          )
           : <Report key={`${user.id}:${date}`} date={date} account={user.id} />)}
       </main>
     </Layout>

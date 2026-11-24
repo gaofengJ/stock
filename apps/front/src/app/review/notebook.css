@@ -148,3 +148,21 @@ body:has(.notebook-preview-open) .platform-content:has(.review-page) { overflow:
 .notebook-flow:empty, .notebook-stages:empty { display: none; }
 .notebook-article-editor { gap: 16px; }
 .notebook-article-editor > .notebook-handoff { border-top: 0; padding-top: 0; }
+
+.review-previous { background: var(--color-surface-muted); padding: 16px; border-radius: 6px; gap: 12px; }
+.review-previous .notebook-previous-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.review-previous .ant-select { min-width: 108px; }
+.review-image-group { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.review-mobile-stock { display: grid; justify-items: start; gap: 6px; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.review-page textarea:focus { scroll-margin-block: 160px 32px; }
+@media (max-width: 767px) {
+  #review-candidate-table table { table-layout: fixed; width: 100%; }
+  #review-candidate-table .ant-table-cell { white-space: normal; }
+  .review-page .notebook-toolbar { gap: 6px; }
+  .review-page .notebook-toolbar-actions { margin-left: 0; }
+}
+.review-market-facts { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 18px; padding: 12px 16px; background: var(--color-surface-muted); border-radius: 6px; }
+.notebook-document[hidden], .review-plan[hidden] { display: none; }
+
+.notebook-saved-day { position: relative; display: inline-block; }
+.notebook-saved-day::after { content: ''; position: absolute; bottom: 0; left: 50%; width: 5px; height: 5px; border-radius: 50%; background: var(--ant-color-primary, #1677ff); transform: translateX(-50%); pointer-events: none; }

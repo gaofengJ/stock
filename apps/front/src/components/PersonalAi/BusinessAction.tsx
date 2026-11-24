@@ -10,9 +10,9 @@ import AnalysisPanel, { Candidate, PrepareAnalysis } from './AnalysisPanel';
 import { Skill, StrategyContext, Task } from './client';
 
 export default function BusinessAction({
-  skill, date, candidates = [], disabled = false, disabledReason, strategy, compact = false, beforeStart, onComplete, initialCodes = [], canApplySections = false, openRequest = 0,
+  skill, date, candidates = [], disabled = false, disabledReason, strategy, compact = false, beforeStart, onComplete, initialCodes = [], canApplySections = false, openRequest = 0, secondary = false,
 }: {
-  skill: Skill; date: string; candidates?: Candidate[]; disabled?: boolean; disabledReason?: string; strategy?: StrategyContext; compact?: boolean; beforeStart?: PrepareAnalysis; onComplete?: (task: Task, section?: string) => void; initialCodes?: string[]; canApplySections?: boolean; openRequest?: number;
+  secondary?: boolean; skill: Skill; date: string; candidates?: Candidate[]; disabled?: boolean; disabledReason?: string; strategy?: StrategyContext; compact?: boolean; beforeStart?: PrepareAnalysis; onComplete?: (task: Task, section?: string) => void; initialCodes?: string[]; canApplySections?: boolean; openRequest?: number;
 }) {
   const { user } = useAccount();
   const params = useSearchParams(); const taskId = params?.get('aiTask') || '';
@@ -38,7 +38,7 @@ export default function BusinessAction({
     <>
       {compact ? (
         <Button
-          type="primary"
+          type={secondary ? 'default' : 'primary'}
           aria-label={title}
           icon={<RobotOutlined />}
           disabled={!!unavailable}
@@ -76,7 +76,7 @@ export default function BusinessAction({
         </section>
       )}
       <Drawer className="personal-ai-drawer" title={title} open={open} onClose={close} footer={<Button onClick={close}>关闭</Button>} width="min(1040px, 100vw)" styles={{ wrapper: { maxWidth: '100vw' } }}>
-        {context && <AnalysisPanel key={JSON.stringify([context.date, context.strategy, context.codes, context.taskId])} initialCodes={context.codes} initialTaskId={context.taskId} canApplySections={canApplySections} ownerId={user!.id} skill={skill} date={context.date} candidates={context.candidates} strategy={context.strategy} beforeStart={beforeStart} onComplete={onComplete} />}
+        {context && <AnalysisPanel key={JSON.stringify([context.date, context.strategy, context.codes, context.taskId])} initialCodes={context.codes} initialTaskId={context.taskId} canApplySections={canApplySections} ownerId={user!.id} skill={skill} date={context.date} candidates={context.candidates} strategy={context.strategy} beforeStart={beforeStart} onComplete={onComplete && ((task, section) => { onComplete(task, section); close(); })} />}
       </Drawer>
     </>
   );

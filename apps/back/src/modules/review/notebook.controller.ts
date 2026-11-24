@@ -20,6 +20,7 @@ import { SignedIn } from '../auth/permissions';
 import { AuthRequest } from '../auth/auth.service';
 import { NotebookService } from './notebook.service';
 import {
+  NotebookDatesDto,
   NotebookPublishDto,
   NotebookSaveDto,
   NotebookVersionDto,
@@ -45,8 +46,8 @@ export class NotebookController {
 
   @Get('dates')
   @Header('Cache-Control', 'no-store')
-  dates(@Req() req: AuthRequest) {
-    return this.service.list(this.owner(req));
+  dates(@Req() req: AuthRequest, @Query() query: NotebookDatesDto) {
+    return this.service.list(this.owner(req), query.stock);
   }
 
   @Get()

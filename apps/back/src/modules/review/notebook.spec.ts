@@ -59,9 +59,12 @@ describe('illustrated notebook', () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
-    const service = new NotebookService({
-      transaction: (run: any) => run({ query }),
-    } as any);
+    const service = new NotebookService(
+      {
+        transaction: (run: any) => run({ query }),
+      } as any,
+      { report: jest.fn() },
+    );
     await service.recordPublication(17, {
       date: '2026-09-30',
       revision: 2,
@@ -88,9 +91,127 @@ describe('illustrated notebook', () => {
     expect(body).not.toContain('PRIVATE_SENTINEL');
   });
 
+  it('saves notes against their locked revision while retaining unreadable image references', async () => {
+    const old = content();
+    old.article.images[0].data = `review-asset:${'a'.repeat(64)}`;
+    const query = jest
+      .fn()
+      .mockResolvedValue([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ generation: 2 }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ revision: 3, content: JSON.stringify(old) }]);
+    const service = new NotebookService(
+      { transaction: (run: any) => run({ query }) } as any,
+      { report: jest.fn() },
+    );
+    const patch = { private: { marketJudgment: '新判断' }, public: {} };
+    const dto = {
+      mode: 'record' as const,
+      date: '2026-10-23',
+      generation: 2,
+      revision: 3,
+      content: JSON.stringify(patch),
+    };
+    await expect(service.save(17, dto)).resolves.toEqual({ revision: 4 });
+    const saved = JSON.parse(query.mock.calls[4][1][1]);
+    expect(saved.article).toEqual(old.article);
+    expect(saved.private.marketJudgment).toBe('新判断');
+    expect(query.mock.calls[5][1][3]).toEqual(query.mock.calls[4][1][1]);
+    expect(query.mock.calls[3][1]).toEqual([17, dto.date]);
+    expect(
+      query.mock.calls.some(([sql]) => sql.includes('t_review_image')),
+    ).toBe(false);
+
+    query
+      .mockReset()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ generation: 2 }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ revision: 4 }]);
+    await expect(service.save(17, dto)).rejects.toThrow('新版本');
+    expect(query).toHaveBeenCalledTimes(4);
+  });
+
+  it('rejects a newly selected stock that fails the daily report before taking a write lock', async () => {
+    const transaction = jest.fn();
+    const report = jest.fn().mockResolvedValue({
+      items: [
+        { tsCode: '000001.SZ', capState: 'over', risk: { state: 'pending' } },
+        {
+          tsCode: '000002.SZ',
+          capState: 'within',
+          risk: { state: 'excluded' },
+        },
+      ],
+    });
+    const service = new NotebookService({ transaction } as any, { report });
+    const draft = {
+      selected: ['000001.SZ', '000002.SZ'].map((tsCode) => ({
+        tsCode,
+        name: tsCode,
+      })),
+      notes: {},
+      riskNotes: {},
+      exit: '',
+      reason: '',
+      focus: '',
+    };
+    const dto = {
+      date: '2026-10-23',
+      revision: 0,
+      content: JSON.stringify({
+        private: {},
+        public: {},
+        workspace: { draft, items: [] },
+      }),
+    };
+    await expect(service.save(17, dto)).rejects.toThrow('000001.SZ、000002.SZ');
+    expect(report).toHaveBeenCalledWith(dto.date);
+    expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it('finds saved observations by name or code in structured and older notebooks', async () => {
+    const rows = [
+      {
+        date: '2026-10-23',
+        revision: 2,
+        picks: JSON.stringify([{ name: '测试股份', tsCode: '000001.SZ' }]),
+      },
+      {
+        date: '2026-01-12',
+        revision: 1,
+        legacyEvidence: '测试股份 000001.SZ\n策略：回看',
+      },
+      {
+        date: '2026-01-11',
+        revision: 1,
+        picks: '[]',
+        legacyEvidence: '测试股份 000001.SZ\n策略：曾经选过',
+      },
+    ];
+    const query = jest.fn().mockResolvedValue(rows);
+    const service = new NotebookService({ query } as any, {
+      report: jest.fn(),
+    });
+    const matches = await Promise.all(
+      ['测试股', '000001.sz'].map((term) => service.list(17, term)),
+    );
+    matches.forEach((found) => {
+      expect(found.map((row) => row.date)).toEqual([
+        '2026-10-23',
+        '2026-01-12',
+      ]);
+      expect(found[0]).not.toHaveProperty('picks');
+    });
+    expect(query.mock.calls[0][1]).toEqual([17]);
+  });
+
   it('rejects a source-date mismatch before entering the save transaction', async () => {
     const transaction = jest.fn();
-    const service = new NotebookService({ transaction } as any);
+    const service = new NotebookService({ transaction } as any, {
+      report: jest.fn(),
+    });
     await expect(
       service.save(17, {
         date: '2026-09-30',
@@ -149,7 +270,9 @@ describe('notebook history reset', () => {
       return sql.startsWith('DELETE') ? { affectedRows: 3 } : [];
     });
     const transaction = jest.fn((run) => run({ query }));
-    const service = new NotebookService({ transaction } as any);
+    const service = new NotebookService({ transaction } as any, {
+      report: jest.fn(),
+    });
     expect(await service.clear(17)).toEqual({
       t_review_publication: 3,
       t_review_notebook_version: 3,
@@ -169,9 +292,13 @@ describe('notebook history reset', () => {
       .fn()
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ generation: 1 }]);
-    const service = new NotebookService({
-      transaction: (run: (manager: any) => Promise<unknown>) => run({ query }),
-    } as any);
+    const service = new NotebookService(
+      {
+        transaction: (run: (manager: any) => Promise<unknown>) =>
+          run({ query }),
+      } as any,
+      { report: jest.fn() },
+    );
     await expect(
       service.save(17, {
         date: '2026-10-12',

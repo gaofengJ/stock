@@ -36,7 +36,7 @@ export function reviewPacket(date: string, revision: number, content: NotebookCo
     legacyPublicNotes: content.public,
     context: content.research ? { ...content.research, sections: content.research.sections.filter((s) => ['market', 'breadth', 'sentiment', 'feedback'].includes(s.key)) } : null,
     research: content.research ? { ...content.research, sections: content.research.sections.filter((s) => ['sectors', 'themes'].includes(s.key)) } : null,
-    materials: { links: [...materialSources(date, content, origin), ...materials.links, ...(content.workspace?.items || []).map((item) => ({ title: item.title, url: origin ? new URL(item.url, origin).href : item.url, note: item.note }))], calendar: materials.calendar, includeExecution: materials.includeExecution },
+    materials: { links: [...materialSources(date, content, origin), ...materials.links, ...(content.workspace?.items || []).filter((item) => item.includeInArticle).map((item) => ({ title: item.title, url: origin ? new URL(item.url, origin).href : item.url, note: item.note }))], calendar: materials.calendar, includeExecution: materials.includeExecution },
     requirements: {
       layout: 'review-connected/v2',
       imageTheme: 'dark',

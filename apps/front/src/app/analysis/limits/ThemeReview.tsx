@@ -1,6 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
+import { updatePageQuery } from '@/utils/update-page-query';
 import {
   useEffect, useId, useRef, useState,
 } from 'react';
@@ -158,10 +159,11 @@ export default function ThemeReview({ keyword, height, sector }: { keyword: stri
   const { date, scope } = useMarket();
   const { colors } = useSiteTheme();
   const result = useThemeReview<ThemeBoard>('theme-review', { keyword, height, sector });
-  const capture = useSearchParams().get('reviewCapture') === '1';
+  const params = useSearchParams();
+  const capture = params.get('reviewCapture') === '1';
   const captureNode = useRef<HTMLDivElement>(null);
   const [captureReady, setCaptureReady] = useState('');
-  const [theme, setTheme] = useState<string>();
+  const theme = params.get('theme') || undefined;
   const [collapsedThemes, setCollapsedThemes] = useState<string[]>([]);
   const groupId = useId();
   const [stock, setStock] = useState<ThemeStock | null>(null);
@@ -220,12 +222,12 @@ export default function ThemeReview({ keyword, height, sector }: { keyword: stri
         <div className="theme-review-overview">
           <span>
             涨停
-            <strong>{visibleStocks.length}</strong>
+            <strong>{data?.ready ? visibleStocks.length : '—'}</strong>
             <small>只</small>
           </span>
           <span>
             题材
-            <strong>{groups.length}</strong>
+            <strong>{data?.ready ? groups.length : '—'}</strong>
             <small>个</small>
           </span>
           <span>
@@ -235,7 +237,7 @@ export default function ThemeReview({ keyword, height, sector }: { keyword: stri
           </span>
         </div>
         <Space wrap>
-          <SelectField label="复盘题材"><Select className="theme-review-filter" aria-label="复盘题材" allowClear showSearch placeholder="全部题材" value={theme} onChange={setTheme} popupMatchSelectWidth={320} options={(data?.groups || []).map((group) => ({ value: group.name, label: `${group.name}（${group.count}）` }))} /></SelectField>
+          <SelectField label="复盘题材"><Select className="theme-review-filter" aria-label="复盘题材" allowClear showSearch placeholder="全部题材" value={theme} onChange={(value) => updatePageQuery({ date, scope, theme: value })} popupMatchSelectWidth={320} options={(data?.groups || []).map((group) => ({ value: group.name, label: `${group.name}（${group.count}）` }))} /></SelectField>
           <Button icon={<DownloadOutlined />} loading={exporting} disabled={result.loading || !!result.error || !groups.length || !!pending} onClick={download}>导出长图</Button>
         </Space>
       </div>

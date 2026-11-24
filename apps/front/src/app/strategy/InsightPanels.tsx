@@ -14,7 +14,7 @@ import HelpTooltip from '@/components/HelpTooltip';
 import Loading from '@/components/Loading';
 import { changeClass, numberText } from '@/utils/format';
 import useInsight from './useInsight';
-import StudyReport from './StudyReport';
+import StudyReport, { reportEndDate } from './StudyReport';
 
 import { Popularity, PopularityTrend, rankChange } from './PopularityChanges';
 
@@ -349,14 +349,13 @@ function LiveSignalPerformance({
 }
 
 export function SignalPerformance({
-  date, strategy, sector, onStock, active = true,
-}: PerformanceProps) {
-  const [range, setRange] = useState<number | string>('snapshot');
+  date, strategy, sector, onStock, active = true, range, onRange,
+}: PerformanceProps & { range: string; onRange: (range: string) => void }) {
   return (
     <div className="strategy-insight-panel">
       <div className="strategy-result-toolbar">
         <strong>历史信号表现</strong>
-        <Segmented aria-label="信号统计范围" value={range} onChange={setRange} options={[{ label: '近20个交易日', value: 20 }, { label: '近60个交易日', value: 60 }, { label: '250日固定报告', value: 'snapshot' }]} />
+        <Segmented aria-label="信号统计范围" value={range} onChange={onRange} options={[{ label: '近20个交易日', value: '20' }, { label: '近60个交易日', value: '60' }, { label: `250日固定报告（截至 ${reportEndDate}）`, value: 'snapshot' }]} />
       </div>
       {range === 'snapshot' ? <StudyReport strategy={strategy} active={active} onStock={onStock} /> : <LiveSignalPerformance date={date} strategy={strategy} sector={sector} onStock={onStock} active={active} days={Number(range)} />}
     </div>

@@ -14,7 +14,8 @@ import Table from '@/components/DataTable';
 import Loading from '@/components/Loading';
 import { changeClass, numberText } from '@/utils/format';
 
-const BASE = '/strategy-study/2026-09-30';
+export const reportEndDate = '2026-09-30';
+const BASE = `/strategy-study/${reportEndDate}`;
 const horizons = [1, 3, 5, 10];
 interface Distribution { sample: number; average: number | null; median: number | null }
 interface Summary extends Distribution {

@@ -2,7 +2,8 @@
 
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense } from 'react';
+import { updatePageQuery } from '@/utils/update-page-query';
 import { useSearchParams } from 'next/navigation';
 import SelectField from '@/components/SelectField';
 import Link from '@/components/Interaction';
@@ -20,14 +21,15 @@ import {
 
 function Seat() {
   const params = useSearchParams(); const org = params.get('org') || ''; const fallback = useDefaultTradeDate();
-  const [selected, setSelected] = useState(params.get('date') || ''); const date = selected || (fallback.ready ? fallback.tradeDate : ''); const [days, setDays] = useState('7');
+  const date = params.get('date') || (fallback.ready ? fallback.tradeDate : '');
+  const days = params.get('days') === '30' ? '30' : '7';
   const state = useWorkbench('seat', { date, org, days }, !!date && !!org);
   return (
     <BasicShell title={org || '营业部档案'} path="/basic/active-funds">
       <Space className="mb-16" wrap>
-        <Link href={`/basic/active-funds/?org=${encodeURIComponent(org)}`}>游资名录</Link>
-        <DatePicker value={date ? dayjs(date) : null} allowClear={false} onChange={(v) => { if (v) setSelected(v.format('YYYY-MM-DD')); }} />
-        <SelectField label="统计范围"><Select aria-label="统计范围" value={days} onChange={setDays} options={[{ label: '近7个交易日', value: '7' }, { label: '近30个交易日', value: '30' }]} /></SelectField>
+        <Link href={`/basic/active-funds/?org=${encodeURIComponent(org)}&date=${date}`}>游资名录</Link>
+        <DatePicker value={date ? dayjs(date) : null} allowClear={false} onChange={(v) => { if (v) updatePageQuery({ date: v.format('YYYY-MM-DD') }); }} />
+        <SelectField label="统计范围"><Select aria-label="统计范围" value={days} onChange={(value) => updatePageQuery({ date, days: value })} options={[{ label: '近7个交易日', value: '7' }, { label: '近30个交易日', value: '30' }]} /></SelectField>
       </Space>
       <SourceState data={state.data} error={state.error} retry={state.retry} pollingStopped={state.pollingStopped} />
       <Space wrap className="mb-16">

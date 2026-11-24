@@ -151,7 +151,7 @@ async function main() {
     await q.release();
     class TestDatabase {}
     Global()(TestDatabase); Module({ providers: [{ provide: DataSource, useValue: db }], exports: [DataSource] })(TestDatabase);
-    const module = await Test.createTestingModule({ imports: [TestDatabase, AuthModule, FeedbackModule, ConfigModule.forRoot({isGlobal:true,ignoreEnvFile:true,load:[()=>({NEWS_SYNC_ENABLED:'false'})]}), NewsModule], controllers: [NotebookController], providers: [NotebookService, { provide: APP_GUARD, useClass: AuthGuard }] }).compile();
+    const module = await Test.createTestingModule({ imports: [TestDatabase, AuthModule, FeedbackModule, ConfigModule.forRoot({isGlobal:true,ignoreEnvFile:true,load:[()=>({NEWS_SYNC_ENABLED:'false'})]}), NewsModule], controllers: [NotebookController], providers: [{ provide: NotebookService, useValue: new NotebookService(db, { report: async () => ({ items: [] }) }) }, { provide: APP_GUARD, useClass: AuthGuard }] }).compile();
     const adapter = new FastifyAdapter();
     const accessEntries = [];
     registerAccessLogging(adapter.getInstance(), entry => accessEntries.push({ ...entry, kind: 'access' }));

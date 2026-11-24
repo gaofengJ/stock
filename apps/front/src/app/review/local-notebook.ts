@@ -1,6 +1,6 @@
 import { NotebookContent } from './notebook-model';
 
-export interface LocalNotebook { revision: number; generation: number; content: NotebookContent; savedAt: string }
+export interface LocalNotebook { revision: number; generation: number; content: NotebookContent; preserveArticle?: boolean; savedAt: string }
 const dbName = 'stock-notebook-recovery-v1';
 const keyFor = (owner: number, date: string) => `${owner}:${date}`;
 function database(): Promise<IDBDatabase> {

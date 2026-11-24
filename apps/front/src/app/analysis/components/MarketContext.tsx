@@ -1,5 +1,6 @@
 'use client';
 
+import { updatePageQuery } from '@/utils/update-page-query';
 import { errorMessage } from '@/api/errors';
 import {
   createContext, useContext, useEffect, useMemo, useState,
@@ -19,8 +20,12 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
   const query = useSearchParams().toString();
   const [selections, setSelections] = useState<Record<string, Selection & { query?: string }>>({});
   const saved = selections[path] || defaultSelection;
-  const selection = useMemo(() => (query && (!('query' in saved) || saved.query !== query)
-    ? { ...saved, ...linkedSelection(query), query } : saved), [query, saved]);
+  const limitsPage = path.replace(/\/$/, '') === '/analysis/limits';
+  const selection = useMemo(() => {
+    if (limitsPage) return { ...defaultSelection, ...linkedSelection(query), days: saved.days };
+    if (query && (!('query' in saved) || saved.query !== query)) return { ...saved, ...linkedSelection(query), query };
+    return saved;
+  }, [limitsPage, query, saved]);
   useEffect(() => {
     if (query) {
       setSelections((old) => ({
@@ -53,8 +58,13 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     status,
     error,
     retry: () => setAttempt((v) => v + 1),
-    select: (change: Partial<Selection>) => setSelections((old) => ({ ...old, [path]: { ...selection, ...change } })),
-  }), [selection, status, error, path, query]);
+    select: (change: Partial<Selection>) => {
+      if (limitsPage && (change.date || change.scope)) {
+        updatePageQuery({ date: change.date || selection.date || status?.latestDate, scope: change.scope || selection.scope });
+      }
+      setSelections((old) => ({ ...old, [path]: { ...selection, ...change } }));
+    },
+  }), [selection, status, error, path, query, limitsPage]);
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 export function useMarket() {

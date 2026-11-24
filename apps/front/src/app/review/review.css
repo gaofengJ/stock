@@ -31,9 +31,6 @@
 .review-search-field > span { white-space: nowrap; }
 .review-workspace-simple { display: flex !important; flex-direction: column; gap: 16px; }
 .review-candidate-disclosure { min-width: 0; }
-.review-candidate-disclosure > summary { cursor: pointer; padding: 12px 16px; color: var(--color-black); background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: 6px; line-height: 1.6; }
-.review-candidate-disclosure > summary::marker { color: var(--text-secondary); }
-.review-candidate-disclosure > summary:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .review-candidate-disclosure > section { margin-top: 12px; }
 .review-workspace-simple { margin-top: 0; }
 .review-workspace-simple .review-section-heading { min-height: 32px; }
