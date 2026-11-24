@@ -24,13 +24,13 @@ import './stock-actions.css';
 interface Props {
   code: string; name?: string; date?: string; label?: React.ReactNode;
   className?: string;
-  showIndicator?: boolean;
+  showIndicator?: boolean; showCollect?: boolean;
   navigation?: readonly unknown[];
   onChart?: (rows: any[]) => void; onDetails?: () => void; chartOpen?: boolean;
 }
 /** Explicit actions keep stock navigation separate from page-specific selection. */
 export default function StockActions({
-  code, name, date, label = '股票操作', onChart, onDetails, chartOpen = false, navigation, className = '', showIndicator = true,
+  code, name, date, label = '股票操作', onChart, onDetails, chartOpen = false, navigation, className = '', showIndicator = true, showCollect = true,
 }: Props) {
   const { user } = useAccount();
   const actions = useStockActions();
@@ -77,8 +77,9 @@ export default function StockActions({
               <Button className="stock-action-item" type="text" icon={<EyeOutlined />} aria-label="预览K线" disabled={!canChart || chartOpen} onKeyDown={closeOnEscape} onClick={() => { setOpen(false); const rows = navigation || listRows(); if (onChart) onChart([...rows]); else actions.openChart({ code, name, date }, rows); }}>预览K线</Button>
             </span>
           </Tooltip>
+          {showCollect && (
           <CollectButton
-            label="收录到当日复盘"
+            label="收录股票线索"
             className="stock-action-item"
             type="text"
             icon={<PlusOutlined />}
@@ -87,6 +88,7 @@ export default function StockActions({
               id: `stock:${code}`, kind: 'stock', date: date || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('date') || '' : ''), title: `${name || symbol} ${code}`, code, name: name || symbol, url: typeof window !== 'undefined' ? window.location.href : stockHref(code, date), note: '从研究页面加入，仍需核验候选条件及风险。',
             }}
           />
+          )}
           <div className="stock-action-copy">
             <Button className="stock-action-item" type="text" icon={<CopyOutlined />} aria-label="复制代码" onKeyDown={closeOnEscape} onClick={() => { setOpen(false); actions.copyCode(code); }}>复制代码</Button>
           </div>

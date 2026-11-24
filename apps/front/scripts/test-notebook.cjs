@@ -392,14 +392,21 @@ test('external import discards native composition and respects its new body', ()
 test('collected materials and structured observations round trip without changing original notes', () => {
  const original=workspace.emptyWorkspace();original.draft.notes['000001.SZ']='已有观察';
  const merged=workspace.mergeCollected(original,[materialFixture]);
- assert.equal(original.items.length,0);assert.equal(merged.draft.notes['000001.SZ'],'已有观察');assert.equal(merged.draft.selected.length,1);
+ assert.equal(original.items.length,0);assert.equal(merged.draft.notes['000001.SZ'],'已有观察');assert.deepEqual(merged.draft.selected,[],'collecting a source must never select a stock');
  assert.deepEqual(workspace.mergeCollected(merged,[materialFixture]),merged);
  const removed={...merged,draft:{...merged.draft,selected:[]}};
  assert.deepEqual(workspace.mergeCollected(removed,[materialFixture]),removed,'previously removed selections stay removed');
+ const again = workspace.mergeCollected(removed,[{...materialFixture,createdAt:'2026-10-23T10:10:00Z',url:'/analysis/',note:'新来源'}]);
+ assert.deepEqual(again.draft.selected,merged.draft.selected);
+ assert.equal(again.items.length,1);
+ assert.equal(again.items[0].note,materialFixture.note);
+ assert.equal(again.items[0].url,'/analysis/');
  const content={...exp.emptyNotebook(),workspace:merged};
  const server=load('../../back/src/modules/review/notebook.content.ts');assert.deepEqual(server.parseNotebook(JSON.stringify(content)),content);
  assert.doesNotMatch(exp.documentTemplate('2026-10-23',content),/## 收录资料/);
+ assert.ok(!handoff.reviewPacket('2026-10-23',1,content).materials.links.some(link=>link.title===materialFixture.title));
  content.workspace.items[0].includeInArticle=true;
+ assert.ok(handoff.reviewPacket('2026-10-23',1,content).materials.links.some(link=>link.title===materialFixture.title));
  assert.match(exp.documentTemplate('2026-10-23',content),/## 收录资料/);
  for(const validator of [workspace.validateWorkspace,serverWorkspace.validateWorkspace]) {
   assert.deepEqual(validator(merged),merged);

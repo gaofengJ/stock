@@ -10,7 +10,7 @@ import { normalizeOrg, uniqueFundOrgs } from '@/utils/active-funds';
 // const renderEmptyField = (val: any) => (val || '-');
 
 type Fund = NSGetBasicActiveFundsList.IRes[number];
-export const useActiveFundsColumns = (selectedOrg: string, onDetail: (fund: Fund) => void): ColumnsType<Fund> => [
+export const useActiveFundsColumns = (selectedOrg: string, onDetail: (fund: Fund) => void, date: string | null): ColumnsType<Fund> => [
   {
     title: '游资名称',
     dataIndex: 'name',
@@ -27,7 +27,7 @@ export const useActiveFundsColumns = (selectedOrg: string, onDetail: (fund: Fund
       const ordered = selected ? [selected, ...seats.filter((seat) => seat !== selected)] : seats;
       return seats.length ? (
         <div className="active-funds-seats">
-          {ordered.slice(0, 1).map((seat) => <Link title={seat} href={`/basic/active-funds/detail/?org=${encodeURIComponent(seat)}`} key={seat} className={`active-funds-org${normalizeOrg(seat) === normalizeOrg(selectedOrg) ? ' is-selected' : ''}`}>{seat}</Link>)}
+          {ordered.slice(0, 1).map((seat) => <Link title={seat} href={`/basic/active-funds/detail/?${new URLSearchParams({ org: seat, ...(date ? { date } : {}) })}`} key={seat} className={`active-funds-org${normalizeOrg(seat) === normalizeOrg(selectedOrg) ? ' is-selected' : ''}`}>{seat}</Link>)}
           {seats.length > 1 && <Button type="link" size="small" onClick={() => onDetail(fund)}>{`全部 ${seats.length} 个席位`}</Button>}
         </div>
       ) : <span className="active-funds-muted">暂无关联席位</span>;

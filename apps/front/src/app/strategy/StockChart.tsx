@@ -231,7 +231,7 @@ export default function StockChart({
     >
       <div className="strategy-chart-summary">
         <HelpTooltip label="MACD计算口径" title={macdHint} />
-        {code && <StockActions key={code} code={code} name={stock?.name} date={date} chartOpen onDetails={onClose} />}
+        {code && <StockActions key={code} code={code} name={stock?.name} date={date} showCollect={!headerAction} chartOpen onDetails={onClose} />}
         <span>
           {neutral ? '观察日期' : '信号日期'}
           {' '}

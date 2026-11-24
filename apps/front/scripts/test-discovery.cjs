@@ -35,7 +35,8 @@ test('homepage keeps the three core paths, all research tools and guides without
   assert.equal((html.match(/class="discovery-card"/g) || []).length, 3);
   assert.equal(trial.guestTrialMinutes, 30);
   assert.match(html, /30 分钟/);
-  assert.match(html, /存入服务器/);
+  assert.match(html, /普通账号和游客的计划保存在当前浏览器[^<]*导出 Markdown/);
+  assert.match(html, /管理员的私人复盘[^<]*保存复盘[^<]*同一账号跨设备读取/);
   assert.doesNotMatch(html, /·|5\s*分钟|草稿按账号和交易日期保存在当前浏览器/);
 });
 

@@ -21,6 +21,12 @@ async function verify(browser, mode) {
     const exec = document.execCommand.bind(document);
     document.execCommand = (...args) => window.__copyMode === 'pending' ? false : exec(...args);
   }, mode);
+  const news = ['用于正文','仅供自查'].map((title,index)=>({
+    id:`news-${index}`, kind:'news', date, title, url:`https://example.com/fixture-${index}`, note:`资料备注-${index}`, createdAt:`${date}T12:00:00Z`,
+  }));
+  await context.addInitScript(({date,news})=>{
+    localStorage.setItem(`stock-review-inbox:v1:1:${date}`,JSON.stringify(news));
+  },{date,news});
   const initialRevision = mode === 'light' ? 0 : 3;
   let revision = initialRevision; let writes = []; let failSave = false; let held;
   await context.route('**/*',route=>new URL(route.request().url()).origin===new URL(base).origin?route.continue():route.abort());
@@ -52,7 +58,9 @@ async function verify(browser, mode) {
   const topGap = await page.evaluate(()=>document.querySelector('.review-page').getBoundingClientRect().top-document.querySelector('.platform-content').getBoundingClientRect().top);
   assert.ok(topGap >= 16 && topGap < 150, 'review content remains below the context bar');
   assert.equal(await page.getByRole('button',{name:'生成复盘',exact:true}).count(),0);
-  await page.getByText('添加或调整观察股票',{exact:true}).click();
+  await page.getByText('已收录素材（2）',{exact:true}).click();
+  await page.locator('.research-item').filter({hasText:news[0].title}).getByRole('checkbox').check();
+  await page.getByText('添加股票',{exact:true}).click();
   const input = page.locator('#note-marketJudgment');
   await input.fill('必须保留的最新用户原文');
   await page.locator('#review-candidate-table .ant-pagination-item-2 a').click();
@@ -73,10 +81,11 @@ async function verify(browser, mode) {
   await page.getByRole('dialog').getByText('离开前处理未保存复盘').waitFor();
   await page.getByRole('button',{name:'继续编辑',exact:true}).click();
   assert.equal(dialogs.length,0);assert.ok(page.url().includes('/review/'));
-  await page.getByRole('tab',{name:'图文复盘',exact:true}).click();
+  await page.getByRole('button',{name:'制作图文',exact:true}).click();
   await page.waitForURL(url=>url.pathname==='/review/'&&url.searchParams.get('view')==='article');
-  await page.getByText('核对本日原始记录（可选）',{exact:true}).click();
+  await page.getByRole('button',{name:'修改市场判断原文',exact:true}).click();
   await page.waitForFunction(()=>document.querySelector('#note-marketJudgment')?.value==='必须保留的最新用户原文');
+  await page.getByRole('button',{name:'返回核稿'}).click();
   await page.getByRole('checkbox',{name:'文档包含持仓与操作记录'}).check();
   const handoff = page.locator('.notebook-handoff');
   assert.equal(await handoff.getByRole('button',{name:/^保\s*存$/}).count(),0);
@@ -100,6 +109,12 @@ async function verify(browser, mode) {
   const clipboard = await page.evaluate(()=>navigator.clipboard.readText());
   assert.ok(clipboard.includes(`保存版本 ${initialRevision + 1}`));
   assert.ok(clipboard.includes('必须保留的最新用户原文'));
+  for(const text of [clipboard,JSON.stringify(packet),packet.article.body]){
+    for(const field of ['title','note','url']){
+      assert.ok(text.includes(news[0][field]),`selected news ${field} missing`);
+      assert.ok(!text.includes(news[1][field]),`private news ${field} exported`);
+    }
+  }
   assert.ok(clipboard.includes('执行记录授权：仅限私人飞书文档'));
   assert.equal(await page.getByRole('textbox',{name:'Skill 任务文本'}).inputValue(),clipboard.replace(/\r\n/g,'\n'));
   await page.screenshot({path:`${output}/handoff-${mode}.png`});
@@ -112,21 +127,26 @@ async function verify(browser, mode) {
   await page.screenshot({path:`${output}/manual-${mode}.png`});
   await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).click();
   await page.evaluate(()=>{window.__copyMode='real';});
+  await page.getByRole('button',{name:'修改市场判断原文'}).click();
   await input.fill('保存失败也不能丢失的原文');
+  await page.getByRole('button',{name:'返回核稿'}).click();
   failSave=true;
   await handoff.getByRole('button',{name:'准备 Codex 任务',exact:true}).click();
   await handoff.getByText('尚未完成保存，请检查页面提示后重试。新的修改会继续保留。').waitFor();
+  await page.getByRole('button',{name:'修改市场判断原文'}).click();
   assert.equal(await input.inputValue(),'保存失败也不能丢失的原文');
+  await page.getByRole('button',{name:'返回核稿'}).click();
   assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),clipboard);
   failSave=false; held='hold';
   await handoff.getByRole('button',{name:'准备 Codex 任务',exact:true}).click();
   await page.waitForFunction(()=>document.querySelector('.notebook-handoff .ant-btn-loading'));
   for (let i=0;i<100 && held==='hold';i++) await page.waitForTimeout(20);
   assert.notEqual(held,'hold');
-  await input.fill('保存过程中继续输入的新内容');
+  const title=page.getByRole('textbox',{name:'文章名称'});
+  await title.fill('保存过程中继续输入的新内容');
   await held.fulfill({contentType:'application/json',body:JSON.stringify({code:0,data:{revision:++revision}})});
   await handoff.getByText('尚未完成保存，请检查页面提示后重试。新的修改会继续保留。').waitFor();
-  assert.equal(await input.inputValue(),'保存过程中继续输入的新内容');
+  assert.equal(await title.inputValue(),'保存过程中继续输入的新内容');
   assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),clipboard);
   assert.deepEqual(errors,[]);
   console.log(`PASS ${mode}: single sticky header, pagination, real leave guard, save/copy exact revision, timeout fallback, failed and concurrent saves`);

@@ -98,6 +98,19 @@ test('HTTP browsing does not call a model; task submission executes once and res
     assert.equal(calls.models, 1);
   });
 });
+test('dated review includes its latest completed result outside the recent window', async () => {
+  await harness(async ({ req, store }) => {
+    const date = '2026-10-16';
+    for (let index = 0; index < 33; index++) {
+      store.tasks.push({ ...task(), id: String(index), date: index < 2 ? date : '2026-10-17', history: [], status: 'completed', answer: 'result' });
+    }
+    const recent = await (await req('/api/status')).json();
+    assert.equal(recent.tasks.length, 30);
+    const dated = await (await req('/api/status?reviewDate=' + date)).json();
+    assert.deepEqual(dated.tasks.filter(t => t.date === date).map(t => t.id), ['1']);
+    assert.equal(dated.tasks.at(-1).answer, undefined);
+  });
+});
 test('other administrators cannot read page, task list or start a job', async () => {
   await harness(async ({ req, calls }) => {
     for (const path of ['/', '/api/status', `/api/tasks/${randomUUID()}`]) assert.equal((await req(path)).status, 403);

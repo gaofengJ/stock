@@ -19,7 +19,7 @@ export default function useReviewDraft(account: number, date: string, generation
       }
       current.current = serverDraft || parseDraft(localStorage.getItem(key));
       if (!serverDraft && onDraft) onDraft(current.current);
-      setStatus(onDraft ? '观察名单随复盘保存，可跨设备恢复' : '草稿已保存在此浏览器');
+      setStatus(onDraft ? '观察名单随复盘保存，可跨设备恢复' : '草稿已保存在当前浏览器，可在预览中导出 Markdown 备份');
     } catch {
       current.current = serverDraft || emptyDraft();
       setStatus('草稿读取失败，请及时导出本次填写内容');
@@ -34,7 +34,7 @@ export default function useReviewDraft(account: number, date: string, generation
     onDraft?.(current.current);
     try {
       localStorage.setItem(key, JSON.stringify(current.current));
-      setStatus(onDraft ? '观察名单随复盘保存，可跨设备恢复' : '草稿已保存在此浏览器');
+      setStatus(onDraft ? '观察名单随复盘保存，可跨设备恢复' : '草稿已保存在当前浏览器，可在预览中导出 Markdown 备份');
     } catch {
       setStatus('草稿保存失败，请及时导出本次填写内容');
     }

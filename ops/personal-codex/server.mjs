@@ -132,7 +132,8 @@ export function createConsole(config, dependencies = {}) {
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; frame-ancestors 'self'; form-action 'self'");
     try {
-      const path = new URL(req.url, config.origin).pathname;
+      const url = new URL(req.url, config.origin);
+      const path = url.pathname;
       if (path === '/healthz' && req.method === 'GET') { send(res, 200, { ok: !stopping }); return; }
       if (stopping) fail(503, '执行服务正在停止');
       if (!path.startsWith('/personal-ai/')) fail(404, '不存在');
@@ -143,10 +144,16 @@ export function createConsole(config, dependencies = {}) {
         res.end(readFileSync(join(ROOT, 'web', file))); return;
       }
       if (path === '/personal-ai/api/status' && req.method === 'GET') {
+        const tasks = store.tasks.slice(-30).reverse();
+        const date = url.searchParams.get('reviewDate');
+        if (date) {
+          const result = store.tasks.findLast(t => t.date === date && t.skill === 'market-review' && t.status === 'completed');
+          if (result && !tasks.includes(result)) tasks.push(result);
+        }
         send(res, 200, { user: { id: user.id, username: user.username }, enabled: config.enabled && !existsSync('/data/disabled'),
           capabilities: { streaming: true, reviewDocument: true }, defaults: { model: 'gpt-6.1-sol', effort: 'high' }, metadata,
           limits: { dailyCalls: 20, dailyTokens: 200000, reserveTokens: 32000, maxContextBytes: 24000, concurrency: 1, timeoutSeconds: 180 },
-          today: store.usedToday(), tasks: store.tasks.slice(-30).reverse().map(t => { const v = publicTask(t); delete v.answer; return v; }) }); return;
+          today: store.usedToday(), tasks: tasks.map(t => { const v = publicTask(t); delete v.answer; return v; }) }); return;
       }
       if (path === '/personal-ai/api/account' && req.method === 'POST') {
         limited(`${sha(token)}:account`, 3);

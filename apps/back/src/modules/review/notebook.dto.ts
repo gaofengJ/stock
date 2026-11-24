@@ -10,10 +10,16 @@ import {
 } from 'class-validator';
 import { ReviewDateDto } from './review.dto';
 
+export class NotebookDatesDto {
+  @IsOptional() @IsString() @MaxLength(100) stock?: string;
+}
+
 export class NotebookSaveDto extends ReviewDateDto {
   @IsOptional() @IsInt() @Min(0) generation?: number;
 
   @IsInt() @Min(0) @Max(1000000) revision: number;
+
+  @IsOptional() @IsIn(['record']) mode?: 'record';
 
   @IsString() @MaxLength(6500000) content: string;
 }

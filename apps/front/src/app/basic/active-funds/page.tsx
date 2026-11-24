@@ -1,5 +1,6 @@
 'use client';
 
+import { updatePageQuery } from '@/utils/update-page-query';
 import { errorMessage } from '@/api/errors';
 import {
   Alert, Button, Input, Modal,
@@ -25,15 +26,22 @@ import useCalendarPagination from '../components/useCalendarPagination';
 import './limits.sass';
 
 function BasicActiveFundsPage() {
-  const org = useSearchParams().get('org') || '';
-  const [keyword, setKeyword] = useState(org);
-  useEffect(() => { setKeyword(org); }, [org]);
+  const params = useSearchParams();
+  const org = params.get('org') || '';
+  const date = params.get('date');
+  const committed = params.get('keyword') ?? org;
+  const [keyword, setKeyword] = useState(committed);
+  useEffect(() => { setKeyword(committed); }, [committed]);
+  const search = (value: string) => {
+    setKeyword(value);
+    updatePageQuery({ keyword: value.trim(), org: undefined });
+  };
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const { requestConfig, runLatestRequest } = useLatestRequest('basic-active-funds');
 
   const [detail, setDetail] = useState<NSGetBasicActiveFundsList.IRes[number] | null>(null);
-  const activeFundsColumns = useActiveFundsColumns(keyword, setDetail);
+  const activeFundsColumns = useActiveFundsColumns(keyword, setDetail, date);
   const { ref, pagination } = useCalendarPagination(keyword, 44, 100);
 
   // activeFundsData 的初始值
@@ -81,12 +89,12 @@ function BasicActiveFundsPage() {
     >
       <div className="p-16 rounded-[6px] bg-bg-white active-funds-page">
         <h1 className="page-heading">游资名录</h1>
-        <Input.Search className="mb-16" allowClear aria-label="搜索游资或营业部" placeholder="游资名称／营业部" value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ width: '100%', maxWidth: 440 }} />
+        <Input.Search className="mb-16" allowClear aria-label="搜索游资或营业部" placeholder="游资名称／营业部" value={keyword} onChange={(e) => setKeyword(e.target.value)} onSearch={search} style={{ width: '100%', maxWidth: 440 }} />
         {!!linkedFunds && (
         <div className="active-funds-context">
           关联营业部：
           {org}
-          <Button type="default" onClick={() => setKeyword('')}>查看全部</Button>
+          <Button type="default" onClick={() => search('')}>查看全部</Button>
         </div>
         )}
         {loadError && <Alert type="error" message={loadError} showIcon action={<Button size="small" onClick={getActiveFunds}>重试</Button>} />}
@@ -115,7 +123,7 @@ function BasicActiveFundsPage() {
               <section className="active-funds-detail-section" aria-label="关联营业部和席位">
                 <h3>{`关联营业部／席位（${uniqueFundOrgs(detail.orgs).length}）`}</h3>
                 <div className="active-funds-detail-seats">
-                  {uniqueFundOrgs(detail.orgs).map((seat) => <Link href={`/basic/active-funds/detail/?org=${encodeURIComponent(seat)}`} key={seat} className={`active-funds-org${normalizeOrg(seat) === normalizeOrg(keyword) ? ' is-selected' : ''}`}>{seat}</Link>)}
+                  {uniqueFundOrgs(detail.orgs).map((seat) => <Link href={`/basic/active-funds/detail/?${new URLSearchParams({ org: seat, ...(date ? { date } : {}) })}`} key={seat} className={`active-funds-org${normalizeOrg(seat) === normalizeOrg(keyword) ? ' is-selected' : ''}`}>{seat}</Link>)}
                   {!uniqueFundOrgs(detail.orgs).length && <span className="active-funds-muted">暂无关联席位</span>}
                 </div>
               </section>

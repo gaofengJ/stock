@@ -69,7 +69,7 @@ mysqlDescribe('notebook assets and publication transactions', () => {
     } finally {
       await runner.release();
     }
-    service = new NotebookService(db);
+    service = new NotebookService(db, { report: jest.fn() });
   });
   afterAll(async () => {
     if (db?.isInitialized) await db.destroy();

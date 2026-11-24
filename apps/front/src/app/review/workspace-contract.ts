@@ -43,11 +43,15 @@ export function validateWorkspace(input: unknown): ReviewWorkspace {
   };
 }
 export function mergeCollected(workspace: ReviewWorkspace, additions: CollectedItem[]): ReviewWorkspace {
-  const items = [...workspace.items]; const selected = [...workspace.draft.selected];
+  const items = [...workspace.items];
   additions.forEach((item) => {
-    if (items.some((row) => row.id === item.id)) return;
-    items.push(item);
-    if (item.kind === 'stock' && item.code && !selected.some((row) => row.tsCode === item.code)) selected.push({ tsCode: item.code, name: item.name || item.code });
+    const existing = items.findIndex((row) => row.id === item.id);
+    if (existing < 0) items.push(item);
+    else {
+      const previous = items[existing];
+      if (item.kind !== 'stock' || previous.kind !== 'stock' || Date.parse(item.createdAt) <= Date.parse(previous.createdAt)) return;
+      items[existing] = { ...previous, url: item.url, createdAt: item.createdAt };
+    }
   });
-  return validateWorkspace({ items, draft: { ...workspace.draft, selected } });
+  return validateWorkspace({ items, draft: workspace.draft });
 }

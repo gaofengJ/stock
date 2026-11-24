@@ -15,15 +15,102 @@ import {
 import { parseNotebook, publicationText } from './notebook.content';
 import { NotebookPublishDto, NotebookSaveDto } from './notebook.dto';
 
+interface Observation {
+  tsCode: string;
+  name: string;
+}
+interface NotebookDate {
+  date: string;
+  revision: number;
+  updatedAt: Date;
+}
+interface StoredObservations {
+  picks?: string;
+  legacyEvidence?: string;
+}
+interface CandidateReports {
+  report(date: string): Promise<{
+    items: { tsCode: string; capState: string; risk: { state: string } }[];
+  }>;
+}
+const observationFields = `JSON_UNQUOTE(JSON_EXTRACT(content,'$.workspace.draft.selected')) picks,
+  CASE WHEN JSON_EXTRACT(content,'$.workspace.draft.selected') IS NULL
+    THEN JSON_UNQUOTE(JSON_EXTRACT(content,'$.private.toolEvidence')) END legacyEvidence`;
+function savedObservations(row?: StoredObservations): Observation[] {
+  if (row?.picks) return JSON.parse(row.picks);
+  return Array.from(
+    (row?.legacyEvidence || '').matchAll(
+      /^(.+?) (\d{6}\.(?:SH|SZ|BJ))\n策略：/gm,
+    ),
+    ([, name, tsCode]) => ({ name, tsCode }),
+  );
+}
+
 @Injectable()
 export class NotebookService {
-  constructor(private db: DataSource) {}
+  constructor(
+    private db: DataSource,
+    private reviews: CandidateReports,
+  ) {}
 
-  async list(owner: number) {
-    return this.db.query(
-      'SELECT trade_date date,revision,updated_at updatedAt FROM t_review_notebook WHERE user_id=? ORDER BY trade_date DESC LIMIT 120',
+  async list(owner: number, stock = '') {
+    const keyword = stock.trim().toLowerCase();
+    const fields = 'trade_date date,revision,updated_at updatedAt';
+    const rows = await this.db.query<(NotebookDate & StoredObservations)[]>(
+      `SELECT ${fields}${
+        keyword ? `,${observationFields}` : ''
+      } FROM t_review_notebook WHERE user_id=? ORDER BY trade_date DESC`,
       [owner],
     );
+    if (!keyword) return rows;
+    return rows
+      .filter((row: StoredObservations) =>
+        savedObservations(row).some(({ name, tsCode }) =>
+          `${name} ${tsCode}`.toLowerCase().includes(keyword),
+        ),
+      )
+      .map(({ date, revision, updatedAt }) => ({ date, revision, updatedAt }));
+  }
+
+  private async validateAdditions(
+    owner: number,
+    dto: NotebookSaveDto,
+    selected: Observation[],
+  ) {
+    if (!selected.length) return;
+    const [stored] = dto.revision
+      ? await this.db.query(
+          `SELECT revision,${observationFields} FROM t_review_notebook WHERE user_id=? AND trade_date=?`,
+          [owner, dto.date],
+        )
+      : [];
+    if (dto.revision && Number(stored?.revision) !== dto.revision)
+      throw new ConflictException(
+        '其他页面已保存新版本，请先导出本地内容，再重新加载比较',
+      );
+    const existing = new Set(
+      savedObservations(stored).map((pick) => pick.tsCode),
+    );
+    const additions = selected.filter((pick) => !existing.has(pick.tsCode));
+    if (!additions.length) return;
+    // Fetch market data before taking the write lock. The transaction rechecks the revision.
+    const { items } = await this.reviews.report(dto.date);
+    const eligible = new Set(
+      items
+        .filter(
+          (row) => row.capState === 'within' && row.risk.state !== 'excluded',
+        )
+        .map((row) => row.tsCode),
+    );
+    const rejected = additions.filter((pick) => !eligible.has(pick.tsCode));
+    if (rejected.length)
+      throw new BadRequestException(
+        `${rejected
+          .map((pick) => pick.tsCode)
+          .join(
+            '、',
+          )} 未通过当日候选、市值或风险核验，请更新候选或移出观察名单后再保存`,
+      );
   }
 
   async read(
@@ -144,6 +231,10 @@ export class NotebookService {
     const { research } = parsed;
     if (research && research.date !== dto.date)
       throw new BadRequestException('资料日期与复盘日期不一致');
+    const selected =
+      parsed.workspace?.draft.selected ??
+      savedObservations({ legacyEvidence: parsed.private.toolEvidence });
+    await this.validateAdditions(owner, dto, selected);
     return this.db.transaction(async (m) => {
       await m.query(
         'INSERT INTO t_review_notebook_state(user_id,generation) VALUES(?,0) ON DUPLICATE KEY UPDATE user_id=VALUES(user_id)',
@@ -160,16 +251,24 @@ export class NotebookService {
         [owner, dto.date, '{}'],
       );
       const [row] = await m.query(
-        'SELECT revision FROM t_review_notebook WHERE user_id=? AND trade_date=? FOR UPDATE',
+        'SELECT revision,content FROM t_review_notebook WHERE user_id=? AND trade_date=? FOR UPDATE',
         [owner, dto.date],
       );
       if (Number(row.revision) !== dto.revision)
         throw new ConflictException(
           '其他页面已保存新版本，请先导出本地内容，再重新加载比较',
         );
-      const content = JSON.stringify(
-        await storeNotebookImages(m, owner, parsed),
-      );
+      // Record-only saves retain the exact stored article and its owner-scoped image references.
+      let next = parsed;
+      if (dto.mode === 'record') {
+        if (parsed.article)
+          throw new BadRequestException('记录保存不接受图文正文');
+        const { article } = JSON.parse(row.content);
+        if (article) next = { ...parsed, article };
+      } else {
+        next = await storeNotebookImages(m, owner, parsed);
+      }
+      const content = JSON.stringify(next);
       const revision = dto.revision + 1;
       await m.query(
         'UPDATE t_review_notebook SET revision=?,content=?,updated_at=UTC_TIMESTAMP(3) WHERE user_id=? AND trade_date=?',

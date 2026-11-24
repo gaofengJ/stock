@@ -15,7 +15,8 @@ import HelpTooltip from '@/components/HelpTooltip';
 import Table from '@/components/DataTable';
 import { changeClass, scaledNumber } from '@/utils/format';
 import { DragonList, LimitRow } from '@/api/market';
-import SectorFilter, { useSectorSelection } from '@/components/SectorFilter';
+import SectorFilter from '@/components/SectorFilter';
+import { updatePageQuery } from '@/utils/update-page-query';
 import SectorLinks from '@/components/SectorLinks';
 import { StockIdentity } from '@/components/StockActions';
 import RiskStatus from './RiskStatus';
@@ -69,17 +70,16 @@ const columnSizing: Record<string, { width: number; grow: number }> = {
 };
 
 function LimitsPage() {
-  const { sector, setSector } = useSectorSelection();
   const params = useSearchParams();
-  const linkedKeyword = params.get('keyword') || '';
-  const linkedType = linkedLimitType(params.get('type'));
-  const linkedThemeView = !params.has('type');
-  const [type, setType] = useState(linkedType); const [keyword, setKeyword] = useState(linkedKeyword);
-  const [themeView, setThemeView] = useState(linkedThemeView);
-  const [search, setSearch] = useState(linkedKeyword);
-  const [height, setHeight] = useState<number | undefined>();
+  const keyword = params.get('keyword') || '';
+  const type = linkedLimitType(params.get('type'));
+  const themeView = !params.has('type');
+  const sector = params.get('sector') || undefined;
+  const requestedHeight = Number(params.get('height'));
+  const height = [1, 2, 3, 4].includes(requestedHeight) ? requestedHeight : undefined;
   const [visibleColumns, setVisibleColumns] = useState(defaultColumns);
   const { date, scope } = useMarket();
+  const filter = (changes: Record<string, string | undefined>) => updatePageQuery({ date, scope, ...changes });
   const resultsRef = useRef<HTMLDivElement>(null);
   const [tableWidth, setTableWidth] = useState(0);
   useEffect(() => {
@@ -96,10 +96,6 @@ function LimitsPage() {
   const dragonHref = (code?: string) => marketHref('/analysis/dragon', { date, scope }, { ...(sector ? { sector } : {}), ...(code ? { code } : {}) });
   const dragon = useMarketData<DragonList>('dragon-list', { days: 20 }, !themeView);
   const dragonCodes = new Set(dragon.data?.codes || []);
-  useEffect(() => {
-    setKeyword(linkedKeyword); setSearch(linkedKeyword); setType(linkedType); setHeight(undefined);
-    setThemeView(linkedThemeView);
-  }, [linkedKeyword, linkedType, linkedThemeView]);
   const {
     data, loading, error, retry,
   } = useMarketData<{ ready: boolean; items: LimitRow[] }>('limits', {
@@ -198,11 +194,11 @@ function LimitsPage() {
   return (
     <MarketShell title="涨停复盘" path="/analysis/limits">
       <div className="limits-review-content">
-        <Tabs className="market-tabs limits-tabs" activeKey={themeView ? 'themes' : type} onChange={(value) => { setThemeView(value === 'themes'); setType(value === 'themes' ? 'U' : value); setHeight(undefined); }} items={[{ key: 'themes', label: '题材复盘' }, { key: 'U', label: '涨停明细' }, { key: 'Z', label: '炸板明细' }, { key: 'D', label: '跌停明细' }]} />
+        <Tabs className="market-tabs limits-tabs" activeKey={themeView ? 'themes' : type} onChange={(value) => filter({ type: value === 'themes' ? undefined : value, height: undefined })} items={[{ key: 'themes', label: '题材复盘' }, { key: 'U', label: '涨停明细' }, { key: 'Z', label: '炸板明细' }, { key: 'D', label: '跌停明细' }]} />
         <div className="market-filter-row limits-filters">
-          <SectorFilter value={sector} onChange={setSector} />
-          <Input.Search className="market-filter-keyword limits-keyword" allowClear placeholder="股票名称／代码" value={search} onChange={(e) => { setSearch(e.target.value); if (!e.target.value) setKeyword(''); }} onSearch={setKeyword} />
-          {type === 'U' && <SelectField label="连板数"><Select className="limits-height-filter" aria-label="连板数筛选" allowClear placeholder="全部" value={height} onChange={setHeight} options={[{ value: 1, label: '首板' }, { value: 2, label: '二板' }, { value: 3, label: '三板' }, { value: 4, label: '四板及以上' }]} /></SelectField>}
+          <SectorFilter value={sector} onChange={(value) => filter({ sector: value })} />
+          <Input.Search className="market-filter-keyword limits-keyword" allowClear placeholder="股票名称／代码" key={keyword} defaultValue={keyword} onChange={(event) => { if (!event.target.value && keyword) filter({ keyword: undefined }); }} onSearch={(value) => filter({ keyword: value.trim() })} />
+          {type === 'U' && <SelectField label="连板数"><Select className="limits-height-filter" aria-label="连板数筛选" allowClear placeholder="全部" value={height} onChange={(value) => filter({ height: value ? String(value) : undefined })} options={[{ value: 1, label: '首板' }, { value: 2, label: '二板' }, { value: 3, label: '三板' }, { value: 4, label: '四板及以上' }]} /></SelectField>}
         </div>
         {themeView ? <ThemeReview key={`${date}:${scope}`} keyword={keyword} height={height} sector={sector} /> : (
           <>

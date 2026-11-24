@@ -33,6 +33,7 @@ export function CollectButton({
   const pending = useCollection(user?.id || 0, date);
   if (!allowed || !user || !date) return null;
   const collected = pending.some((row) => row.id === item.id);
+  const pendingLabel = '已收录，点击撤回';
   return (
     <Button
       size="small"
@@ -48,12 +49,12 @@ export function CollectButton({
               ...item, date, ...(revision ? { note: `${item.note}\n数据版本：${revision}`, url: `${item.url}${item.url.includes('?') ? '&' : '?'}dataRevision=${encodeURIComponent(revision)}` } : {}), createdAt: new Date().toISOString(),
             });
           }
-          message.success(collected ? '已撤回待收录素材' : `已加入 ${date} 复盘，回到复盘后保存即可同步`);
+          message.success(collected ? '已撤回本次添加' : `已加入 ${date} 复盘，回到复盘后保存即可同步`);
           onAction?.();
         } catch (error) { message.error((error as Error).message || '本机空间不足，素材未收录'); }
       }}
     >
-      {collected ? '已收录，点击撤回' : label}
+      {collected ? pendingLabel : label}
     </Button>
   );
 }

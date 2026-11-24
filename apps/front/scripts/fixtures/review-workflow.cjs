@@ -1,7 +1,7 @@
 // Synthetic account and data only. Shared by CI browser checks and the local fixture server.
 const date = '2026-10-23';
 const stock = {tsCode:'000001.SZ',name:'测试股份',capState:'within',close:12,totalMv:100000,circMv:50000,strategies:[{key:'fiveMaUp',label:'五线顺上'}]};
-const owner = {id:1,username:'fixture',nickname:'交互验证',roles:[{code:'admin'}],permissions:['review','strategy','news','market'],catalog:[{route:'/review',code:'review',group:'复盘'},{route:'/strategy',code:'strategy',group:'策略'},{route:'/news',code:'news',group:'资讯'},{route:'/analysis',code:'market',group:'市场'}]};
+const owner = {id:1,username:'fixture',nickname:'交互验证',roles:[{code:'admin'}],permissions:['review','review:read','strategy','news','market'],catalog:[{route:'/review',code:'review',group:'复盘'},{route:'/strategy',code:'strategy',group:'策略'},{route:'/news',code:'news',group:'资讯'},{route:'/analysis',code:'market',group:'市场'}]};
 const privateKeys=['dataState','yesterday','marketFacts','marketJudgment','themes','execution','candidates','normalPlan','strongPlan','weakPlan','lesson','toolEvidence','holdingEvidence'];
 const publicKeys=['title','summary','market','themes','watch','lesson','sources'];
 const answer=['核心判断','市场与情绪','主线与梯队','板块多周期对照','后续验证'].map(h=>`### ${h}\n\n测试分析：${h}，请核验证据。`).join('\n\n');
@@ -27,13 +27,14 @@ function createFixture() {
   if(path==='/api/common/all-options')data={};
   if(path==='/api/basic/trade-cal/list')data=[{calDate:date,isOpen:1}];
   if(path==='/api/review/notebook') {
-   if(method==='POST') {state.writes.push(body);state.content=JSON.parse(body.content);data={revision:++state.revision};}
+   if(method==='POST') {state.writes.push(body);const parsed=JSON.parse(body.content);state.content=body.mode==='record'?{...parsed,article:state.content?.article}:parsed;data={revision:++state.revision};}
    else data={date:u.searchParams.get('date')||date,revision:state.revision,generation:0,content:state.content,versions:[{revision:state.revision,createdAt:'2026-10-23 18:00'}],previous:null};
   }
   if(path==='/api/review/notebook/dates')data=[{date,revision:state.revision}];
   if(path==='/api/review/report')data={date,complete:true,items:[stock],strategies:[{key:'fiveMaUp',label:'五线顺上',state:'ready'}]};
   if(path==='/api/strategy/tabs-list')data=[{key:'fiveMaUp',name:'五线顺上',label:'五线顺上'}];
   if(path==='/api/strategy/list')data=[stock];
+  if(path==='/api/strategy/chart')data={code:u.searchParams.get('code'),date,basis:'收盘',evidence:null,series:[{date,open:11,high:13,low:10,close:12,vol:1000}]};
   if(path.includes('candidate-labels')||path.includes('candidate-context'))data=[];
   if(path.includes('candidate-environment'))data={date,market:null,breadth:null};
   if(path.includes('financial'))data={items:[{...stock,status:'profit',amount:100,reportDate:'2026-06-30',announcedAt:date,sourceState:'ready',forecastState:'ready',history:[],forecast:null}],sources:[]};

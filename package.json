@@ -44,6 +44,7 @@
     "overrides": {
       "multer": "2.5.0",
       "fastify": "5.12.7",
+      "follow-redirects@>=1.16.0 <=1.16.1": "1.16.2",
       "proxy-addr": "2.0.8",
       "postcss@8": "8.5.31",
       "@babel/runtime@7": "7.29.10",

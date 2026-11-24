@@ -58,6 +58,8 @@ function StrategyPage() {
   const [items, setItems] = useState<NSGetStrategyList.IRes>([]);
   const [selectedStock, setSelectedStock] = useState<any>(null);
   const view = ['candidates', 'comparison', 'performance'].includes(params.get('view') || '') ? params.get('view')! : 'candidates';
+  const range = ['60', 'snapshot'].includes(params.get('range') || '') ? params.get('range')! : '20';
+  const fixedReport = view === 'performance' && range === 'snapshot';
   const needsCandidates = view !== 'performance';
   const { user } = useAccount();
   const savedOptions = useRef<Record<string, typeof trendDefaults>>({});
@@ -162,6 +164,7 @@ function StrategyPage() {
           <StrategyRules key={strategy} strategy={strategy} options={view === 'performance' ? trendDefaults : options} minTurnoverRateF={view === 'performance' ? 5 : minTurnoverRateF} />
           {hasTurnoverFilter && view !== 'performance' && <TurnoverFilter key={`${strategy}-${minTurnoverRateF}`} value={minTurnoverRateF} onChange={(value) => updateQuery({ [turnoverQueryKey(strategy)]: String(value), code: undefined })} />}
           {isTrendStrategy(strategy) && view !== 'performance' && <TrendParameters key={`${strategy}-${optionKey}`} strategy={strategy} value={options} onChange={(value) => updateQuery({ ...writeStrategyOptions(value), code: undefined })} />}
+          {!fixedReport && (
           <Space size={[24, 12]} wrap>
             <Space>
               <span>{view === 'performance' ? '统计截至' : '交易日期'}</span>
@@ -169,8 +172,9 @@ function StrategyPage() {
             </Space>
             <SectorFilter value={sector} onChange={(value) => updateQuery({ sector: value, code: undefined })} />
           </Space>
+          )}
         </div>
-        {view === 'performance' ? <Collapse className="strategy-asof-environment" items={[{ key: 'market', label: `截至日大盘环境，${date}`, children: <CandidateEnvironment date={date} /> }]} /> : <CandidateEnvironment date={date} />}
+        {!fixedReport && (view === 'performance' ? <Collapse className="strategy-asof-environment" items={[{ key: 'market', label: `截至日大盘环境，${date}`, children: <CandidateEnvironment date={date} /> }]} /> : <CandidateEnvironment date={date} />)}
         <div className="strategy-view-toolbar">
           <Tabs activeKey={view} onChange={(key) => updateQuery({ view: key })} items={[{ key: 'candidates', label: '候选列表' }, { key: 'comparison', label: '横向比较' }, { key: 'performance', label: '历史信号表现' }]} />
           {allowedPath(user, '/analysis/senti') && <Link href={`/analysis/senti/?date=${date}&scope=all&view=popularity#popularity`}>全市场人气榜</Link>}
@@ -212,7 +216,7 @@ function StrategyPage() {
         )}
         {labels.error && needsCandidates && <Alert type="warning" message={labels.error} action={<Button onClick={labels.retry}>重试行业</Button>} />}
         <div hidden={view !== 'comparison'}><CandidateComparison loadingCandidates={loadingCandidates} date={date} allCandidates={tableLoading || !listCurrent ? [] : items} candidates={tableLoading ? [] : decorated} active={view === 'comparison'} strategies={navList} onStock={openStock} /></div>
-        <div hidden={view !== 'performance'}><SignalPerformance date={date} strategy={strategy} sector={sector} active={view === 'performance'} onStock={(row, rows) => { setChartList(rows.map((r) => ({ ...r, tsCode: r.code }))); setObservation({ ...row, tsCode: row.code }); }} /></div>
+        <div hidden={view !== 'performance'}><SignalPerformance range={range} onRange={(value) => updateQuery({ range: value, date })} date={date} strategy={strategy} sector={sector} active={view === 'performance'} onStock={(row, rows) => { setChartList(rows.map((r) => ({ ...r, tsCode: r.code }))); setObservation({ ...row, tsCode: row.code }); }} /></div>
         <StockChart navigation={chartList} onNavigate={setSelectedStock} stock={selectedStock} date={date} strategy={strategy} options={{ ...options, ...(hasTurnoverFilter ? { minTurnoverRateF } : {}) }} onClose={() => setSelectedStock(null)} />
         <StockChart navigation={chartList} onNavigate={setObservation} stock={observation} date={observation?.date || date} strategy={observation?.studyStrategy || strategy} options={trendDefaults} onClose={() => setObservation(null)} />
       </div>
