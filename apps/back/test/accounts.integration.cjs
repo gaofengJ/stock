@@ -195,16 +195,18 @@ async function main() {
       return;
     }
     await verifyFeedback({ inject, user, admin, db });
-    await db.query("INSERT INTO t_news_item(source,dedupe_key,kind,title,body,important,published_at,created_at,updated_at) VALUES('jin10',REPEAT('a',64),'flash','新闻测试','测试正文',1,'2026-10-01 00:00:00',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))");
+    // Keep recoverable history inside the 30-day retention window and separate from today's feeds.
+    const historyDate = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+    await db.query("INSERT INTO t_news_item(source,dedupe_key,kind,title,body,important,published_at,created_at,updated_at) VALUES('jin10',REPEAT('a',64),'flash','新闻测试','测试正文',1,?,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))", [historyDate]);
     await db.query("UPDATE t_news_source SET status='ok',last_success=UTC_TIMESTAMP(3),last_error='' WHERE source='jin10'");
-    await db.query("INSERT INTO t_news_item(source,dedupe_key,kind,title,body,important,published_at,created_at,updated_at) VALUES('em-stock',REPEAT('d',64),'article','研报测试','不应展示',0,'2026-10-01 00:00:00',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3)),('stcn',REPEAT('e',64),'flash','失败来源旧内容','不应展示',0,'2026-10-01 00:00:00',UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))");
+    await db.query("INSERT INTO t_news_item(source,dedupe_key,kind,title,body,important,published_at,created_at,updated_at) VALUES('em-stock',REPEAT('d',64),'article','研报测试','不应展示',0,?,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3)),('stcn',REPEAT('e',64),'flash','失败来源旧内容','不应展示',0,?,UTC_TIMESTAMP(3),UTC_TIMESTAMP(3))", [historyDate, historyDate]);
     await db.query("UPDATE t_news_source SET status='error',last_success=UTC_TIMESTAMP(3),last_error='Fixture failure' WHERE source='stcn'");
     const [newsItem] = await db.query("SELECT id FROM t_news_item WHERE source='jin10' AND dedupe_key=REPEAT('a',64)");
-    const firstNews = await inject('GET','/news?date=2026-10-01',undefined,user);
+    const firstNews = await inject('GET',`/news?date=${historyDate}`,undefined,user);
     assert.equal(firstNews.statusCode, 200, firstNews.body);
     assert.equal(firstNews.json().data.total, 1);
-    assert.equal((await inject('GET','/news?source=em-stock&date=2026-10-01',undefined,user)).json().data.total, 0, 'Direct filters cannot expose retired research');
-    assert.equal((await inject('GET','/news?source=stcn&date=2026-10-01',undefined,user)).json().data.total, 0, 'Failed source history stays off the public feed');
+    assert.equal((await inject('GET',`/news?source=em-stock&date=${historyDate}`,undefined,user)).json().data.total, 0, 'Direct filters cannot expose retired research');
+    assert.equal((await inject('GET',`/news?source=stcn&date=${historyDate}`,undefined,user)).json().data.total, 0, 'Failed source history stays off the public feed');
     const readerSources = (await inject('GET','/news/sources?includeUnavailable=true',undefined,user)).json().data.sources;
     assert.deepEqual(readerSources.map(s=>s.code), ['jin10'], 'Reader cannot request manager-only unavailable sources');
     const managerSources = (await inject('GET','/news/sources',undefined,admin)).json().data.sources;
@@ -214,7 +216,7 @@ async function main() {
     assert.equal((await inject('PATCH','/news/sources/jin10',{enabled:false},user)).statusCode, 403);
     assert.equal((await inject('PATCH','/news/sources/jin10',{enabled:'false'},admin)).statusCode, 400);
     assert.equal((await inject('PATCH','/news/sources/jin10',{enabled:false},admin)).statusCode, 200);
-    assert.equal((await inject('GET','/news?date=2026-10-01',undefined,user)).json().data.total, 0, 'Disabled sources leave the public feed');
+    assert.equal((await inject('GET',`/news?date=${historyDate}`,undefined,user)).json().data.total, 0, 'Disabled sources leave the public feed');
     assert.equal((await inject('GET','/news?date=2026-02-30',undefined,user)).statusCode, 400);
     assert.equal((await inject('POST','/news/'+newsItem.id+'/favorite',undefined,user)).statusCode, 404, 'Removed favorite endpoint');
     assert.equal((await inject('DELETE','/news/'+newsItem.id+'/favorite',undefined,user)).statusCode, 404, 'Removed favorite endpoint');
@@ -256,10 +258,10 @@ async function main() {
     await db.query("UPDATE t_news_source SET last_attempt=NULL,next_attempt=NULL WHERE source='stcn'");
     await newsService.sync(true);
     assert((await inject('GET','/news/sources',undefined,user)).json().data.sources.some(s=>s.code==='stcn'), 'Recovered sources automatically become visible');
-    assert((await inject('GET','/news?source=stcn&date=2026-10-01',undefined,user)).json().data.total>0, 'Recovered source history reappears');
+    assert((await inject('GET',`/news?source=stcn&date=${historyDate}`,undefined,user)).json().data.total>0, 'Recovered source history reappears');
     // Translation delivery, English-only retries and editorial updates on real MySQL.
     const { bloombergSourceHash } = require('../dist/modules/news/news.bloomberg');
-    const english = {id:'translation-fixture',title:'Stocks rise',content_html:'<p>Public summary</p>',date_published:'2026-10-01T06:00:00Z',url:'https://www.bloomberg.com/news/articles/translation-fixture'};
+    const english = {id:'translation-fixture',title:'Stocks rise',content_html:'<p>Public summary</p>',date_published:`${historyDate}T06:00:00Z`,url:'https://www.bloomberg.com/news/articles/translation-fixture'};
     const chinese = {engine:'argos',model:'en_zh-1.9',source_hash:bloombergSourceHash(english),title:'股票上涨',body:'公开摘要'};
     const otherFetcher = newsService.fetchSource;
     let translatedFeed = {...english,translation:chinese};
@@ -275,12 +277,12 @@ async function main() {
     assert.equal(delayedBloomberg.status, 'delayed', 'Delayed snapshots stay readable with an explicit delay status');
     assert.equal(delayedBloomberg.lastSuccess, relayTimestamp.toISOString(), 'Repeated reads preserve the upstream collection time');
     assert(delayedBloomberg.warning.includes('更新延迟'));
-    const translatedList = (await inject('GET','/news?source=bloomberg&date=2026-10-01',undefined,user)).json().data;
+    const translatedList = (await inject('GET',`/news?source=bloomberg&date=${historyDate}`,undefined,user)).json().data;
     const translatedItem = translatedList.items.find(item=>item.title==='Stocks rise');
     assert(translatedItem, 'Translated English item is visible');
     assert.equal(translatedItem.translation.title,'股票上涨');
     assert.equal((await inject('GET','/news/'+translatedItem.id,undefined,user)).json().data.translation.body,'公开摘要');
-    assert.equal((await inject('GET','/news?source=bloomberg&date=2026-10-01&keyword='+encodeURIComponent('公开摘要'),undefined,user)).json().data.total,1,'Chinese text is searchable');
+    assert.equal((await inject('GET',`/news?source=bloomberg&date=${historyDate}&keyword=`+encodeURIComponent('公开摘要'),undefined,user)).json().data.total,1,'Chinese text is searchable');
     translatedFeed = {...english};
     await collectTranslation();
     assert.equal((await newsService.detail(translatedItem.id)).translation.title,'股票上涨','English-only retry preserves unchanged translation');
